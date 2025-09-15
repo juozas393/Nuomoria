@@ -1,0 +1,17 @@
+{
+  "builds": [
+    {
+      "src": "property-manager/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "property-manager/build"
+      }
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
