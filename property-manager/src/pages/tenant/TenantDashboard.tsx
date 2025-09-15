@@ -547,7 +547,9 @@ const TenantDashboard: React.FC = () => {
   }, []);
 
   const handleAction = useCallback((actionId: string) => {
-    console.log('Action clicked:', actionId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Action clicked:', actionId);
+    }
   }, []);
 
   return (
