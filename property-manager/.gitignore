@@ -151,3 +151,4 @@ bundle-report.html
 *.7z
 *.tar
 *.gz
+.vercel
