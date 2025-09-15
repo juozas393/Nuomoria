@@ -1,0 +1,238 @@
+/* 🚀 ULTIMATE PERFORMANCE CSS */
+/* Pašaliname blur efektus ir brangius GPU operacijas */
+
+:root {
+  /* Performance-first elevations */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --border-light: 1px solid rgb(229 231 235);
+  --border-medium: 1px solid rgb(209 213 219);
+  
+  /* Optimized colors */
+  --backdrop-overlay: rgba(0, 0, 0, 0.45);
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-bg-dark: rgba(17, 24, 39, 0.95);
+}
+
+/* ====== GENERAL PERFORMANCE OPTIMIZATIONS ====== */
+
+/* Smooth native scrolling */
+html, body {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+}
+
+/* Prevent overscroll bouncing */
+.main-content,
+.modal-content,
+.sidebar-content {
+  overscroll-behavior: contain;
+}
+
+/* Content visibility for large sections */
+.section-auto-size {
+  content-visibility: auto;
+  contain-intrinsic-size: 800px;
+}
+
+/* ====== OVERLAY & MODAL OPTIMIZATIONS ====== */
+
+/* NO BLUR - Use solid overlay instead */
+.modal-backdrop {
+  background: var(--backdrop-overlay);
+  backdrop-filter: none !important;
+  filter: none !important;
+}
+
+.modal-content {
+  background: var(--glass-bg);
+  border: var(--border-light);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: none !important;
+}
+
+.modal-header {
+  border-bottom: var(--border-light);
+  background: transparent;
+}
+
+/* ====== CARD & UI OPTIMIZATIONS ====== */
+
+/* Replace heavy shadows with borders */
+.card,
+.property-card,
+.tenant-card {
+  border: var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease;
+}
+
+.card:hover,
+.property-card:hover,
+.tenant-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: none; /* Remove scale transforms */
+}
+
+/* ====== STICKY HEADERS (CSS-only) ====== */
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--glass-bg);
+  border-bottom: var(--border-light);
+  backdrop-filter: none !important;
+}
+
+.sticky-table-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: white;
+  border-bottom: var(--border-medium);
+}
+
+/* ====== VIRTUALIZATION OPTIMIZATIONS ====== */
+
+.virtual-list-container {
+  contain: layout style;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.virtual-list-item {
+  contain: layout style;
+  will-change: auto;
+}
+
+/* Only add will-change when visible */
+.virtual-list-item.in-viewport {
+  will-change: transform;
+}
+
+/* ====== FORM OPTIMIZATIONS ====== */
+
+.form-input,
+.form-select,
+.form-textarea {
+  height: 2.25rem; /* h-9 standard */
+  font-size: 0.875rem; /* text-sm */
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: var(--border-medium);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: rgb(59 130 246);
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+}
+
+/* ====== IMAGE OPTIMIZATIONS ====== */
+
+.lazy-image {
+  loading: lazy;
+  decoding: async;
+  fetchpriority: low;
+}
+
+.critical-image {
+  loading: eager;
+  decoding: sync;
+  fetchpriority: high;
+}
+
+/* ====== LOW-END DEVICE OPTIMIZATIONS ====== */
+
+.low-end-mode * {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+.low-end-mode .card:hover {
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.low-end-mode .modal-backdrop {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* ====== INTERSECTION OBSERVER HELPERS ====== */
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* ====== GRID OPTIMIZATIONS ====== */
+
+.grid-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.grid-performance {
+  contain: layout;
+  display: grid;
+}
+
+/* ====== BUTTON OPTIMIZATIONS ====== */
+
+.btn-performance {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transform: none;
+}
+
+.btn-performance:hover {
+  transform: none;
+}
+
+.btn-performance:active {
+  transform: scale(0.98);
+}
+
+/* ====== DARK MODE PERFORMANCE ====== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: var(--glass-bg-dark);
+    --backdrop-overlay: rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* ====== REDUCE MOTION ====== */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ====== PRINT OPTIMIZATIONS ====== */
+
+@media print {
+  .modal-backdrop,
+  .sidebar,
+  .floating-action,
+  .tooltip {
+    display: none !important;
+  }
+  
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+}

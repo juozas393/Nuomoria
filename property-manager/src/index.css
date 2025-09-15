@@ -1,0 +1,842 @@
+@import './styles/tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Shopify-level Performance Optimizations */
+:root {
+  /* Performance variables */
+  --scroll-behavior: auto;
+  --scroll-padding: 0;
+  --overscroll-behavior: auto;
+  --webkit-overflow-scrolling: touch;
+  --transition-duration: 0.15s;
+  --border-radius: 0.375rem;
+  
+  /* Color variables for consistency */
+  --primary-color: #2f8481;
+  --primary-hover: #2a7673;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+}
+
+/* Global performance optimizations - Shopify level */
+* {
+  box-sizing: border-box;
+  /* Remove all scroll resistance */
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Remove heavy effects */
+  will-change: auto;
+  transform: none;
+  backface-visibility: visible;
+}
+
+/* Optimize all elements */
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Body optimizations - Shopify level */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  /* Ultra light scroll optimization */
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto;
+  /* Remove scroll resistance */
+  scroll-snap-type: none;
+  scroll-padding: 0;
+  /* Remove heavy effects */
+  will-change: auto;
+  transform: none;
+}
+
+/* HTML optimizations - Shopify level */
+html {
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-top: 0;
+  /* Remove scroll resistance */
+  overscroll-behavior: auto;
+  /* Remove heavy effects */
+  will-change: auto;
+  transform: none;
+}
+
+/* Ultra light scroll for main content - Shopify level */
+.scroll-ultra-light {
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto;
+  scroll-snap-type: none;
+  /* Remove any scroll resistance */
+  scroll-padding: 0;
+  /* Remove heavy effects */
+  will-change: auto;
+  transform: none;
+}
+
+/* Inertia scroll for modern browsers - Shopify level */
+.scroll-inertia {
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto;
+  /* Enable native inertia */
+  scroll-snap-type: none;
+  /* Remove heavy effects */
+  will-change: auto;
+  transform: none;
+}
+
+/* Touch optimized scroll - Shopify level */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
+  /* Optimize for touch devices */
+  touch-action: pan-y;
+  /* Remove heavy effects */
+  will-change: auto;
+  transform: none;
+}
+
+/* Custom scrollbar for better feel - Shopify level */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 2px;
+  transition: background 0.1s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Optimized transitions - Shopify level */
+.transition-fast {
+  transition: all 0.1s ease-out;
+}
+
+.transition-normal {
+  transition: all 0.15s ease-out;
+}
+
+.transition-slow {
+  transition: all 0.2s ease-out;
+}
+
+/* Remove hardware acceleration - causes lag */
+.animate-gpu {
+  will-change: auto;
+  transform: none;
+}
+
+/* Smooth animations - Shopify level */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Utility classes - Shopify level */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.15s ease-out;
+}
+
+/* Loading skeleton - Shopify level */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Modal centering - Shopify level (no blur) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  padding: 1rem;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Remove all blur effects globally */
+* {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+
+/* Smooth scroll behavior */
+html, body { 
+  scroll-behavior: smooth; 
+}
+
+/* Content visibility for performance */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 1000px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: 1200px;
+  width: 95%;
+  max-height: 95vh;
+  overflow: hidden;
+  position: relative;
+  margin: 0;
+  transform: none;
+}
+
+/* Perfect centering for modals - Shopify level */
+.modal-center {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+}
+
+/* Optimized button styles - Shopify level */
+.btn-primary {
+  @apply bg-[#2f8481] text-white px-4 py-2 rounded font-medium;
+  transition: all 0.1s ease-out;
+}
+
+.btn-primary:hover {
+  @apply bg-[#2a7673];
+}
+
+.btn-secondary {
+  @apply bg-gray-200 text-gray-800 px-4 py-2 rounded font-medium;
+  transition: all 0.1s ease-out;
+}
+
+.btn-secondary:hover {
+  @apply bg-gray-300;
+}
+
+/* Optimized card styles - Shopify level */
+.card {
+  @apply bg-white rounded shadow-sm border border-gray-200;
+  transition: all 0.1s ease-out;
+}
+
+.card:hover {
+  @apply shadow;
+}
+
+/* Loading overlay - Shopify level */
+.loading-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+}
+
+/* Modal backdrop - Shopify level (no blur) */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black bg-opacity-50 z-40;
+}
+
+/* Performance indicator */
+.perf-indicator {
+  @apply fixed top-4 right-4 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-xs z-50;
+}
+
+/* Responsive - Shopify level */
+@media (max-width: 768px) {
+  .mobile-optimized {
+    @apply text-sm;
+  }
+  
+  .modal-content {
+    width: 98%;
+    max-height: 98vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-optimized {
+    @apply text-xs;
+  }
+  
+  .modal-content {
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .modal-overlay {
+    padding: 0;
+  }
+}
+
+/* High contrast */
+@media (prefers-contrast: high) {
+  .card {
+    @apply border-2 border-gray-800;
+  }
+  
+  .btn-primary {
+    @apply border-2 border-white;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .animate-spin,
+  .animate-pulse,
+  .animate-fade-in,
+  .animate-slide-in {
+    animation: none !important;
+  }
+  
+  .scroll-ultra-light {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Scroll Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation classes */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.6s ease-out;
+}
+
+.animate-on-scroll.animate-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 0.6s ease-out forwards;
+}
+
+.animate-fade-in-right {
+  animation: fadeInRight 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s ease-out forwards;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.6s ease-out forwards;
+}
+
+/* Stagger animations */
+.animate-stagger-1 { animation-delay: 0.1s; }
+.animate-stagger-2 { animation-delay: 0.2s; }
+.animate-stagger-3 { animation-delay: 0.3s; }
+.animate-stagger-4 { animation-delay: 0.4s; }
+.animate-stagger-5 { animation-delay: 0.5s; }
+
+/* Parallax effect */
+.parallax {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Smooth scroll optimizations for sidebar */
+.sidebar-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-snap-type: y proximity;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+  transition: background 0.1s ease;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth scroll for main content */
+.main-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto;
+}
+
+/* Smooth scroll to top */
+.scroll-to-top {
+  scroll-behavior: smooth;
+}
+
+/* GitHub-style Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px; /* Account for fixed navbar */
+}
+
+/* Ultra Fast + Smooth Scroll Optimizations */
+/* Sklandus scroll + stabilus scrollbar + iOS inertija */
+.smooth-list{
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sąrašų zona – be jokio blur */
+.list-surface, .list-surface *{
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Scroll metu išjungiame perėjimus (mažiau „mikro drebėjimo") */
+.smooth-list[data-scrolling="1"] .tenant-row{
+  transition: none !important;
+  will-change: transform;
+}
+
+/* Virtualizuotoms eilutėms */
+.tenant-row{ 
+  content-visibility: auto; 
+  contain-intrinsic-size: 80px; 
+}
+
+/* Sticky headeriams, kad compositor'ius tvarkytų sklandžiau */
+.sticky{ 
+  will-change: transform; 
+}
+
+@media (hover: none){ 
+  .tenant-row:hover{ 
+    background: transparent; 
+  } 
+}
+
+@media (prefers-reduced-motion: reduce){ 
+  .tenant-row{ 
+    transition: none !important; 
+  } 
+}
+
+/* Custom scrollbar - GitHub style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Smooth scroll for specific containers */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* GitHub-style scroll snap */
+.scroll-snap {
+  scroll-snap-type: y proximity;
+  scroll-snap-stop: always;
+}
+
+.scroll-snap-start {
+  scroll-snap-align: start;
+}
+
+.scroll-snap-center {
+  scroll-snap-align: center;
+}
+
+/* Enhanced scroll performance */
+.scroll-optimized {
+  will-change: scroll-position;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Chip Design System - Professional Tenant Management */
+.chip {
+  @apply inline-flex items-center h-6 px-2 rounded-full text-[11px] font-medium;
+}
+
+.chip-neutral {
+  @apply bg-neutral-100 text-neutral-700;
+}
+
+.chip-ok {
+  @apply bg-emerald-50 text-emerald-700;
+}
+
+.chip-warn {
+  @apply bg-amber-50 text-amber-800;
+}
+
+.chip-danger {
+  @apply bg-rose-50 text-rose-700;
+}
+
+.chip-brand {
+  @apply bg-[#2F8481]/10 text-[#2F8481];
+}
+
+/* Tabular Numbers for Perfect Alignment */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Micro Progress Bar */
+.micro-progress {
+  @apply h-1.5 rounded-full bg-neutral-100 overflow-hidden;
+}
+
+.micro-progress-fill {
+  @apply h-full bg-[#2F8481] transition-all duration-200;
+}
+
+/* Ultra-light modal overlay for maximum performance */
+.modal-overlay-light {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  will-change: auto;
+}
+
+/* Modal content with perfect centering */
+.modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: 1200px;
+  width: 95%;
+  max-height: 95vh;
+  overflow: hidden;
+  position: relative;
+  margin: 0;
+  transform: none;
+  /* Ensure perfect centering */
+  flex-shrink: 0;
+  align-self: center;
+  justify-self: center;
+}
+
+/* Perfect modal centering */
+.modal-perfect-center {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.modal-perfect-center .modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
+  max-width: 1200px;
+  width: 95%;
+  max-height: 95vh;
+  overflow: hidden;
+  position: relative;
+  margin: 0;
+  transform: none;
+  flex-shrink: 0;
+  align-self: center;
+  justify-self: center;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Icon Button Styles */
+.icon-btn {
+  height: 32px;
+  width: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #F3F4F6;
+}
+
+/* Chip Styles for Modal */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.chip-neutral {
+  background: #F3F4F6;
+  color: #374151;
+}
+
+.chip-ok {
+  background: #ECFDF5;
+  color: #065F46;
+}
+
+.chip-brand {
+  background: #2F84811A;
+  color: #2F8481;
+}
+
+.chip-danger {
+  background: #FEF2F2;
+  color: #B91C1C;
+}
+
+/* Button Styles for Modal */
+.btn-brand {
+  background: #2F8481;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-brand:hover {
+  background: #2a7673;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #111827;
+  border: 1px solid #E5E7EB;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-ghost:hover {
+  background: #F9FAFB;
+}
