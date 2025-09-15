@@ -1,4 +1,4 @@
-# Property Management System v2
+# Nuomoria
 
 A comprehensive property management application built with React, TypeScript, and Supabase. This system provides tools for landlords, tenants, and property managers to efficiently manage rental properties, track utilities, handle invoices, and maintain property records.
 
