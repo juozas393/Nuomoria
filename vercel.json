@@ -4,14 +4,14 @@
       "src": "property-manager/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "property-manager/build"
+        "distDir": "build"
       }
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
