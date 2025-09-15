@@ -1,10 +1,10 @@
 {
   "builds": [
     {
-      "src": "package.json",
+      "src": "property-manager/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "property-manager/build"
       }
     }
   ],
