@@ -130,3 +130,25 @@ Thumbs.db
 # Local configuration
 config/local.js
 config/local.json
+
+# Sensitive data files
+*.csv
+*.xlsx
+*.xls
+*.doc
+*.docx
+*.pdf
+saskaita.csv
+"Vokiečių 117 mokesčiai-2025 birželis.csv"
+nuomoria.lt.txt
+readme.txt
+
+# Image files that shouldn't be public
+skaitliukai.png
+transparent.png
+
+# Database schema files
+supabase-schema.sql
+
+# Vercel deployment config
+vercel.json

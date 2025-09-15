@@ -152,3 +152,20 @@ bundle-report.html
 *.tar
 *.gz
 .vercel
+
+# Additional sensitive data files
+*.csv
+saskaita.csv
+"Vokiečių 117 mokesčiai-2025 birželis.csv"
+nuomoria.lt.txt
+readme.txt
+
+# Additional image files
+skaitliukai.png
+transparent.png
+
+# Database schema
+supabase-schema.sql
+
+# Excel files with sensitive data
+Depozito_grazinimo_logikos_lenteleč.xlsx

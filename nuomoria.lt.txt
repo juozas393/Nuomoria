@@ -1,8 +1,0 @@
-@	IN A	79.98.25.1
-
-*	IN A	79.98.25.1
-
-@	IN MX	10 nuomoria.lt.
-
-@	IN TXT	"v=spf1 a mx include:spf.serveriai.lt"
-
