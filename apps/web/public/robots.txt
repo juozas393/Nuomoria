@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_headers
+Disallow: /.env
+Disallow: /src/
+
+Sitemap: https://nuomoria.lt/sitemap.xml
