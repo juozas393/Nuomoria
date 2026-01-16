@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   XMarkIcon, 
   Cog6ToothIcon,
@@ -15,10 +15,8 @@ import {
   BoltIcon
 } from '@heroicons/react/24/outline';
 import { Trash2, X } from 'lucide-react';
-import { CommunalConfig, type AddressMeterSettings } from '../../types/communal';
-import { CommunalConfigManager } from '../communal/CommunalConfigManager';
-// CommunalMetersManager import removed - using MetersTable instead
-import { MetersTable } from './MetersTable';
+import { type AddressMeterSettings } from '../../types/communal';
+import { MetersTable, type LocalMeter } from './MetersTable';
 import { 
   getAddressSettings, 
   upsertAddressSettings, 
@@ -28,25 +26,6 @@ import {
 import { AddressSettings } from '../../data/addressSettingsData';
 import { supabase } from '../../lib/supabase';
 import { type DistributionMethod } from '../../constants/meterDistribution';
-
-// Define meter interface matching MetersTable
-interface LocalMeter {
-  id: string;
-  name: string;
-  type: 'individual' | 'communal';
-  unit: 'm3' | 'kWh' | 'GJ' | 'Kitas';
-  price_per_unit: number;
-  fixed_price?: number;
-  distribution_method: DistributionMethod;
-  description: string;
-  is_active: boolean;
-  requires_photo: boolean;
-  is_custom?: boolean;
-  is_inherited?: boolean;
-  collectionMode: 'landlord_only' | 'tenant_photo';
-  landlordReadingEnabled: boolean;
-  tenantPhotoEnabled: boolean;
-}
 
 interface CommunalMeter {
   id: string;
@@ -72,6 +51,7 @@ interface AddressSettingsModalProps {
   currentSettings?: AddressSettings;
   onSave: (settings: AddressSettings) => void;
   onDelete?: (addressId: string, address: string) => void;
+  onOpenBilling?: (params: { addressId?: string | null; address: string }) => void;
 }
 
 const DEFAULT_SETTINGS: Omit<AddressSettings, 'id' | 'address' | 'createdAt' | 'updatedAt'> = {
@@ -116,7 +96,8 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
   addressId,
   currentSettings,
   onSave,
-  onDelete
+  onDelete,
+  onOpenBilling
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'meters' | 'communal' | 'financial' | 'notifications'>('general');
   const [settings, setSettings] = useState<AddressSettings>(
@@ -168,30 +149,75 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
           const { data: meters, error: metersError } = await supabase
             .from('address_meters')
             .select('*')
-            .eq('address_id', resolvedAddressId)
-            .eq('is_active', true);
+            .eq('address_id', resolvedAddressId);
 
           if (metersError) {
             console.error('Error loading meters:', metersError);
           } else if (meters) {
-            // Convert to component format
-            const convertedMeters: LocalMeter[] = meters.map(meter => ({
-              id: meter.id,
-              name: meter.name,
-              type: meter.type as 'individual' | 'communal',
-              unit: meter.unit as 'm3' | 'kWh' | 'GJ' | 'Kitas',
-              price_per_unit: meter.price_per_unit || 0,
-              fixed_price: meter.fixed_price,
-              distribution_method: meter.distribution_method as DistributionMethod,
-              description: meter.description || '',
-              is_active: meter.is_active,
-              requires_photo: meter.requires_photo || false,
-              is_custom: false,
-              is_inherited: false,
-              collectionMode: meter.type === 'individual' ? 'tenant_photo' : 'landlord_only',
-              landlordReadingEnabled: meter.type === 'individual' ? true : false,
-              tenantPhotoEnabled: meter.type === 'individual' ? true : false
-            }));
+            const allowedUnits: Array<LocalMeter['unit']> = ['m3', 'kWh', 'GJ', 'Kitas'];
+
+            const toLocalMeter = (meter: any): LocalMeter => {
+              const type = (meter.type as 'communal' | 'individual') ?? 'individual';
+              return {
+                id: meter.id,
+                name: meter.name || 'Skaitliukas',
+                type,
+                unit: (meter.unit as LocalMeter['unit']) ?? 'm3',
+                price_per_unit: meter.price_per_unit ?? 0,
+                fixed_price: meter.fixed_price ?? 0,
+                distribution_method: (meter.distribution_method as DistributionMethod) || 'per_apartment',
+                description: meter.description ?? meter.notes ?? '',
+                is_active: meter.is_active ?? true,
+                requires_photo: (meter.requires_photo ?? meter.require_photo) ?? false,
+                is_custom: meter.is_custom ?? false,
+                is_inherited: meter.is_inherited ?? false,
+                collectionMode:
+                  (meter.collection_mode as LocalMeter['collectionMode']) ??
+                  (type === 'individual' ? 'tenant_photo' : 'landlord_only'),
+                landlordReadingEnabled:
+                  meter.landlord_reading_enabled ?? (type === 'individual'),
+                tenantPhotoEnabled:
+                  meter.tenant_photo_enabled ?? (type === 'individual'),
+                lastReadingValue: meter.last_reading ?? meter.current_reading ?? null,
+                previousReadingValue: meter.previous_reading ?? null,
+                lastReadingDate: meter.last_reading_date ?? meter.updated_at ?? null,
+                lastTotalCost: meter.last_total_cost ?? null,
+                lastUpdatedAt: meter.updated_at ?? null
+              };
+            };
+
+            let convertedMeters: LocalMeter[] = meters
+              .filter((meter) => !(meter.is_custom ?? false))
+              .map(toLocalMeter);
+
+            // Fallback: derive defaults from apartment meters if address-level entries are missing
+            if (convertedMeters.length === 0) {
+              const { data: fallbackProperties, error: fallbackPropertiesError } = await supabase
+                .from('properties')
+                .select('id')
+                .eq('address_id', resolvedAddressId)
+                .limit(1);
+
+              if (fallbackPropertiesError) {
+                console.error('Error loading fallback properties for meters:', fallbackPropertiesError);
+              } else {
+                const fallbackPropertyId = fallbackProperties?.[0]?.id;
+                if (fallbackPropertyId) {
+                  const { data: apartmentMeters, error: apartmentMetersError } = await supabase
+                    .from('apartment_meters')
+                    .select('*')
+                    .eq('property_id', fallbackPropertyId)
+                    .eq('is_custom', false);
+
+                  if (apartmentMetersError) {
+                    console.error('Error loading fallback apartment meters:', apartmentMetersError);
+                  } else if (apartmentMeters?.length) {
+                    convertedMeters = apartmentMeters.map(toLocalMeter);
+                  }
+                }
+              }
+            }
+
             setAddressMeters(convertedMeters);
           }
         }
@@ -279,32 +305,47 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
       if (properties && properties.length > 0) {
         // First, delete all existing apartment meters for these properties
         const deletePromises = properties.map(async (property) => {
-          const { error: deleteError } = await supabase
+          const { error: deleteNonCustomError } = await supabase
             .from('apartment_meters')
             .delete()
-            .eq('property_id', property.id);
-          
-          if (deleteError) throw deleteError;
+            .eq('property_id', property.id)
+            .eq('is_custom', false);
+
+          if (deleteNonCustomError) throw deleteNonCustomError;
+
+          const { error: deleteUnsetCustomError } = await supabase
+            .from('apartment_meters')
+            .delete()
+            .eq('property_id', property.id)
+            .is('is_custom', null);
+
+          if (deleteUnsetCustomError && deleteUnsetCustomError.code !== 'PGRST116') {
+            throw deleteUnsetCustomError;
+          }
         });
 
         await Promise.all(deletePromises);
 
         // Then create apartment meters for each property
         const apartmentMeterPromises = properties.map(async (property) => {
+          const timestamp = new Date().toISOString();
+
           const apartmentMetersToInsert = addressMeters
             .filter(meter => meter.type === 'individual') // Only individual meters for apartments
             .map(meter => ({
               property_id: property.id,
+              address_meter_id: meter.id,
               meter_name: meter.name,
               meter_type: meter.type,
               unit: meter.unit,
+              distribution_method: meter.distribution_method,
               price_per_unit: meter.price_per_unit,
               fixed_price: meter.fixed_price,
-              serial_number: null,
               is_active: meter.is_active,
               requires_photo: meter.requires_photo,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              is_custom: false,
+              created_at: timestamp,
+              updated_at: timestamp
             }));
 
           if (apartmentMetersToInsert.length > 0) {
@@ -383,32 +424,47 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
             if (properties && properties.length > 0) {
               // First, delete all existing apartment meters for these properties
               const deletePromises = properties.map(async (property) => {
-                const { error: deleteError } = await supabase
+                const { error: deleteNonCustomError } = await supabase
                   .from('apartment_meters')
                   .delete()
-                  .eq('property_id', property.id);
+                  .eq('property_id', property.id)
+                  .eq('is_custom', false);
                 
-                if (deleteError) throw deleteError;
+                if (deleteNonCustomError) throw deleteNonCustomError;
+
+                const { error: deleteUnsetCustomError } = await supabase
+                  .from('apartment_meters')
+                  .delete()
+                  .eq('property_id', property.id)
+                  .is('is_custom', null);
+
+                if (deleteUnsetCustomError && deleteUnsetCustomError.code !== 'PGRST116') {
+                  throw deleteUnsetCustomError;
+                }
               });
 
               await Promise.all(deletePromises);
 
               // Then create apartment meters for each property
               const apartmentMeterPromises = properties.map(async (property) => {
+                const timestamp = new Date().toISOString();
+
                 const apartmentMetersToInsert = addressMeters
                   .filter(meter => meter.type === 'individual') // Only individual meters for apartments
                   .map(meter => ({
                     property_id: property.id,
+                    address_meter_id: meter.id,
                     meter_name: meter.name,
                     meter_type: meter.type,
                     unit: meter.unit,
+                    distribution_method: meter.distribution_method,
                     price_per_unit: meter.price_per_unit,
                     fixed_price: meter.fixed_price,
-                    serial_number: null,
                     is_active: meter.is_active,
                     requires_photo: meter.requires_photo,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
+                    is_custom: false,
+                    created_at: timestamp,
+                    updated_at: timestamp
                   }));
 
                 if (apartmentMetersToInsert.length > 0) {
@@ -438,22 +494,6 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
     } catch (error) {
       console.error('❌ Klaida sinchronizuojant skaitlikius:', error);
     }
-  };
-
-  const handleCommunalConfigChange = (config: CommunalConfig) => {
-    // This function handles the full communal config
-    // For now, we'll keep the existing communal config structure
-    setSettings(prev => ({
-      ...prev,
-      communalConfig: config as any // Type assertion for compatibility
-    }));
-  };
-
-  const handleMeterSettingsChange = (meterSettings: AddressMeterSettings) => {
-    setSettings(prev => ({
-      ...prev,
-      communalConfig: meterSettings
-    }));
   };
 
   // Handle meters changes
@@ -589,6 +629,103 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
       alert('Klaida išsaugant skaitliukus. Bandykite dar kartą.');
     }
   };
+
+  const meterSummary = useMemo(() => {
+    if (addressMeters.length === 0) {
+      return {
+        total: 0,
+        active: 0,
+        landlord: 0,
+        tenant: 0,
+        staleCount: 0,
+        latestReadingDate: null as string | null,
+        latestReadingFormatted: null as string | null,
+        latestMeterName: null as string | null,
+        latestValue: null as number | null,
+        latestUnit: null as LocalMeter['unit'] | null,
+        latestRelative: null as string | null
+      };
+    }
+
+    let active = 0;
+    let landlord = 0;
+    let tenant = 0;
+    let staleCount = 0;
+    let latestTimestamp = Number.NEGATIVE_INFINITY;
+    let latestReadingDate: string | null = null;
+    let latestMeterName: string | null = null;
+    let latestValue: number | null = null;
+    let latestUnit: LocalMeter['unit'] | null = null;
+
+    const now = Date.now();
+
+    addressMeters.forEach((meter) => {
+      if (meter.is_active) {
+        active += 1;
+      }
+      if (meter.collectionMode === 'tenant_photo') {
+        tenant += 1;
+      } else {
+        landlord += 1;
+      }
+
+      if (meter.lastReadingDate) {
+        const ts = new Date(meter.lastReadingDate).getTime();
+        if (!Number.isNaN(ts)) {
+          if (ts > latestTimestamp) {
+            latestTimestamp = ts;
+            latestReadingDate = meter.lastReadingDate;
+            latestMeterName = meter.name;
+            latestValue = meter.lastReadingValue ?? null;
+            latestUnit = meter.unit;
+          }
+          const daysAgo = Math.floor((now - ts) / (1000 * 60 * 60 * 24));
+          if (daysAgo >= 30) {
+            staleCount += 1;
+          }
+        } else {
+          staleCount += 1;
+        }
+      } else {
+        staleCount += 1;
+      }
+    });
+
+    const latestReadingFormatted = latestReadingDate
+      ? new Date(latestReadingDate).toLocaleDateString('lt-LT')
+      : null;
+
+    const latestRelative = latestReadingDate
+      ? (() => {
+          const ts = new Date(latestReadingDate).getTime();
+          if (Number.isNaN(ts)) {
+            return null;
+          }
+          const diffDays = Math.round((now - ts) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 0) return 'šiandien';
+          if (diffDays === 1) return 'prieš 1 d.';
+          if (diffDays < 7) return `prieš ${diffDays} d.`;
+          const diffWeeks = Math.round(diffDays / 7);
+          if (diffWeeks < 5) return `prieš ${diffWeeks} sav.`;
+          const diffMonths = Math.round(diffDays / 30);
+          return `prieš ${diffMonths} mėn.`;
+        })()
+      : null;
+
+    return {
+      total: addressMeters.length,
+      active,
+      landlord,
+      tenant,
+      staleCount,
+      latestReadingDate,
+      latestReadingFormatted,
+      latestMeterName,
+      latestValue,
+      latestUnit,
+      latestRelative
+    };
+  }, [addressMeters]);
 
   const tabs = [
     { id: 'general', label: 'Bendri nustatymai', icon: BuildingOfficeIcon },
@@ -895,53 +1032,92 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
           {activeTab === 'meters' && (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                  <BoltIcon className="w-4 h-4 mr-2 text-[#2F8481]" />
-                  Skaitliukų nustatymai
-                </h3>
-                <p className="text-xs text-gray-600 mb-3">
-                  Konfigūruokite, kaip veiks skaitliukų sistema šiame adrese
-                </p>
-
-                <div className="space-y-4">
-                  {/* Skaitliukų redagavimo nustatymas */}
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Turi būti skaitliukai</h4>
-                      <p className="text-xs text-gray-600">Ar nuomotojas gali redaguoti skaitliukus</p>
-                    </div>
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={settings.communalConfig?.enableMeterEditing ?? true}
-                        onChange={(e) => handleMeterSettingsChange({
-                          ...settings.communalConfig,
-                          enableMeterEditing: e.target.checked
-                        })}
-                        className="h-4 w-4 text-[#2F8481] focus:ring-[#2F8481] border-gray-300 rounded"
-                      />
-                    </div>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                      <BoltIcon className="w-4 h-4 text-[#2F8481]" />
+                      Skaitliukų apžvalga
+                    </h3>
+                    <p className="text-xs text-gray-600">
+                      Stebėkite, kaip veikia skaitliukų sistema šiame adrese, ir greitai pereikite prie valdymo ar rodmenų suvedimo.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('communal')}
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#2F8481] px-4 py-2 text-xs font-semibold text-[#2F8481] transition hover:bg-[#2F8481]/10"
+                    >
+                      <BoltIcon className="w-4 h-4" />
+                      Valdyti skaitliukus
+                    </button>
+                    {onOpenBilling && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenBilling({ addressId: dbAddressId, address })}
+                        className="inline-flex items-center gap-2 rounded-lg bg-[#2F8481] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#276f6c]"
+                      >
+                        <DocumentTextIcon className="w-4 h-4" />
+                        Išrašyti sąskaitą
+                      </button>
+                    )}
                   </div>
 
-                  {/* Nuotraukų reikalavimo nustatymas */}
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Reikia nuotraukos</h4>
-                      <p className="text-xs text-gray-600">Ar nuomininkas turi pateikti nuotraukas</p>
-                    </div>
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={settings.communalConfig?.requirePhotos ?? true}
-                        onChange={(e) => handleMeterSettingsChange({
-                          ...settings.communalConfig,
-                          requirePhotos: e.target.checked
-                        })}
-                        className="h-4 w-4 text-[#2F8481] focus:ring-[#2F8481] border-gray-300 rounded"
-                      />
-                    </div>
-                  </div>
                 </div>
+
+                {meterSummary.total === 0 ? (
+                  <div className="mt-4 rounded-lg border border-dashed border-black/15 bg-white p-4 text-xs text-black/60">
+                    Šiame adrese dar nėra pridėtų skaitliukų. Pereikite į kortelę „Komunaliniai&quot; ir pasirinkite „Pridėti skaitiklį&quot;.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+                        <p className="text-xs text-black/50">Aktyvūs skaitliukai</p>
+                        <p className="mt-1 text-2xl font-semibold text-black">{meterSummary.active}/{meterSummary.total}</p>
+                        <p className="text-[11px] text-black/40 mt-1">Įtraukti į skaičiavimus</p>
+                      </div>
+                      <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+                        <p className="text-xs text-black/50">Pildo nuomotojas</p>
+                        <p className="mt-1 text-2xl font-semibold text-black">{meterSummary.landlord}</p>
+                        <p className="text-[11px] text-black/40 mt-1">Rodmenis suveda pats nuomotojas</p>
+                      </div>
+                      <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+                        <p className="text-xs text-black/50">Pildo nuomininkas</p>
+                        <p className="mt-1 text-2xl font-semibold text-black">{meterSummary.tenant}</p>
+                        <p className="text-[11px] text-black/40 mt-1">Reikalingas nuomininko rodmuo su nuotrauka</p>
+                      </div>
+                      <div className={`rounded-xl border p-4 shadow-sm ${meterSummary.staleCount > 0 ? 'border-[#d97706] bg-[#fef3c7]' : 'border-black/10 bg-white'}`}>
+                        <p className="text-xs text-black/50">Rodmenys vėluoja</p>
+                        <p className={`mt-1 text-2xl font-semibold ${meterSummary.staleCount > 0 ? 'text-[#b45309]' : 'text-black'}`}>
+                          {meterSummary.staleCount}
+                        </p>
+                        <p className="text-[11px] text-black/40 mt-1">Mėnesį ar ilgiau neatnaujinti rodmenys</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-lg border border-black/10 bg-white p-4 text-xs text-black/70">
+                      {meterSummary.latestReadingDate ? (
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-semibold text-black text-sm">Paskutiniai rodmenys</p>
+                            <p className="text-xs text-black/60">
+                              {meterSummary.latestMeterName}
+                              {meterSummary.latestValue != null && meterSummary.latestUnit
+                                ? ` – ${meterSummary.latestValue} ${meterSummary.latestUnit === 'm3' ? 'm³' : meterSummary.latestUnit}`
+                                : ''}
+                            </p>
+                          </div>
+                          <div className="text-xs text-black/50">
+                            {meterSummary.latestRelative ?? meterSummary.latestReadingFormatted}
+                          </div>
+                        </div>
+                      ) : (
+                        <p>Paskutiniai rodmenys dar nepateikti. Įveskite rodmenį kortelėje „Skaitliukų valdymas&quot;.</p>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

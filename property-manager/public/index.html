@@ -1,28 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lt">
   <head>
     <meta charset="utf-8" />
+    
+    <!-- ⚡ Performance: Preconnect to critical origins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <!-- Supabase preconnect for faster API calls -->
+    <link rel="preconnect" href="https://jkfdgfxubgpzcysqxaex.supabase.co" crossorigin />
+    <link rel="dns-prefetch" href="https://jkfdgfxubgpzcysqxaex.supabase.co" />
+    
+    <!-- Favicon -->
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#4C8EF7" />
-    <meta name="description" content="PropertyManager – Modern worldwide property management platform. Manage properties, tenants, invoices, analytics, and more." />
-    <meta name="keywords" content="property management, real estate, dashboard, analytics, tenants, invoices, SaaS, worldwide" />
-    <meta name="author" content="Juozas Kazukauskas" />
-    <meta property="og:title" content="PropertyManager Dashboard" />
-    <meta property="og:description" content="Modern worldwide property management platform. Manage properties, tenants, invoices, analytics, and more." />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    
+    <!-- Viewport optimized for mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+    
+    <!-- Theme color from palette (#2F8481) -->
+    <meta name="theme-color" content="#2F8481" />
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Nuomoria – Moderni nekilnojamojo turto valdymo platforma. Valdykite objektus, nuomininkus, sąskaitas ir analizę." />
+    <meta name="keywords" content="nekilnojamojo turto valdymas, nuomotojai, nuomininkai, sąskaitos, analitika, valdymo sistema" />
+    <meta name="author" content="Nuomoria Team" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Nuomoria – Turto Valdymo Sistema" />
+    <meta property="og:description" content="Moderni nekilnojamojo turto valdymo platforma Lietuvoje." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="%PUBLIC_URL%/logo512.png" />
-    <meta property="og:url" content="https://yourdomain.com/" />
+    <meta property="og:url" content="https://nuomoria.lt/" />
+    
+    <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="PropertyManager Dashboard" />
-    <meta name="twitter:description" content="Modern worldwide property management platform. Manage properties, tenants, invoices, analytics, and more." />
+    <meta name="twitter:title" content="Nuomoria – Turto Valdymo Sistema" />
+    <meta name="twitter:description" content="Moderni nekilnojamojo turto valdymo platforma Lietuvoje." />
     <meta name="twitter:image" content="%PUBLIC_URL%/logo512.png" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    
+    <!-- PWA Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <title>PropertyManager – Modern Property Management</title>
+    
+    <!-- Security Headers (CSP will be set via _headers file) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    
+    <title>Nuomoria – Turto Valdymo Sistema</title>
+    
+    <!-- Preload critical fonts (if using custom fonts) -->
+    <!-- <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin /> -->
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="text-align: center; padding: 50px; font-family: system-ui, sans-serif;">
+        <h1>JavaScript reikalingas</h1>
+        <p>Šiai programai veikti būtinas JavaScript. Prašome jį įjungti naršyklėje.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
+    
+    <!-- Service Worker Registration (handled in index.tsx) -->
   </body>
 </html>

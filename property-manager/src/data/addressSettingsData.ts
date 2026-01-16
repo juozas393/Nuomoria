@@ -118,24 +118,164 @@ export const addressSettings: AddressSettings[] = [
 ];
 
 // Utility functions for managing address settings
-export const getAddressSettings = (address: string): AddressSettings | undefined => {
-  return addressSettings.find(setting => setting.address === address);
+export const getAddressSettings = async (address: string, addressData?: any): Promise<AddressSettings | undefined> => {
+  try {
+    // Try to get settings from database
+    if (addressData?.id) {
+      const { getAddressSettings: getDbSettings } = await import('../lib/communalMetersApi');
+      const dbSettings = await getDbSettings(addressData.id);
+      
+      if (dbSettings) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Found address settings in database:', dbSettings);
+        }
+        // Convert database format to AddressSettings format
+        return {
+          id: dbSettings.id,
+          address: address,
+          buildingInfo: {
+            totalApartments: dbSettings.building_info?.totalApartments || 12,
+            totalFloors: dbSettings.building_info?.totalFloors || 4,
+            yearBuilt: dbSettings.building_info?.yearBuilt || 2000,
+            buildingType: (dbSettings.building_info?.buildingType as 'apartment' | 'house' | 'commercial') || 'apartment',
+            heatingType: (dbSettings.building_info?.heatingType as 'central' | 'individual' | 'district') || 'central',
+            parkingSpaces: dbSettings.building_info?.parkingSpaces || 8
+          },
+          contactInfo: {
+            managerName: dbSettings.contact_info?.managerName || '',
+            managerPhone: dbSettings.contact_info?.managerPhone || '',
+            managerEmail: dbSettings.contact_info?.managerEmail || '',
+            emergencyContact: dbSettings.contact_info?.emergencyContact || '',
+            emergencyPhone: dbSettings.contact_info?.emergencyPhone || ''
+          },
+          financialSettings: {
+            defaultDeposit: dbSettings.financial_settings?.defaultDeposit || 0,
+            latePaymentFee: dbSettings.financial_settings?.latePaymentFee || 0,
+            gracePeriodDays: dbSettings.financial_settings?.gracePeriodDays || 7,
+            autoRenewalEnabled: dbSettings.financial_settings?.autoRenewalEnabled || false,
+            defaultContractDuration: dbSettings.financial_settings?.defaultContractDuration || 12
+          },
+          notificationSettings: {
+            rentReminderDays: dbSettings.notification_settings?.rentReminderDays || 7,
+            contractExpiryReminderDays: dbSettings.notification_settings?.contractExpiryReminderDays || 30,
+            meterReminderDays: dbSettings.notification_settings?.meterReminderDays || 7,
+            maintenanceNotifications: dbSettings.notification_settings?.maintenanceNotifications || true
+          },
+          communalConfig: dbSettings.communal_config,
+          createdAt: dbSettings.created_at,
+          updatedAt: dbSettings.updated_at
+        };
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error getting address settings from database:', error);
+  }
+  
+  // If no database settings found, create from address data
+  if (addressData) {
+    const settings = {
+      id: addressData.id || `address_${Date.now()}`,
+      address: address,
+      buildingInfo: {
+        totalApartments: addressData.total_apartments || 12,
+        totalFloors: addressData.floors || 4,
+        yearBuilt: addressData.year_built || 2000,
+        buildingType: (addressData.building_type as 'apartment' | 'house' | 'commercial') || 'apartment',
+        heatingType: 'central' as 'central' | 'individual' | 'district',
+        parkingSpaces: 8
+      },
+      contactInfo: {
+        managerName: addressData.chairman_name || '',
+        managerPhone: addressData.chairman_phone || '',
+        managerEmail: addressData.chairman_email || '',
+        emergencyContact: '',
+        emergencyPhone: ''
+      },
+      financialSettings: {
+        defaultDeposit: 0,
+        latePaymentFee: 0,
+        gracePeriodDays: 7,
+        autoRenewalEnabled: false,
+        defaultContractDuration: 12
+      },
+      notificationSettings: {
+        rentReminderDays: 7,
+        contractExpiryReminderDays: 30,
+        meterReminderDays: 7,
+        maintenanceNotifications: true
+      },
+      createdAt: addressData.created_at || new Date().toISOString(),
+      updatedAt: addressData.updated_at || new Date().toISOString()
+    };
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Created settings from address data:', settings);
+    }
+    
+    return settings;
+  }
+  
+  // If no address data, return undefined to create default settings
+  return undefined;
 };
 
 export const getAllAddressSettings = (): AddressSettings[] => {
   return addressSettings;
 };
 
-export const saveAddressSettings = (settings: AddressSettings): void => {
-  const index = addressSettings.findIndex(s => s.id === settings.id);
-  if (index !== -1) {
-    addressSettings[index] = settings;
-  } else {
-    addressSettings.push(settings);
+export const saveAddressSettings = async (settings: AddressSettings): Promise<void> => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 saveAddressSettings called with:', settings);
   }
   
-  // In a real application, this would save to a database
-  console.log('Address settings saved:', settings);
+  try {
+    // Import the API functions
+    const { createAddressSettings, updateAddressSettings } = await import('../lib/communalMetersApi');
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 API functions imported successfully');
+    }
+    
+    if (settings.id && settings.id.startsWith('address_')) {
+      // Update existing settings
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Updating existing settings with ID:', settings.id);
+      }
+      await updateAddressSettings(settings.id, settings);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Address settings updated in database:', settings);
+      }
+    } else {
+      // Create new settings
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Creating new settings with address_id:', settings.id);
+      }
+      const newSettings = await createAddressSettings({
+        address_id: settings.id,
+        building_info: settings.buildingInfo,
+        contact_info: settings.contactInfo,
+        financial_settings: settings.financialSettings,
+        notification_settings: settings.notificationSettings,
+        communal_config: settings.communalConfig
+      });
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Address settings created in database:', newSettings);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error saving address settings to database:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Error details:', error);
+    }
+    // Fallback to local storage
+    const index = addressSettings.findIndex(s => s.id === settings.id);
+    if (index !== -1) {
+      addressSettings[index] = settings;
+    } else {
+      addressSettings.push(settings);
+    }
+  }
 };
 
 export const deleteAddressSettings = (addressId: string): void => {
@@ -153,14 +293,18 @@ export const getAddressesWithSettings = (): string[] => {
 };
 
 // Helper function to get default settings for a new address
-export const getDefaultAddressSettings = (address: string): Omit<AddressSettings, 'id' | 'createdAt' | 'updatedAt'> => {
+export const getDefaultAddressSettings = (address: string, addressData?: any): Omit<AddressSettings, 'id' | 'createdAt' | 'updatedAt'> => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 getDefaultAddressSettings called with:', { address, addressData });
+  }
+  
   return {
     address,
     buildingInfo: {
-      totalApartments: 12,
-      totalFloors: 4,
-      yearBuilt: 2000,
-      buildingType: 'apartment',
+      totalApartments: addressData?.total_apartments || 12,
+      totalFloors: addressData?.floors || 4,
+      yearBuilt: addressData?.year_built || 2000,
+      buildingType: (addressData?.building_type as 'apartment' | 'house' | 'commercial') || 'apartment',
       heatingType: 'central',
       parkingSpaces: 8
     },

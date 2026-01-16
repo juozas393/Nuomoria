@@ -10,12 +10,21 @@ export interface MeterPriceData {
   price_per_unit: number;
   fixed_price: number;
   is_custom: boolean;
-  address_meter_id?: string;
+  address_meter_id?: string | null;
   property_id: string;
   policy?: {
     scope: 'none' | 'apartment' | 'building';
     collectionMode: 'landlord_only' | 'tenant_photo';
   };
+  requires_photo?: boolean;
+  requires_reading?: boolean;
+  last_reading?: number | null;
+  previous_reading?: number | null;
+  last_reading_date?: string | null;
+  last_total_cost?: number | null;
+  tenant_submitted_value?: number | null;
+  tenant_submitted_at?: string | null;
+  tenant_submission_status?: 'pending' | 'approved' | 'rejected' | null;
 }
 
 interface MeterPriceManagerProps {

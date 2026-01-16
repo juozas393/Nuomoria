@@ -20,10 +20,22 @@ export function VirtualizedList<T>({
 }: VirtualizedListProps<T>) {
   const itemData = useMemo(() => items, [items]);
 
-  const Item = ({ index, style, data }: { index: number; style: React.CSSProperties; data: T[] }) => {
+  const Item = React.memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: T[] }): React.ReactElement | null => {
     const item = data[index];
-    return renderItem({ index, style, item });
-  };
+    const rendered = renderItem({ index, style, item });
+    
+    // Ensure we always return a valid React element or null
+    if (React.isValidElement(rendered)) {
+      return rendered;
+    }
+    
+    // If renderItem returns a primitive, wrap it in a div
+    if (rendered != null) {
+      return <div style={style}>{rendered}</div>;
+    }
+    
+    return null;
+  });
 
   if (items.length === 0) {
     return (

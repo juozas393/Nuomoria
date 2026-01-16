@@ -63,7 +63,7 @@ const EmailConfirmation: React.FC = () => {
           }
         } else {
           console.log('ℹ️ Not a Google OAuth callback, redirecting to dashboard');
-          navigate('/nuomotojas2');
+          navigate('/', { replace: true });
         }
       } catch (error) {
         console.error('❌ Error in Google callback handling:', error);
@@ -143,7 +143,7 @@ const EmailConfirmation: React.FC = () => {
           // The user is already linked, just go to dashboard
           setStatus('success');
           setMessage('Sėkmingai prisijungta su Google paskyra!');
-          setTimeout(() => navigate('/nuomotojas2'), 2000);
+          setTimeout(() => navigate('/', { replace: true }), 2000);
           return;
         }
 
@@ -168,7 +168,7 @@ const EmailConfirmation: React.FC = () => {
           console.log('✅ Contact email conflict is OK - proceeding with Google sign-in');
           setStatus('success');
           setMessage('Sėkmingai prisijungta su Google paskyra!');
-          setTimeout(() => navigate('/nuomotojas2'), 2000);
+          setTimeout(() => navigate('/', { replace: true }), 2000);
           return;
         }
 
@@ -176,7 +176,7 @@ const EmailConfirmation: React.FC = () => {
         console.log('ℹ️ New Google account, creating new user or continuing...');
         setStatus('success');
         setMessage('Sėkmingai prisijungta su Google paskyra!');
-        setTimeout(() => navigate('/nuomotojas2'), 2000);
+        setTimeout(() => navigate('/', { replace: true }), 2000);
         
       } catch (error) {
         console.error('❌ Error in Google sign-in:', error);

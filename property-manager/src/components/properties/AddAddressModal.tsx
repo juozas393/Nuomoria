@@ -4,6 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../context/AuthContext';
+import { FRONTEND_MODE } from '../../config/frontendMode';
 import { 
   XMarkIcon, 
   BuildingOfficeIcon, 
@@ -23,6 +24,12 @@ import { supabase } from '../../lib/supabase';
 import { addressApi } from '../../lib/database';
 import { sendNotificationNew } from '../../utils/notificationSystem';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(...args);
+  }
+};
+
 // Form schema
 const addressSchema = z.object({
   address: z.object({
@@ -40,7 +47,9 @@ const addressSchema = z.object({
     buildingType: z.string().min(1, 'Pastato tipas privalomas'),
     floors: z.number().min(1, 'Bent 1 aukštas'),
     totalApartments: z.number().min(1, 'Bent 1 butas'),
-    yearBuilt: z.number().optional()
+    yearBuilt: z.number().optional(),
+    defaultMonthlyRent: z.number().min(0, 'Nuomos kaina negali būti neigiama').optional(),
+    defaultDepositAmount: z.number().min(0, 'Depozitas negali būti neigiamas').optional()
   }),
   contacts: z.object({
     managementType: z.string().min(1, 'Administravimo tipas privalomas'),
@@ -93,7 +102,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
   onSave
 }) => {
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState<number>(0);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -131,7 +140,9 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         buildingType: 'Butų namas',
                  floors: 1,
         totalApartments: 1,
-        yearBuilt: undefined
+      yearBuilt: undefined,
+      defaultMonthlyRent: 0,
+      defaultDepositAmount: 0
       },
       contacts: {
         managementType: 'Nuomotojas',
@@ -160,7 +171,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       is_active: true,
       requires_photo: true,
       collectionMode: 'tenant_photo',
-      landlordReadingEnabled: true,
+      landlordReadingEnabled: false,
       tenantPhotoEnabled: true
     },
     {
@@ -173,8 +184,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       is_active: true,
       requires_photo: true,
       collectionMode: 'tenant_photo',
-      landlordReadingEnabled: true,
-      tenantPhotoEnabled: false
+      landlordReadingEnabled: false,
+      tenantPhotoEnabled: true
     },
     {
       name: 'Elektra (individuali)',
@@ -186,8 +197,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       is_active: true,
       requires_photo: true,
       collectionMode: 'tenant_photo',
-      landlordReadingEnabled: true,
-      tenantPhotoEnabled: false
+      landlordReadingEnabled: false,
+      tenantPhotoEnabled: true
     },
     {
       name: 'Elektra (bendra)',
@@ -199,7 +210,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       is_active: true,
       requires_photo: false,
       collectionMode: 'landlord_only',
-      landlordReadingEnabled: false,
+      landlordReadingEnabled: true,
       tenantPhotoEnabled: false
     },
     {
@@ -252,8 +263,15 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
   // Check for similar addresses
   const checkForSimilarAddresses = async (address: string): Promise<string[]> => {
+    // ⚠️ FRONTEND MODE - Skip API calls
+    if (FRONTEND_MODE) {
+      debugLog('🚫 FRONTEND ONLY: Skipping address similarity check');
+      return [];
+    }
+    
     try {
       // Checking for similar addresses - logging removed for production
+      debugLog('🔍 Checking similar addresses for user:', user?.id);
       const addresses = await addressApi.getAll(user?.id);
       // User addresses from DB - logging removed for production
       
@@ -272,7 +290,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           const normalizedAddr = normalizeAddress(addr.full_address);
           // Tiksliau tikriname duplikatus - tik jei adresai yra identiški
           const isExactMatch = normalizedAddr === normalizedInput;
-          // Comparing addresses - logging removed for production
+          debugLog('🔍 Comparing:', normalizedAddr, 'vs', normalizedInput, 'Match:', isExactMatch);
           return isExactMatch;
         })
         .map(addr => addr.full_address);
@@ -335,7 +353,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           setIsAddressVerified(true);
           setGeocodingError(null);
           
-          console.log('Geocoding successful:', result);
+          debugLog('Geocoding successful:', result);
         } else {
           setGeocodingError('Nepavyko rasti adreso koordinačių. Jei norite tęsti, privalote įvesti pašto kodą.');
           setIsAddressVerified(false);
@@ -399,7 +417,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           is_active: true, 
           requires_photo: true, 
           collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
+          landlordReadingEnabled: false,
           tenantPhotoEnabled: true
         },
         { 
@@ -413,8 +431,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           is_active: true, 
           requires_photo: true, 
           collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: false
+          landlordReadingEnabled: false,
+          tenantPhotoEnabled: true
         },
         { 
           id: 'meter-3', 
@@ -427,8 +445,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           is_active: true, 
           requires_photo: true, 
           collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: false
+          landlordReadingEnabled: false,
+          tenantPhotoEnabled: true
         },
         { 
           id: 'meter-4', 
@@ -441,7 +459,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           is_active: true, 
           requires_photo: false, 
           collectionMode: 'landlord_only',
-          landlordReadingEnabled: false,
+          landlordReadingEnabled: true,
           tenantPhotoEnabled: false
         },
         { 
@@ -455,7 +473,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           is_active: true, 
           requires_photo: true, 
           collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
+          landlordReadingEnabled: false,
           tenantPhotoEnabled: true
         }
       ];
@@ -493,6 +511,12 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         return;
       }
 
+      if (!user) {
+        alert('Naudotojo sesija negalioja. Prisijunkite iš naujo.');
+        setIsSubmitting(false);
+        return;
+      }
+
       // 1. Save address
       const addressData = {
         full_address: formData.address.fullAddress,
@@ -513,7 +537,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         company_name: formData.contacts.companyName,
         contact_person: formData.contacts.contactPerson,
         company_phone: formData.contacts.companyPhone,
-        company_email: formData.contacts.companyEmail
+        company_email: formData.contacts.companyEmail,
+        created_by: user.id
       };
 
       const { data: address, error: addressError } = await supabase
@@ -539,8 +564,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           is_active: meter.is_active !== undefined ? meter.is_active : true
         }));
 
-        console.log('Inserting address meters data:', JSON.stringify(addressMetersData, null, 2));
-        console.log('Communal meters state:', JSON.stringify(communalMeters, null, 2));
+        debugLog('Inserting address meters data:', JSON.stringify(addressMetersData, null, 2));
+        debugLog('Communal meters state:', JSON.stringify(communalMeters, null, 2));
 
         // Validate data before insert
         const validatedData = addressMetersData.map(meter => {
@@ -583,22 +608,25 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           throw metersError;
         }
 
-        console.log('✅ Address meters inserted successfully:', insertedMeters);
+        debugLog('✅ Address meters inserted successfully:', insertedMeters);
       }
 
       // 3. Create apartments
+      const defaultMonthlyRent = formData.buildingInfo.defaultMonthlyRent ?? 0;
+      const defaultDepositAmount = formData.buildingInfo.defaultDepositAmount ?? 0;
+
       const apartmentsData = Array.from({ length: formData.buildingInfo.totalApartments }, (_, index) => ({
         address_id: address.id,
         apartment_number: (index + 1).toString(),
         tenant_name: 'Laisvas',
         phone: '',
         email: '',
-        rent: 0,
+        rent: defaultMonthlyRent,
         area: 0,
         rooms: 1,
         contract_start: new Date().toISOString().split('T')[0], // Today's date as default
         contract_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
-        deposit_amount: 0,
+        deposit_amount: defaultDepositAmount,
         deposit_paid_amount: 0,
         deposit_paid: false,
         deposit_returned: false,
@@ -616,13 +644,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
       if (apartmentsError) throw apartmentsError;
       
-      console.log('✅ Created apartments:', apartments);
-      console.log('✅ Apartments count:', apartments?.length || 0);
+      debugLog('✅ Created apartments:', apartments);
+      debugLog('✅ Apartments count:', apartments?.length || 0);
 
       // 4. Create individual meter configs for each apartment
       if (apartments && apartments.length > 0) {
         try {
-          console.log('Creating apartment meters for', apartments.length, 'apartments');
+          debugLog('Creating apartment meters for', apartments.length, 'apartments');
           
           // Create all apartment meters at once using Promise.all
           const meterPromises = apartments.map(async (apartment) => {
@@ -639,52 +667,119 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           });
           
           const results = await Promise.all(meterPromises);
-          console.log(`✅ Created meters for ${results.length} apartments successfully`);
+          debugLog(`✅ Created meters for ${results.length} apartments successfully`);
           
         } catch (meterError) {
           console.error('Error in meter creation process:', meterError);
           const errorMessage = meterError instanceof Error ? meterError.message : 'Nežinoma klaida';
-          alert('Adresas sukurtas sėkmingai, bet kilo problema kuriant skaitliukus. Skaitliukus galite pridėti vėliau.');
+
+          let fallbackSucceeded = false;
+          try {
+            const { data: fallbackMeters, error: fallbackMetersError } = await supabase
+              .from('address_meters')
+              .select(
+                'id, name, type, unit, distribution_method, price_per_unit, fixed_price, requires_photo, is_active'
+              )
+              .eq('address_id', address.id);
+
+            if (fallbackMetersError) {
+              throw fallbackMetersError;
+            }
+
+            if (fallbackMeters && fallbackMeters.length > 0) {
+              const timestamp = new Date().toISOString();
+              for (const apartment of apartments) {
+                const inserts = fallbackMeters
+                  .filter((meter) => meter.type === 'individual')
+                  .map((meter) => ({
+                    property_id: apartment.id,
+                    address_meter_id: meter.id,
+                    meter_name: meter.name,
+                    meter_type: meter.type,
+                    unit: meter.unit,
+                    distribution_method: meter.distribution_method,
+                    price_per_unit: meter.price_per_unit,
+                    fixed_price: meter.fixed_price ?? 0,
+                    is_active: meter.is_active ?? true,
+                    requires_photo: meter.requires_photo ?? true,
+                    is_custom: false,
+                    created_at: timestamp,
+                    updated_at: timestamp
+                  }));
+
+                if (inserts.length > 0) {
+                  const { error: insertError } = await supabase.from('apartment_meters').insert(inserts);
+                  if (insertError) {
+                    throw insertError;
+                  }
+                }
+              }
+              fallbackSucceeded = true;
+              console.info('✅ Fallback meter creation succeeded for apartments');
+            }
+          } catch (fallbackError) {
+            console.error('❌ Fallback meter creation failed:', fallbackError);
+          }
+
+          if (!fallbackSucceeded) {
+            alert('Adresas sukurtas sėkmingai, bet kilo problema kuriant skaitliukus. Skaitliukus galite pridėti vėliau.');
+          }
         }
       } else {
-        console.log('No apartments to create meters for');
+        debugLog('No apartments to create meters for');
       }
 
       // 5. Add current user to address as landlord
       try {
-        console.log('Current user data:', user);
+        debugLog('Current user data:', user);
         
         if (user?.id) {
-          console.log('Adding user to address:', {
-            userId: user.id,
-            addressId: address.id,
-            role: 'landlord'
-          });
-          
-          const { data: userAddressData, error: userAddressError } = await supabase
+          // First check if user is already associated with this address
+          const { data: existingUserAddress, error: checkError } = await supabase
             .from('user_addresses')
-            .insert([{
-              user_id: user.id,
-              address_id: address.id,
-              role_at_address: 'landlord',
-              role: 'landlord'
-            }])
-            .select();
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('address_id', address.id)
+            .single();
 
-          if (userAddressError) {
-            console.error('Error adding user to address:', userAddressError);
-            
-            // Check if it's an RLS policy error
-            if (userAddressError.message?.includes('row-level security policy')) {
-              console.error('❌ RLS Policy Error: The user_addresses table has Row Level Security enabled but no proper INSERT policy.');
-              console.error('❌ Please run the fix-rls-policies.sql script in Supabase SQL Editor to fix this issue.');
-              
-              // Show user-friendly error message
-              setSuccessMessage('Klaida: trūksta duomenų bazės teisių. Administratorius turi atnaujinti duomenų bazės nustatymus.');
-            }
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error('Error checking existing user-address relationship:', checkError);
+          } else if (existingUserAddress) {
+            debugLog('User already associated with this address:', existingUserAddress);
           } else {
-            console.log('✅ User added to address successfully:', userAddressData);
-            console.log('✅ User successfully added to address as landlord:', userAddressData);
+            debugLog('Adding user to address:', {
+              userId: user.id,
+              addressId: address.id,
+              role: 'landlord'
+            });
+            
+            const { data: userAddressData, error: userAddressError } = await supabase
+              .from('user_addresses')
+              .insert([{
+                user_id: user.id,
+                address_id: address.id,
+                role_at_address: 'landlord',
+                role: 'landlord'
+              }])
+              .select();
+
+            if (userAddressError) {
+              console.error('Error adding user to address:', userAddressError);
+              
+              // Check if it's a duplicate key error (409)
+              if (userAddressError.code === '23505') {
+                debugLog('User already associated with this address (duplicate key)');
+              } else if (userAddressError.message?.includes('row-level security policy')) {
+                console.error('❌ RLS Policy Error: The user_addresses table has Row Level Security enabled but no proper INSERT policy.');
+                console.error('❌ Please run the fix-rls-policies.sql script in Supabase SQL Editor to fix this issue.');
+                
+                // Show user-friendly error message
+                setSuccessMessage('Klaida: trūksta duomenų bazės teisių. Administratorius turi atnaujinti duomenų bazės nustatymus.');
+              }
+            } else {
+              debugLog('✅ User added to address successfully:', userAddressData);
+              debugLog('✅ User successfully added to address as landlord:', userAddressData);
+            }
           }
         } else {
           console.error('No current user found');
@@ -697,7 +792,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       const metersWithoutPhoto = communalMeters.filter(meter => !meter.requires_photo);
       if (metersWithoutPhoto.length > 0) {
         try {
-          console.log(`Sending meter reading notifications to tenants for ${metersWithoutPhoto.length} meters without photo requirement...`);
+          debugLog(`Sending meter reading notifications to tenants for ${metersWithoutPhoto.length} meters without photo requirement...`);
           
           // Send notification to each apartment
           for (const apartment of apartments || []) {
@@ -721,7 +816,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
               
               const success = await sendNotificationNew(notification);
               if (success) {
-                console.log(`✅ Notification sent to tenant ${apartment.tenant_name} for apartment ${apartment.apartment_number}`);
+                debugLog(`✅ Notification sent to tenant ${apartment.tenant_name} for apartment ${apartment.apartment_number}`);
               } else {
                 console.error(`❌ Failed to send notification to tenant ${apartment.tenant_name}`);
               }
@@ -731,7 +826,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           console.error('Error sending notifications:', notificationError);
         }
       } else if (communalMeters.length > 0) {
-        console.log('No notifications sent - all meters require photos');
+        debugLog('No notifications sent - all meters require photos');
       }
 
       // Show success message with notification info
@@ -803,406 +898,442 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
   return (
     <>
-
-
-      {/* Duplicate Address Warning Modal */}
       {showDuplicateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center gap-3 border-b border-black/10 px-5 py-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2F8481]/10">
+                <svg className="h-5 w-5 text-[#2F8481]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
                   </div>
+              <h3 className="text-lg font-semibold text-black">Adresas jau egzistuoja</h3>
                 </div>
-                <div className="ml-3">
-                  <h3 className="text-lg font-semibold text-[#0B0F10]">Panašus adresas rastas</h3>
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <p className="text-sm text-neutral-600 mb-3">
-                  Šis adresas jau egzistuoja sistemoje:
+            <div className="space-y-4 px-5 py-4">
+              <p className="text-sm text-black/70">
+                Šis adresas jau įvestas sistemoje. Jei reikia pridėti naują butą, naudokite funkciją „Pridėti butą“ esamam adresui.
                 </p>
-                <div className="bg-neutral-50 rounded-lg p-3 max-h-32 overflow-y-auto border border-neutral-200">
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-black/10 bg-black/5 p-3">
                   {similarAddresses.map((address, index) => (
-                    <div key={index} className="text-sm text-neutral-700 py-1 border-b border-neutral-200 last:border-b-0">
-                      • {address}
-                    </div>
+                  <p key={index} className="text-sm text-black/80">• {address}</p>
                   ))}
                 </div>
-                <p className="text-xs text-amber-600 mt-2">
-                  Negalite sukurti dviejų identiškų adresų. Jei reikia pridėti naują butą prie esamo adreso, naudokite &quot;Pridėti butą&quot; funkciją.
-                </p>
               </div>
-              
-              <div className="flex justify-end space-x-3">
+            <div className="flex items-center justify-end gap-3 border-t border-black/10 px-5 py-4">
                 <button
                   type="button"
                   onClick={() => setShowDuplicateModal(false)}
-                  className="px-4 py-2 text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors text-sm font-medium"
+                className="rounded-xl px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-black/5"
                 >
-                  Atšaukti
+                Uždaryti
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDuplicateModal(false)}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] rounded-lg transition-colors text-sm font-medium"
-                >
-                  Suprantu
-                </button>
-                </div>
               </div>
             </div>
         </div>
       )}
 
-      {/* Success Message */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center gap-3 border-b border-black/10 px-5 py-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2F8481]/10">
+                <svg className="h-5 w-5 text-[#2F8481]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
+              <h3 className="text-lg font-semibold text-black">Adresas išsaugotas</h3>
                 </div>
-                <div className="ml-3">
-                  <h3 className="text-lg font-semibold text-[#0B0F10]">Sėkmingai!</h3>
+            <div className="px-5 py-4">
+              <p className="text-sm text-black/70">{successMessage}</p>
                 </div>
-              </div>
-              
-              <div className="mb-6">
-                <p className="text-sm text-neutral-600">
-                  {successMessage}
-                </p>
-              </div>
-              
-              <div className="flex justify-end">
+            <div className="flex items-center justify-end gap-3 border-t border-black/10 px-5 py-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowSuccess(false);
                     handleClose();
                   }}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] rounded-lg transition-colors text-sm font-medium"
+                className="rounded-xl bg-[#2F8481] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#266e6c]"
                 >
                   Gerai
                 </button>
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Modal */}
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-[min(100vw-32px,1200px)] max-h-[90vh] flex flex-col">
-          
-          {/* Header */}
-          <div className="sticky top-0 z-20 bg-white border-b border-neutral-200">
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <BuildingOfficeIcon className="h-6 w-6 text-[#2F8481]" />
-                <h2 className="text-lg font-semibold text-[#0B0F10]">Pridėti naują adresą</h2>
-          </div>
-          <button
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+        <div className="flex h-full max-h-[95vh] w-full max-w-[min(100vw-24px,1280px)] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="sticky top-0 z-20 border-b border-black/10 bg-white/95 backdrop-blur">
+            <div className="flex items-center justify-between px-6 py-5">
+              <div className="flex items-center gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#2F8481]/10">
+                  <BuildingOfficeIcon className="h-6 w-6 text-[#2F8481]" />
+                </span>
+                <div>
+                  <h2 className="text-2xl font-semibold text-black">Pridėti adresą</h2>
+                  <p className="text-sm text-black/60">Įveskite objekto informaciją ir patvirtinkite duomenis</p>
+                </div>
+              </div>
+              <button
                 onClick={handleClose}
-                className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
-
-            {/* Steps */}
-            <div className="flex gap-1 p-2">
-              {steps.map((step, i) => (
-                <button
-                  key={step}
-                  className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    i === currentStep 
-                      ? 'bg-[#2F8481] text-white' 
-                      : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200'
-                  }`}
-                  onClick={() => setCurrentStep(i)}
-                >
-                  {step}
-                </button>
-              ))}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-black/60 transition-colors hover:bg-black/5 hover:text-black"
+                aria-label="Uždaryti"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="border-t border-black/10 px-6 py-3">
+              <nav className="grid grid-cols-4 gap-2">
+                {steps.map((step, idx) => {
+                  const isActive = idx === currentStep;
+                  return (
+                  <button
+                    key={step}
+                      type="button"
+                      onClick={() => setCurrentStep(idx)}
+                      className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'border-[#2F8481] bg-[#2F8481] text-white shadow-sm'
+                          : 'border-black/10 bg-white text-black/70 hover:border-[#2F8481]/30 hover:text-black'
+                    }`}
+                  >
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-black/5 text-black'
+                        }`}
+                      >
+                        {idx + 1}
+                      </span>
+                      <span className="truncate">{step}</span>
+                  </button>
+                  );
+                })}
+              </nav>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto bg-white p-6">
             <form onSubmit={handleSubmit(handleFinalSave)} className="space-y-6">
-              
-              {/* Step 1: Address */}
               {currentStep === 0 && (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <MapPinIcon className="h-4 w-4 text-[#2F8481]" />
-                      <h3 className="text-[15px] font-semibold text-[#0B0F10]">Adreso informacija</h3>
+                <div className="space-y-6 animate-fade-in">
+                  <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+                    <div className="mb-6 flex items-center gap-3">
+                      <div className="rounded-lg bg-[#2F8481] p-2">
+                        <MapPinIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-black">Adreso informacija</h3>
+                        <p className="text-sm text-black/60">Įveskite pilną adresą ir patvirtinkite jo teisingumą</p>
+                      </div>
                     </div>
-                    
-                    <div className="space-y-4">
-                      {/* Full Address */}
-                            <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Pilnas adresas
-                  </label>
-                   <Controller
-                     name="address.fullAddress"
-                     control={control}
-                     render={({ field }) => (
-                            <input
-                              {...field}
-                              type="text"
-                              placeholder="Mituvos g. 13, Kaunas"
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.address?.fullAddress ? 'border-rose-300' : ''
-                              }`}
-                       />
-                     )}
-                   />
-                   {errors.address?.fullAddress && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.address.fullAddress.message}</p>
-                   )}
-                 </div>
-
-                      {/* Postal Code */}
-                                 <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Pašto kodas
-                   </label>
-                   <Controller
-                     name="location.postalCode"
-                     control={control}
-                     render={({ field }) => (
-                         <input
-                           {...field}
-                           type="text"
-                              placeholder="44269"
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.location?.postalCode ? 'border-rose-300' : ''
-                              }`}
-                            />
-                     )}
-                   />
-                   {errors.location?.postalCode && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.location.postalCode.message}</p>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">Pilnas adresas</label>
+                        <Controller
+                          name="address.fullAddress"
+                          control={control}
+                          render={({ field }) => (
+                              <input
+                                {...field}
+                                type="text"
+                                placeholder="Mituvos g. 13, Kaunas"
+                              className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                errors.address?.fullAddress ? 'border-[#2F8481]' : 'border-black/15'
+                                }`}
+                              />
+                          )}
+                        />
+                        {errors.address?.fullAddress && (
+                          <p className="mt-2 text-xs font-medium text-black">{errors.address.fullAddress.message}</p>
                         )}
                       </div>
-
-                      {/* Address Verification */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-neutral-700">Adreso patvirtinimas</span>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">Pašto kodas</label>
+                        <Controller
+                          name="location.postalCode"
+                          control={control}
+                          render={({ field }) => (
+                              <input
+                                {...field}
+                                type="text"
+                                placeholder="44269"
+                              className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                errors.location?.postalCode ? 'border-[#2F8481]' : 'border-black/15'
+                                }`}
+                              />
+                          )}
+                        />
+                        {errors.location?.postalCode && (
+                          <p className="mt-2 text-xs font-medium text-black">{errors.location.postalCode.message}</p>
+                        )}
+                      </div>
+                      <div className="rounded-xl border border-[#2F8481]/20 bg-[#2F8481]/5 p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-sm font-semibold text-black">Adreso patvirtinimas</span>
                           <div className="flex items-center gap-2">
                             {isGeocoding && (
-                              <div className="flex items-center gap-1 text-xs text-neutral-600">
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#2F8481]"></div>
+                              <div className="flex items-center gap-2 rounded-full bg-[#2F8481]/10 px-3 py-1 text-sm text-[#2F8481]">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#2F8481] border-t-transparent" />
                                 Tikrinama...
-                     </div>
-                   )}
+                              </div>
+                            )}
                             {isAddressVerified && (
-                              <div className="flex items-center gap-1 text-xs text-green-600">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              <div className="flex items-center gap-2 rounded-full bg-[#2F8481]/10 px-3 py-1 text-sm text-[#2F8481]">
+                                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 Patvirtintas
                               </div>
                             )}
-                 </div>
-              </div>
-
+                          </div>
+                        </div>
                         {geocodingError && (
-                          <p className="text-rose-600 text-xs">{geocodingError}</p>
+                          <div className="rounded-lg border border-black/10 bg-black/5 p-3">
+                            <p className="flex items-center gap-2 text-sm text-black">
+                              <svg className="h-4 w-4 text-[#2F8481]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                              </svg>
+                              {geocodingError}
+                            </p>
+                          </div>
                         )}
-
-                        {/* Map */}
                         {watchedValues.location.coordinates && (
-                          <div className="space-y-2">
+                          <div className="mt-4 space-y-3">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-neutral-700">Žemėlapis</span>
-                    <button
-                      type="button"
+                              <span className="text-sm font-semibold text-black">Žemėlapis</span>
+                              <button
+                                type="button"
                                 onClick={() => setShowMap(!showMap)}
-                                className="flex items-center gap-1 text-xs text-[#2F8481] hover:text-[#2a7875]"
-                    >
-                                {showMap ? <EyeSlashIcon className="h-3 w-3" /> : <EyeIcon className="h-3 w-3" />}
+                                className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-1 text-sm text-[#2F8481] transition-all hover:border-[#2F8481] hover:opacity-80"
+                              >
+                                {showMap ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                                 {showMap ? 'Suskleisti' : 'Rodyti'}
-                    </button>
-                </div>
-
+                              </button>
+                            </div>
                             {showMap && (
-                              <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                              <div className="animate-fade-in overflow-hidden rounded-xl border-2 border-black/10 shadow-sm">
                                 <iframe
                                   src={`https://www.openstreetmap.org/export/embed.html?bbox=${watchedValues.location.coordinates.lng - 0.01},${watchedValues.location.coordinates.lat - 0.01},${watchedValues.location.coordinates.lng + 0.01},${watchedValues.location.coordinates.lat + 0.01}&layer=mapnik&marker=${watchedValues.location.coordinates.lat},${watchedValues.location.coordinates.lng}`}
                                   width="100%"
                                   height="200"
                                   frameBorder="0"
                                   scrolling="no"
-                                  marginHeight={0}
-                                  marginWidth={0}
                                   title="Address Map"
-                   />
-                 </div>
-               )}
-                 </div>
-               )}
-            </div>
+                                  className="rounded-xl"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 2: Building Details */}
               {currentStep === 1 && (
-              <div className="space-y-4">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <BuildingOfficeIcon className="h-4 w-4 text-[#2F8481]" />
-                      <h3 className="text-[15px] font-semibold text-[#0B0F10]">Pastato informacija</h3>
+                <div className="space-y-6 animate-fade-in">
+                  <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+                    <div className="mb-6 flex items-center gap-3">
+                      <div className="rounded-lg bg-[#2F8481] p-2">
+                        <BuildingOfficeIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-black">Pastato informacija</h3>
+                        <p className="text-sm text-black/60">Aprašykite pastato charakteristikas ir parametrus</p>
+                      </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Building Type */}
-                <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Pastato tipas
-                  </label>
-                  <Controller
-                    name="buildingInfo.buildingType"
-                    control={control}
-                    render={({ field }) => (
-                      <select
-                        {...field}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.buildingInfo?.buildingType ? 'border-rose-300' : ''
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">Pastato tipas</label>
+                        <Controller
+                          name="buildingInfo.buildingType"
+                          control={control}
+                          render={({ field }) => (
+                            <select
+                              {...field}
+                              className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                errors.buildingInfo?.buildingType ? 'border-[#2F8481]' : 'border-black/15'
                               }`}
-                      >
-                        <option value="Butų namas">Butų namas</option>
+                            >
+                              <option value="Butų namas">Butų namas</option>
                               <option value="Gyvenamasis namas">Gyvenamasis namas</option>
                               <option value="Kita">Kita</option>
-                      </select>
-                    )}
-                  />
-                        {errors.buildingInfo?.buildingType && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.buildingInfo.buildingType.message}</p>
-                        )}
-                </div>
-
-                      {/* Total Apartments */}
-                  <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Butų skaičius
-                    </label>
-                    <Controller
-                      name="buildingInfo.totalApartments"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="number"
-                          min="1"
-                              value={field.value || 1}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value) || 1;
-                                field.onChange(Math.max(1, value));
-                              }}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.buildingInfo?.totalApartments ? 'border-rose-300' : ''
-                          }`}
+                            </select>
+                          )}
                         />
-                      )}
-                    />
-                    {errors.buildingInfo?.totalApartments && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.buildingInfo.totalApartments.message}</p>
-                    )}
-                  </div>
-
-                      {/* Floors */}
-                <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Aukštų skaičius
-                  </label>
-                  <Controller
-                    name="buildingInfo.floors"
-                    control={control}
-                    render={({ field }) => (
-                      <input
-                        {...field}
-                        type="number"
-                        min="1"
+                        {errors.buildingInfo?.buildingType && (
+                          <p className="mt-2 text-xs font-medium text-black">{errors.buildingInfo.buildingType.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">Butų skaičius</label>
+                        <Controller
+                          name="buildingInfo.totalApartments"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="relative">
+                              <input
+                                {...field}
+                                type="number"
+                                min="1"
+                                value={field.value || 1}
+                                onChange={(event) => {
+                                  const value = parseInt(event.target.value, 10) || 1;
+                                  field.onChange(Math.max(1, value));
+                                }}
+                                className={`w-full rounded-xl border px-4 py-3 pr-16 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                  errors.buildingInfo?.totalApartments ? 'border-[#2F8481]' : 'border-black/15'
+                                }`}
+                              />
+                              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-black/50">
+                                butų
+                              </span>
+                            </div>
+                          )}
+                        />
+                        {errors.buildingInfo?.totalApartments && (
+                          <p className="mt-2 text-xs font-medium text-black">{errors.buildingInfo.totalApartments.message}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">Aukštų skaičius</label>
+                        <Controller
+                          name="buildingInfo.floors"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="number"
+                              min="1"
                               value={field.value || 1}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value) || 1;
+                              onChange={(event) => {
+                                const value = parseInt(event.target.value, 10) || 1;
                                 field.onChange(Math.max(1, value));
                               }}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.buildingInfo?.floors ? 'border-rose-300' : ''
-                        }`}
-                      />
-                    )}
-                  />
-                  {errors.buildingInfo?.floors && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.buildingInfo.floors.message}</p>
-                  )}
-                </div>
-
-                      {/* Year Built */}
-                  <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                        Statybos metai
-                      </label>
-                      <Controller
-                        name="buildingInfo.yearBuilt"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            value={field.value || ''}
-                            type="number"
-                              min="1900"
-                            max={new Date().getFullYear()}
-                              placeholder="2000"
-                              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
+                              className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                errors.buildingInfo?.floors ? 'border-[#2F8481]' : 'border-black/15'
+                              }`}
+                            />
+                          )}
+                        />
+                        {errors.buildingInfo?.floors && (
+                          <p className="mt-2 text-xs font-medium text-black">{errors.buildingInfo.floors.message}</p>
                         )}
-                      />
-                  </div>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">Statybos metai (pasirinktinai)</label>
+                        <Controller
+                          name="buildingInfo.yearBuilt"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="number"
+                              placeholder="2002"
+                              className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
+                            />
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">
+                          Numatytas mėnesio nuomos mokestis (€/mėn.)
+                        </label>
+                        <Controller
+                          name="buildingInfo.defaultMonthlyRent"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={Number.isFinite(field.value) ? field.value : 0}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                if (value === '') {
+                                  field.onChange(0);
+                                  return;
+                                }
+                                const parsed = Number.parseFloat(value);
+                                field.onChange(Number.isFinite(parsed) && parsed >= 0 ? parsed : 0);
+                              }}
+                              className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                errors.buildingInfo?.defaultMonthlyRent ? 'border-[#2F8481]' : 'border-black/15'
+                              }`}
+                              placeholder="600"
+                            />
+                          )}
+                        />
+                        <p className="mt-2 text-xs text-black/50">
+                          Ši kaina bus automatiškai priskirta visiems naujai kuriamiems butams. Vėliau ją galėsite pakeisti
+                          kiekvienam butui atskirai.
+                        </p>
+                        {errors.buildingInfo?.defaultMonthlyRent && (
+                          <p className="mt-2 text-xs font-medium text-black">
+                            {errors.buildingInfo.defaultMonthlyRent.message}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-black">Numatytas depozitas (€)</label>
+                        <Controller
+                          name="buildingInfo.defaultDepositAmount"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={Number.isFinite(field.value) ? field.value : 0}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                if (value === '') {
+                                  field.onChange(0);
+                                  return;
+                                }
+                                const parsed = Number.parseFloat(value);
+                                field.onChange(Number.isFinite(parsed) && parsed >= 0 ? parsed : 0);
+                              }}
+                              className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                errors.buildingInfo?.defaultDepositAmount ? 'border-[#2F8481]' : 'border-black/15'
+                              }`}
+                              placeholder="600"
+                            />
+                          )}
+                        />
+                        <p className="mt-2 text-xs text-black/50">
+                          Depozito suma, kuri bus įrašyta į kiekvieno buto kortelę pagal nutylėjimą.
+                        </p>
+                        {errors.buildingInfo?.defaultDepositAmount && (
+                          <p className="mt-2 text-xs font-medium text-black">
+                            {errors.buildingInfo.defaultDepositAmount.message}
+                          </p>
+                        )}
+                      </div>
               </div>
             </div>
                 </div>
               )}
               
-                            {/* Step 3: Contacts */}
               {currentStep === 2 && (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4">
-                    <h3 className="text-[15px] font-semibold text-[#0B0F10] mb-4">Kontaktai</h3>
-              
-              <div className="space-y-4">
-                      {/* Management Type */}
+                <section className="space-y-6 animate-fade-in">
+                  <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+                    <h3 className="mb-4 text-lg font-semibold text-black">Kontaktai</h3>
+                    <div className="space-y-5">
                 <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Administravimo tipas
-                  </label>
+                        <label className="mb-2 block text-sm font-semibold text-black">Administravimo tipas</label>
                   <Controller
                     name="contacts.managementType"
                     control={control}
                     render={({ field }) => (
                       <select
                         {...field}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.contacts?.managementType ? 'border-rose-300' : ''
+                              className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30 ${
+                                errors.contacts?.managementType ? 'border-[#2F8481]' : 'border-black/15'
                               }`}
                       >
                                                  <option value="Nuomotojas">Nuomotojas</option>
@@ -1212,26 +1343,18 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                     )}
                   />
                         {errors.contacts?.managementType && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.contacts.managementType.message}</p>
+                          <p className="mt-2 text-xs font-medium text-black">{errors.contacts.managementType.message}</p>
                         )}
                                  </div>
-
-                      {/* Nuomotojas Info */}
                       {watchedValues.contacts?.managementType === 'Nuomotojas' && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                          <p className="text-sm text-green-700">
-                            ✓ Nuomotojo informacija bus paimta iš jūsų profilio
-                      </p>
+                        <div className="rounded-xl border border-[#2F8481]/30 bg-[#2F8481]/10 px-4 py-3 text-sm text-black">
+                          Nuomotojo kontaktai bus automatiškai paimti iš jūsų profilio.
                     </div>
                   )}
-
-                      {/* Bendrija Info */}
                       {watchedValues.contacts?.managementType === 'Bendrija' && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              Pirmininko vardas
-                      </label>
+                            <label className="mb-1 block text-sm font-medium text-black/70">Pirmininko vardas</label>
                       <Controller
                         name="contacts.chairmanName"
                         control={control}
@@ -1240,15 +1363,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             {...field}
                                   value={field.value || ''}
                             type="text"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
+                                  className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
                           />
                         )}
                       />
                     </div>
                     <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              Telefonas
-                      </label>
+                            <label className="mb-1 block text-sm font-medium text-black/70">Telefonas</label>
                       <Controller
                         name="contacts.chairmanPhone"
                         control={control}
@@ -1258,15 +1379,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                                   value={field.value || ''}
                             type="tel"
                             placeholder="+370xxxxxxxx"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
+                                  className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
                           />
                         )}
                       />
                     </div>
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              El. paštas
-                      </label>
+                          <div className="md:col-span-2">
+                            <label className="mb-1 block text-sm font-medium text-black/70">El. paštas</label>
                       <Controller
                         name="contacts.chairmanEmail"
                         control={control}
@@ -1275,21 +1394,17 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             {...field}
                                   value={field.value || ''}
                             type="email"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
+                                  className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
                           />
                         )}
                       />
                     </div>
                   </div>
                 )}
-
-                      {/* Administravimo įmonė Info */}
                       {watchedValues.contacts?.managementType === 'Administravimo įmonė' && (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              Įmonės pavadinimas
-                      </label>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="md:col-span-2">
+                            <label className="mb-1 block text-sm font-medium text-black/70">Įmonės pavadinimas</label>
                       <Controller
                         name="contacts.companyName"
                         control={control}
@@ -1298,15 +1413,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             {...field}
                                   value={field.value || ''}
                             type="text"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
+                                  className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
                           />
                         )}
                       />
                     </div>
                     <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              Kontaktinis asmuo
-                      </label>
+                            <label className="mb-1 block text-sm font-medium text-black/70">Kontaktinis asmuo</label>
                       <Controller
                         name="contacts.contactPerson"
                         control={control}
@@ -1315,15 +1428,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             {...field}
                                   value={field.value || ''}
                             type="text"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
+                                  className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
                           />
                         )}
                       />
                     </div>
                     <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              Telefonas
-                      </label>
+                            <label className="mb-1 block text-sm font-medium text-black/70">Telefonas</label>
                       <Controller
                         name="contacts.companyPhone"
                         control={control}
@@ -1332,15 +1443,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             {...field}
                                   value={field.value || ''}
                             type="tel"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
+                                  className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
                           />
                         )}
                       />
                     </div>
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              El. paštas
-                      </label>
+                          <div className="md:col-span-2">
+                            <label className="mb-1 block text-sm font-medium text-black/70">El. paštas</label>
                       <Controller
                         name="contacts.companyEmail"
                         control={control}
@@ -1349,7 +1458,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             {...field}
                                   value={field.value || ''}
                             type="email"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
+                                  className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm transition-colors focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
                           />
                         )}
                       />
@@ -1358,39 +1467,36 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 )}
               </div>
             </div>
-                </div>
+                </section>
               )}
 
-      {/* Step 4: Communal Meters */}
       {currentStep === 3 && (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-neutral-200 bg-white p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <BoltIcon className="h-4 w-4 text-[#2F8481]" />
-              <h3 className="text-[15px] font-semibold text-[#0B0F10]">Komunaliniai skaitliukai</h3>
+                <section className="space-y-6 animate-fade-in">
+                  <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+                    <div className="mb-4 flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2F8481]/10">
+                        <BoltIcon className="h-5 w-5 text-[#2F8481]" />
+                      </span>
+                      <div>
+                        <h3 className="text-lg font-semibold text-black">Komunaliniai skaitliukai</h3>
+                        <p className="text-sm text-black/60">Nustatykite skaitiklius šiam adresui</p>
                   </div>
-                  
-            <p className="text-sm text-neutral-600 mb-4">
-              Konfigūruokite skaitliukus, kurie bus naudojami visiems butams šiame adrese
-            </p>
-
+                    </div>
             <MetersTable
               meters={communalMeters}
               onMetersChange={setCommunalMeters}
               onPresetApply={(meters) => setCommunalMeters(meters)}
               onMeterDelete={(id) => {
-                setCommunalMeters(prev => prev.filter(m => m.id !== id));
+                        setCommunalMeters((prev) => prev.filter((m) => m.id !== id));
               }}
               onMeterUpdate={(id, updates) => {
-                // Only update local state - no database operations in this context
-                setCommunalMeters(prev => prev.map(m => 
-                  m.id === id ? { ...m, ...updates } : m
-                ));
-                console.log('✅ Meter updated in local state:', id, updates);
+                        setCommunalMeters((prev) =>
+                          prev.map((m) => (m.id === id ? { ...m, ...updates } : m))
+                        );
               }}
             />
                   </div>
-                </div>
+                </section>
               )}
 
 
@@ -1398,81 +1504,84 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 bg-white border-t border-neutral-200 p-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              {currentStep > 0 && (
-                       <button
-                         type="button"
-                  onClick={() => setCurrentStep(currentStep - 1)}
-                  className="flex items-center gap-2 px-4 py-2 text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
-                >
-                  <ArrowLeftIcon className="h-4 w-4" />
-                  Atgal
-                       </button>
-              )}
+          <div className="sticky bottom-0 bg-white border-t border-black/10 p-6">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                {currentStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(currentStep - 1)}
+                    className="flex items-center gap-2 px-5 py-3 text-black bg-black/5 hover:bg-black/10 rounded-xl transition-all duration-200 hover:shadow-md font-medium"
+                  >
+                    <ArrowLeftIcon className="h-4 w-4" />
+                    Atgal
+                  </button>
+                )}
                 <button
                   type="button"
-                onClick={handleClose}
-                className="px-4 py-2 text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+                  onClick={handleClose}
+                  className="px-5 py-3 text-black bg-black/5 hover:bg-black/10 rounded-xl transition-all duration-200 hover:shadow-md font-medium"
                 >
                   Atšaukti
                 </button>
-                    </div>
+              </div>
 
-            <div className="flex items-center gap-2">
-              {currentStep < steps.length - 1 ? (
-                    <button
-                  type="button"
-                  onClick={async () => {
-                    if (currentStep === 0) {
-                      const fullAddress = watchedValues.address?.fullAddress;
-                      if (fullAddress) {
-                        // Checking for similar addresses - logging removed for production
-                        const foundSimilarAddresses = await checkForSimilarAddresses(fullAddress);
-                        // Found similar addresses - logging removed for production
-                        if (foundSimilarAddresses && foundSimilarAddresses.length > 0) {
-                          // Showing duplicate modal with addresses - logging removed for production
-                          setSimilarAddresses(foundSimilarAddresses);
-                          setShowDuplicateModal(true);
-                          return;
-                        } else {
-                          // No similar addresses found, continuing to next step - logging removed for production
+              <div className="flex items-center gap-3">
+                {currentStep < steps.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (currentStep === 0) {
+                        const fullAddress = watchedValues.address?.fullAddress;
+                        if (fullAddress) {
+                          const foundSimilarAddresses = await checkForSimilarAddresses(fullAddress);
+                          if (foundSimilarAddresses && foundSimilarAddresses.length > 0) {
+                            setSimilarAddresses(foundSimilarAddresses);
+                            setShowDuplicateModal(true);
+                            return;
+                          }
                         }
                       }
-                    }
-                    
-                    // Patikriname pašto kodą, jei nerandamos koordinatės
-                    if (currentStep === 0) {
-                      const hasCoordinates = watchedValues.location?.coordinates?.lat && watchedValues.location?.coordinates?.lng;
-                      const hasPostalCode = watchedValues.location?.postalCode && watchedValues.location.postalCode.length === 5;
                       
-                      if (!hasCoordinates && !hasPostalCode) {
-                        alert('Jei nerandamos koordinatės, privalote įvesti pašto kodą.');
-                        return;
+                      if (currentStep === 0) {
+                        const hasCoordinates = watchedValues.location?.coordinates?.lat && watchedValues.location?.coordinates?.lng;
+                        const hasPostalCode = watchedValues.location?.postalCode && watchedValues.location.postalCode.length === 5;
+                        
+                        if (!hasCoordinates && !hasPostalCode) {
+                          alert('Jei nerandamos koordinatės, privalote įvesti pašto kodą.');
+                          return;
+                        }
                       }
-                    }
-                    
-                    setCurrentStep(currentStep + 1);
-                  }}
-                  disabled={currentStep === 0 && !watchedValues.address.fullAddress}
-                  title={currentStep === 0 && !watchedValues.address.fullAddress ? 'Įveskite adresą, kad galėtumėte tęsti' : ''}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-                >
-                  Toliau
-                    </button>
-                  ) : (
-                    <button
-                  type="button"
-                  onClick={() => handleFinalSave(watchedValues)}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-                >
-                  {isSubmitting ? 'Saugoma...' : `Išsaugoti ir sukurti ${watchedValues.buildingInfo?.totalApartments || 1} butą`}
-                    </button>
-                  )}
-                </div>
+                      
+                      setCurrentStep(currentStep + 1);
+                    }}
+                    disabled={currentStep === 0 && !watchedValues.address.fullAddress}
+                    title={currentStep === 0 && !watchedValues.address.fullAddress ? 'Įveskite adresą, kad galėtumėte tęsti' : ''}
+                    className="px-6 py-3 bg-[#2F8481] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 hover:shadow-lg font-semibold transform hover:scale-[1.02]"
+                  >
+                    Toliau
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleFinalSave(watchedValues)}
+                    disabled={isSubmitting}
+                    className="px-6 py-3 bg-[#2F8481] text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 hover:shadow-lg font-semibold transform hover:scale-[1.02]"
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Saugoma...
+                      </div>
+                    ) : (
+                      `Išsaugoti ir sukurti ${watchedValues.buildingInfo?.totalApartments || 1} butą`
+                    )}
+                  </button>
+                )}
               </div>
             </div>
+          </div>
+        </div>
       </div>
     </>
   );

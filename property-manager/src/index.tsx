@@ -8,11 +8,8 @@ import { initializePerformanceOptimizations } from './utils/performanceOptimizat
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// StrictMode laikinai išjungtas kol sutvarkom auth (dvigubas mount trinasi PKCE code_verifier)
+root.render(<App />);
 
 // Initialize performance optimizations
 initializePerformanceOptimizations();

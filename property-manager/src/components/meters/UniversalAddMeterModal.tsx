@@ -13,8 +13,8 @@
  * - Continuous image and perf auditing process
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { X, Search, Plus, Check, AlertCircle, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { X, Search, Plus, Check, AlertCircle, AlertTriangle, Trash } from 'lucide-react';
 import { METER_TEMPLATES, MeterTemplate } from '../../constants/meterTemplates';
 import { MeterIcon } from '../ui/MeterIcon';
 import { 
@@ -25,6 +25,15 @@ import {
 } from '../../types/meters';
 import { fmtPriceLt, getUnitLabel, getDistributionLabel } from '../../constants/meterTemplates';
 import { validateMeter, getValidationWarnings, ValidationError } from '../../utils/meterValidation';
+import { useAuth } from '../../context/AuthContext';
+import { 
+  fetchUserMeterTemplates, 
+  createUserMeterTemplate,
+  deleteUserMeterTemplate,
+  fetchHiddenMeterTemplates,
+  hideBaseMeterTemplate,
+  type UserMeterTemplateRow
+} from '../../lib/userMeterTemplates';
 
 interface UniversalAddMeterModalProps {
   isOpen: boolean;
@@ -35,6 +44,28 @@ interface UniversalAddMeterModalProps {
   allowMultiple?: boolean;
 }
 
+type TemplateOption = MeterTemplate & {
+  isUserTemplate?: boolean;
+};
+
+const PERSONAL_TEMPLATE_ICON: MeterTemplate['icon'] = 'gauge';
+const ALLOWED_TEMPLATE_ICONS: ReadonlyArray<MeterTemplate['icon']> = [
+  'droplet',
+  'bolt',
+  'flame',
+  'wifi',
+  'trash',
+  'fan',
+  'elevator',
+  'gauge'
+];
+
+const resolveTemplateIcon = (icon?: string | null): MeterTemplate['icon'] => {
+  return ALLOWED_TEMPLATE_ICONS.includes(icon as MeterTemplate['icon'])
+    ? (icon as MeterTemplate['icon'])
+    : PERSONAL_TEMPLATE_ICON;
+};
+
 export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = React.memo(({
   isOpen,
   onClose,
@@ -43,11 +74,18 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
   title = "Pridėti skaitiklį",
   allowMultiple = true
 }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'templates' | 'custom'>('templates');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<ValidationError[]>([]);
+  const [userTemplates, setUserTemplates] = useState<UserMeterTemplateRow[]>([]);
+  const [isLoadingUserTemplates, setIsLoadingUserTemplates] = useState(false);
+  const [userTemplatesError, setUserTemplatesError] = useState<string | null>(null);
+  const [isSavingCustomTemplate, setIsSavingCustomTemplate] = useState(false);
+  const [hiddenTemplateIds, setHiddenTemplateIds] = useState<string[]>([]);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [customForm, setCustomForm] = useState<{
     name: string;
     type: 'individual' | 'communal';
@@ -66,13 +104,124 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
     description: ''
   });
 
+  useEffect(() => {
+    if (!isOpen || !user?.id) {
+      if (!isOpen) {
+        setUserTemplates([]);
+        setHiddenTemplateIds([]);
+        setUserTemplatesError(null);
+      }
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadUserData = async () => {
+      try {
+        setIsLoadingUserTemplates(true);
+        const [templates, hidden] = await Promise.all([
+          fetchUserMeterTemplates(user.id),
+          fetchHiddenMeterTemplates(user.id)
+        ]);
+
+        if (!isCancelled) {
+          setUserTemplates(templates);
+          setHiddenTemplateIds(hidden.map((item) => item.template_id));
+          setUserTemplatesError(null);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setUserTemplatesError('Nepavyko įkelti jūsų skaitiklių šablonų.');
+          console.error(
+            '❌ Failed to load meter template data:',
+            { error, hasUser: Boolean(user?.id), userId: user?.id }
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingUserTemplates(false);
+        }
+      }
+    };
+
+    void loadUserData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, user?.id]);
+
+  const hiddenTemplateIdSet = useMemo(() => new Set(hiddenTemplateIds), [hiddenTemplateIds]);
+
   // Filter available templates
-  const availableTemplates = useMemo(() => {
-    return METER_TEMPLATES.filter((template) => 
-      template.name && !existingMeterNames.includes(template.name) &&
-      template.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [existingMeterNames, searchTerm]);
+  const availableTemplates = useMemo<TemplateOption[]>(() => {
+    const personalTemplates: TemplateOption[] = userTemplates.map((template) => ({
+      id: template.id,
+      name: template.name,
+      description: template.description ?? undefined,
+      icon: resolveTemplateIcon(template.icon),
+      type: template.mode,
+      unit: template.unit,
+      defaultPrice: Number(template.price_per_unit ?? 0),
+      distribution: template.distribution_method as DistributionMethod,
+      requiresPhoto: template.requires_photo,
+      isUserTemplate: true
+    }));
+
+    const baseTemplates: TemplateOption[] = METER_TEMPLATES.map((template) => ({
+      ...template,
+      isUserTemplate: false
+    }));
+
+    return [...personalTemplates, ...baseTemplates].filter((template) => {
+      if (!template.name) {
+        return false;
+      }
+
+      if (!template.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+
+      if (!template.isUserTemplate && hiddenTemplateIdSet.has(template.id)) {
+        return false;
+      }
+
+      if (!template.isUserTemplate && existingMeterNames.includes(template.name)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [existingMeterNames, hiddenTemplateIdSet, searchTerm, userTemplates]);
+
+  const handleTemplateDelete = useCallback(async (template: TemplateOption) => {
+    if (!user?.id) {
+      console.warn('⚠️ Cannot delete template without authenticated user');
+      return;
+    }
+
+    setDeletingTemplateId(template.id);
+    try {
+      if (template.isUserTemplate) {
+        await deleteUserMeterTemplate(template.id);
+        setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+      } else {
+        await hideBaseMeterTemplate(user.id, template.id);
+        setHiddenTemplateIds((prev) => (prev.includes(template.id) ? prev : [...prev, template.id]));
+      }
+      setSelectedTemplates((prev) => prev.filter((id) => id !== template.id));
+    } catch (error) {
+      console.error('❌ Failed to delete/hide meter template:', {
+        error,
+        templateId: template.id,
+        isUserTemplate: template.isUserTemplate,
+        userId: user.id
+      });
+      alert('Nepavyko pašalinti šablono. Bandykite dar kartą.');
+    } finally {
+      setDeletingTemplateId(null);
+    }
+  }, [user?.id]);
 
   const handleTemplateToggle = useCallback((templateId: string) => {
     if (!allowMultiple) {
@@ -93,30 +242,38 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
   }, [availableTemplates, allowMultiple]);
 
   const handleAddSelected = useCallback(() => {
-    const selectedMeters = METER_TEMPLATES.filter((t) => selectedTemplates.includes(t.id));
+    const selectedMeters = availableTemplates.filter((template) =>
+      selectedTemplates.includes(template.id)
+    );
     
-    // Helper function to convert template ID to MeterTypeSection
-    const convertTemplateIdToType = (templateId: string): MeterTypeSection => {
-      switch (templateId) {
-        case 'water_cold': return 'water_cold';
-        case 'water_hot': return 'water_hot';
-        case 'electricity_ind': return 'electricity_individual';
-        case 'electricity_shared': return 'electricity_common';
-        case 'heating': return 'heating';
-        case 'internet': return 'internet';
-        case 'trash': return 'waste';
-        case 'ventilation': return 'custom';
-        case 'elevator': return 'custom';
-        default: return 'custom';
+    const convertTemplateToSection = (template: TemplateOption): MeterTypeSection => {
+      switch (template.id) {
+        case 'water_cold':
+          return 'water_cold';
+        case 'water_hot':
+          return 'water_hot';
+        case 'electricity_ind':
+          return 'electricity_individual';
+        case 'electricity_shared':
+          return 'electricity_common';
+        case 'heating':
+          return 'heating';
+        case 'internet':
+          return 'internet';
+        case 'trash':
+          return 'waste';
+        default:
+          return 'custom';
       }
     };
     
     const metersData: MeterForm[] = selectedMeters.map((template) => {
       console.log('🔍 Creating MeterForm from template:', template);
       
+      const meterTypeSection = convertTemplateToSection(template);
       const meterForm = {
         id: `temp_${Date.now()}_${Math.random()}`,
-        type: convertTemplateIdToType(template.id),
+        type: meterTypeSection,
         label: template.name || '',
         unit: template.unit,
         tariff: 'single' as const,
@@ -125,7 +282,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
         custom_name: template.name,
         // Legacy compatibility fields
         title: template.name,
-        kind: convertTemplateIdToType(template.id),
+        kind: meterTypeSection,
         mode: template.type,
         price: template.defaultPrice || 0,
         allocation: template.distribution,
@@ -147,14 +304,18 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
     console.log('🔍 Sending metersData to onAddMeters:', metersData);
     onAddMeters(metersData);
     setSelectedTemplates([]);
-  }, [selectedTemplates, onAddMeters]);
+  }, [availableTemplates, onAddMeters, selectedTemplates]);
 
-  const handleAddCustom = useCallback(() => {
+  const handleAddCustom = useCallback(async () => {
+    const normalizedUnit =
+      customForm.unit === 'custom'
+        ? ('Kitas' as const)
+        : (customForm.unit as 'm3' | 'kWh' | 'GJ' | 'Kitas');
     const meterData: MeterForm = {
       id: `temp_${Date.now()}_${Math.random()}`,
       type: 'custom',
       label: customForm.name,
-      unit: customForm.unit,
+      unit: normalizedUnit,
       tariff: 'single' as const,
       requirePhoto: customForm.requiresPhoto,
       price_per_unit: customForm.price,
@@ -177,15 +338,47 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
     };
 
     const errors = validateMeter(meterData, existingMeterNames);
-    const warnings = getValidationWarnings(meterData);
-
     if (errors.length > 0) {
       setValidationErrors(errors);
       return;
     }
 
+    const warnings = getValidationWarnings(meterData);
+    const combinedWarnings = [...warnings];
     setValidationErrors([]);
-    setValidationWarnings(warnings);
+    setIsSavingCustomTemplate(true);
+
+    try {
+      if (user?.id) {
+        const savedTemplate = await createUserMeterTemplate({
+          user_id: user.id,
+          name: customForm.name.trim(),
+          description: customForm.description ? customForm.description.trim() : null,
+          mode: customForm.type,
+            unit: normalizedUnit,
+          price_per_unit: customForm.price,
+          distribution_method: customForm.distribution,
+          requires_photo: customForm.requiresPhoto,
+          icon: PERSONAL_TEMPLATE_ICON
+        });
+
+        setUserTemplates((prev) => [savedTemplate, ...prev.filter((template) => template.id !== savedTemplate.id)]);
+        setActiveTab('templates');
+      }
+    } catch (error) {
+      console.error(
+        '❌ Failed to save custom meter template:',
+        { error, hasUser: Boolean(user?.id), userId: user?.id }
+      );
+      combinedWarnings.push({
+        field: 'template',
+        message: 'Nepavyko išsaugoti šablono. Skaitliukas vis tiek pridėtas.'
+      });
+    } finally {
+      setIsSavingCustomTemplate(false);
+    }
+
+    setValidationWarnings(combinedWarnings);
     onAddMeters([meterData]);
     setCustomForm({
       name: '',
@@ -196,7 +389,13 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
       requiresPhoto: false,
       description: ''
     });
-  }, [customForm, existingMeterNames, onAddMeters]);
+  }, [
+    customForm,
+    existingMeterNames,
+    onAddMeters,
+    setActiveTab,
+    user?.id
+  ]);
 
   const isValidCustomForm = useMemo(() => {
     return customForm.name.trim().length > 0 && customForm.price >= 0;
@@ -260,7 +459,17 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
               </div>
 
               {/* Templates Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-7 gap-3 text-xs font-medium text-gray-600 mb-3">
+              {isLoadingUserTemplates && (
+                <div className="mb-4 text-sm text-gray-500">
+                  Kraunama jūsų skaitiklių šablonų biblioteka...
+                </div>
+              )}
+              {userTemplatesError && (
+                <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700">
+                  {userTemplatesError}
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-8 gap-3 text-xs font-medium text-gray-600 mb-3">
                 <div>Pasirinkti</div>
                 <div>Skaitliukas</div>
                 <div>Tipas</div>
@@ -268,17 +477,26 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                 <div>Kaina</div>
                 <div>Paskirstymas</div>
                 <div>Reikia nuotraukos</div>
+                <div className="text-right">Veiksmai</div>
               </div>
 
               <div className="max-h-[400px] overflow-y-auto">
-                {availableTemplates.map((template) => (
-                  <div key={template.id} className="grid grid-cols-1 md:grid-cols-7 gap-3 border-t border-gray-100 hover:bg-gray-50 transition-colors py-3">
+                {availableTemplates.map((template) => {
+                  const isDuplicate = Boolean(template.name && existingMeterNames.includes(template.name));
+
+                  return (
+                  <div key={template.id} className="grid grid-cols-1 md:grid-cols-8 gap-3 border-t border-gray-100 hover:bg-gray-50 transition-colors py-3">
                     <div className="flex items-center">
                       <input
                         type={allowMultiple ? "checkbox" : "radio"}
                         name={allowMultiple ? undefined : "meterSelection"}
                         checked={selectedTemplates.includes(template.id)}
-                        onChange={() => handleTemplateToggle(template.id)}
+                        onChange={() => {
+                          if (!isDuplicate) {
+                            handleTemplateToggle(template.id);
+                          }
+                        }}
+                        disabled={isDuplicate}
                         className="w-4 h-4 text-[#2F8481] border-gray-300 rounded focus:ring-[#2F8481]"
                       />
                     </div>
@@ -287,8 +505,22 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                         <MeterIcon iconName={template.icon || 'bolt'} />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900 text-sm">{template.name}</div>
+                        <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                          <span>{template.name}</span>
+                          {isDuplicate && (
+                            <span className="inline-flex items-center rounded-full bg-black/10 text-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                              Jau pridėta
+                            </span>
+                          )}
+                          {template.isUserTemplate && (
+                            <span className="inline-flex items-center rounded-full bg-[#2F8481]/10 text-[#2F8481] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                              Mano
+                            </span>
+                          )}
+                        </div>
+                        {template.description && (
                         <div className="text-xs text-gray-500">{template.description}</div>
+                        )}
                       </div>
                     </div>
                     <div>
@@ -318,8 +550,23 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                         {template.requiresPhoto ? 'Taip' : 'Ne'}
                       </span>
                     </div>
+                    <div className="flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleTemplateDelete(template)}
+                        disabled={deletingTemplateId === template.id}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={template.isUserTemplate ? 'Ištrinti šabloną' : 'Paslėpti šį šabloną'}
+                      >
+                        {deletingTemplateId === template.id ? (
+                          <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                ))}
+                )})}
               </div>
 
               {/* Actions */}
@@ -379,7 +626,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                 </div>
               )}
 
-              <form onSubmit={(e) => { e.preventDefault(); if (isValidCustomForm) handleAddCustom(); }}>
+              <div>
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -504,15 +751,20 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                     Atšaukti
                   </button>
                   <button
-                    type="submit"
-                    disabled={!isValidCustomForm}
+                    type="button"
+                    disabled={!isValidCustomForm || isSavingCustomTemplate}
+                    onClick={() => {
+                      if (isValidCustomForm && !isSavingCustomTemplate) {
+                        void handleAddCustom();
+                      }
+                    }}
                     className="flex-1 px-4 py-2 bg-[#2F8481] text-white rounded-lg hover:bg-[#297a77] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    Pridėti skaitiklį
+                    {isSavingCustomTemplate ? 'Saugoma...' : 'Pridėti skaitiklį'}
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           )}
         </div>

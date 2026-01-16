@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { userApi } from '../lib/userApi';
 import { addressApi } from '../lib/database';
 import { UserAddress } from '../types/user';
+import { FRONTEND_MODE } from '../config/frontendMode';
 
 export const UserAddressDebug: React.FC = () => {
   const { user } = useAuth();
@@ -13,6 +14,17 @@ export const UserAddressDebug: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       if (!user) return;
+
+      // ⚠️ FRONTEND MODE - Skip API calls
+      if (FRONTEND_MODE) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🚫 FRONTEND ONLY: Skipping debug API calls');
+        }
+        setLoading(false);
+        setUserAddresses([]);
+        setAllAddresses([]);
+        return;
+      }
 
       try {
         setLoading(true);

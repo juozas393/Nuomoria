@@ -6,18 +6,34 @@ import { useAuth } from "../../context/AuthContext";
 
 import { Tenant } from "../../types/tenant";
 import { type Meter } from "../komunaliniai";
-import { X, User, Home, FileText, Droplets, Phone, Calendar, Euro, MapPin, Camera, Clock } from 'lucide-react';
-import { getMeterTypeLabel } from '../../constants/meterDistribution';
+import { X, User, Home, FileText, Droplets, Phone, Calendar, Euro, MapPin, Camera, Clock, CalendarIcon, UserPlus, Loader2 } from 'lucide-react';
+import { VacantAssignmentSection } from './VacantAssignmentSection';
+import { getMeterTypeLabel, type DistributionMethod } from '../../constants/meterDistribution';
+import { ApartmentMeterManager } from '../properties/ApartmentMeterManager';
+import { PropertyQuickActionsBar } from './PropertyQuickActionsBar';
+import { RentLedgerCard } from './RentLedgerCard';
+import { DepositJournalCard } from './DepositJournalCard';
+import { fetchRentLedger, fetchDepositEvents, createDepositEvent, type RentLedgerEntry } from '../../lib/propertyFinancials';
+import type { PropertyDepositEvent } from '../../lib/database';
+import { propertyApi } from '../../lib/database';
 
 // Type definitions for missing interfaces
-interface PropertyInfo {
+export interface PropertyInfo {
   id: string;
+  address_id?: string;
   address?: string;
+  property_label?: string | null;
   rooms?: number;
   area?: number;
   floor?: number;
   type?: string;
   status?: string;
+  rent?: number;
+  deposit_amount?: number;
+  deposit_paid_amount?: number;
+  contract_start?: string;
+  contract_end?: string;
+  notes?: string | null;
 }
 
 interface MoveOut {
@@ -46,6 +62,66 @@ interface MeterItem {
 
 // Helper functions
 const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '—';
+const formatCurrency = (value?: number | null) => {
+  if (value === null || value === undefined) return '€0';
+  return new Intl.NumberFormat('lt-LT', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value || 0);
+};
+
+const translatePropertyType = (type?: string | null) => {
+  if (!type) return '—';
+  switch (type.toLowerCase()) {
+    case 'apartment':
+    case 'flat':
+      return 'Butas';
+    case 'house':
+      return 'Namas';
+    case 'studio':
+      return 'Studija';
+    case 'commercial':
+      return 'Komercinis objektas';
+    default:
+      return type;
+  }
+};
+
+const translatePropertyStatus = (status?: string | null) => {
+  if (!status) return 'Nenurodyta';
+  switch (status.toLowerCase()) {
+    case 'occupied':
+      return 'Užimtas';
+    case 'vacant':
+      return 'Laisvas';
+    case 'maintenance':
+      return 'Priežiūra';
+    case 'active':
+      return 'Aktyvus';
+    case 'inactive':
+      return 'Neaktyvus';
+    default:
+      return status;
+  }
+};
+
+const translateMoveOutStatus = (status?: string | null) => {
+  if (!status || status.toLowerCase() === 'none') return 'Nenumatyta';
+  switch (status.toLowerCase()) {
+    case 'scheduled':
+      return 'Suplanuota';
+    case 'in_progress':
+      return 'Vykdoma';
+    case 'completed':
+      return 'Užbaigta';
+    case 'cancelled':
+      return 'Atšaukta';
+    default:
+      return status;
+  }
+};
 
 // Helper functions for meter logic
 const normalizeHeating = (meter: any) => {
@@ -289,142 +365,211 @@ const OverviewTab: React.FC<{
   tenant: Tenant;
   property: PropertyInfo;
   moveOut: MoveOut;
-}> = ({ tenant, property, moveOut }) => {
+  ledger: RentLedgerEntry[];
+  ledgerLoading: boolean;
+  depositEvents: PropertyDepositEvent[];
+  depositLoading: boolean;
+  nominalDeposit: number;
+  onCreateDepositEvent: (input: { eventType: PropertyDepositEvent['event_type']; amount: number; notes?: string }) => Promise<void>;
+}> = ({ tenant, property, moveOut, ledger, ledgerLoading, depositEvents, depositLoading, nominalDeposit, onCreateDepositEvent }) => {
+  const statusConfig = useMemo(() => {
+    switch (tenant.status) {
+      case 'active':
+        return { label: 'Aktyvus', badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200' };
+      case 'expired':
+        return { label: 'Baigėsi', badge: 'bg-rose-50 text-rose-700 border border-rose-200' };
+      case 'moving_out':
+        return { label: 'Išsikrausto', badge: 'bg-amber-50 text-amber-700 border border-amber-200' };
+      case 'vacant':
+        return { label: 'Laisvas', badge: 'bg-gray-100 text-gray-600 border border-gray-200' };
+      default:
+        return { label: 'Laukia', badge: 'bg-amber-50 text-amber-700 border border-amber-200' };
+    }
+  }, [tenant.status]);
+
+  const paymentStatusLabel = useMemo(() => {
+    switch (tenant.payment_status) {
+      case 'paid':
+        return 'Apmokėta';
+      case 'overdue':
+        return 'Vėluoja';
+      case 'unpaid':
+        return 'Neapmokėta';
+      default:
+        return 'Nežinomas';
+    }
+  }, [tenant.payment_status]);
+
+  const propertyMetrics = useMemo(
+    () => [
+      { label: 'Kambariai', value: property.rooms ?? '—' },
+      { label: 'Plotas', value: property.area ? `${property.area} m²` : '—' },
+      { label: 'Aukštas', value: property.floor ?? '—' },
+      { label: 'Tipas', value: translatePropertyType(property.type) },
+    ],
+    [property.rooms, property.area, property.floor, property.type]
+  );
+
+  const summaryMetrics = [
+    { label: 'Mėnesinis mokestis', value: formatCurrency(tenant.monthlyRent), emphasis: true },
+    { label: 'Depozitas', value: formatCurrency(tenant.deposit) },
+    { label: 'Mokėjimo statusas', value: paymentStatusLabel },
+    { label: 'Skola', value: formatCurrency(tenant.outstanding_amount ?? 0) },
+  ];
+
+  const moveOutNotice = moveOut?.notice || tenant.move_out_notice_date;
+  const moveOutStatusLabel = useMemo(() => {
+    if (moveOut?.status) return translateMoveOutStatus(moveOut.status);
+    switch (tenant.tenant_response) {
+      case 'wants_to_renew':
+        return 'Nori pratęsti';
+      case 'does_not_want_to_renew':
+        return 'Nenori pratęsti';
+      default:
+        return 'Nepatvirtinta';
+    }
+  }, [moveOut?.status, tenant.tenant_response]);
+  const moveOutPlanned = moveOut?.planned || tenant.planned_move_out_date;
+
   return (
     <div className="space-y-6">
-      {/* Tenant Info */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
-            <User className="w-5 h-5 text-[#2F8481]" />
+      <section className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-sm">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-1 items-center gap-4">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2F8481]/10">
+              <User className="h-6 w-6 text-[#2F8481]" />
+            </span>
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-2xl font-semibold text-black leading-tight">{tenant.name}</h3>
+                <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${statusConfig.badge}`}>
+                  {statusConfig.label}
+                </span>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-neutral-900">{tenant.name}</h3>
-            <p className="text-sm text-neutral-500">{tenant.email}</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Phone className="w-4 h-4 text-neutral-400" />
-              <span className="text-sm text-neutral-600">Telefonas:</span>
-              <span className="text-sm font-medium text-neutral-900">{tenant.phone}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Calendar className="w-4 h-4 text-neutral-400" />
-              <span className="text-sm text-neutral-600">Įsikėlimo data:</span>
-              <span className="text-sm font-medium text-neutral-900">{formatDate(tenant.contractStart)}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-neutral-600">Būsena:</span>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                tenant.status === 'active' ? 'bg-emerald-50 text-emerald-700' :
-                tenant.status === 'expired' ? 'bg-rose-50 text-rose-700' :
-                'bg-amber-50 text-amber-700'
-              }`}>
-                {tenant.status === 'active' ? 'Aktyvus' : 
-                 tenant.status === 'expired' ? 'Baigėsi' : 'Laukia'}
-              </span>
-        </div>
-      </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Euro className="w-4 h-4 text-neutral-400" />
-              <span className="text-sm text-neutral-600">Mėnesinis mokestis:</span>
-              <span className="text-sm font-medium text-neutral-900">€{tenant.monthlyRent}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Euro className="w-4 h-4 text-neutral-400" />
-              <span className="text-sm text-neutral-600">Depozitas:</span>
-              <span className="text-sm font-medium text-neutral-900">€{tenant.deposit}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Calendar className="w-4 h-4 text-neutral-400" />
-              <span className="text-sm text-neutral-600">Sutarties pabaiga:</span>
-              <span className="text-sm font-medium text-neutral-900">{formatDate(tenant.contractEnd)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Property Info */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
-            <Home className="w-5 h-5 text-[#2F8481]" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-neutral-900">Būstas</h3>
-            <p className="text-sm text-neutral-500">{property.address}</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-black/60">
+                <span className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-black/40" />
+                  {tenant.phone || '—'}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-black/40" />
+                  Įsikėlė {formatDate(tenant.contractStart)}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-black/40" />
+                  Sutarties pabaiga {formatDate(tenant.contractEnd)}
+                </span>
+              </div>
+              {tenant.email && <p className="text-sm text-black/50 truncate">{tenant.email}</p>}
           </div>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {property.rooms !== undefined && (
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#2F8481]">{property.rooms}</div>
-              <div className="text-xs text-neutral-500">Kambariai</div>
+          <div className="grid w-full max-w-sm grid-cols-2 gap-3 text-sm">
+            {summaryMetrics.map((metric) => (
+              <div
+                key={metric.label}
+                className={`rounded-2xl border border-black/5 bg-white px-4 py-3 text-black ${metric.emphasis ? 'border-[#2F8481]/30 bg-[#2F8481]/10 text-[#2F8481]' : ''}`}
+              >
+                <p className={`text-xs uppercase tracking-[0.18em] ${metric.emphasis ? 'text-[#2F8481]/80' : 'text-black/50'}`}>{metric.label}</p>
+                <p className={`mt-1 text-lg font-semibold ${metric.emphasis ? 'text-[#2F8481]' : 'text-black'}`}>{metric.value}</p>
             </div>
-          )}
-          {property.area !== undefined && (
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#2F8481]">{property.area}</div>
-              <div className="text-xs text-neutral-500">m²</div>
+            ))}
             </div>
-          )}
-          {property.floor !== undefined && (
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#2F8481]">{property.floor}</div>
-              <div className="text-xs text-neutral-500">Aukštas</div>
-            </div>
-          )}
-          {property.type && (
-            <div className="text-center">
-              <div className="text-lg font-semibold text-neutral-900">{property.type}</div>
-              <div className="text-xs text-neutral-500">Tipas</div>
-            </div>
-          )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-sm">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2F8481]/10">
+            <Home className="h-5 w-5 text-[#2F8481]" />
+          </span>
+          <div>
+            <h3 className="text-lg font-semibold text-black">Būsto informacija</h3>
+            <p className="text-sm text-black/50">{property.address || 'Adresas nenurodytas'}</p>
         </div>
       </div>
 
-      {/* Move Out Info (if applicable) */}
-      {moveOut.status && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-amber-600" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-black/5 bg-white px-5 py-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-black/50">Objekto parametrai</p>
+            <div className="mt-3 grid grid-cols-2 gap-4 text-sm text-black/70">
+              {propertyMetrics.map((metric) => (
+                <div key={metric.label} className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.18em] text-black/40">{metric.label}</p>
+                  <p className="text-base font-semibold text-black">{metric.value}</p>
+          </div>
+              ))}
+          </div>
+        </div>
+        
+          <div className="rounded-2xl border border-black/5 bg-[#f7fbfb] px-5 py-4 text-sm text-black/70">
+            <p className="text-xs uppercase tracking-[0.18em] text-black/50">Papildoma informacija</p>
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span>Būklė</span>
+                <span className="font-semibold text-black">{translatePropertyStatus(property.status)}</span>
             </div>
+              <div className="flex items-center justify-between">
+                <span>Auto pratęsimas</span>
+                <span className="font-semibold text-black">{tenant.auto_renewal_enabled ? 'Įjungta' : 'Išjungta'}</span>
+            </div>
+              <div className="flex items-center justify-between">
+                <span>Pastabos</span>
+                <span className="max-w-[220px] text-right text-black/60">
+                  {tenant.tenant_response ? moveOutStatusLabel : '—'}
+                </span>
+            </div>
+            </div>
+        </div>
+      </div>
+      </section>
+
+      <section className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2F8481]/10">
+            <Calendar className="h-5 w-5 text-[#2F8481]" />
+          </span>
             <div>
-              <h3 className="text-lg font-semibold text-neutral-900">Išsikraustymas</h3>
-              <p className="text-sm text-neutral-500">Planuojama išsikraustymo informacija</p>
+            <h3 className="text-lg font-semibold text-black">Išsikraustymo planas</h3>
+            <p className="text-sm text-black/50">Sekite planuojamus terminus ir veiksmus.</p>
             </div>
           </div>
           
-          <div className="space-y-2">
-            {moveOut.notice && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-neutral-600">Pateikto prašymo data:</span>
-                <span className="text-sm font-medium text-neutral-900">{formatDate(moveOut.notice)}</span>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-black/5 bg-white px-4 py-3 text-sm text-black/70">
+            <p className="text-xs uppercase tracking-[0.18em] text-black/50">Planuojama data</p>
+            <p className="mt-2 text-base font-semibold text-black">{formatDate(moveOutPlanned)}</p>
               </div>
-            )}
-            {moveOut.planned && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-neutral-600">Planuojama data:</span>
-                <span className="text-sm font-medium text-neutral-900">{formatDate(moveOut.planned)}</span>
+          <div className="rounded-2xl border border-black/5 bg-white px-4 py-3 text-sm text-black/70">
+            <p className="text-xs uppercase tracking-[0.18em] text-black/50">Būsena</p>
+            <p className="mt-2 text-base font-semibold text-black">{moveOutStatusLabel}</p>
         </div>
-      )}
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-neutral-600">Būsena:</span>
-              <span className="text-sm font-medium text-neutral-900">{moveOut.status}</span>
+          <div className="rounded-2xl border border-black/5 bg-white px-4 py-3 text-sm text-black/70 md:col-span-1 md:flex md:flex-col">
+            <p className="text-xs uppercase tracking-[0.18em] text-black/50">Pastabos</p>
+            <p className="mt-2 flex-1 text-black/60">{moveOutNotice || 'Papildomų pastabų nėra.'}</p>
           </div>
           </div>
-        </div>
+      </section>
+
+      {ledgerLoading ? <LoadingCard message="Nuomos grafikas kraunamas..." /> : <RentLedgerCard entries={ledger} />}
+      {depositLoading ? (
+        <LoadingCard message="Depozito istorija kraunama..." />
+      ) : (
+        <DepositJournalCard
+          events={depositEvents}
+          nominalDeposit={nominalDeposit}
+          onCreateEvent={onCreateDepositEvent}
+        />
       )}
     </div>
   );
 };
+
+const LoadingCard: React.FC<{ message: string }> = ({ message }) => (
+  <div className="rounded-3xl border border-dashed border-black/10 bg-white/60 p-6 text-sm text-black/50">
+    {message}
+  </div>
+);
 
 // --- Modern Property Tab ---
 const PropertyTab: React.FC<{ property: PropertyInfo }> = ({ property }) => {
@@ -471,14 +616,14 @@ const PropertyTab: React.FC<{ property: PropertyInfo }> = ({ property }) => {
           {property.type && (
             <div className="flex justify-between items-center py-3 border-b border-neutral-100">
               <span className="text-sm text-neutral-600">Būsto tipas</span>
-              <span className="text-sm font-medium text-neutral-900">{property.type}</span>
+              <span className="text-sm font-medium text-neutral-900">{translatePropertyType(property.type)}</span>
             </div>
           )}
           
           {property.status && (
             <div className="flex justify-between items-center py-3">
               <span className="text-sm text-neutral-600">Būsena</span>
-              <span className="text-sm font-medium text-neutral-900">{property.status}</span>
+              <span className="text-sm font-medium text-neutral-900">{translatePropertyStatus(property.status)}</span>
             </div>
           )}
         </div>
@@ -509,276 +654,12 @@ const PropertyTab: React.FC<{ property: PropertyInfo }> = ({ property }) => {
           )}
           {property.type && (
             <div className="text-center p-3 bg-neutral-50 rounded-lg">
-              <div className="text-lg font-semibold text-neutral-900">{property.type}</div>
+              <div className="text-lg font-semibold text-neutral-900">{translatePropertyType(property.type)}</div>
               <div className="text-xs text-neutral-500">Tipas</div>
             </div>
           )}
         </div>
       </div>
-    </div>
-  );
-};
-
-// --- Modern Meters Tab ---
-const MetersTab: React.FC<{ 
-  meters: MeterItem[] | any[], 
-  tenant: any;
-  addressInfo?: any;
-  onSaveReading: (meterId: string, reading: number) => void;
-  onApproveReading: (meterId: string) => void;
-  onEditReading: (meterId: string, value: number) => void;
-  onSendWarning: (meterId: string) => void;
-  onRequestPhoto: (meterId: string) => void;
-  onViewHistory: (meterId: string) => void;
-  onRequestMissing: (ids: string[]) => void;
-}> = ({ 
-  meters, 
-  tenant, 
-  addressInfo,
-  onSaveReading, 
-  onApproveReading, 
-  onEditReading, 
-  onSendWarning, 
-  onRequestPhoto, 
-  onViewHistory, 
-  onRequestMissing 
-}) => {
-  console.log('🔍 MetersTab received meters:', meters);
-  console.log('🔍 Meter pricing data:', meters.map((m: any) => ({
-    name: m.name,
-    price_per_unit: m.price_per_unit,
-    fixed_price: m.fixed_price,
-    unit: m.unit
-  })));
-  
-  // Konvertuojame duomenis į naują formatą - naudojame meters prop tiesiogiai
-  const meterData: Meter[] = useMemo(() =>
-    meters.map((meter: any) => {
-      console.log('🔍 Processing meter:', meter.name, 'requires_photo:', meter.requires_photo, 'mode:', meter.mode);
-      
-      // Normalize heating meters
-      const normalizedMeter = normalizeHeating(meter);
-      
-      // Determine correct mode based on logic
-      let correctMode = normalizedMeter.mode;
-      if (!correctMode) {
-        if (normalizedMeter.distribution_method === 'fixed_split' || normalizedMeter.isFixedMeter) {
-          correctMode = 'Bendri'; // Fixed meters are communal
-        } else if (normalizedMeter.distribution_method === 'per_consumption') {
-          correctMode = 'Individualūs'; // Consumption-based are individual
-        } else if (normalizedMeter.distribution_method === 'per_apartment' || normalizedMeter.distribution_method === 'per_area') {
-          correctMode = 'Bendri'; // Per apartment/area are communal
-        } else {
-          correctMode = 'Individualūs'; // Default to individual
-        }
-      }
-      
-      return {
-        id: normalizedMeter.id,
-        kind: normalizedMeter.type as any,
-        name: normalizedMeter.name,
-        mode: correctMode,
-        unit: normalizedMeter.unit || 'm³',
-        value: normalizedMeter.tenantSubmittedValue || normalizedMeter.currentReading || null,
-        lastUpdatedAt: normalizedMeter.lastReadingDate,
-        needsPhoto: !!normalizedMeter.requires_photo,
-        needsReading: shouldShowReading({ ...normalizedMeter, mode: correctMode } as Meter),
-        status: normalizedMeter.status === 'read' ? 'ok' as const : 'waiting' as const,
-        photoPresent: !!normalizedMeter.photoUrl,
-        photoUrl: normalizedMeter.photoUrl || null,
-        // Use actual meter data - prioritize tenantSubmittedValue over currentReading
-        tenantSubmittedValue: normalizedMeter.tenantSubmittedValue || normalizedMeter.currentReading || null,
-        tenantSubmittedAt: normalizedMeter.lastReadingDate,
-        isApproved: normalizedMeter.status === 'read',
-        hasWarning: false,
-        // Fixed/Communal meter properties
-        isFixedMeter: normalizedMeter.distribution_method === 'fixed_split' || normalizedMeter.isFixedMeter || false,
-        isCommunalMeter: correctMode === 'Bendri',
-        showPhotoRequirement: !!normalizedMeter.requires_photo,
-        costPerApartment: normalizedMeter.costPerApartment || 0,
-        // Additional pricing information
-        price_per_unit: normalizedMeter.price_per_unit || normalizedMeter.pricePerUnit || 0,
-        fixed_price: normalizedMeter.fixed_price || 0,
-        distribution_method: normalizedMeter.distribution_method || 'per_apartment',
-        description: normalizedMeter.description || '',
-        // Add missing fields for ExtendedMeter
-        type: normalizedMeter.type || 'electricity',
-        previousReading: normalizedMeter.previousReading || 0,
-        currentReading: normalizedMeter.currentReading || null,
-        tenantPhotoEnabled: normalizedMeter.tenantPhotoEnabled || false
-      };
-    }), [meters]
-  );
-
-  // All meters in one list, sorted by type and name - naudojame meterData iš useMemo
-  const sortedMeters = useMemo(() => {
-    return meterData.sort((a, b) => {
-      // First sort by meter type (Individualūs first, then Bendri)
-      if (a.mode === 'Individualūs' && b.mode !== 'Individualūs') return -1;
-      if (a.mode !== 'Individualūs' && b.mode === 'Individualūs') return 1;
-      
-      // Then sort alphabetically by name
-      return a.name.localeCompare(b.name);
-    });
-  }, [meterData]);
-
-  // Calculate total costs - naudojame meterData iš useMemo
-  const totalCosts = useMemo(() => {
-    const total = meterData.reduce((sum, m) => {
-      if (m.tenantSubmittedValue && m.price_per_unit) {
-        return sum + (m.tenantSubmittedValue * m.price_per_unit);
-      }
-      return sum + (m.costPerApartment || 0);
-    }, 0);
-    
-    return { total };
-  }, [meterData]);
-
-  const needsAttention = meterData.filter(m => m.needsPhoto || m.needsReading).length;
-  const needsReading = meterData.filter(m => m.needsReading).length;
-  const needsPhoto = meterData.filter(m => m.needsPhoto).length;
-  const pendingApproval = meterData.filter(m => m.tenantSubmittedValue && !m.isApproved).length;
-
-  // Helper function to format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('lt-LT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2
-    }).format(amount);
-  };
-
-  // Helper function to get distribution method label
-  const getDistributionLabel = (method: string) => {
-    switch (method) {
-      case 'per_apartment': return 'Pagal butus';
-      case 'per_area': return 'Pagal plotą';
-      case 'per_person': return 'Pagal asmenis';
-      case 'fixed_split': return 'Fiksuotas';
-      case 'per_consumption': return 'Pagal suvartojimą';
-      default: return method;
-    }
-  };
-
-
-
-  return (
-    <div className="space-y-6">
-      {/* Header with Stats */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
-            <Droplets className="w-5 h-5 text-[#2F8481]" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-neutral-900">Komunaliniai skaitliukai</h3>
-            <p className="text-sm text-neutral-500">
-              {meterData.length} skaitliukų, {needsAttention} reikalauja dėmesio
-            </p>
-          </div>
-          {needsAttention > 0 && (
-            <button
-              onClick={() => onRequestMissing(meterData.filter(m => m.needsPhoto || m.needsReading).map(m => m.id))}
-              className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-            >
-              Paprašyti trūkstamų
-            </button>
-          )}
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-5 gap-4">
-          <div className="text-center p-3 bg-neutral-50 rounded-lg">
-            <div className="text-2xl font-bold text-[#2F8481]">{meterData.length}</div>
-            <div className="text-xs text-neutral-500">Iš viso</div>
-          </div>
-          <div className="text-center p-3 bg-amber-50 rounded-lg">
-            <div className="text-2xl font-bold text-amber-600">{needsReading}</div>
-            <div className="text-xs text-neutral-500">Reikia rodmens</div>
-          </div>
-          <div className="text-center p-3 bg-rose-50 rounded-lg">
-            <div className="text-2xl font-bold text-rose-600">{needsPhoto}</div>
-            <div className="text-xs text-neutral-500">Reikia foto</div>
-          </div>
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{pendingApproval}</div>
-            <div className="text-xs text-neutral-500">Laukia patvirtinimo</div>
-          </div>
-          <div className="text-center p-3 bg-emerald-50 rounded-lg">
-            <div className="text-2xl font-bold text-emerald-600">{meterData.length - needsAttention}</div>
-            <div className="text-xs text-neutral-500">Tvarkingi</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Cost Summary */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <h3 className="text-lg font-semibold text-neutral-900 mb-4">Bendros išlaidos</h3>
-        <div className="text-center p-4 bg-[#2F8481]/10 rounded-lg">
-          <div className="text-3xl font-bold text-[#2F8481]">{formatCurrency(totalCosts.total)}</div>
-          <div className="text-sm text-[#2F8481]">Bendros išlaidos</div>
-        </div>
-      </div>
-
-      {/* All Meters Section */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
-            <Droplets className="w-4 h-4 text-[#2F8481]" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-neutral-900">Visi skaitliukai</h3>
-            <p className="text-sm text-neutral-500">
-              {sortedMeters.length} skaitliukų • {formatCurrency(totalCosts.total)}
-            </p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {sortedMeters.map((meter) => {
-            // Use appropriate card based on meter type
-            if (meter.mode === 'Individualūs') {
-              return (
-                <MeterCard
-                  key={meter.id}
-                  meter={meter}
-                  addressInfo={addressInfo}
-                  onSaveReading={onSaveReading}
-                  onApproveReading={onApproveReading}
-                  onEditReading={onEditReading}
-                  onSendWarning={onSendWarning}
-                  onRequestPhoto={onRequestPhoto}
-                  onViewHistory={onViewHistory}
-                />
-              );
-            } else {
-              return (
-                <CommunalMeterCard
-                  key={meter.id}
-                  meter={meter}
-                  addressInfo={addressInfo}
-                  onSaveReading={onSaveReading}
-                  onApproveReading={onApproveReading}
-                  onEditReading={onEditReading}
-                  onSendWarning={onSendWarning}
-                  onRequestPhoto={onRequestPhoto}
-                  onViewHistory={onViewHistory}
-                />
-              );
-            }
-          })}
-        </div>
-      </div>
-
-      {/* No Meters Message */}
-      {sortedMeters.length === 0 && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-5">
-          <div className="text-center py-12">
-            <div className="text-3xl text-neutral-300 mb-3">📊</div>
-            <p className="text-neutral-500 text-sm">Skaitliukų nėra</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -1316,10 +1197,8 @@ interface ExtendedMeter extends Meter {
   type?: string;
   previousReading?: number;
   currentReading?: number;
-  value?: number;
-  tenantSubmittedValue?: number;
-  isApproved?: boolean;
-  price_per_unit?: number;
+  tenantPhotoEnabled?: boolean;
+  costPerApartment?: number;
 }
 
 // Main component
@@ -1332,6 +1211,9 @@ interface TenantDetailModalProProps {
   documents: Documents[];
   addressInfo?: any;
   meters: MeterItem[];
+  metersLoading?: boolean;
+  onMetersRefresh?: () => void | Promise<void>;
+  onTenantAssigned?: () => void | Promise<void>;
 }
 
 const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
@@ -1342,12 +1224,218 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   moveOut,
   documents,
   addressInfo,
-  meters
+  meters,
+  metersLoading = false,
+  onMetersRefresh,
+  onTenantAssigned
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const defaultTab = useMemo(() => (tenant.status === 'vacant' ? 'assign' : 'overview'), [tenant.status]);
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const { user } = useAuth();
+  const [propertySnapshot, setPropertySnapshot] = useState<PropertyInfo>(property);
+  const [ledgerEntries, setLedgerEntries] = useState<RentLedgerEntry[]>([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [depositEvents, setDepositEvents] = useState<PropertyDepositEvent[]>([]);
+  const [depositLoading, setDepositLoading] = useState(false);
   const [meterData, setMeterData] = useState<ExtendedMeter[]>([]);
+  const invoiceDefaultValues = useMemo(() => {
+    const rentAmount = propertySnapshot.rent ?? tenant.monthlyRent ?? 0;
+
+    const utilitiesBreakdown = meterData
+      .map((meter) => {
+        const raw = meter.costPerApartment;
+        const amount =
+          typeof raw === 'number' ? raw : raw != null && !Number.isNaN(Number(raw)) ? Number(raw) : 0;
+        return {
+          label: meter.name ?? 'Komunalinis mokesčis',
+          amount: Number(amount.toFixed(2))
+        };
+      })
+      .filter((item) => item.amount > 0);
+
+    const utilitiesAmount = utilitiesBreakdown.reduce((sum, item) => sum + item.amount, 0);
+
+    const summary = [
+      { label: 'Nuoma', amount: Number(rentAmount.toFixed(2)) },
+      ...utilitiesBreakdown
+    ];
+
+    return {
+      rent: Number(rentAmount.toFixed(2)),
+      utilities: Number(utilitiesAmount.toFixed(2)),
+      other: 0,
+      summary
+    };
+  }, [propertySnapshot.rent, tenant.monthlyRent, meterData]);
+
+  const mapApartmentMeterToExtendedMeter = useCallback((meter: any, latest?: {
+    current_reading?: number | null;
+    previous_reading?: number | null;
+    reading_date?: string | null;
+    price_per_unit?: number | null;
+  }): ExtendedMeter => {
+    const unitMap: Record<string, Meter['unit']> = {
+      m3: 'm³',
+      'm³': 'm³',
+      kwh: 'kWh',
+      kWh: 'kWh',
+      gj: 'GJ',
+      GJ: 'GJ'
+    };
+
+    const rawUnit = meter.unit ?? meter.unit_type;
+    const unit = unitMap[rawUnit as keyof typeof unitMap] ?? 'Kitas';
+
+    const statusCandidates: Array<Meter['status']> = ['ok', 'waiting', 'overdue'];
+    const status = statusCandidates.includes(meter.status)
+      ? (meter.status as Meter['status'])
+      : (meter.require_reading || meter.requires_reading ? 'waiting' : 'ok');
+
+    const resolveKind = (): Meter['kind'] => {
+      const kind = meter.kind ?? meter.category ?? meter.type;
+      if (
+        kind === 'water_cold' ||
+        kind === 'water_hot' ||
+        kind === 'electricity' ||
+        kind === 'heating' ||
+        kind === 'gas' ||
+        kind === 'ventilation' ||
+        kind === 'shared'
+      ) {
+        return kind;
+      }
+      if (typeof kind === 'string' && kind.includes('water')) {
+        return 'water_cold';
+      }
+      if (typeof kind === 'string' && kind.includes('electric')) {
+        return 'electricity';
+      }
+      if (typeof kind === 'string' && kind.includes('heat')) {
+        return 'heating';
+      }
+      if (typeof kind === 'string' && kind.includes('gas')) {
+        return 'gas';
+      }
+      return 'shared';
+    };
+
+    const rawLastReading =
+      latest?.current_reading ??
+      meter.last_reading ??
+      meter.current_reading ??
+      meter.initial_reading ??
+      meter.currentReading ??
+      meter.lastReading ??
+      null;
+
+    const numericLastReading =
+      typeof rawLastReading === 'number'
+        ? rawLastReading
+        : rawLastReading != null && !Number.isNaN(Number(rawLastReading))
+          ? Number(rawLastReading)
+          : null;
+
+    const tenantValueRaw =
+      meter.tenant_submitted_value ??
+      meter.tenantSubmittedValue ??
+      meter.tenant_submittedValue ??
+      null;
+
+    const tenantValue =
+      typeof tenantValueRaw === 'number'
+        ? tenantValueRaw
+        : tenantValueRaw != null && !Number.isNaN(Number(tenantValueRaw))
+          ? Number(tenantValueRaw)
+          : numericLastReading;
+
+    return {
+      id: meter.id,
+      name: meter.name ?? meter.custom_name ?? 'Skaitliukas',
+      kind: resolveKind(),
+      mode: meter.type === 'communal' ? 'Bendri' : 'Individualūs',
+      unit,
+      needsReading: Boolean(meter.require_reading ?? meter.requires_reading ?? meter.needsReading),
+      needsPhoto: Boolean(meter.require_photo ?? meter.requires_photo ?? meter.needsPhoto),
+      status,
+      lastUpdatedAt: latest?.reading_date ?? meter.updated_at ?? meter.last_reading_date ?? meter.reading_date ?? undefined,
+      value: numericLastReading,
+      tenantSubmittedValue: tenantValue,
+      tenantSubmittedAt: meter.tenant_submitted_at ?? meter.last_reading_date ?? latest?.reading_date ?? undefined,
+      isApproved: Boolean(
+        meter.isApproved ??
+          meter.is_approved ??
+          (status === 'ok' || meter.status === 'approved')
+      ),
+      hasWarning: Boolean(meter.hasWarning),
+      isFixedMeter: Boolean(meter.isFixedMeter ?? meter.distribution_method === 'fixed_split'),
+      isCommunalMeter: meter.type === 'communal',
+      showPhotoRequirement: Boolean(meter.require_photo ?? meter.requires_photo),
+      costPerApartment:
+        typeof meter.cost_per_apartment === 'number'
+          ? meter.cost_per_apartment
+          : meter.cost_per_apartment != null && !Number.isNaN(Number(meter.cost_per_apartment))
+            ? Number(meter.cost_per_apartment)
+            : 0,
+      price_per_unit:
+        typeof latest?.price_per_unit === 'number'
+          ? latest.price_per_unit
+          : typeof meter.price_per_unit === 'number'
+            ? meter.price_per_unit
+            : meter.price_per_unit != null && !Number.isNaN(Number(meter.price_per_unit))
+              ? Number(meter.price_per_unit)
+              : undefined,
+      fixed_price:
+        typeof meter.fixed_price === 'number'
+          ? meter.fixed_price
+          : meter.fixed_price != null && !Number.isNaN(Number(meter.fixed_price))
+            ? Number(meter.fixed_price)
+            : undefined,
+      distribution_method: meter.distribution_method ?? meter.distributionMethod ?? undefined,
+      description: meter.description ?? meter.notes ?? '',
+      previousReading:
+        typeof latest?.previous_reading === 'number'
+          ? latest.previous_reading
+          : typeof meter.previous_reading === 'number'
+            ? meter.previous_reading
+            : meter.previous_reading != null && !Number.isNaN(Number(meter.previous_reading))
+              ? Number(meter.previous_reading)
+              : undefined,
+      currentReading: numericLastReading ?? undefined,
+      tenantPhotoEnabled: Boolean(meter.tenant_photo_enabled ?? meter.tenantPhotoEnabled)
+    };
+  }, []);
+
+  const meterSummary = useMemo(() => {
+    if (meterData.length === 0) {
+      return {
+        count: 0,
+        needsReading: 0,
+        needsPhoto: 0,
+        pendingApproval: 0,
+        totalCost: 0,
+        okCount: 0
+      };
+    }
+
+    const needsReading = meterData.filter((meter) => meter.needsReading).length;
+    const needsPhoto = meterData.filter((meter) => meter.needsPhoto).length;
+    const pendingApproval = meterData.filter((meter) => meter.tenantSubmittedValue && !meter.isApproved).length;
+    const totalCost = meterData.reduce((sum, meter) => sum + (meter.costPerApartment || 0), 0);
+    const okCount = meterData.length - (needsReading + needsPhoto);
+
+    return {
+      count: meterData.length,
+      needsReading,
+      needsPhoto,
+      pendingApproval,
+      totalCost,
+      okCount: okCount < 0 ? 0 : okCount
+    };
+  }, [meterData]);
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   // Initialize meterData with meters prop when component mounts or meters change
   useEffect(() => {
@@ -1427,92 +1515,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   };
 
   // Handler functions
-  const handleSaveReading = useCallback(async (meterId: string, reading: number) => {
-    try {
-      console.log('Saving reading for meter:', meterId, reading);
-      
-      // Find the meter in the data
-      const meterIndex = meterData.findIndex(m => m.id === meterId);
-      if (meterIndex === -1) {
-        console.error('Meter not found:', meterId);
-        return;
-      }
-
-      const meter = meterData[meterIndex] as ExtendedMeter;
-
-      // Determine if this is a communal meter based on type and distribution method
-      // According to database schema:
-      // - Individual meters: type = 'individual' AND distribution_method = 'per_consumption'
-      // - Communal meters: type = 'communal' AND distribution_method IN ('per_apartment', 'per_area', 'fixed_split')
-      let isCommunalMeter = meter.mode === 'Bendri' || meter.isCommunalMeter;
-      
-      // If not determined by mode, check type and distribution method
-      if (!isCommunalMeter) {
-        // Check if it's communal based on distribution method
-        if (meter.distribution_method === 'per_apartment' || 
-            meter.distribution_method === 'per_area' ||
-            meter.distribution_method === 'fixed_split') {
-          isCommunalMeter = true;
-        } else if (meter.distribution_method === 'per_consumption') {
-          isCommunalMeter = false;
-        } else {
-          // Fallback to type
-          isCommunalMeter = meter.type === 'communal';
-        }
-      }
-
-      // For communal meters, we need to save to address level
-      // For individual meters, we save to apartment level
-      const meterType = isCommunalMeter ? 'address' : 'apartment';
-
-      // Log the data we're trying to insert for debugging
-      const insertData = {
-        property_id: property.id, // Always use property.id (for communal meters, this represents the address)
-        meter_id: meterId,
-        meter_type: meterType, // 'address' for communal, 'apartment' for individual
-        type: mapMeterTypeToDatabase(meter.type || 'electricity'), // Map to database type
-        reading_date: new Date().toISOString().split('T')[0],
-        current_reading: reading,
-        previous_reading: meter.previousReading || 0,
-        // REMOVED: difference - using consumption (GENERATED)
-        price_per_unit: meter.price_per_unit || 0, // Required field
-        total_sum: (reading - (meter.previousReading || 0)) * (meter.price_per_unit || 0), // Made nullable in DB
-        amount: (reading - (meter.previousReading || 0)) * (meter.price_per_unit || 0),
-        notes: isCommunalMeter ? 'Bendras skaitliukas - nuomotojo įvestas rodmuo' : 'Nuomotojo įvestas rodmuo'
-      };
-      
-      console.log('🔍 Inserting meter reading data:', insertData);
-      console.log('🔍 Is communal meter:', isCommunalMeter);
-      console.log('🔍 Meter type:', meterType);
-      console.log('🔍 Tenant object:', tenant);
-      console.log('🔍 Property object:', property);
-
-      // Update the meter reading in the database
-      const { data, error } = await supabase
-        .from('meter_readings')
-        .insert(insertData);
-
-      if (error) {
-        console.error('Error saving reading:', error);
-        alert('Klaida išsaugant rodmenį. Bandykite dar kartą.');
-        return;
-      }
-
-      // Update local state
-      const updatedMeterData = [...meterData];
-      (updatedMeterData[meterIndex] as ExtendedMeter).currentReading = reading;
-      (updatedMeterData[meterIndex] as ExtendedMeter).value = reading;
-      (updatedMeterData[meterIndex] as ExtendedMeter).tenantSubmittedValue = reading;
-      setMeterData(updatedMeterData);
-
-      console.log('✅ Reading saved successfully');
-      // Remove the alert - it's causing the persistent notification issue
-      
-    } catch (error) {
-      console.error('Error saving reading:', error);
-      alert('Klaida išsaugant rodmenį. Bandykite dar kartą.');
-    }
-  }, [meterData, property.id]);
+  // handleSaveReading defined after fetchTenantMeters
 
   const handleRequestPhoto = useCallback(async (meterId: string) => {
     try {
@@ -1568,6 +1571,65 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
       alert('Klaida siunčiant prašymus. Bandykite dar kartą.');
     }
   }, []);
+
+  const handleUpdateMeterPricing = useCallback(
+    async (
+      meterId: string,
+      payload: { price_per_unit?: number; fixed_price?: number; distribution_method?: string }
+    ) => {
+      try {
+        const updatePayload: Record<string, unknown> = {
+          updated_at: new Date().toISOString()
+        };
+
+        if (payload.price_per_unit !== undefined) {
+          updatePayload.price_per_unit = payload.price_per_unit;
+        }
+
+        if (payload.fixed_price !== undefined) {
+          updatePayload.fixed_price = payload.fixed_price;
+        }
+
+        if (payload.distribution_method !== undefined) {
+          updatePayload.distribution_method = payload.distribution_method;
+        }
+
+        const { error } = await supabase
+          .from('apartment_meters')
+          .update(updatePayload)
+          .eq('id', meterId);
+
+        if (error) {
+          throw error;
+        }
+
+        setMeterData((prev) =>
+          prev.map((meter) =>
+            meter.id === meterId
+              ? {
+                  ...meter,
+                  price_per_unit:
+                    payload.price_per_unit !== undefined ? payload.price_per_unit : meter.price_per_unit,
+                  fixed_price: payload.fixed_price !== undefined ? payload.fixed_price : meter.fixed_price,
+                  distribution_method:
+                    payload.distribution_method !== undefined
+                      ? payload.distribution_method
+                      : meter.distribution_method
+                }
+              : meter
+          )
+        );
+
+        if (onMetersRefresh) {
+          await onMetersRefresh();
+        }
+      } catch (error) {
+        console.error('❌ Failed to update meter pricing:', error);
+        alert('Nepavyko išsaugoti tarifo. Bandykite dar kartą.');
+      }
+    },
+    [onMetersRefresh]
+  );
 
   const handleApproveReading = useCallback(async (meterId: string) => {
     try {
@@ -1672,12 +1734,228 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     }
   }, []);
 
-  const tabs = [
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      {
+        id: 'assign',
+        label: tenant.status === 'vacant' ? 'Pridėti nuomininką' : 'Pakvietimų istorija',
+        icon: UserPlus
+      },
     { id: 'overview', label: 'Apžvalga', icon: User },
     { id: 'property', label: 'Būstas', icon: Home },
     { id: 'meters', label: 'Komunaliniai', icon: Droplets },
     { id: 'documents', label: 'Dokumentai', icon: FileText }
   ];
+
+    return baseTabs;
+  }, [tenant.status]);
+
+  const fetchTenantMeters = useCallback(
+    async (propertyId: string) => {
+      if (!propertyId) return;
+
+      try {
+        const [{ data: meters, error: metersError }, { data: readings, error: readingsError }] = await Promise.all([
+          supabase
+            .from('apartment_meters')
+            .select('*')
+            .eq('property_id', propertyId)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('meter_readings')
+            .select('meter_id, meter_type, current_reading, previous_reading, reading_date, price_per_unit')
+            .eq('property_id', propertyId)
+            .order('reading_date', { ascending: false })
+        ]);
+
+        if (metersError) {
+          throw metersError;
+        }
+
+        if (readingsError) {
+          throw readingsError;
+        }
+
+        type ReadingRow = NonNullable<typeof readings>[number];
+        const latestByMeter = new Map<string, ReadingRow>();
+        (readings ?? []).forEach((reading) => {
+          if (!reading?.meter_id) return;
+          if (!latestByMeter.has(reading.meter_id)) {
+            latestByMeter.set(reading.meter_id, reading);
+          }
+        });
+
+        const mappedMeters = (meters ?? []).map((meter) =>
+          mapApartmentMeterToExtendedMeter(meter, latestByMeter.get(meter.id))
+        );
+        setMeterData(mappedMeters);
+      } catch (fetchError) {
+        console.error('❌ Failed to load tenant meters:', fetchError);
+      }
+    },
+    [mapApartmentMeterToExtendedMeter]
+  );
+
+  useEffect(() => {
+    void fetchTenantMeters(property.id);
+  }, [fetchTenantMeters, property.id]);
+
+  useEffect(() => {
+    setPropertySnapshot(property);
+  }, [property]);
+
+  const refreshFinancials = useCallback(async () => {
+    if (!property.id) return;
+
+    setLedgerLoading(true);
+    setDepositLoading(true);
+    try {
+      const [ledger, deposits] = await Promise.all([
+        fetchRentLedger(property.id),
+        fetchDepositEvents(property.id)
+      ]);
+
+      setLedgerEntries(ledger);
+      setDepositEvents(deposits);
+    } catch (error) {
+      console.error('❌ Failed to load property financial data:', error);
+    } finally {
+      setLedgerLoading(false);
+      setDepositLoading(false);
+    }
+  }, [property.id]);
+
+  useEffect(() => {
+    void refreshFinancials();
+  }, [refreshFinancials]);
+
+  const handlePropertyMutate = useCallback((updates: Partial<PropertyInfo>) => {
+    setPropertySnapshot((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const handlePropertyRefresh = useCallback(async () => {
+    if (onTenantAssigned) {
+      await onTenantAssigned();
+    }
+  }, [onTenantAssigned]);
+
+  const handleCreateDepositJournalEntry = useCallback(
+    async ({ eventType, amount, notes }: { eventType: PropertyDepositEvent['event_type']; amount: number; notes?: string }) => {
+      if (!property.id) return;
+      setDepositLoading(true);
+      try {
+        const baseline =
+          depositEvents.length > 0 && depositEvents[0].balance_after !== null && depositEvents[0].balance_after !== undefined
+            ? depositEvents[0].balance_after ?? 0
+            : propertySnapshot.deposit_paid_amount ?? propertySnapshot.deposit_amount ?? 0;
+
+        const newEvent = await createDepositEvent({
+          propertyId: property.id,
+          eventType,
+          amount,
+          notes,
+          createdBy: user?.id ?? undefined,
+          previousBalance: baseline
+        });
+
+        const nextBalance = newEvent?.balance_after ?? baseline ?? 0;
+        if (newEvent) {
+          setDepositEvents((prev) => [newEvent, ...prev]);
+        }
+        handlePropertyMutate({ deposit_paid_amount: nextBalance });
+        await propertyApi.update(property.id, {
+          deposit_paid_amount: nextBalance,
+          deposit_paid: nextBalance > 0,
+          deposit_returned: nextBalance <= 0
+        });
+      } catch (error) {
+        console.error('❌ Failed to create deposit event:', error);
+      } finally {
+        setDepositLoading(false);
+      }
+    },
+    [property.id, depositEvents, propertySnapshot.deposit_paid_amount, propertySnapshot.deposit_amount, user?.id, handlePropertyMutate]
+  );
+
+  const handleSaveReading = useCallback(async (meterId: string, reading: number) => {
+    try {
+      console.log('Saving reading for meter:', meterId, reading);
+
+      const meterIndex = meterData.findIndex((m) => m.id === meterId);
+      if (meterIndex === -1) {
+        console.error('Meter not found:', meterId);
+        return;
+      }
+
+      const meter = meterData[meterIndex] as ExtendedMeter;
+
+      let isCommunalMeter = meter.mode === 'Bendri' || meter.isCommunalMeter;
+      if (!isCommunalMeter) {
+        if (
+          meter.distribution_method === 'per_apartment' ||
+          meter.distribution_method === 'per_area' ||
+          meter.distribution_method === 'fixed_split'
+        ) {
+          isCommunalMeter = true;
+        } else if (meter.distribution_method === 'per_consumption') {
+          isCommunalMeter = false;
+        } else {
+          isCommunalMeter = meter.type === 'communal';
+        }
+      }
+
+      const meterType = isCommunalMeter ? 'address' : 'apartment';
+      const previousBaseline =
+        typeof meter.currentReading === 'number'
+          ? meter.currentReading
+          : typeof meter.previousReading === 'number'
+            ? meter.previousReading
+            : 0;
+
+      const readingDateIso = new Date().toISOString();
+      const readingDate = readingDateIso.split('T')[0];
+
+      const insertData = {
+        property_id: property.id,
+        meter_id: meterId,
+        meter_type: meterType,
+        type: mapMeterTypeToDatabase(meter.type || 'electricity'),
+        reading_date: readingDate,
+        current_reading: reading,
+        previous_reading: previousBaseline,
+        price_per_unit: meter.price_per_unit || 0,
+        total_sum: (reading - previousBaseline) * (meter.price_per_unit || 0),
+        amount: (reading - previousBaseline) * (meter.price_per_unit || 0),
+        notes: isCommunalMeter
+          ? 'Bendras skaitliukas - nuomotojo įvestas rodmuo'
+          : 'Nuomotojo įvestas rodmuo'
+      };
+
+      const { error } = await supabase.from('meter_readings').insert(insertData);
+
+      if (error) {
+        console.error('Error saving reading:', error);
+        alert('Klaida išsaugant rodmenį. Bandykite dar kartą.');
+        return;
+      }
+
+      const updatedMeterData = [...meterData];
+      (updatedMeterData[meterIndex] as ExtendedMeter).currentReading = reading;
+      (updatedMeterData[meterIndex] as ExtendedMeter).previousReading = previousBaseline;
+      (updatedMeterData[meterIndex] as ExtendedMeter).value = reading;
+      (updatedMeterData[meterIndex] as ExtendedMeter).tenantSubmittedValue = reading;
+      (updatedMeterData[meterIndex] as ExtendedMeter).lastUpdatedAt = readingDateIso;
+      setMeterData(updatedMeterData);
+
+      await fetchTenantMeters(property.id);
+      await onMetersRefresh?.();
+
+      console.log('✅ Reading saved successfully');
+    } catch (error) {
+      console.error('Error saving reading:', error);
+      alert('Klaida išsaugant rodmenį. Bandykite dar kartą.');
+    }
+  }, [fetchTenantMeters, mapMeterTypeToDatabase, meterData, property.id, onMetersRefresh]);
 
   if (!isOpen) return null;
 
@@ -1711,7 +1989,18 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
             <X className="size-5" />
                   </button>
                 </div>
-                
+
+        <PropertyQuickActionsBar
+          property={propertySnapshot}
+          tenant={tenant}
+          ledger={ledgerEntries}
+          currentUserId={user?.id ?? undefined}
+          onFinancialsRefresh={refreshFinancials}
+          onPropertyRefresh={handlePropertyRefresh}
+          onPropertyMutate={handlePropertyMutate}
+          invoiceDefaults={invoiceDefaultValues}
+        />
+        
         {/* Tabs */}
         <div className="border-b border-neutral-200 px-6">
           <nav className="flex space-x-1">
@@ -1742,28 +2031,109 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           {activeTab === 'overview' && (
             <OverviewTab
               tenant={tenant}
-              property={property}
+              property={propertySnapshot}
               moveOut={moveOut}
+              ledger={ledgerEntries}
+              ledgerLoading={ledgerLoading}
+              depositEvents={depositEvents}
+              depositLoading={depositLoading}
+              nominalDeposit={propertySnapshot.deposit_paid_amount ?? propertySnapshot.deposit_amount ?? tenant.deposit ?? 0}
+              onCreateDepositEvent={handleCreateDepositJournalEntry}
             />
           )}
           {activeTab === 'property' && <PropertyTab property={property} />}
           {activeTab === 'meters' && (
-            <MetersTab 
-              meters={meterData} 
-              tenant={tenant}
-              addressInfo={addressInfo}
-              onSaveReading={handleSaveReading}
-              onApproveReading={handleApproveReading}
-              onEditReading={handleEditReading}
-              onSendWarning={handleSendWarning}
-              onRequestPhoto={handleRequestPhoto}
-              onViewHistory={handleViewHistory}
-              onRequestMissing={handleRequestMissing}
-            />
+            <div className="space-y-6">
+              {metersLoading && meterData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-black/10 bg-white p-10 text-sm text-black/60">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#2F8481]" />
+                  <span className="mt-3">Skaitliukai kraunami...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-white border border-neutral-200 rounded-xl p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
+                        <Droplets className="w-5 h-5 text-[#2F8481]" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-neutral-900">Komunaliniai skaitliukai</h3>
+                        <p className="text-sm text-neutral-500">
+                          {meterSummary.count} skaitliukų, {meterSummary.needsReading + meterSummary.needsPhoto} reikalauja dėmesio
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                      <SummaryTile label="Iš viso" value={meterSummary.count.toString()} tone="primary" />
+                      <SummaryTile label="Reikia rodmens" value={meterSummary.needsReading.toString()} tone="amber" />
+                      <SummaryTile label="Reikia foto" value={meterSummary.needsPhoto.toString()} tone="rose" />
+                      <SummaryTile label="Laukia patvirtinimo" value={meterSummary.pendingApproval.toString()} tone="blue" />
+                      <SummaryTile label="Tvarkingi" value={meterSummary.okCount.toString()} tone="emerald" />
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-neutral-200 rounded-xl p-5">
+                    <h3 className="text-lg font-semibold text-neutral-900 mb-4">Bendros išlaidos</h3>
+                    <div className="text-center p-4 bg-[#2F8481]/10 rounded-lg">
+                      <div className="text-3xl font-bold text-[#2F8481]">
+                        {new Intl.NumberFormat('lt-LT', {
+                          style: 'currency',
+                          currency: 'EUR',
+                          minimumFractionDigits: 2
+                        }).format(meterSummary.totalCost)}
+                      </div>
+                      <div className="text-sm text-[#2F8481]">Bendros išlaidos (pagal pateiktus rodmenis)</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {property.address_id && (
+                <ApartmentMeterManager
+                  propertyId={property.id}
+                  addressId={property.address_id}
+                  fallbackMeters={meterData}
+                  onMetersUpdate={async () => {
+                    await fetchTenantMeters(property.id);
+                    await onMetersRefresh?.();
+                  }}
+                />
+              )}
+            </div>
           )}
           {activeTab === 'documents' && <DocumentsTab documents={documents} />}
+          {activeTab === 'assign' && (
+            <VacantAssignmentSection
+              property={property}
+              canInvite={tenant.status === 'vacant'}
+              onRefresh={async () => {
+                if (onTenantAssigned) {
+                  await onTenantAssigned();
+                }
+              }}
+            />
+          )}
                           </div>
                         </div>
+                    </div>
+  );
+};
+
+const toneStyles: Record<'primary' | 'amber' | 'rose' | 'blue' | 'emerald', { bg: string; text: string }> = {
+  primary: { bg: 'bg-[#2F8481]/10', text: 'text-[#2F8481]' },
+  amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  rose: { bg: 'bg-rose-50', text: 'text-rose-600' },
+  blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' }
+};
+
+const SummaryTile = ({ label, value, tone }: { label: string; value: string; tone: keyof typeof toneStyles }) => {
+  const style = toneStyles[tone];
+  return (
+    <div className={`rounded-xl ${style.bg} p-4 text-center`}>
+      <div className={`text-2xl font-bold ${style.text}`}>{value}</div>
+      <div className="text-xs text-neutral-500">{label}</div>
                     </div>
   );
 };

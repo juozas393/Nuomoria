@@ -16,6 +16,8 @@ import {
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { fetchNotificationsForUser } from '../lib/notifications';
+import { supabase } from '../lib/supabase';
 
 interface AmazingNavbarProps {
   onMenuToggle: () => void;
@@ -80,38 +82,16 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
   const PageIcon = pageInfo.icon;
 
   // Notifications data
-  const notifications = [
-    {
-      id: 1,
-      title: 'New payment received',
-      message: 'Vokiečių 117 - 850€ payment successfully received',
-      time: '2 min',
-      unread: true,
-      type: 'payment',
-      amount: '850€',
-      priority: 'high'
-    },
-    {
-      id: 2,
-      title: 'Maintenance request',
-      message: 'Vokiečių 117 - plumbing issues require attention',
-      time: '15 min',
-      unread: true,
-      type: 'maintenance',
-      priority: 'medium'
-    },
-    {
-      id: 3,
-      title: 'New tenant',
-      message: 'Jonas Jonaitis - Vokiečių 117 lease agreement signed',
-      time: '1 hour',
-      unread: false,
-      type: 'tenant',
-      priority: 'low'
-    }
-  ];
-
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const [navbarNotifications, setNavbarNotifications] = useState<Array<{
+    id: string;
+    title: string;
+    message?: string | null;
+    type: string;
+    time: string;
+    unread: boolean;
+    priority: 'high' | 'normal';
+  }>>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -146,10 +126,10 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-primary-100 text-primary-800 border-primary-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'high':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -161,6 +141,56 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
       default: return BellIcon;
     }
   };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setNavbarNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    const loadNotifications = async () => {
+      try {
+        const rows = await fetchNotificationsForUser(user.id);
+        const mapped = rows.map((row) => {
+          const extra = (row.data as { priority?: string } | null) ?? null;
+          return {
+            id: row.id,
+            title: row.title ?? 'Pranešimas',
+            message: row.body,
+            type: row.kind ?? 'general',
+            time: new Date(row.created_at).toLocaleString('lt-LT'),
+            unread: !row.is_read,
+            priority: extra?.priority === 'high' ? 'high' as const : 'normal' as const
+          };
+        });
+        setNavbarNotifications(mapped);
+        setUnreadCount(mapped.filter((item) => item.unread).length);
+      } catch (error) {
+        console.error('❌ Failed to load navbar notifications:', error);
+        setNavbarNotifications([]);
+        setUnreadCount(0);
+      }
+    };
+
+    loadNotifications();
+
+    const channel = supabase
+      .channel('navbar-notifications')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        loadNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-soft">
@@ -248,7 +278,7 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
                     <h3 className="text-lg font-semibold text-black">Notifications</h3>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
-                    {notifications.map((notification) => {
+                {navbarNotifications.map((notification) => {
                       const TypeIcon = getTypeIcon(notification.type);
                       return (
                         <div

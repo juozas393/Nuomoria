@@ -145,9 +145,7 @@ const Properties: React.FC = () => {
   const [globalMessages, setGlobalMessages] = useState<ChatMessage[]>([]);
   const [showAddApartmentModal, setShowAddApartmentModal] = useState(false);
   const [communalConfigs, setCommunalConfigs] = useState<Map<string, CommunalConfig>>(new Map());
-  const [addressSettings, setAddressSettings] = useState<AddressSettings | undefined>(
-    getAddressSettings("Vokiečių g. 117, Vilnius")
-  );
+  const [addressSettings, setAddressSettings] = useState<AddressSettings | undefined>(undefined);
   const [showAddressSettingsModal, setShowAddressSettingsModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<ChatUser>({
     id: 'landlord-1',
@@ -220,6 +218,11 @@ const Properties: React.FC = () => {
   const handleOpenAddressSettings = () => {
     setShowAddressSettingsModal(true);
   };
+
+  const handleOpenBillingShortcut = useCallback((params: { addressId?: string | null; address: string }) => {
+    setShowAddressSettingsModal(false);
+    window.dispatchEvent(new CustomEvent('open-invoice-quick-create', { detail: params }));
+  }, []);
 
   const handleAddApartment = async (apartmentData: any) => {
     try {
@@ -429,6 +432,7 @@ const Properties: React.FC = () => {
         address="Vokiečių g. 117, Vilnius"
         currentSettings={addressSettings}
         onSave={handleAddressSettingsSave}
+        onOpenBilling={handleOpenBillingShortcut}
       />
     </div>
   );

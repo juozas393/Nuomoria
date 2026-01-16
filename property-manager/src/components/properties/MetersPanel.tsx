@@ -629,7 +629,7 @@ export function MetersPanel({
   onChange: (m: Meter) => void;
   onDelete: (id: string) => void;
   onEdit: (m: Meter) => void;
-  onAddMeter: () => void;
+  onAddMeter: (id: string) => void;
   onAddAvailableMeter: (availableMeter: AvailableMeter) => void;
 }) {
   const [search, setSearch] = useState("");
@@ -663,16 +663,13 @@ export function MetersPanel({
 
   const handleAddMeterClick = () => {
     console.log('Add meter button clicked, creating new meter');
-    onAddMeter(); // Call the parent's onAddMeter to create a new meter
-    
-    // Find the newest meter and put it in edit mode
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    onAddMeter(tempId);
+
     setTimeout(() => {
-      const newestMeter = meters[meters.length - 1];
-              if (newestMeter && newestMeter.name === 'Naujas skaitliukas') {
-        setEditingMeterId(newestMeter.id);
-        console.log('New meter put in edit mode:', newestMeter.id);
-      }
-    }, 100);
+      setEditingMeterId(tempId);
+      console.log('New meter put in edit mode:', tempId);
+    }, 0);
   };
 
   const handleEditMeter = (meter: Meter) => {

@@ -7,16 +7,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: '#2F8481',
-        ink: '#000000',
-        paper: '#FFFFFF',
-        primary: {
-          DEFAULT: '#2F8481',
-          hover: '#297a77',
-          light: '#E8F5F4',
-          ring: '#2F8481',
-        },
-        neutral: {
+        // ✅ PALETTE RULES: Only #2F8481, #000000, #FFFFFF
+        primary: '#2F8481',
+        black: '#000000',
+        white: '#FFFFFF',
+        // Helper shades derived from palette
+        'primary-hover': '#297a77',
+        'primary-light': '#E8F5F4',
+        'primary-dark': '#225f5c',
+        // Minimal grayscale for UI (black-based)
+        gray: {
           50: '#fafafa',
           100: '#f5f5f5',
           200: '#e5e5e5',
@@ -27,21 +27,7 @@ module.exports = {
           700: '#404040',
           800: '#262626',
           900: '#171717',
-        },
-        success: {
-          50: '#f0fdf4',
-          500: '#22c55e',
-          600: '#16a34a',
-        },
-        warning: {
-          50: '#fffbeb',
-          500: '#f59e0b',
-          600: '#d97706',
-        },
-        danger: {
-          50: '#fef2f2',
-          500: '#ef4444',
-          600: '#dc2626',
+          950: '#000000', // Pure black
         },
       },
       fontFamily: {

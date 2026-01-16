@@ -397,7 +397,7 @@ export const analyticsApi = {
       .select('rent')
     
     if (error) throw error
-    return data?.reduce((sum: number, property: any) => sum + (property.rent || 0), 0) || 0
+    return data?.reduce((sum: number, property: { rent: number | null }) => sum + (property.rent || 0), 0) || 0
   },
 
   // Get occupancy rate
@@ -409,7 +409,7 @@ export const analyticsApi = {
     if (error) throw error
     
     const total = data?.length || 0
-    const occupied = data?.filter((p: any) => p.status === 'occupied').length || 0
+    const occupied = data?.filter((p: { status: string }) => p.status === 'occupied').length || 0
     
     return total > 0 ? (occupied / total) * 100 : 0
   },
@@ -422,6 +422,6 @@ export const analyticsApi = {
       .gte('reading_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
     
     if (error) throw error
-    return data?.reduce((sum: number, reading: any) => sum + (reading.total_sum || 0), 0) || 0
+    return data?.reduce((sum: number, reading: { total_sum: number | null }) => sum + (reading.total_sum || 0), 0) || 0
   }
 } 

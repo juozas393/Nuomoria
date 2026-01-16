@@ -46,13 +46,15 @@
   box-sizing: border-box;
 }
 
-/* Body optimizations - Shopify level */
+/* Body optimizations - Shopify level with Sharp Typography */
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  /* Sharp text rendering - NO antialiasing blur */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  font-smooth: always;
+  text-rendering: optimizeLegibility;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
@@ -68,8 +70,9 @@ body {
   transform: none;
 }
 
-/* HTML optimizations - Shopify level */
+/* HTML optimizations - Shopify level with Sharp Typography */
 html {
+  text-rendering: optimizeLegibility;
   scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   scroll-padding-top: 0;
@@ -839,4 +842,141 @@ html {
 
 .btn-ghost:hover {
   background: #F9FAFB;
+}
+
+/* ============================================================================
+   ANALYTICS KPI TYPOGRAPHY - PRODUCTION SHARP TEXT
+   ============================================================================
+   NO transform, NO antialiasing blur, precise font sizing
+   Based on: Inter static weights (400/500/600/700)
+   Contrast: AA compliant (4.5:1 minimum)
+   ========================================================================== */
+
+/* KPI Cards - Remove ALL transforms and blurs */
+.kpi-card,
+.kpi-card * {
+  transform: none !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  -webkit-font-smoothing: auto !important;
+  -moz-osx-font-smoothing: auto !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* KPI Main Number - Large, Bold, Tabular */
+.kpi-number {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: clamp(28px, 2.1vw, 32px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  font-variant-numeric: tabular-nums lining-nums;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  transform: none;
+}
+
+/* KPI Title - Semibold, Comfortable */
+.kpi-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* KPI Subtitle - Medium, Slightly Transparent */
+.kpi-subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  opacity: 0.8;
+  letter-spacing: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* KPI Chip/Badge - Semibold, No Letter Spacing */
+.kpi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 999px;
+  letter-spacing: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  transform: none;
+}
+
+/* KPI Pill (Risk Indicator) - Semibold, Rounded */
+.kpi-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 6px 10px;
+  border-radius: 10px;
+  letter-spacing: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  transform: none;
+}
+
+/* KPI CTA Button - Semibold, Comfortable */
+.kpi-cta {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  transform: none;
+}
+
+/* Progress Label - Medium Weight */
+.kpi-progress-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* NO sub-pixel rendering on borders */
+.kpi-card {
+  border-width: 1px; /* NO 0.5px borders */
+}
+
+/* NO text shadows anywhere in KPI cards */
+.kpi-card *,
+.kpi-number,
+.kpi-title,
+.kpi-chip,
+.kpi-pill {
+  text-shadow: none !important;
+}
+
+/* Ensure tabular nums everywhere in Analytics */
+.analytics-page .tabular-nums,
+.analytics-page [class*="kpi-"] {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Hover effects - opacity only, NO transform */
+.kpi-card:hover {
+  transition: box-shadow 0.3s ease, opacity 0.3s ease;
+}
+
+.kpi-chip:hover,
+.kpi-pill:hover,
+.kpi-cta:hover {
+  transition: opacity 0.2s ease;
 }

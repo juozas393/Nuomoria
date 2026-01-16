@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { FRONTEND_MODE, getModeStatus } from '../config/frontendMode';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -20,6 +21,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return () => clearTimeout(t);
   }, [loading, isAuthenticated, user]);
 
+  // ⚠️ FRONTEND MODE - Bypass authentication when enabled
+  if (FRONTEND_MODE) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`${getModeStatus()}: Bypassing authentication check`);
+    }
+    return <>{children}</>;
+  }
+
   // Show loading while checking authentication
   if (loading && !waitOver) {
     // showing loading screen - logging removed for production
@@ -36,7 +45,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
     // not authenticated, redirecting to login - logging removed for production
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔒 ProtectedRoute: User not authenticated', {
+        hasUser: !!user,
+        isAuthenticated,
+        loading,
+        waitOver,
+        location: location.pathname
+      });
+    }
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Check if user needs onboarding
+  if (user && (user as any).needsOnboarding) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🆕 User needs onboarding - redirecting to /onboarding');
+    }
+    return <Navigate to="/onboarding" replace />;
   }
 
   // Render protected content if authenticated

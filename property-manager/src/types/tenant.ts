@@ -58,6 +58,7 @@ export interface Tenant {
     distribution_method: DistributionMethod;
     description: string;
     is_active: boolean;
+  requires_photo?: boolean;
     // Reading information
     lastReading?: string;
     lastReadingDate?: string;

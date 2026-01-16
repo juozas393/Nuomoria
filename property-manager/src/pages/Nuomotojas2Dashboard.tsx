@@ -5,7 +5,7 @@ const AddAddressModal = React.lazy(() => import('../components/properties/AddAdd
 const AddApartmentModal = React.lazy(() => import('../components/properties/AddApartmentModal').then(module => ({ default: module.AddApartmentModal })));
 const TenantListOptimized = React.lazy(() => import('../components/nuomotojas2/TenantListOptimized'));
 const TenantDetailModalPro = React.lazy(() => import('../components/nuomotojas2/TenantDetailModalPro'));
-import { PlusIcon, Cog6ToothIcon, TrashIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, Cog6ToothIcon, TrashIcon, BuildingOfficeIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 // VirtualizedList removed for stability - using optimized regular rendering
 import { useAuth } from '../context/AuthContext';
 import { useProperties, useAddresses, useStats } from '../context/DataContext';
@@ -17,10 +17,12 @@ import { getAddressSettings, saveAddressSettings, getDefaultAddressSettings } fr
 import { addressApi, propertyApi, meterReadingApi } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { Tenant } from '../types/tenant';
+import { type DistributionMethod } from '../constants/meterDistribution';
 // Optimized image loading
 import addressImage from '../assets/address.jpg';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatCurrency } from '../utils/format';
+import OnboardingBanner from '../components/OnboardingBanner';
 
 // Using centralized Tenant type from types/tenant.ts
 
@@ -54,11 +56,13 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const [addressSettings, setAddressSettings] = useState<AddressSettings | undefined>(undefined);
   const [showAddressSettingsModal, setShowAddressSettingsModal] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | undefined>(undefined);
   const [showDeleteAddressModal, setShowDeleteAddressModal] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState<any>(null);
   const [showDeleteAllAddressesModal, setShowDeleteAllAddressesModal] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [expandedAddresses, setExpandedAddresses] = useState<Set<string>>(new Set());
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+const [tenantMetersLoading, setTenantMetersLoading] = useState(false);
   
   // Derived state with memoization for performance
   const isLoading = propertiesLoading || addressesLoading;
@@ -78,7 +82,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       email: property.email || '',
       apartmentNumber: property.apartment_number,
       address: typeof property.address === 'string' ? property.address : property.address?.full_address || '',
-      address_id: property.address?.id,
+      address_id: property.address_id || property.address?.id,
+      property_id: property.id,
       status: (property.tenant_name && property.tenant_name !== 'Laisvas' ? 'active' : 'vacant') as 'active' | 'vacant' | 'expired' | 'pending' | 'moving_out',
       contractStart: property.contract_start,
       contractEnd: property.contract_end,
@@ -129,27 +134,132 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const addressList = useMemo(() => {
     if (!addresses || !Array.isArray(addresses)) return [];
     
-    return addresses.map(address => ({
-      id: address.id,
-      full_address: address.full_address,
-      total_apartments: 0,
-      floors: address.floors || 1,
-      building_type: address.building_type || 'Butų namas',
-      year_built: address.year_built,
-      chairman_name: address.chairman_name,
-      chairman_phone: address.chairman_phone,
-      chairman_email: address.chairman_email
-    }));
-  }, [addresses]);
+    return addresses.map(address => {
+      // Count apartments for this address from properties
+      const apartmentCount = allTenants.filter(tenant => 
+        tenant.address_id === address.id || tenant.address === address.full_address
+      ).length;
+      
+      return {
+        id: address.id,
+        full_address: address.full_address,
+        total_apartments: apartmentCount,
+        floors: address.floors || 1,
+        building_type: address.building_type || 'Butų namas',
+        year_built: address.year_built,
+        chairman_name: address.chairman_name,
+        chairman_phone: address.chairman_phone,
+        chairman_email: address.chairman_email
+      };
+    });
+  }, [addresses, allTenants]);
 
 
 
-  const handleOpenAddressSettings = useCallback((address: string, addressId?: string) => {
-    let settings = getAddressSettings(address);
+  const mapApartmentMeterToTenantMeter = useCallback((meter: any): NonNullable<Tenant['meters']>[number] => {
+    const allowedUnits: Array<NonNullable<Tenant['meters']>[number]['unit']> = ['m3', 'kWh', 'GJ', 'MB', 'fixed'];
+    const unit = allowedUnits.includes(meter.unit) ? meter.unit : 'fixed';
+
+    const distribution: DistributionMethod =
+      typeof meter.distribution_method === 'string' &&
+      ['per_apartment', 'per_area', 'per_consumption', 'fixed_split'].includes(meter.distribution_method)
+        ? meter.distribution_method
+        : 'per_apartment';
+
+    return {
+      id: meter.id,
+      name: meter.name || meter.custom_name || 'Skaitliukas',
+      type: meter.type === 'communal' ? 'communal' : 'individual',
+      unit,
+      price_per_unit: typeof meter.price_per_unit === 'number' ? meter.price_per_unit : 0,
+      fixed_price: typeof meter.fixed_price === 'number' ? meter.fixed_price : undefined,
+      distribution_method: distribution,
+      description: meter.description || meter.notes || '',
+      is_active: meter.is_active ?? meter.status !== 'inactive',
+      requires_photo: meter.require_photo ?? meter.requires_photo ?? false,
+      lastReading:
+        meter.last_reading != null
+          ? String(meter.last_reading)
+          : meter.current_reading != null
+            ? String(meter.current_reading)
+            : meter.initial_reading != null
+              ? String(meter.initial_reading)
+              : undefined,
+      lastReadingDate: meter.last_reading_date ?? meter.reading_date ?? meter.updated_at ?? undefined,
+      previousReading: meter.previous_reading != null ? String(meter.previous_reading) : undefined,
+      previousReadingDate: meter.previous_reading_date ?? undefined,
+      consumption: meter.consumption != null ? String(meter.consumption) : undefined,
+      cost: typeof meter.cost_per_apartment === 'number' ? meter.cost_per_apartment.toFixed(2) : undefined,
+      status: meter.status ?? (meter.is_active === false ? 'inactive' : 'active'),
+      needsReading: meter.require_reading ?? undefined
+    };
+  }, []);
+
+  const fetchTenantMeters = useCallback(
+    async (propertyId: string) => {
+      if (!propertyId) {
+        return;
+      }
+
+      setTenantMetersLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('apartment_meters')
+          .select('*')
+          .eq('property_id', propertyId)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('❌ Failed to load apartment meters:', error);
+          setSelectedTenant((prev) =>
+            prev && prev.id === propertyId ? { ...prev, meters: [] } : prev
+          );
+          return;
+        }
+
+        const mappedMeters = (data ?? []).map(mapApartmentMeterToTenantMeter);
+        setSelectedTenant((prev) =>
+          prev && prev.id === propertyId ? { ...prev, meters: mappedMeters } : prev
+        );
+      } catch (err) {
+        console.error('❌ Unexpected error while loading apartment meters:', err);
+      } finally {
+        setTenantMetersLoading(false);
+      }
+    },
+    [mapApartmentMeterToTenantMeter]
+  );
+
+  const handleOpenAddressSettings = useCallback(async (address: string, addressId?: string) => {
+    // Find the address data from the addresses array
+    const addressData = addresses?.find(addr => 
+      addr.id === addressId || 
+      addr.full_address === address
+    );
     
-    // If no settings exist for this address, create default ones
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Opening address settings for:', address);
+      console.log('🔍 Address ID:', addressId);
+      console.log('🔍 All addresses:', addresses);
+      console.log('🔍 Found address data:', addressData);
+      if (addressData) {
+        console.log('🔍 Address data details:', {
+          total_apartments: addressData.total_apartments,
+          floors: addressData.floors,
+          year_built: addressData.year_built,
+          building_type: addressData.building_type
+        });
+      }
+    }
+    
+    let settings = await getAddressSettings(address, addressData);
+    
+    // If no settings exist for this address, create default ones from database data
     if (!settings) {
-      const defaultSettings = getDefaultAddressSettings(address);
+      const defaultSettings = getDefaultAddressSettings(address, addressData);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Created default settings:', defaultSettings);
+      }
       settings = {
         ...defaultSettings,
         id: addressId || `address_${Date.now()}`,
@@ -159,25 +269,38 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
     }
     
     setAddressSettings(settings);
-    setSelectedAddressId(addressId);
     setShowAddressSettingsModal(true);
-  }, []);
+  }, [addresses]);
 
   const handleCloseAddressSettings = useCallback(() => {
     setShowAddressSettingsModal(false);
-    setSelectedAddressId(undefined);
   }, []);
 
-  const handleAddressSettingsSave = useCallback((settings: AddressSettings) => {
-    saveAddressSettings(settings);
-    setAddressSettings(settings);
-    setShowAddressSettingsModal(false);
+  const handleAddressSettingsSave = useCallback(async (settings: AddressSettings) => {
+    try {
+      await saveAddressSettings(settings);
+      setAddressSettings(settings);
+      setShowAddressSettingsModal(false);
+    } catch (error) {
+      console.error('❌ Error saving address settings:', error);
+    }
   }, []);
 
-  const handleAddressSelect = useCallback((address: any) => {
-    setSelectedAddress(address);
-    // Address selected
-  }, []);
+  const handleOpenBillingFromSettings = useCallback(
+    ({ addressId, address }: { addressId?: string | null; address: string }) => {
+      setShowAddressSettingsModal(false);
+      window.dispatchEvent(
+        new CustomEvent('open-invoice-quick-create', {
+          detail: {
+            addressId,
+            address
+          }
+        })
+      );
+    },
+    []
+  );
+
 
   const refreshData = useCallback(() => {
     refetchProperties();
@@ -197,8 +320,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       
       // 1. Find all properties for this address
       const propertiesToDelete = properties?.filter(property => 
-        property.address?.id === addressToDelete.id || 
-        property.address === addressToDelete.full_address
+        property.address_id === addressToDelete.id
       ) || [];
       
       const propertyIds = propertiesToDelete.map(p => p.id);
@@ -288,7 +410,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       
       // 1. Find all properties for all addresses
       const allProperties = properties?.filter(property => 
-        addressIds.includes(property.address?.id)
+        addressIds.includes(property.address_id)
       ) || [];
       
       const propertyIds = allProperties.map(p => p.id);
@@ -388,9 +510,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
   // TenantListOptimized handlers
   const handleTenantClick = useCallback((tenant: Tenant) => {
-    setSelectedTenant(tenant);
-    // Security: Tenant details modal functionality implemented
-  }, []);
+    setSelectedTenantId(tenant.id);
+    setSelectedTenant({ ...tenant, meters: tenant.meters ?? [] });
+    void fetchTenantMeters(tenant.id);
+  }, [fetchTenantMeters]);
 
   const handleChatClick = useCallback((address: string) => {
     // Security: Chat functionality implemented
@@ -404,20 +527,18 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
     setShowAddApartmentModal(true);
   }, []);
 
-  const handleSettingsClick = useCallback((address: string, addressId?: string) => {
-    // Find the address object from properties
-    const addressObj = properties?.find(property => 
-      property.address?.id === addressId || 
-      property.address?.full_address === address ||
-      property.address === address
-    )?.address;
+  const handleSettingsClick = useCallback(async (address: string, addressId?: string) => {
+    // Find the address object from the addresses array
+    const addressObj = addresses?.find(addr => 
+      addr.id === addressId || 
+      addr.full_address === address
+    );
     
     if (addressObj) {
       setSelectedAddress(addressObj);
-      setSelectedAddressId(addressId);
       
       // Load address settings
-      const settings = getAddressSettings(address);
+      const settings = await getAddressSettings(address, addressObj);
       setAddressSettings(settings);
       
       setShowAddressSettingsModal(true);
@@ -426,14 +547,51 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
     }
   }, [properties]);
 
+  // Toggle collapse/expand for address - only one can be expanded at a time
+  const toggleAddressCollapse = useCallback((addressId: string) => {
+    setExpandedAddresses(prev => {
+      const newSet = new Set(prev);
+      
+      // If clicking on an already expanded address, collapse it
+      if (newSet.has(addressId)) {
+        // Address is currently expanded, so collapse it
+        newSet.delete(addressId);
+      } else {
+        // Address is currently collapsed, so expand it and collapse all others
+        newSet.clear();
+        newSet.add(addressId);
+      }
+      
+      return newSet;
+    });
+  }, []);
+
+
+  // Handle tenant selection
+  const handleTenantSelect = useCallback((tenantId: string) => {
+    setSelectedTenantId(tenantId);
+  }, []);
+
+  const handleTenantMetersRefresh = useCallback(async () => {
+    if (selectedTenant) {
+      await fetchTenantMeters(selectedTenant.id);
+    }
+  }, [selectedTenant, fetchTenantMeters]);
+
   return (
-    <div 
-      className="min-h-full bg-cover bg-center bg-no-repeat relative"
-      style={{ 
-        backgroundImage: `url(${addressImage})`,
-        backgroundAttachment: 'fixed'
-      }}
-    >
+    <div className="min-h-full relative">
+      {/* Optimized Background Image */}
+      <div className="absolute inset-0 overflow-hidden">
+        <OptimizedImage
+          src={addressImage}
+          alt="Property management background"
+          className="w-full h-full object-cover"
+          loading="eager" // Load immediately since it's above the fold
+          width={1920}
+          height={1080}
+        />
+      </div>
+      
       {/* Overlay for entire page */}
       <div className="absolute inset-0 bg-black/50"></div>
       
@@ -452,6 +610,9 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
           {/* Main Content */}
           <div className="bg-white/95 rounded-2xl shadow-2xl p-4">
+            {/* Onboarding Banner */}
+            <OnboardingBanner onStartOnboarding={() => window.location.href = '/onboarding'} />
+            
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2F8481]"></div>
@@ -486,15 +647,55 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                             tenant.address === address.full_address || 
                             tenant.address_id === address.id
                           );
+                          const sortedAddressTenants = [...addressTenants].sort((a, b) => {
+                            const extractNumber = (value?: string | null) => {
+                              if (!value) return Number.NaN;
+                              const match = value.match(/\d+/);
+                              return match ? parseInt(match[0], 10) : Number.NaN;
+                            };
+
+                            const numberA = extractNumber(a.apartmentNumber);
+                            const numberB = extractNumber(b.apartmentNumber);
+
+                            if (!Number.isNaN(numberA) && !Number.isNaN(numberB) && numberA !== numberB) {
+                              return numberA - numberB;
+                            }
+
+                            return (a.apartmentNumber ?? '').localeCompare(b.apartmentNumber ?? '', 'lt', {
+                              numeric: true,
+                              sensitivity: 'base'
+                            });
+                          });
+                          
+                          const isCollapsed = !expandedAddresses.has(address.id);
                           
                           return (
-                          <div key={address.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                          <div 
+                            key={address.id} 
+                            className="bg-white rounded-2xl border border-gray-200 overflow-hidden"
+                          >
                             {/* Address Header */}
-                            <div className="bg-white sticky top-0 z-10 border-b px-4 py-2">
+                            <div className="bg-white sticky top-0 z-10 border-b border-gray-200 px-4 py-2">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3 flex-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleAddressCollapse(address.id);
+                                    }}
+                                    className="p-1 text-gray-600 hover:text-[#2F8481] hover:bg-gray-100 rounded-lg transition-colors"
+                                    title={isCollapsed ? "Išskleisti butus" : "Suskleisti butus"}
+                                  >
+                                    {isCollapsed ? (
+                                      <ChevronRightIcon className="h-4 w-4 transition-transform duration-200" />
+                                    ) : (
+                                      <ChevronDownIcon className="h-4 w-4 transition-transform duration-200" />
+                                    )}
+                                  </button>
                                   <BuildingOfficeIcon className="h-5 w-5 text-[#2F8481] flex-shrink-0" />
-                                  <h3 className="text-lg font-semibold text-gray-900 truncate">{address.full_address}</h3>
+                                  <h3 className="text-lg font-semibold text-gray-900 truncate">
+                                    {address.full_address}
+                                  </h3>
                                   <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full flex-shrink-0">
                                     {addressTenants.length} butų
                                   </span>
@@ -518,42 +719,72 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                               </div>
                             </div>
                             
-                            {/* Tenants List */}
-                            {addressTenants.length > 0 ? (
-                              <div className="divide-y divide-gray-100">
-                                {addressTenants.map((tenant) => (
-                                  <div
-                                    key={tenant.id}
-                                    className="grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-3 hover:bg-gray-50 cursor-pointer"
-                                    onClick={() => handleTenantClick(tenant)}
-                                  >
-                                    <div className="size-8 rounded-xl bg-gradient-to-br from-[#2F8481] to-[#297a77] text-white grid place-items-center text-sm font-bold flex-shrink-0">
-                                      {tenant.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="text-sm font-medium text-gray-900 truncate">{tenant.name}</div>
-                                      <div className="text-xs text-neutral-500 truncate">
-                                        Butas {tenant.apartmentNumber} • {tenant.address}
+                            {/* Tenants List - Only show if not collapsed */}
+                            {!isCollapsed && (
+                              <div>
+                                {addressTenants.length > 0 ? (
+                                  <div>
+                                    {sortedAddressTenants.map((tenant) => {
+                                      const isTenantSelected = selectedTenantId === tenant.id;
+                                      
+                                      return (
+                                      <div
+                                        key={tenant.id}
+                                        className={`grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-3 cursor-pointer transition-all duration-150 relative border-b border-gray-100 ${
+                                          isTenantSelected 
+                                            ? 'bg-[#2F8481]/10 border-l-4 border-[#2F8481]' 
+                                            : 'hover:bg-[#2F8481]/8 hover:border-b-2 hover:border-[#2F8481]'
+                                        }`}
+                                        onClick={() => {
+                                          handleTenantSelect(tenant.id);
+                                          handleTenantClick(tenant);
+                                        }}
+                                      >
+                                        <div className={`size-8 rounded-xl text-white grid place-items-center text-sm font-bold flex-shrink-0 transition-opacity duration-150 ${
+                                          isTenantSelected 
+                                            ? 'bg-gradient-to-br from-[#2F8481] to-[#297a77]' 
+                                            : 'bg-gradient-to-br from-[#2F8481] to-[#297a77] hover:opacity-80'
+                                        }`}>
+                                          {tenant.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <div className={`text-sm font-medium truncate transition-colors duration-150 ${
+                                            isTenantSelected 
+                                              ? 'text-[#2F8481]' 
+                                              : 'text-gray-900 hover:text-[#2F8481]'
+                                          }`}>
+                                            {tenant.name}
+                                          </div>
+                                          <div className="text-xs text-neutral-500 truncate">
+                                            Butas {tenant.apartmentNumber} • {tenant.address}
+                                          </div>
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="text-sm font-semibold text-gray-900">
+                                            {tenant.status === 'vacant' ? '—' : formatCurrency(tenant.monthlyRent)}
+                                          </div>
+                                        </div>
+                                        {isTenantSelected && (
+                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                            <div className="w-2 h-2 bg-[#2F8481] rounded-full animate-pulse"></div>
+                                          </div>
+                                        )}
                                       </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="text-sm font-semibold text-gray-900">
-                                        {tenant.status === 'vacant' ? '—' : formatCurrency(tenant.monthlyRent)}
-                                      </div>
-                                    </div>
+                                      );
+                                    })}
                                   </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="px-4 py-8 text-center text-gray-500">
-                                <p className="text-sm">Nėra butų šiame adrese</p>
-                                <button
-                                  onClick={() => handleAddApartment(address.full_address, address.id)}
-                                  className="mt-2 inline-flex items-center px-3 py-1 bg-[#2F8481] text-white text-xs rounded-lg hover:bg-[#297a77] transition-colors"
-                                >
-                                  <PlusIcon className="h-3 w-3 mr-1" />
-                                  Pridėti butą
-                                </button>
+                                ) : (
+                                  <div className="px-4 py-8 text-center text-gray-500">
+                                    <p className="text-sm">Nėra butų šiame adrese</p>
+                                    <button
+                                      onClick={() => handleAddApartment(address.full_address, address.id)}
+                                      className="mt-2 inline-flex items-center px-3 py-1 bg-[#2F8481] text-white text-xs rounded-lg hover:bg-[#297a77] transition-colors"
+                                    >
+                                      <PlusIcon className="h-3 w-3 mr-1" />
+                                      Pridėti butą
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -685,8 +916,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
         onClose={handleCloseAddressSettings}
         onSave={handleAddressSettingsSave}
         onDelete={handleDeleteAddress}
-        addressId={selectedAddressId}
-        address={addressSettings?.address || selectedAddress?.full_address || "Test Address"}
+        addressId={selectedAddress?.id}
+        address={selectedAddress?.full_address ?? addressSettings?.address ?? 'Test Address'}
+        currentSettings={addressSettings}
+        onOpenBilling={handleOpenBillingFromSettings}
       />
 
       {/* Tenant Detail Modal */}
@@ -698,12 +931,17 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
           onClose={() => setSelectedTenant(null)}
           property={{
             id: selectedTenant.id,
+            address_id: selectedTenant.address_id,
             address: selectedTenant.address,
             rooms: selectedTenant.rooms || 0,
             area: selectedTenant.area || 0,
             floor: 0,
             type: 'apartment',
-            status: selectedTenant.status
+            status: selectedTenant.status,
+            rent: selectedTenant.monthlyRent,
+            deposit_amount: selectedTenant.deposit,
+            contract_start: selectedTenant.contractStart,
+            contract_end: selectedTenant.contractEnd
           }}
           moveOut={{
             notice: '',
@@ -711,28 +949,24 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             status: 'none'
           }}
           documents={[]}
-                    meters={selectedTenant.meters ? Array.from(selectedTenant.meters.values()).map((meter: any) => {
-            // Passing meter to TenantDetailModalPro
-            return {
-              id: meter.id,
-              name: meter.name,
-              type: meter.type,
-              serialNumber: meter.serialNumber,
-              lastReading: meter.lastReading,
-              lastReadingDate: meter.lastReadingDate,
-              requires_photo: meter.requires_photo,
-              price_per_unit: meter.price_per_unit,
-              fixed_price: meter.fixed_price,
-              distribution_method: meter.distribution_method,
-              description: meter.description,
-              unit: meter.unit,
-              currentReading: meter.currentReading,
-              status: meter.status,
-              isFixedMeter: meter.isFixedMeter,
-              isCommunalMeter: meter.isCommunalMeter,
-              costPerApartment: meter.costPerApartment
-            };
-          }) : []}
+          meters={(selectedTenant.meters ?? []).map((meter) => ({
+            id: meter.id,
+            name: meter.name,
+            type: meter.type,
+            serialNumber: (meter as any).serialNumber ?? undefined,
+            lastReading:
+              meter.lastReading !== undefined && meter.lastReading !== null
+                ? Number(meter.lastReading)
+                : undefined,
+            lastReadingDate: meter.lastReadingDate,
+            requires_photo: meter.requires_photo ?? false
+          }))}
+          metersLoading={tenantMetersLoading}
+          onMetersRefresh={handleTenantMetersRefresh}
+          onTenantAssigned={async () => {
+            await refetchProperties();
+            setSelectedTenant(null);
+          }}
         />
         </React.Suspense>
       )}
@@ -742,66 +976,11 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
         <AddAddressModal
         isOpen={showAddAddressModal}
         onClose={() => setShowAddAddressModal(false)}
-        onSave={async (addressData) => {
+        onSave={async () => {
           try {
-            // Saving address data
-            
-            // Get current user session
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (authError || !user) {
-              throw new Error('Neprisijungęs vartotojas. Prašome prisijungti.');
-            }
-            
-            // Check if address already exists for this user (exact match)
-            const { data: existingAddresses, error: checkError } = await supabase
-              .from('addresses')
-              .select('id, full_address')
-              .eq('created_by', user.id)
-              .eq('full_address', addressData.address.fullAddress);
-
-            if (checkError) {
-              // Error checking existing addresses - logging removed for production
-              throw checkError;
-            }
-
-            if (existingAddresses && existingAddresses.length > 0) {
-              // Address already exists
-              alert('Šis adresas jau egzistuoja jūsų sąraše. Naudokite esamą adresą ir pridėkite butus prie jo.');
-              setShowAddAddressModal(false);
               await refreshData();
-              return;
-            }
-            
-            // Save address to database
-            const { data, error } = await supabase
-              .from('addresses')
-              .insert({
-                full_address: addressData.address.fullAddress,
-                city: addressData.address.city,
-                postal_code: addressData.location.postalCode,
-                coordinates_lat: addressData.location.coordinates?.lat,
-                coordinates_lng: addressData.location.coordinates?.lng,
-                created_by: user.id
-              })
-              .select()
-              .single();
-
-            if (error) {
-              // Error saving address - logging removed for production
-              throw error;
-            }
-
-            // Address saved successfully
-            
-            setShowAddAddressModal(false);
-            // Refresh data after adding address
-            await refreshData();
-            // Show success message
-            // Address added successfully
-            
           } catch (error) {
-            // Error in onSave - logging removed for production
-            alert('Klaida išsaugant adresą');
+            alert('Nepavyko atnaujinti adresų sąrašo po išsaugojimo. Bandykite dar kartą.');
           }
         }}
       />

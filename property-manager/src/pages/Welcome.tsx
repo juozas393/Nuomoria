@@ -9,15 +9,15 @@ const Welcome: React.FC = () => {
   const [showPasskeyEnrollment, setShowPasskeyEnrollment] = useState(false);
 
   const handleContinue = () => {
-    navigate('/nuomotojas2');
+    navigate('/', { replace: true });
   };
 
   const handlePasskeyComplete = () => {
-    navigate('/nuomotojas2');
+    navigate('/', { replace: true });
   };
 
   const handlePasskeySkip = () => {
-    navigate('/nuomotojas2');
+    navigate('/', { replace: true });
   };
 
   if (showPasskeyEnrollment) {

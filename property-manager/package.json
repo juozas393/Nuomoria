@@ -35,11 +35,14 @@
     "@types/react-dom": "^19.1.6",
     "@types/react-router-dom": "^5.3.3",
     "@types/react-window": "^1.8.8",
+    "chart.js": "^4.5.1",
+    "es-toolkit": "^1.41.0",
     "framer-motion": "^12.23.11",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.526.0",
     "nanoid": "^5.1.5",
     "react": "^19.1.0",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.62.0",
     "react-intersection-observer": "^9.16.0",
@@ -56,22 +59,32 @@
     "zustand": "^5.0.7"
   },
   "scripts": {
-    "start": "set \"GENERATE_SOURCEMAP=false\" && react-scripts start",
-    "build": "set \"GENERATE_SOURCEMAP=false\" && react-scripts build",
-    "build:analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
-    "build:prod": "set \"GENERATE_SOURCEMAP=false\" && npm run build",
+    "start": "react-scripts start",
+    "start:dev": "set \"NODE_ENV=development\" && react-scripts start",
+    "start:prod": "set \"NODE_ENV=production\" && react-scripts start",
+    "build": "react-scripts build",
+    "build:dev": "set \"NODE_ENV=development\" && react-scripts build",
+    "build:prod": "set \"NODE_ENV=production\" && react-scripts build",
     "test": "react-scripts test",
+    "test:dev": "set \"NODE_ENV=development\" && react-scripts test",
+    "test:prod": "set \"NODE_ENV=production\" && react-scripts test",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
     "type-check": "tsc --noEmit",
-    "performance": "npm run build && npx lighthouse http://localhost:3000 --output=json --output-path=./lighthouse-report.json",
-    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
     "clean": "if exist build rmdir /s /q build && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache",
-    "dev": "npm run clean && npm start",
+    "dev": "npm run clean && npm run start:dev",
+    "analyze": "npm run build && npx source-map-explorer 'build/static/js/*.js' --html build/bundle-report.html",
+    "analyze:quick": "npx source-map-explorer 'build/static/js/*.js'",
+    "perf": "npm run build && npx lighthouse http://localhost:3000 --preset=desktop --output=json --output-path=./lighthouse.json",
+    "perf:mobile": "npm run build && npx lighthouse http://localhost:3000 --preset=mobile --output=html --output-path=./lighthouse-mobile.html",
+    "perf:ci": "npx lighthouse http://localhost:3000 --preset=desktop --output=json --output-path=./lh.json --chrome-flags='--headless'",
+    "size": "npm run build && npx size-limit",
+    "validate": "npm run type-check && npm run lint && npm test -- --watchAll=false",
     "deploy": "vercel --prod",
-    "deploy:preview": "vercel"
+    "deploy:preview": "vercel",
+    "prebuild": "npm run validate"
   },
   "eslintConfig": {
     "extends": [
@@ -100,8 +113,24 @@
     "autoprefixer": "^10.4.21",
     "caniuse-lite": "^1.0.30001731",
     "postcss": "^8.5.6",
-    "postcss-preset-env": "^10.2.4"
+    "postcss-preset-env": "^10.2.4",
+    "source-map-explorer": "^2.5.3",
+    "webpack-bundle-analyzer": "^4.10.2"
   },
+  "size-limit": [
+    {
+      "name": "Initial JS Bundle",
+      "path": "build/static/js/*.js",
+      "limit": "180 KB",
+      "gzip": true
+    },
+    {
+      "name": "Initial CSS",
+      "path": "build/static/css/*.css",
+      "limit": "40 KB",
+      "gzip": true
+    }
+  ],
   "engines": {
     "node": ">=16.0.0",
     "npm": ">=8.0.0"

@@ -1,9 +1,63 @@
 import { supabase } from './supabase';
 import { MeterPriceData } from '../components/properties/MeterPriceManager';
+import { PostgrestError } from '@supabase/supabase-js';
+
+const derivePolicy = (
+  type: 'individual' | 'communal',
+  distribution: MeterPriceData['distribution_method'],
+  policy?: MeterPriceData['policy']
+): MeterPriceData['policy'] => {
+  if (policy) return policy;
+
+  if (distribution === 'fixed_split') {
+    return {
+      scope: 'none',
+      collectionMode: 'landlord_only'
+    };
+  }
+
+  if (type === 'communal') {
+    return {
+      scope: 'building',
+      collectionMode: 'landlord_only'
+    };
+  }
+
+  return {
+    scope: 'apartment',
+    collectionMode: 'landlord_only'
+  };
+};
+
+const fetchLatestReadings = async (meterIds: string[]) => {
+  if (meterIds.length === 0) {
+    return new Map<string, any>();
+  }
+
+  const { data, error } = await supabase
+    .from('meter_readings')
+    .select('meter_id,current_reading,previous_reading,reading_date,total_sum')
+    .in('meter_id', meterIds)
+    .order('reading_date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching latest meter readings:', error);
+    return new Map<string, any>();
+  }
+
+  const latest = new Map<string, any>();
+  (data ?? []).forEach((reading) => {
+    if (!latest.has(reading.meter_id)) {
+      latest.set(reading.meter_id, reading);
+    }
+  });
+
+  return latest;
+};
 
 // Update individual apartment meter
 export const updateApartmentMeter = async (
-  meterId: string, 
+  meterId: string,
   updates: Partial<MeterPriceData>
 ): Promise<void> => {
   const { error } = await supabase
@@ -24,7 +78,7 @@ export const updateApartmentMeter = async (
 
 // Update global address meter (affects all apartments)
 export const updateAddressMeter = async (
-  addressMeterId: string, 
+  addressMeterId: string,
   updates: Partial<MeterPriceData>
 ): Promise<void> => {
   // First update the address meter
@@ -61,107 +115,159 @@ export const updateAddressMeter = async (
   }
 };
 
-// Get meter data for apartment - ALWAYS get from address_meters (address settings)
-export const getApartmentMeters = async (propertyId: string): Promise<MeterPriceData[]> => {
+// Get meter data for apartment with latest readings and configuration inheritance
+export const getApartmentMeters = async (
+  propertyId: string,
+  addressId?: string
+): Promise<MeterPriceData[]> => {
   try {
-    // First, get the property to find its address_id
-    const { data: propertyData, error: propertyError } = await supabase
-      .from('properties')
-      .select('address_id')
-      .eq('id', propertyId)
-      .single();
+    const [apartmentResp, addressResp] = await Promise.all([
+      supabase
+        .from('apartment_meters')
+        .select(
+          `id,
+           meter_name,
+           meter_type,
+           unit,
+           distribution_method,
+           price_per_unit,
+           fixed_price,
+           policy,
+           address_meter_id,
+           is_custom,
+           requires_photo,
+           requires_reading`
+        )
+        .eq('property_id', propertyId)
+        .order('created_at', { ascending: true }),
+      addressId
+        ? supabase
+            .from('address_meters')
+            .select(
+              `id,
+               name,
+               type,
+               unit,
+               distribution_method,
+               price_per_unit,
+               fixed_price,
+               policy,
+               requires_photo,
+               requires_reading`
+            )
+            .eq('address_id', addressId)
+            .eq('is_active', true)
+        : Promise.resolve({ data: [], error: null })
+    ]);
 
-    if (propertyError) {
-      console.error('Error fetching property:', propertyError);
-      throw new Error(`Failed to fetch property: ${propertyError.message}`);
+    let apartmentData = apartmentResp.data ?? [];
+    let apartmentError = apartmentResp.error as PostgrestError | null;
+
+    if (apartmentError?.code === '42703') {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Legacy apartment_meters schema detected (missing meter_name). Falling back to basic columns.');
+      }
+      const legacyResp = await supabase
+        .from('apartment_meters')
+        .select(
+          `id,
+           name,
+           meter_type,
+           unit,
+           distribution_method,
+           price_per_unit,
+           fixed_price,
+           policy,
+           address_meter_id,
+           is_custom,
+           requires_photo,
+           requires_reading`
+        )
+        .eq('property_id', propertyId)
+        .order('created_at', { ascending: true });
+
+      apartmentError = legacyResp.error as PostgrestError | null;
+      apartmentData = (legacyResp.data ?? []).map((meter: any) => ({
+        ...meter,
+        meter_name: meter.name
+      }));
     }
 
-    const addressId = propertyData?.address_id;
-    if (!addressId) {
-      console.error('No address_id found for property:', propertyId);
+    if (apartmentError) {
+      console.error('Error fetching apartment meters:', apartmentError);
       return [];
     }
 
-    // ALWAYS get meters from address_meters (address settings) - this is the single source of truth
-    console.log('📊 Getting address meters for address:', addressId);
-    const { data: addressMeters, error: addressError } = await supabase
-      .from('address_meters')
-      .select(`
-        id,
-        name,
-        type,
-        unit,
-        distribution_method,
-        price_per_unit,
-        fixed_price,
-        address_id,
-        policy
-      `)
-      .eq('address_id', addressId)
-      .eq('is_active', true);
+    const addressMeters = addressResp.data ?? [];
+    const addressMeterMap = new Map(addressMeters.map((meter) => [meter.id, meter]));
 
-    console.log('📊 Raw address meters from database:', addressMeters);
-
-    if (addressError) {
-      console.error('Error fetching address meters:', addressError);
-      throw new Error(`Failed to fetch address meters: ${addressError.message}`);
+    if (apartmentData.length === 0) {
+      return addressMeters.map((addressMeter: any) => {
+        const type = (addressMeter.type ?? 'individual') as 'individual' | 'communal';
+        const policy = derivePolicy(type, addressMeter.distribution_method ?? 'per_apartment', addressMeter.policy);
+        return {
+          id: addressMeter.id,
+          address_meter_id: addressMeter.id,
+          name: addressMeter.name,
+          type,
+          unit: (addressMeter.unit ?? 'Kitas') as MeterPriceData['unit'],
+          distribution_method: addressMeter.distribution_method ?? 'per_apartment',
+          price_per_unit: addressMeter.price_per_unit ?? 0,
+          fixed_price: addressMeter.fixed_price ?? 0,
+          is_custom: false,
+          property_id: propertyId,
+          policy,
+          requires_photo: addressMeter.requires_photo ?? false,
+          requires_reading: addressMeter.requires_reading ?? true,
+          last_reading: null,
+          previous_reading: null,
+          last_reading_date: null,
+          last_total_cost: null,
+          tenant_submitted_value: null,
+          tenant_submitted_at: null,
+          tenant_submission_status: null
+        } satisfies MeterPriceData;
+      });
     }
 
-    // Convert address meters to apartment meter format
-    const convertedMeters: MeterPriceData[] = (addressMeters || []).map(addressMeter => {
-      // Use the type directly from address_meters (address settings)
-      const meterType = addressMeter.type || 'individual';
-      
-      console.log('🔍 Converting address meter from settings:', {
-        name: addressMeter.name,
-        type: addressMeter.type,
-        distribution_method: addressMeter.distribution_method,
-        price_per_unit: addressMeter.price_per_unit,
-        fixed_price: addressMeter.fixed_price
-      });
-      
-      // Determine policy based on type and distribution from address settings
-      const policy = {
-        scope: addressMeter.distribution_method === 'fixed_split' ? 'none' as const
-              : meterType === 'individual' ? 'apartment' as const
-              : 'building' as const,
-        collectionMode: 'landlord_only' as const
-      };
-      
+    const latestReadings = await fetchLatestReadings(apartmentData.map((meter: any) => meter.id));
+
+    return apartmentData.map((meter: any) => {
+      const template = meter.address_meter_id ? addressMeterMap.get(meter.address_meter_id) : null;
+      const unit = (meter.unit ?? template?.unit ?? 'Kitas') as MeterPriceData['unit'];
+      const type = ((meter.meter_type ?? template?.type) === 'communal' ? 'communal' : 'individual') as
+        | 'individual'
+        | 'communal';
+      const distribution = (meter.distribution_method ?? template?.distribution_method ?? 'per_apartment') as MeterPriceData['distribution_method'];
+      const policy = derivePolicy(type, distribution, meter.policy ?? template?.policy);
+      const latest = latestReadings.get(meter.id);
+
       return {
-        id: addressMeter.id, // Use actual address_meter ID
-        name: addressMeter.name,
-        type: meterType,
-        unit: addressMeter.unit,
-        distribution_method: addressMeter.distribution_method || 'per_apartment',
-        price_per_unit: addressMeter.price_per_unit || 0,
-        fixed_price: addressMeter.fixed_price || 0,
-        is_custom: false,
-        address_meter_id: addressMeter.id,
+        id: meter.id,
+        address_meter_id: meter.address_meter_id ?? template?.id ?? null,
+        name: meter.meter_name ?? template?.name ?? 'Skaitliukas',
+        type,
+        unit,
+        distribution_method: distribution,
+        price_per_unit: meter.price_per_unit ?? template?.price_per_unit ?? 0,
+        fixed_price: meter.fixed_price ?? template?.fixed_price ?? 0,
+        is_custom: Boolean(meter.is_custom),
         property_id: propertyId,
-        policy: addressMeter.policy || policy
-      };
+        policy,
+        requires_photo: meter.requires_photo ?? template?.requires_photo ?? false,
+        requires_reading: meter.requires_reading ?? template?.requires_reading ?? true,
+        last_reading: latest?.current_reading ?? null,
+        previous_reading: latest?.previous_reading ?? null,
+        last_reading_date: latest?.reading_date ?? null,
+        last_total_cost: latest?.total_sum ?? null,
+        tenant_submitted_value: null,
+        tenant_submitted_at: null,
+        tenant_submission_status: null
+      } satisfies MeterPriceData;
     });
-
-    console.log('📊 Converted address meters to apartment format:', convertedMeters);
-    
-    // Debug: Log each meter's final configuration
-    convertedMeters.forEach(meter => {
-      console.log('🔍 Final meter configuration:', {
-        name: meter.name,
-        type: meter.type,
-        distribution_method: meter.distribution_method,
-        policy: meter.policy,
-        price_per_unit: meter.price_per_unit,
-        fixed_price: meter.fixed_price
-      });
-    });
-    
-    return convertedMeters;
-
   } catch (error) {
     console.error('Error in getApartmentMeters:', error);
-    throw error;
+    return [];
   }
 };
 
@@ -178,7 +284,9 @@ export const getAddressMeters = async (addressId: string): Promise<Omit<MeterPri
       price_per_unit,
       fixed_price,
       address_id,
-      policy
+      policy,
+      requires_photo,
+      requires_reading
     `)
     .eq('address_id', addressId)
     .eq('is_active', true);
@@ -193,37 +301,35 @@ export const getAddressMeters = async (addressId: string): Promise<Omit<MeterPri
 
 // Calculate meter cost for apartment
 export const calculateMeterCost = (
-  meter: MeterPriceData, 
+  meter: MeterPriceData,
   apartmentCount: number = 1,
   consumption?: number
 ): number => {
   if (!meter) return 0;
-  
-  // Fixed meters - use fixed_price
+
   if (meter.unit === 'Kitas' || meter.distribution_method === 'fixed_split') {
     return meter.fixed_price || 0;
   }
-  
-  // For communal meters, calculate based on total consumption
+
   if (meter.type === 'communal') {
-    const totalConsumption = consumption || 0;
+    const totalConsumption = consumption ?? Math.max(0, (meter.last_reading ?? 0) - (meter.previous_reading ?? 0));
     const totalCost = totalConsumption * (meter.price_per_unit || 0);
-    return totalCost / apartmentCount;
+    return apartmentCount > 0 ? totalCost / apartmentCount : totalCost;
   }
-  
-  // Individual meters - cost is per consumption
-  return meter.price_per_unit || 0;
+
+  const consumptionValue = consumption ?? Math.max(0, (meter.last_reading ?? 0) - (meter.previous_reading ?? 0));
+  return consumptionValue * (meter.price_per_unit || 0);
 };
 
 // Get meter readings for cost calculation
 export const getMeterReadings = async (
-  meterId: string, 
+  meterId: string,
   meterType: 'address' | 'apartment' = 'address',
   period?: string
 ): Promise<{ current: number; previous: number; consumption: number }> => {
   try {
     console.log('📊 Getting meter readings for:', { meterId, meterType });
-    
+
     const { data, error } = await supabase
       .from('meter_readings')
       .select('current_reading, previous_reading, consumption')
@@ -234,7 +340,6 @@ export const getMeterReadings = async (
 
     if (error) {
       console.error('Error fetching meter readings:', error);
-      // Return zero values if no readings found
       return { current: 0, previous: 0, consumption: 0 };
     }
 
@@ -244,7 +349,7 @@ export const getMeterReadings = async (
       previous: reading?.previous_reading || 0,
       consumption: reading?.consumption || 0
     };
-    
+
     console.log('📊 Meter readings result:', result);
     return result;
   } catch (error) {
@@ -267,3 +372,49 @@ export const getApartmentCount = async (addressId: string): Promise<number> => {
 
   return data?.length || 1;
 };
+export const createMeterReading = async ({
+  propertyId,
+  meterId,
+  scope,
+  type,
+  currentReading,
+  previousReading,
+  pricePerUnit,
+  notes
+}: {
+  propertyId: string;
+  meterId: string;
+  scope: 'none' | 'apartment' | 'building';
+  type: string;
+  currentReading: number;
+  previousReading: number;
+  pricePerUnit: number;
+  notes?: string;
+}): Promise<void> => {
+  const readingDateIso = new Date();
+  const readingDate = readingDateIso.toISOString().split('T')[0];
+  const consumption = currentReading - previousReading;
+  const total = consumption * pricePerUnit;
+
+  const { error } = await supabase
+    .from('meter_readings')
+    .insert({
+      property_id: propertyId,
+      meter_id: meterId,
+      meter_type: scope === 'building' ? 'address' : 'apartment',
+      type,
+      reading_date: readingDate,
+      current_reading: currentReading,
+      previous_reading: previousReading,
+      price_per_unit: pricePerUnit,
+      total_sum: total,
+      amount: total,
+      notes: notes ?? (scope === 'building' ? 'Nuomotojo įvestas bendras rodmuo' : 'Nuomotojo įvestas rodmuo')
+    });
+
+  if (error) {
+    console.error('Error saving meter reading:', error);
+    throw new Error(`Failed to save meter reading: ${error.message}`);
+  }
+};
+

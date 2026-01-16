@@ -29,9 +29,11 @@ const Login: React.FC = () => {
       }
       
       // Use direct login method since Supabase client is having issues
-      // SECURITY: Use centralized environment configuration
-      const supabaseUrl = supabaseConfig.url;
-      const supabaseAnonKey = supabaseConfig.anonKey;
+      // SECURITY: Use verified configuration (handles cache issues automatically)
+      const { getVerifiedSupabaseConfig } = await import('../lib/supabase');
+      const verifiedConfig = getVerifiedSupabaseConfig();
+      const supabaseUrl = verifiedConfig.url;
+      const supabaseAnonKey = verifiedConfig.anonKey;
       
       const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
         method: 'POST',
@@ -68,20 +70,58 @@ const Login: React.FC = () => {
         console.log('🔐 Login successful');
       }
       
-      // Security: Don't store sensitive tokens in localStorage
-      // In production, use secure HTTP-only cookies or server-side session storage
-      if (data.access_token) {
-        // Only store a session indicator, not the actual tokens
-        localStorage.setItem('auth-session-active', 'true');
-        // Store tokens in memory only (will be lost on page refresh)
-        // This is a temporary solution - implement proper server-side session management
+      // Set session in Supabase client
+      if (data.access_token && data.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token
+        });
       }
       
-      // Navigate to dashboard
+      // Wait for AuthContext to hydrate user data
+      // Check if user is loaded in AuthContext before redirecting
+      let userLoaded = false;
+      for (let i = 0; i < 20; i++) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Wait a bit more for AuthContext to process
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Try to get user profile to determine redirect route
+          try {
+            const { data: userProfile } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            if (userProfile?.role) {
+              // Import getDefaultRouteForRole dynamically
+              const { getDefaultRouteForRole } = await import('../utils/roleRouting');
+              const defaultRoute = getDefaultRouteForRole(userProfile.role as any);
+              navigate(defaultRoute, { replace: true });
+              userLoaded = true;
+              break;
+            } else {
+              // User profile not found, redirect to onboarding
+              navigate('/onboarding', { replace: true });
+              userLoaded = true;
+              break;
+            }
+          } catch (error) {
+            // If we can't get profile, redirect to onboarding
+            navigate('/onboarding', { replace: true });
+            userLoaded = true;
+            break;
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
       
-      // Force a page reload to trigger auth state check
-      // Security: Use React Router navigation instead of window.location
-      window.location.href = '/dashboard';
+      // Fallback: if user still not loaded, redirect to root (ProtectedRoute will handle)
+      if (!userLoaded) {
+        navigate('/', { replace: true });
+      }
       
     } catch (error: any) {
       // Security: Don't log sensitive error details
@@ -106,8 +146,32 @@ const Login: React.FC = () => {
     try {
       const result = await login(demoEmail, demoPassword);
       if (result.success) {
-        navigate('/nuomotojas2');
-
+        // Wait for AuthContext to hydrate user data
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Get user role to determine redirect route
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const { data: userProfile } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            if (userProfile?.role) {
+              const { getDefaultRouteForRole } = await import('../utils/roleRouting');
+              const defaultRoute = getDefaultRouteForRole(userProfile.role as any);
+              navigate(defaultRoute, { replace: true });
+            } else {
+              navigate('/onboarding', { replace: true });
+            }
+          } else {
+            navigate('/', { replace: true });
+          }
+        } catch (error) {
+          navigate('/', { replace: true });
+        }
       } else {
         setError('Neteisingi prisijungimo duomenys');
       }

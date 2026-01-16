@@ -79,7 +79,34 @@ const EmailLogin: React.FC = () => {
       const result = await verifyOTP(email, otpCode);
       if (result.success) {
         setMessage({ type: 'success', text: 'Sėkmingai prisijungta!' });
-        setTimeout(() => navigate('/nuomotojas2'), 1000);
+        // Wait for AuthContext to hydrate user data
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Get user role to determine redirect route
+        try {
+          const { supabase } = await import('../lib/supabase');
+          const { getDefaultRouteForRole } = await import('../utils/roleRouting');
+          
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const { data: userProfile } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            if (userProfile?.role) {
+              const defaultRoute = getDefaultRouteForRole(userProfile.role as any);
+              navigate(defaultRoute, { replace: true });
+            } else {
+              navigate('/onboarding', { replace: true });
+            }
+          } else {
+            navigate('/', { replace: true });
+          }
+        } catch (error) {
+          navigate('/', { replace: true });
+        }
       } else {
         setMessage({ type: 'error', text: result.error || 'Neteisingas kodas' });
       }

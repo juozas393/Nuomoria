@@ -190,7 +190,7 @@ interface UIState {
 }
 
 const initialUIState: UIState = {
-  sidebarOpen: true,
+  sidebarOpen: false,
   theme: 'auto',
   performanceMode: 'auto',
   notifications: [],
@@ -314,6 +314,9 @@ export const useUIActions = () => {
   return {
     toggleSidebar: useCallback(() => {
       setState(prev => ({ ...prev, sidebarOpen: !prev.sidebarOpen }));
+    }, [setState]),
+    setSidebarOpen: useCallback((open: boolean) => {
+      setState(prev => ({ ...prev, sidebarOpen: open }));
     }, [setState]),
     
     setTheme: useCallback((theme: UIState['theme']) => {

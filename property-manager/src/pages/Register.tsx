@@ -5,11 +5,12 @@ import { UserRole } from '../types/user';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [role, setRole] = useState<'tenant' | 'landlord' | 'maintenance'>('tenant');
+  const [role, setRole] = useState<'tenant' | 'landlord' | 'manager' | 'admin'>('tenant');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -28,7 +29,14 @@ const Register: React.FC = () => {
     }
 
     try {
-      const result = await register({ identifier: email, password, first_name: firstName, last_name: lastName, role });
+      const result = await register({ 
+        username: username,
+        email: email, 
+        password, 
+        firstName: firstName, 
+        lastName: lastName, 
+        role: role 
+      });
       if (result.success) {
         alert('Registracija sėkminga! Dabar galite prisijungti.');
         navigate('/login');
@@ -95,6 +103,21 @@ const Register: React.FC = () => {
                 />
               </div>
               <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                  Vartotojo vardas
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-all duration-200 hover:border-gray-400"
+                  placeholder="Įveskite vartotojo vardą"
+                />
+              </div>
+              <div>
                 <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-2">
                   El. pašto adresas
                 </label>
@@ -149,12 +172,13 @@ const Register: React.FC = () => {
                 <select
                   id="role"
                   value={role}
-                  onChange={(e) => setRole(e.target.value as 'tenant' | 'landlord' | 'maintenance')}
+                  onChange={(e) => setRole(e.target.value as 'tenant' | 'landlord' | 'manager' | 'admin')}
                   className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-all duration-200 hover:border-gray-400"
                 >
                   <option value="tenant">Nuomininkas</option>
                   <option value="landlord">Nuomotojas</option>
-                  <option value="maintenance">Remontininkas</option>
+                  <option value="manager">Valdytojas</option>
+                  <option value="admin">Administratorius</option>
                 </select>
               </div>
             </div>

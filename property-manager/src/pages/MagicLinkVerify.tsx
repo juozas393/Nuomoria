@@ -27,7 +27,7 @@ const MagicLinkVerify: React.FC = () => {
         if (result.success) {
           setStatus('success');
           setMessage('Sėkmingai prisijungta! Nukreipiama į pagrindinį puslapį...');
-          setTimeout(() => navigate('/nuomotojas2'), 2000);
+          setTimeout(() => navigate('/', { replace: true }), 2000);
         } else {
           setStatus('error');
           setMessage(result.error || 'Nepavyko patvirtinti nuorodos.');

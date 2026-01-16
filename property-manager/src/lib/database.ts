@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { FRONTEND_MODE } from '../config/frontendMode';
+import { PostgrestError } from '@supabase/supabase-js';
 
 // Types
 export interface Address {
@@ -22,6 +24,7 @@ export interface Address {
   contact_person?: string;
   company_phone?: string;
   company_email?: string;
+  created_by?: string;
   created_at: string;
   updated_at: string;
 }
@@ -122,9 +125,10 @@ export interface Invoice {
   utilities_amount: number;
   other_amount: number;
   status: 'paid' | 'unpaid' | 'overdue' | 'cancelled';
-  paid_date?: string;
-  payment_method?: 'cash' | 'bank_transfer' | 'card' | 'check';
-  notes?: string;
+  paid_date?: string | null;
+  payment_method?: 'cash' | 'bank_transfer' | 'card' | 'check' | 'other' | null;
+  notes?: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -138,10 +142,45 @@ export interface Tenant {
   updated_at: string;
 }
 
+export interface InvoicePayment {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  payment_method?: 'cash' | 'bank_transfer' | 'card' | 'check' | 'other';
+  paid_at: string; // ISO date
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+export interface PropertyDepositEvent {
+  id: string;
+  property_id: string;
+  event_type: 'received' | 'adjustment' | 'refund';
+  amount: number;
+  balance_after?: number | null;
+  notes?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
 // Address API
 export const addressApi = {
   // Get all addresses (with optional user filtering) - OPTIMIZED
   async getAll(userId?: string): Promise<Address[]> {
+    // ⚠️ FRONTEND MODE - Return empty array
+    if (FRONTEND_MODE) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚫 FRONTEND ONLY: Skipping addressApi.getAll API call');
+      }
+      return [];
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 addressApi.getAll called with userId:', userId);
+    }
+    
     // Optimized query with single join instead of two separate queries
     if (userId) {
       const { data, error } = await supabase
@@ -152,6 +191,19 @@ export const addressApi = {
         `)
         .eq('user_addresses.user_id', userId)
         .order('created_at', { ascending: false });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 addressApi.getAll query result:', { data, error });
+        if (data) {
+          console.log('🔍 Retrieved addresses:', data.map(addr => ({
+            id: addr.id,
+            full_address: addr.full_address,
+            total_apartments: addr.total_apartments,
+            floors: addr.floors,
+            year_built: addr.year_built
+          })));
+        }
+      }
 
       if (error) {
         return [];
@@ -293,6 +345,14 @@ export const addressApi = {
 export const propertyApi = {
   // Get all properties with address information (with optional user filtering) - OPTIMIZED
   async getAll(userId?: string): Promise<PropertyWithAddress[]> {
+    // ⚠️ FRONTEND MODE - Return empty array
+    if (FRONTEND_MODE) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚫 FRONTEND ONLY: Skipping propertyApi.getAll API call');
+      }
+      return [];
+    }
+    
     // Optimized query with single join instead of two separate queries
     if (userId) {
       // First, get user's address IDs
@@ -390,6 +450,14 @@ export const propertyApi = {
 
   // Get properties with enhanced meter data - OPTIMIZED
   async getAllWithEnhancedMeters(userId?: string): Promise<PropertyWithAddress[]> {
+    // ⚠️ FRONTEND MODE - Return empty array
+    if (FRONTEND_MODE) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚫 FRONTEND ONLY: Skipping getAllWithEnhancedMeters API call');
+      }
+      return [];
+    }
+    
     // Optimized query with single join and selective field loading
     if (userId) {
       // First, get user's address IDs
@@ -767,6 +835,23 @@ export const invoiceApi = {
     return data || [];
   },
 
+  async getById(id: string): Promise<Invoice | null> {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+
+    return data ?? null;
+  },
+
   // Get overdue invoices
   async getOverdue(): Promise<Invoice[]> {
     const { data, error } = await supabase
@@ -782,9 +867,15 @@ export const invoiceApi = {
 
   // Create invoice
   async create(invoice: Omit<Invoice, 'id' | 'created_at' | 'updated_at'>): Promise<Invoice> {
+    const payload = {
+      ...invoice,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
     const { data, error } = await supabase
       .from('invoices')
-      .insert([invoice])
+      .insert([payload])
       .select()
       .single();
 
@@ -794,9 +885,13 @@ export const invoiceApi = {
 
   // Update invoice
   async update(id: string, updates: Partial<Invoice>): Promise<Invoice> {
+    const sanitizedUpdates = Object.fromEntries(
+      Object.entries({ ...updates, updated_at: new Date().toISOString() }).filter(([, value]) => value !== undefined)
+    );
+
     const { data, error } = await supabase
       .from('invoices')
-      .update(updates)
+      .update(sanitizedUpdates)
       .eq('id', id)
       .select()
       .single();
@@ -1018,3 +1113,82 @@ export const communalExpenseApi = {
     if (error) throw error;
   }
 };
+export const invoicePaymentApi = {
+  async listByInvoice(invoiceId: string): Promise<InvoicePayment[]> {
+    const { data, error } = await supabase
+      .from('invoice_payments')
+      .select('*')
+      .eq('invoice_id', invoiceId)
+      .order('paid_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async listByInvoices(invoiceIds: string[]): Promise<InvoicePayment[]> {
+    if (invoiceIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('invoice_payments')
+      .select('*')
+      .in('invoice_id', invoiceIds)
+      .order('paid_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async create(payment: Omit<InvoicePayment, 'id' | 'created_at'>): Promise<InvoicePayment> {
+    const { data, error } = await supabase
+      .from('invoice_payments')
+      .insert([{ ...payment }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+};
+
+export const depositEventApi = {
+  async listByProperty(propertyId: string): Promise<PropertyDepositEvent[]> {
+    const { data, error } = await supabase
+      .from('property_deposit_events')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if ((error as PostgrestError)?.code === 'PGRST205') {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ property_deposit_events table not found yet – returning empty deposit log');
+        }
+        return [];
+      }
+      throw error;
+    }
+    return data || [];
+  },
+
+  async create(event: Omit<PropertyDepositEvent, 'id' | 'created_at'>): Promise<PropertyDepositEvent | null> {
+    const { data, error } = await supabase
+      .from('property_deposit_events')
+      .insert([{ ...event }])
+      .select()
+      .single();
+
+    if (error) {
+      if ((error as PostgrestError)?.code === 'PGRST205') {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ property_deposit_events table not found – skipping deposit journal write');
+        }
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  }
+};
+

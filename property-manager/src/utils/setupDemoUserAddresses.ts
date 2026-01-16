@@ -1,11 +1,20 @@
 import { userApi } from '../lib/userApi';
 import { addressApi } from '../lib/database';
+import { FRONTEND_MODE } from '../config/frontendMode';
 
 /**
  * Setup demo user-address relationships
  * This function assigns users to addresses if they don't have any
  */
 export async function setupDemoUserAddresses(userId: string, userEmail: string): Promise<void> {
+  // ⚠️ FRONTEND MODE - Skip API calls
+  if (FRONTEND_MODE) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🚫 FRONTEND ONLY: Skipping demo user address setup');
+    }
+    return;
+  }
+  
   try {
     // Check if user already has addresses
     const existingAddresses = await userApi.getUserAddresses(userId);

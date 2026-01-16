@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useState, useCallback } from 'react';
 
 interface OptimizedImageProps {
@@ -10,6 +11,11 @@ interface OptimizedImageProps {
   placeholder?: string;
   onLoad?: () => void;
   onError?: () => void;
+  // Optional: provide alternative formats if you have them
+  avifSrc?: string;
+  webpSrc?: string;
+  // Set to false if you don't have alternative formats
+  useAlternativeFormats?: boolean;
 }
 
 /**
@@ -28,7 +34,10 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
   loading = 'lazy',
   placeholder = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PC9zdmc+',
   onLoad,
-  onError
+  onError,
+  avifSrc,
+  webpSrc,
+  useAlternativeFormats = false // Disabled by default since most bundled images won't have alternatives
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -44,16 +53,6 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
     onError?.();
   }, [onError]);
 
-  // Generate optimized srcSet for different formats
-  const generateSrcSet = (baseSrc: string) => {
-    const baseName = baseSrc.replace(/\.[^/.]+$/, '');
-    return `
-      ${baseName}.avif 1x,
-      ${baseName}.webp 1x,
-      ${baseSrc} 1x
-    `;
-  };
-
   if (hasError) {
     return (
       <div 
@@ -65,17 +64,45 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
     );
   }
 
+  // If not using alternative formats, just render a simple img tag
+  if (!useAlternativeFormats) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={loading}
+        decoding="async"
+        fetchPriority={loading === 'eager' ? 'high' : 'auto'}
+        className={`transition-opacity duration-200 ${
+          isLoading ? 'opacity-0' : 'opacity-100'
+        } ${className}`}
+        onLoad={handleLoad}
+        onError={handleError}
+        style={{
+          // Prevent layout shift (CLS)
+          aspectRatio: width && height ? `${width}/${height}` : undefined
+        }}
+      />
+    );
+  }
+
+  // Use alternative formats if provided or generate from src
+  const avifSource = avifSrc || src.replace(/\.[^/.]+$/, '.avif');
+  const webpSource = webpSrc || src.replace(/\.[^/.]+$/, '.webp');
+
   return (
-    <picture className={className}>
-      {/* AVIF format for modern browsers */}
+    <picture>
+      {/* AVIF format for modern browsers - smallest file size */}
       <source 
         type="image/avif" 
-        srcSet={src.replace(/\.[^/.]+$/, '.avif')}
+        srcSet={avifSource}
       />
-      {/* WebP format for good browser support */}
+      {/* WebP format for broad browser support - good compression */}
       <source 
         type="image/webp" 
-        srcSet={src.replace(/\.[^/.]+$/, '.webp')}
+        srcSet={webpSource}
       />
       {/* Fallback to original format */}
       <img
@@ -84,15 +111,16 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
         width={width}
         height={height}
         loading={loading}
-        className={`transition-opacity duration-300 ${
+        decoding="async"
+        fetchPriority={loading === 'eager' ? 'high' : 'auto'}
+        className={`transition-opacity duration-200 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         } ${className}`}
         onLoad={handleLoad}
         onError={handleError}
         style={{
-          backgroundImage: `url(${placeholder})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          // Prevent layout shift (CLS)
+          aspectRatio: width && height ? `${width}/${height}` : undefined
         }}
       />
     </picture>

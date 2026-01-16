@@ -1,5 +1,260 @@
 ---
-description:
+description: >
+  Nuomoria (Property Management System) – Cursor taisyklės, kurios automatizuotai
+  skatina geriausias praktikas: našumas, Core Web Vitals, protingas krovimas, paveikslėlių ir tinklo optimizacija,
+  sauga, prieinamumas ir pastovus DX. Spalvų paletė: #2F8481, #000000, #FFFFFF.
 globs:
-alwaysApply: false
+  - "**/*"
+alwaysApply: true
 ---
+
+palette:
+  primary: "#2F8481"
+  black: "#000000"
+  white: "#FFFFFF"
+
+# ======================================================
+# ✅ BENDRI TIKSLAI (Cursor turi vadovautis jais generuodamas kodą)
+# ======================================================
+goals:
+  - "Pirmas vaizdas < 1.5s FCP, LCP < 2.5s, CLS < 0.1, INP < 200ms."
+  - "Initial JS ≤ 180KB gzip, initial CSS ≤ 40KB, pavienis IMG ≤ 200KB (hero ≤ 350KB AVIF/WebP)."
+  - "Virš lenkimo krovimas prioritetinis, visa kita – lazy ir on-demand."
+  - "0 nereikalingų priklausomybių ir jokių *runtime* prop-types – tik TypeScript."
+  - "Saugus Supabase naudojimas (RLS), tik būtini stulpeliai, paginacija pagal nutylėjimą."
+  - "UI spalvos tik iš paletės (primary/black/white)."
+
+# ======================================================
+# 🧱 TECH STACK & KODO STILIUS
+# ======================================================
+rules:
+
+- name: "Tik TypeScript + griežti tipai"
+  require:
+    - "Nauji failai .ts/.tsx; vengti 'any'."
+    - "Props aprašyti interface/type; bendrinami tipai – src/types/."
+  forbid:
+    - "PropTypes, 'as unknown as', nestruktūrizuoti any."
+
+- name: "ESLint/Prettier disciplina"
+  enforce:
+    - "Gerbti projektines .eslintrc/.prettierrc nuostatas, importų tvarką."
+    - "Production'e draudžiami console.*; vietoj to naudoti util Logger su NODE_ENV guard."
+
+- name: "Aplinkos kintamieji"
+  require:
+    - ".env.local su REACT_APP_*; jokio hardcoded raktų."
+    - "Konfigūracijai naudoti src/lib/config.ts (viena vieta)."
+
+# ======================================================
+# ⚡ REACT NAŠUMAS
+# ======================================================
+
+- name: "Route-level code splitting"
+  require:
+    - "Visi puslapiai per React.lazy + Suspense; fallback = skeleton."
+  snippet: |
+    const TenantsPage = React.lazy(() => import("./pages/TenantsPage"));
+    <Suspense fallback={<SkeletonList rows={8}/>}>
+      <TenantsPage/>
+    </Suspense>
+
+- name: "Komponentų memoizavimas ir sąrašų virtualizacija"
+  enforce:
+    - "Pure UI -> React.memo; brangias išraiškas dėk į useMemo/useCallback."
+    - "≥50 eilučių sąrašams – react-window arba react-virtualized."
+  snippet: |
+    import { FixedSizeList as List } from "react-window";
+    <List height={480} width={"100%"} itemCount={items.length} itemSize={56}>
+      {Row}
+    </List>
+
+- name: "Error & Suspense boundary"
+  require:
+    - "Bendras AppErrorBoundary ir per-route boundary; rodyti atstatymo veiksmą."
+  snippet: |
+    function AppErrorBoundary({ children }: { children: React.ReactNode }) {
+      return (
+        <ErrorBoundary fallback={<ErrorView/>}>
+          <Suspense fallback={<AppSkeleton/>}>{children}</Suspense>
+        </ErrorBoundary>
+      );
+    }
+
+# ======================================================
+# 🖼️ PAVEIKSLĖLIAI (GREITAS ĮKĖLIMAS)
+# ======================================================
+
+- name: "OptimizedImage – privalomas visiems IMG"
+  require:
+    - "Visur vietoj <img> naudoti <OptimizedImage/> (arba <picture>), su AVIF/WebP srcset, sizes."
+    - "Būtini width/height, loading='lazy' (išskyrus hero), decoding='async'."
+    - "Blur/LQIP placeholder (dataURL) + IntersectionObserver prieš tikrą įkėlimą."
+  snippet: |
+    // src/components/OptimizedImage.tsx
+    type ImgProps = {
+      alt: string; width: number; height: number; className?: string;
+      src: string; webp?: string; avif?: string;
+      sizes?: string; priority?: boolean; placeholderDataURL?: string;
+    };
+    export default function OptimizedImage(p: ImgProps) {
+      const { priority, sizes="100vw" } = p;
+      return (
+        <picture>
+          {p.avif && <source type="image/avif" srcSet={p.avif} sizes={sizes} />}
+          {p.webp && <source type="image/webp" srcSet={p.webp} sizes={sizes} />}
+          <img
+            src={p.src} alt={p.alt} width={p.width} height={p.height}
+            loading={priority ? "eager" : "lazy"} decoding="async"
+            fetchPriority={(priority ? "high" : "auto") as any}
+            className={p.className} />
+        </picture>
+      );
+    }
+
+- name: "Šaltinių generavimas ir dydžiai"
+  actions:
+    - "Kurti 1x/2x/3x versijas; generuoti srcset; SVG ikonoms naudoti SVGR."
+    - "Hero: vienas paveikslas, priority=true, preloading su <link rel='preload' as='image'>."
+
+# ======================================================
+# 🎨 TAILWIND & UI TEMA
+# ======================================================
+
+- name: "Spalvos ir Tailwind content"
+  require:
+    - "Naudoti tik: #2F8481, #000000, #FFFFFF; išplėsti tailwind colors.primary."
+    - "Tailwind content = ./src/**/*.{ts,tsx,html} (purge)."
+  snippet: |
+    // tailwind.config.ts
+    export default {
+      content: ["./src/**/*.{ts,tsx,html}"],
+      theme: { extend: { colors: { primary: "#2F8481", black: "#000", white: "#fff" } } }
+    }
+
+- name: "Komponentų etalonai"
+  snippet: |
+    export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+      return (
+        <button {...props}
+          className={"rounded-2xl px-4 py-2 bg-primary text-white hover:opacity-90 " +
+                     "focus:outline-none focus:ring-2 focus:ring-primary/40 " +
+                     (props.className ?? "")}/>
+      );
+    }
+
+# ======================================================
+# 🔌 SUPABASE: UŽKLAUSOS IR SAUGA
+# ======================================================
+
+- name: "Minimalūs duomenys + paginacija pagal nutylėjimą"
+  require:
+    - "Kiekviena .from().select() – tik būtini stulpeliai; privalomas range(limit)."
+    - "Nenaudoti SELECT *; naudoti order + indeksuojamus laukus."
+  snippet: |
+    const PAGE = 0, SIZE = 20;
+    const { data, error } = await supabase
+      .from("tenants")
+      .select("id,full_name,apartment_id")
+      .order("full_name")
+      .range(PAGE*SIZE, PAGE*SIZE + SIZE - 1);
+
+- name: "RLS ir vaidmenys"
+  enforce:
+    - "RLS įjungtas visoms lentelėms; RBAC per policies."
+    - "Edge Functions jautriems veiksmams."
+
+- name: "Realtime – tik kai reikia"
+  actions:
+    - "Subscribe tik aktyviems ekranams; unmount → .unsubscribe()."
+    - "Debounce keitimams, batch'inti UI atnaujinimus."
+
+# ======================================================
+# 🌐 NETWORK, CACHE, PWA
+# ======================================================
+
+- name: "Greitas tinklas"
+  actions:
+    - "public/index.html: <link rel='preconnect' href='https://<project>.supabase.co' crossorigin>."
+    - "CDN static: Cache-Control immutable, content hashing."
+    - "ETag ir gzip/brotli įjungti serveryje."
+
+- name: "Service Worker (Workbox)"
+  actions:
+    - "Static -> Cache First su revision; API -> Stale-While-Revalidate 30–60s."
+    - "Image -> Cache First su maxEntries ir maxAgeSeconds."
+  snippet: |
+    // workbox routing pseudo:
+    workbox.routing.registerRoute(({request}) => request.destination === "image",
+      new workbox.strategies.CacheFirst({ cacheName: "img", plugins:[ new workbox.expiration.ExpirationPlugin({maxEntries:200,maxAgeSeconds:60*60*24*30}) ] }));
+
+# ======================================================
+# 🧠 UX: PERCEIVED PERFORMANCE
+# ======================================================
+
+- name: "Skeletons, prefetch, priority"
+  require:
+    - "Kiekvienas lėtas ekranas turi skeleton."
+    - "onHover/onView – prefetch'inti route'us ir kritinius modulius."
+  snippet: |
+    import { prefetch } from "vite-plugin-prefetch"; // ar lygiavertis sprendimas
+
+- name: "Debounce/Throttle"
+  enforce:
+    - "Paieška: debounce 250–400ms; scroll/resize throttle 100–200ms."
+
+# ======================================================
+# ♿ PRIEINAMUMAS (A11y)
+# ======================================================
+
+- name: "A11y kaip numatytasis"
+  require:
+    - "Semantiniai elementai, alt visiems vaizdams, focus žiedas neišjungiamas."
+    - "Kontrastas ≥ 4.5:1 (primary (#2F8481) ant balto – OK)."
+    - "ARIA tik kur būtina; formoms – aiškūs labeliai ir klaidų būsenos."
+
+# ======================================================
+# 🔒 SAUGA
+# ======================================================
+
+- name: "CSP + XSS higiena"
+  actions:
+    - "Content-Security-Policy be 'unsafe-inline'; naudoti hash/nonce, jei reikia."
+    - "Sanituoti vartotojo turinį (DOMPurify), jokio dangerouslySetInnerHTML."
+
+# ======================================================
+# 📈 ANALITIKA IR MONITORINGAS
+# ======================================================
+
+- name: "Core Web Vitals ir klaidos"
+  actions:
+    - "web-vitals siųsti į analitiką (INP, LCP, CLS)."
+    - "Global error listener + Sentry/Analogas tik production."
+  snippet: |
+    import { onCLS, onINP, onLCP } from "web-vitals";
+    [onCLS, onINP, onLCP].forEach(fn => fn(m => sendToAnalytics(m)));
+
+# ======================================================
+# 🧪 CI VARTAI (kokybės užraktai)
+# ======================================================
+
+- name: "CI privaloma praeiti"
+  require:
+    - "Type-check be klaidų; ESLint be klaidų."
+    - "Bundle biudžetai neviršyti; analyze ataskaita PR'e."
+    - "Lighthouse perf ≥ 90 (mobile), a11y ≥ 90."
+  snippet: |
+    // package.json (fragmentas)
+    "scripts": {
+      "analyze": "source-map-explorer 'build/static/js/*.js' --html build/report.html",
+      "perf:ci": "lighthouse http://localhost:3000 --preset=desktop --output=json --output-path=./lh.json"
+    }
+
+# ======================================================
+# 🎯 SPALVŲ NAUDOJIMAS (privaloma)
+# ======================================================
+
+- name: "Paletės taikymas"
+  require:
+    - "CTA/bg akcentai – #2F8481; pagrindinis tekstas – #000; fonai – #fff."
+    - "Tailwind klasės: bg-[#2F8481] | text-black | bg-white | border-black/10."

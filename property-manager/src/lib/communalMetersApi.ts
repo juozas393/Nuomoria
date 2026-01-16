@@ -253,8 +253,19 @@ export const getAddressSettings = async (addressId: string): Promise<AddressSett
   }
 };
 
-export const createAddressSettings = async (settings: Omit<AddressSettings, 'id' | 'created_at' | 'updated_at'>): Promise<AddressSettings> => {
+export const createAddressSettings = async (settings: {
+  address_id: string;
+  building_info: any;
+  contact_info: any;
+  financial_settings: any;
+  notification_settings: any;
+  communal_config?: any;
+}): Promise<AddressSettings> => {
   try {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 createAddressSettings called with:', settings);
+    }
+    
     const { data, error } = await supabase
       .from('address_settings')
       .insert([settings])
@@ -262,13 +273,17 @@ export const createAddressSettings = async (settings: Omit<AddressSettings, 'id'
       .single();
 
     if (error) {
-      console.error('Error creating address settings:', error);
+      console.error('❌ Error creating address settings:', error);
       throw error;
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Address settings created successfully:', data);
     }
 
     return data;
   } catch (error) {
-    console.error('Error in createAddressSettings:', error);
+    console.error('❌ Error in createAddressSettings:', error);
     throw error;
   }
 };

@@ -194,10 +194,14 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
 
   // OAuth methods
   const signInWithGoogle = async (): Promise<void> => {
+    // CRITICAL: Use window.location.origin for PKCE code_verifier to work
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+    console.log('🔐 Google OAuth redirect:', redirectUrl);
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: process.env.REACT_APP_AUTH_REDIRECT_URL || `${app.url}/auth/callback`,
+        redirectTo: redirectUrl,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

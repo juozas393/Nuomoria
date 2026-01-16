@@ -17,6 +17,8 @@ import {
 import { smoothScrollTo } from '../utils/smoothScroll';
 import type { UserWithPermissions } from '../types/user';
 import logoImage from '../assets/logocanv.png';
+import { getUserDisplayName, getUserInitials, getUserSecondaryLabel, translateUserRole } from '../utils/userDisplay';
+import { getDefaultRouteForRole } from '../utils/roleRouting';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -40,7 +42,14 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
   // Memoized page change handler
   const handlePageChange = useCallback((page: string) => {
     onPageChange(page);
-    onClose();
+
+    const shouldClose = typeof window === 'undefined'
+      ? true
+      : window.matchMedia('(max-width: 1023.98px)').matches;
+
+    if (shouldClose) {
+      onClose();
+    }
     
     // GitHub-style smooth scroll to top after navigation
     setTimeout(() => {
@@ -92,105 +101,83 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
     };
   }, [isOpen, handleClose]);
   
-  const navigationItems = React.useMemo(() => [
+  const userRole = user?.role ?? 'tenant';
+  const defaultRoute = getDefaultRouteForRole(user?.role);
+  const defaultPage = defaultRoute.replace(/^\//, '');
+
+  const navigationItems = React.useMemo(() => {
+    if (userRole === 'tenant') {
+      return [
+        {
+          name: 'Pagrindinis',
+          page: 'tenant-dashboard',
+          icon: HomeIcon,
+          description: 'Nuomininko valdymo skydelis'
+        }
+      ];
+    }
+
+    return [
     {
       name: 'Pagrindinis',
       page: 'nuomotojas2',
       icon: HomeIcon,
-      description: 'Pagrindinis dashboard',
-      badge: 'MAIN'
-    },
-    {
-      name: 'Dashboard',
-      page: 'dashboard',
-      icon: BuildingOfficeIcon,
-      description: 'Senasis dashboard'
-    },
-    {
-      name: 'Nuomotojas',
-      page: 'nuomotojas',
-      icon: BuildingOfficeIcon,
-      description: 'Paprastas nuomotojas',
-      badge: '8'
+      description: 'Pagrindinis valdymo skydelis'
     },
     {
       name: 'Nekilnojamas turtas',
       page: 'properties',
       icon: BuildingOfficeIcon,
-      description: 'Turto valdymas',
-      badge: '12'
-    },
-    {
-      name: 'Butai',
-      page: 'apartments',
-      icon: BuildingOfficeIcon,
-      description: 'Butų valdymas',
-      badge: '17'
+      description: 'Turto ir butų valdymas'
     },
     {
       name: 'Nuomininkai',
       page: 'tenants',
       icon: UsersIcon,
-      description: 'Nuomininkų sąrašas',
-      badge: '8'
+      description: 'Nuomininkų sąrašas ir valdymas'
     },
     {
       name: 'Sąskaitos',
       page: 'invoices',
       icon: DocumentTextIcon,
-      description: 'Mokėjimų valdymas',
-      badge: '5'
-    },
-    {
-      name: 'Remontas',
-      page: 'maintenance',
-      icon: WrenchScrewdriverIcon,
-      description: 'Techninis aptarnavimas',
-      badge: '3'
+      description: 'Mokėjimų ir sąskaitų valdymas'
     },
     {
       name: 'Analitika',
       page: 'analytics',
       icon: ChartBarIcon,
-      description: 'Ataskaitos ir analizė'
-    },
-    {
-      name: 'Vartotojai',
-      page: 'users',
-      icon: UserIcon,
-      description: 'Vartotojų valdymas',
-      badge: 'ADMIN'
-    },
-    {
-      name: 'Depozito testai',
-      page: 'deposit-tests',
-      icon: UserCircleIcon,
-      description: 'Depozito skaičiavimų testai',
-      badge: 'TEST'
+      description: 'Ataskaitos ir statistika'
     }
-  ], []);
+    ];
+  }, [userRole]);
 
   const secondaryItems = React.useMemo(() => [
+    {
+      name: 'Profilis',
+      page: 'profile',
+      icon: UserIcon,
+      description: 'Vartotojo profilis'
+    },
     {
       name: 'Nustatymai',
       page: 'settings',
       icon: CogIcon,
-      description: 'Sistemos konfigūracija'
-    },
-    {
-      name: 'Pagalba',
-      page: 'help',
-      icon: BellIcon,
-      description: 'Dokumentacija ir palaikymas'
+      description: 'Sistemos nustatymai'
     }
   ], []);
+
+  const displayName = React.useMemo(() => getUserDisplayName(user), [user]);
+  const secondaryLabel = React.useMemo(() => getUserSecondaryLabel(user), [user]);
+  const userInitials = React.useMemo(() => getUserInitials(user), [user]);
+  const roleLabel = React.useMemo(() => translateUserRole(user?.role), [user?.role]);
+  const avatarUrl = React.useMemo(() => user?.avatar_url?.trim() ?? null, [user?.avatar_url]);
 
   return (
     <>
       {/* Backdrop for click outside */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 z-40"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -200,8 +187,11 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
         className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-lg
           transform transition-transform duration-300 ease-out
+          transition-opacity
           flex flex-col h-full max-h-screen overflow-hidden
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isOpen 
+            ? 'translate-x-0 opacity-100 pointer-events-auto' 
+            : '-translate-x-full opacity-0 pointer-events-none'}
         `}
       >
         <div className="flex flex-col h-full overflow-hidden">
@@ -213,7 +203,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
                 alt="Nuomoria"
                 className="w-full object-contain mx-auto cursor-pointer hover:opacity-80 transition-opacity duration-200"
                 style={{ maxWidth: '240px', maxHeight: '80px', width: 'auto', height: 'auto' }}
-                onClick={() => onPageChange('nuomotojas2')}
+                onClick={() => onPageChange(defaultPage)}
               />
             </div>
           </div>
@@ -221,19 +211,28 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
           {/* User Info - Fixed height */}
           <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#2f8481] rounded-full flex items-center justify-center">
-                <UsersIcon className="h-5 w-5 text-white" />
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName}
+                  className="h-10 w-10 rounded-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2F8481]/10 text-lg font-semibold text-[#2F8481]">
+                  {userInitials}
               </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-black truncate">
-                  {user ? `${user.first_name} ${user.last_name}` : 'User'}
+                  {displayName}
                 </p>
                 <p className="text-xs text-gray-600 truncate">
-                  {user?.email || 'Neprisijungęs'}
+                  {secondaryLabel}
                 </p>
                 <div className="mt-1">
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#2f8481] text-white">
-                    {user?.role || 'User'}
+                    {roleLabel}
                   </span>
                 </div>
               </div>
@@ -261,21 +260,8 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
                         }
                       `}
                     >
-                      <div className="flex items-center space-x-3">
-                        <item.icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-[#2f8481]'}`} />
-                        <span>{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <span className={`
-                          inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                          ${isActive 
-                            ? 'bg-white/20 text-white' 
-                            : 'bg-gray-200 text-gray-600 group-hover:bg-[#2f8481] group-hover:text-white'
-                          }
-                        `}>
-                          {item.badge}
-                        </span>
-                      )}
+                      <item.icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-[#2f8481]'}`} />
+                      <span>{item.name}</span>
                     </button>
                   );
                 })}

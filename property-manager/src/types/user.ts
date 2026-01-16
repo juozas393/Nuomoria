@@ -14,14 +14,19 @@ export type AddressRole = 'owner' | 'manager' | 'tenant' | 'maintenance';
 export interface User {
   id: string;
   email: string;
+  google_email?: string | null;
+  google_linked?: boolean | null;
   first_name: string;
   last_name: string;
+  name?: string; // Computed field: first_name + last_name
   phone?: string;
+  nickname?: string;
   role: UserRole;
   is_active: boolean;
   last_login?: string;
   created_at: string;
   updated_at: string;
+  avatar_url?: string | null;
 }
 
 export interface UserPermission {

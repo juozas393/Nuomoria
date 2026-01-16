@@ -12,6 +12,11 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({
   className = "", 
   showText = true 
 }) => {
+  // ⚠️ TEMPORARY: Logout disabled for frontend development
+  // TODO: Re-enable before production deployment
+  return null;
+
+  /* ORIGINAL CODE - COMMENTED OUT FOR DEVELOPMENT
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -30,6 +35,7 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({
       {showText && <span>Atsijungti</span>}
     </button>
   );
+  */
 };
 
 export default LogoutButton;

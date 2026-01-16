@@ -1,53 +1,6 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { 
-  Search,
-  Plus,
-  Info,
-  Bolt,
-  Camera,
-  Send,
-  FileCheck,
-  X,
-  Check,
-  Eye,
-  Pencil,
-  Trash,
-  Trash2,
-  Edit3,
-  ChevronDown,
-  ChevronUp,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  Clock,
-  FileText,
-  MapPin,
-  Phone,
-  Mail,
-  CreditCard,
-  Banknote,
-  ArrowRight,
-  ArrowLeft,
-  Image,
-  EyeOff,
-  Users,
-  Building2,
-  Wrench,
-  Beaker,
-  Flame,
-  Receipt,
-  Star,
-  Sparkles,
-  TrendingUp,
-  TrendingDown,
-  Sparkles as SparklesIcon,
-  Droplets,
-  Wifi,
-  Fan,
-  ArrowUpDown,
-  Gauge,
-  Zap
-} from 'lucide-react';
+/* eslint-disable react/prop-types */
+import React, { useState, useCallback, useMemo, useEffect, memo } from 'react';
+import { Plus, Trash2, Edit3, RefreshCw, Droplets, Bolt, Flame, Wifi, Fan, ArrowUpDown, Gauge, Zap } from 'lucide-react';
 import { ReadingRequestModal } from './ReadingRequestModal';
 import { ReadingsInbox } from './ReadingsInbox';
 import { MetersPanel, Meter as ModernMeter } from './MetersPanel';
@@ -68,7 +21,7 @@ import {
 } from '../../constants/meterDistribution';
 import { type Allocation } from '../../types/meters';
 
-interface LocalMeter {
+export interface LocalMeter {
   id: string;
   name: string;
   type: 'individual' | 'communal';
@@ -86,6 +39,11 @@ interface LocalMeter {
   collectionMode: 'landlord_only' | 'tenant_photo'; // New field for collection mode
   landlordReadingEnabled: boolean;
   tenantPhotoEnabled: boolean;
+  lastReadingValue?: number | null;
+  previousReadingValue?: number | null;
+  lastReadingDate?: string | null;
+  lastTotalCost?: number | null;
+  lastUpdatedAt?: string | null;
 }
 
 interface MetersTableProps {
@@ -97,17 +55,17 @@ interface MetersTableProps {
 }
 
 const AVAILABLE_METERS = [
-  { name: 'Vanduo (šaltas)', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 1.2, distribution_method: 'per_consumption' as const, description: 'Šalto vandens suvartojimas', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
-  { name: 'Vanduo (karštas)', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 3.5, distribution_method: 'per_consumption' as const, description: 'Karšto vandens suvartojimas', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
-  { name: 'Elektra (individuali)', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.15, distribution_method: 'per_consumption' as const, description: 'Elektros suvartojimas', icon: 'Elektra', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
-  { name: 'Elektra (bendra)', type: 'communal' as const, unit: 'kWh' as const, price_per_unit: 0.15, distribution_method: 'per_apartment' as const, description: 'Namo apsvietimas', icon: 'Elektra', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Šildymas', type: 'individual' as const, unit: 'GJ' as const, price_per_unit: 25.0, distribution_method: 'per_area' as const, description: 'Namo šildymo sąnaudos', icon: 'Šildymas', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
-  { name: 'Internetas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 60, distribution_method: 'per_apartment' as const, description: 'Namo interneto paslaugos', icon: 'Internetas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Šiukšlių išvežimas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 45, distribution_method: 'per_apartment' as const, description: 'Šiukšlių išvežimo paslaugos', icon: 'Šiukšlės', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Dujos', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 0.8, distribution_method: 'per_consumption' as const, description: 'Dujų suvartojimas', icon: 'Dujos', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
-  { name: 'Vėdinimas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 30, distribution_method: 'per_apartment' as const, description: 'Vėdinimo sistemos', icon: 'Vėdinimas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Lifto priežiūra', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 25, distribution_method: 'per_apartment' as const, description: 'Lifto techninė priežiūra', icon: 'Liftas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Kitas', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.1, distribution_method: 'per_consumption' as const, description: 'Kitas individualus skaitliukas', icon: 'BoltIcon', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true }
+  { name: 'Vanduo (šaltas)', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 1.2, distribution_method: 'per_consumption' as const, description: 'Šalto vandens suvartojimas', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: true },
+  { name: 'Vanduo (karštas)', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 3.5, distribution_method: 'per_consumption' as const, description: 'Karšto vandens suvartojimas', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: true },
+  { name: 'Elektra (individuali)', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.15, distribution_method: 'per_consumption' as const, description: 'Elektra kiekvienam butui', icon: 'Elektra', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: true },
+  { name: 'Elektra (bendra)', type: 'communal' as const, unit: 'kWh' as const, price_per_unit: 0.15, distribution_method: 'per_apartment' as const, description: 'Namo apsvietimas', icon: 'Elektra', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
+  { name: 'Šildymas', type: 'individual' as const, unit: 'GJ' as const, price_per_unit: 25.0, distribution_method: 'per_area' as const, description: 'Namo šildymo sąnaudos', icon: 'Šildymas', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: true },
+  { name: 'Internetas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 60, distribution_method: 'per_apartment' as const, description: 'Interneto paslaugos', icon: 'Internetas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
+  { name: 'Šiukšlių išvežimas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 45, distribution_method: 'per_apartment' as const, description: 'Šiukšlių išvežimo paslaugos', icon: 'Šiukšlės', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
+  { name: 'Dujos', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 0.8, distribution_method: 'per_consumption' as const, description: 'Dujų suvartojimas', icon: 'Dujos', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: true },
+  { name: 'Vėdinimas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 30, distribution_method: 'per_apartment' as const, description: 'Vėdinimo sistemos', icon: 'Vėdinimas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
+  { name: 'Lifto priežiūra', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 25, distribution_method: 'per_apartment' as const, description: 'Lifto techninė priežiūra', icon: 'Liftas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
+  { name: 'Kitas', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.1, distribution_method: 'per_consumption' as const, description: 'Papildomas individualus skaitliukas', icon: 'BoltIcon', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: true }
 ];
 
 const getMeterIcon = (name: string) => {
@@ -120,41 +78,6 @@ const getMeterIcon = (name: string) => {
   if (name.includes('Vėdinimas')) return <Fan className="w-5 h-5" />;
   if (name.includes('Liftas')) return <ArrowUpDown className="w-5 h-5" />;
   return <Gauge className="w-5 h-5" />;
-};
-
-const getUnitSuffix = (unit: string) => {
-  switch (unit) {
-    case 'm3': return '€/m³';
-    case 'kWh': return '€/kWh';
-    case 'GJ': return '€/GJ';
-    case 'Kitas': return '€/vnt';
-    default: return '€';
-  }
-};
-
-// Format price with Lithuanian locale
-const formatPrice = (price: number, unit: string): string => {
-  const formattedPrice = price.toLocaleString('lt-LT', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 3
-  });
-  
-  return `${formattedPrice} €`;
-};
-
-// Get price suffix based on unit
-const getPriceSuffix = (unit: string): string => {
-  const suffix = getUnitSuffix(unit);
-  return `€/${suffix}`;
-};
-
-const getDistributionLabel = (method: string) => {
-  switch (method) {
-    case 'per_apartment': return 'Pagal butus';
-    case 'per_area': return 'Pagal plotą';
-    case 'fixed_split': return 'Fiksuotas';
-    default: return method;
-  }
 };
 
 const getRecommendedDistribution = (type: 'individual' | 'communal', unit: string, name: string): DistributionMethod => {
@@ -199,196 +122,228 @@ const getDistributionTooltip = (method: DistributionMethod) => {
   return DISTRIBUTION_TOOLTIPS[method] || '';
 };
 
-// MeterRow component for displaying individual meters
-const MeterRow: React.FC<{
+const formatPriceDisplay = (meter: LocalMeter): string => {
+  if (meter.distribution_method === 'fixed_split' || meter.unit === 'Kitas') {
+    const price = meter.fixed_price ?? meter.price_per_unit ?? 0;
+    return `${price.toLocaleString('lt-LT', { minimumFractionDigits: 2 })} €/mėn.`;
+  }
+
+  const price = meter.price_per_unit ?? 0;
+  return fmtPriceLt(price, meter.unit);
+};
+
+const computeDistributionLabel = (meter: LocalMeter): string => {
+  if (meter.type === 'individual') {
+    return 'Pagal suvartojimą';
+  }
+
+  return DISTRIBUTION_LABELS[meter.distribution_method] ?? meter.distribution_method;
+};
+
+const toModernMeter = (meter: LocalMeter): ModernMeter => ({
+  id: meter.id,
+  type: meter.name?.includes('Vanduo') && meter.name?.includes('šaltas') ? 'water_cold' :
+        meter.name?.includes('Vanduo') && meter.name?.includes('karštas') ? 'water_hot' :
+        meter.name?.includes('Elektra') && meter.name?.includes('individuali') ? 'electricity' :
+        meter.name?.includes('Elektra') && meter.name?.includes('bendra') ? 'electricity_common' :
+        meter.name?.includes('Šildymas') || meter.name?.includes('Dujos') ? 'heating' : 'electricity_common',
+  mode: meter.type === 'individual' ? 'individual' : 'shared',
+  unit: meter.unit,
+  price: meter.unit === 'Kitas' ? (meter.fixed_price || 0) : (meter.price_per_unit || 0),
+  allocation: meter.distribution_method as Allocation,
+  photoRequired: (meter.collectionMode || (meter.tenantPhotoEnabled ? 'tenant_photo' : 'landlord_only')) === 'tenant_photo'
+    ? (meter.requires_photo ?? true)
+    : false,
+  visibleToTenant: true,
+  active: meter.is_active,
+  name: meter.name,
+  description: meter.description,
+  collectionMode: (meter.collectionMode || (meter.tenantPhotoEnabled ? 'tenant_photo' : 'landlord_only')) as 'landlord_only' | 'tenant_photo'
+});
+
+const summarizeLastReading = (meter: LocalMeter) => {
+  if (!meter.lastReadingDate) {
+    return {
+      valueLabel: '—',
+      metaLabel: 'Rodmuo nepateiktas',
+      isStale: true
+    };
+  }
+
+  const timestamp = new Date(meter.lastReadingDate).getTime();
+  const hasValidTimestamp = !Number.isNaN(timestamp);
+  const formattedDate = hasValidTimestamp ? new Date(meter.lastReadingDate).toLocaleDateString('lt-LT') : '—';
+  const diffDays = hasValidTimestamp
+    ? Math.round((Date.now() - timestamp) / (1000 * 60 * 60 * 24))
+    : null;
+  const isStale = diffDays == null ? true : diffDays >= 30;
+  const relative = diffDays == null
+    ? ''
+    : diffDays <= 0
+      ? 'šiandien'
+      : diffDays === 1
+        ? 'prieš 1 d.'
+        : diffDays < 7
+          ? `prieš ${diffDays} d.`
+          : diffDays < 35
+            ? `prieš ${Math.round(diffDays / 7)} sav.`
+            : `prieš ${Math.round(diffDays / 30)} mėn.`;
+
+  const unitLabel = getUnitLabel(meter.unit);
+
+  return {
+    valueLabel: meter.lastReadingValue != null ? `${meter.lastReadingValue} ${unitLabel}` : '—',
+    metaLabel: `${formattedDate}${relative ? ` (${relative})` : ''}`,
+    isStale
+  };
+};
+
+const MeterCard = memo<{
   meter: LocalMeter;
+  index: number;
   onUpdate: (meter: ModernMeter) => void;
   onDelete: (id: string) => void;
   onEdit: (meter: ModernMeter) => void;
-}> = ({ meter, onUpdate, onDelete, onEdit }) => {
+  onInlineUpdate: (index: number, field: keyof LocalMeter, value: unknown) => void;
+  onTypeChange: (index: number, newType: 'individual' | 'communal') => void;
+}>(({ meter, index, onUpdate, onDelete, onEdit, onInlineUpdate, onTypeChange }) => {
   const [showIconSelector, setShowIconSelector] = useState(false);
-  
-  const getMeterIcon = (name: string) => {
-    if (name.includes('Vanduo')) return <Droplets className="w-5 h-5" />;
-    if (name.includes('Elektra')) return <Zap className="w-5 h-5" />;
-    if (name.includes('Šildymas')) return <Flame className="w-5 h-5" />;
-    if (name.includes('Internetas')) return <Wifi className="w-5 h-5" />;
-    if (name.includes('Šiukšlės')) return <Trash2 className="w-5 h-5" />;
-    if (name.includes('Dujos')) return <Flame className="w-5 h-5" />;
-    if (name.includes('Vėdinimas')) return <Fan className="w-5 h-5" />;
-    if (name.includes('Liftas')) return <ArrowUpDown className="w-5 h-5" />;
-    return <Gauge className="w-5 h-5" />;
-  };
-  
-  const [selectedIcon, setSelectedIcon] = useState<React.ReactNode>(getMeterIcon(meter.name));
-  
-  // Convert meter to modern format inline
-  const modernMeter: ModernMeter = {
-    id: meter.id,
-    type: meter.name?.includes('Vanduo') && meter.name?.includes('šaltas') ? 'water_cold' :
-          meter.name?.includes('Vanduo') && meter.name?.includes('karštas') ? 'water_hot' :
-          meter.name?.includes('Elektra') && meter.name?.includes('individuali') ? 'electricity' :
-          meter.name?.includes('Elektra') && meter.name?.includes('bendra') ? 'electricity_common' :
-          meter.name?.includes('Šildymas') || meter.name?.includes('Dujos') ? 'heating' : 'electricity_common',
-    mode: meter.type === 'individual' ? 'individual' : 'shared',
-    unit: meter.unit,
-    price: meter.unit === 'Kitas' ? (meter.fixed_price || 0) : (meter.price_per_unit || 0),
-    allocation: meter.distribution_method as Allocation,
-    photoRequired: meter.requires_photo || false,
-    visibleToTenant: true,
-    active: meter.is_active,
-    name: meter.name,
-    description: meter.description,
-    collectionMode: meter.collectionMode || 'landlord_only' // Ensure collectionMode is set
-  };
+  const [selectedIcon, setSelectedIcon] = useState<React.ReactNode>(() => getMeterIcon(meter.name));
 
-  const getUnitLabel = (unit: string) => {
-    switch (unit) {
-      case 'm3': return 'm³';
-      case 'kWh': return 'kWh';
-              case 'GJ': return 'GJ';
-        case 'Kitas': return 'Kitas';
-      default: return unit;
-    }
-  };
+  const modernMeter = useMemo(
+    () => toModernMeter(meter),
+    [
+      meter.collectionMode,
+      meter.description,
+      meter.distribution_method,
+      meter.fixed_price,
+      meter.id,
+      meter.is_active,
+      meter.name,
+      meter.price_per_unit,
+      meter.requires_photo,
+      meter.tenantPhotoEnabled,
+      meter.type,
+      meter.unit
+    ]
+  );
 
-  const getPriceDisplay = () => {
-    if (meter.distribution_method === 'fixed_split') {
-      const price = meter.fixed_price || meter.price_per_unit || 0;
-      return `${price.toLocaleString('lt-LT', { minimumFractionDigits: 2 })} €/mėn.`;
-    }
-    const price = meter.price_per_unit || 0;
-    return `${price.toLocaleString('lt-LT', { minimumFractionDigits: 2 })} €/${getUnitLabel(meter.unit)}`;
-  };
+  const lastReading = useMemo(
+    () => summarizeLastReading(meter),
+    [meter.lastReadingDate, meter.lastReadingValue, meter.unit]
+  );
 
-  const getDistributionLabel = (method: DistributionMethod) => {
-    return DISTRIBUTION_LABELS[method] || method;
-  };
+  const unitLabel = useMemo(() => getUnitLabel(meter.unit), [meter.unit]);
+  const priceDisplay = useMemo(
+    () => formatPriceDisplay(meter),
+    [meter.distribution_method, meter.fixed_price, meter.price_per_unit, meter.unit]
+  );
+  const distributionLabel = useMemo(
+    () => computeDistributionLabel(meter),
+    [meter.distribution_method, meter.type]
+  );
 
+  const distributionOptions = useMemo(
+    () => getAllowedDistributions(meter.name, meter.type).map((method) => ({
+      value: method,
+      label: DISTRIBUTION_LABELS[method]
+    })),
+    [meter.name, meter.type]
+  );
+ 
   return (
-    <div className="contents border-t border-gray-100 hover:bg-gray-50 transition-colors">
-      {/* Icon */}
-      <div className="px-2 py-2 flex items-center justify-center">
-        <button
-          onClick={() => setShowIconSelector(true)}
-          className="w-6 h-6 bg-[#2F8481]/10 rounded flex items-center justify-center hover:bg-[#2F8481]/20 transition-colors"
-          title="Keisti piktogramą"
-        >
-          <div className="w-4 h-4">{selectedIcon}</div>
-        </button>
-      </div>
-
-      {/* Name and description */}
-      <div className="px-2 py-2">
-        <div className="font-medium text-gray-900 text-xs leading-4 truncate">{meter.name}</div>
-        {meter.description && (
-          <div className="text-xs text-gray-500 mt-0.5 leading-3 truncate">{meter.description}</div>
-        )}
-      </div>
-
-      {/* Type badge */}
-      <div className="px-2 py-2">
-        <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
-          meter.type === 'individual' 
-            ? 'bg-[#2F8481]/10 text-[#2F8481]' 
-            : 'bg-orange-100 text-orange-700'
-        }`}>
-          {meter.type === 'individual' ? 'Ind.' : 'Bendr.'}
-        </span>
-      </div>
-
-      {/* Unit */}
-      <div className="px-2 py-2 text-xs text-gray-600">
-        {getUnitLabel(meter.unit)}
-      </div>
-
-      {/* Price */}
-      <div className="px-2 py-2 text-right text-xs font-medium text-gray-900">
-        {getPriceDisplay()}
-      </div>
-
-      {/* Distribution method */}
-      <div className="px-2 py-2 text-xs text-gray-600 truncate">
-        {meter.type === 'communal' ? getDistributionLabel(meter.distribution_method) : 'Pagal suvartojimą'}
-      </div>
-
-      {/* Collection mode toggle - XOR logic */}
-      <div className="px-2 py-2 flex items-center justify-center">
-        <button
-          onClick={() => {
-            // XOR logic: if currently landlord_only, switch to tenant_photo, and vice versa
-            const newCollectionMode = modernMeter.collectionMode === 'landlord_only' ? 'tenant_photo' : 'landlord_only';
-                         const updatedMeter = { 
-               ...modernMeter, 
-               collectionMode: newCollectionMode as 'landlord_only' | 'tenant_photo',
-               // If switching to landlord_only, disable photo requirement
-               photoRequired: newCollectionMode === 'tenant_photo'
-             };
-            onUpdate(updatedMeter);
-          }}
-          className={`w-8 h-4 rounded-full transition-colors duration-200 ease-in-out relative ${
-            modernMeter.collectionMode === 'tenant_photo' ? 'bg-blue-500' : 'bg-gray-500'
-          }`}
-          title={modernMeter.collectionMode === 'tenant_photo' ? 'Pildo nuomininkas' : 'Pildo nuomotojas'}
-        >
-          <span
-            className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${
-              modernMeter.collectionMode === 'tenant_photo' ? 'translate-x-4 left-0.5' : 'translate-x-0 left-0.5'
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* Photo requirement toggle - only for tenant_photo mode */}
-      <div className="px-2 py-2 flex items-center justify-center">
-        <button
-          onClick={() => {
-            // Only allow photo toggle if in tenant_photo mode
-            if (modernMeter.collectionMode !== 'tenant_photo') return;
-            
-            const newPhotoRequired = !modernMeter.photoRequired;
-            const updatedMeter = { 
-              ...modernMeter, 
-              photoRequired: newPhotoRequired
-            };
-            onUpdate(updatedMeter);
-          }}
-          className={`w-8 h-4 rounded-full transition-colors duration-200 ease-in-out relative ${
-            modernMeter.collectionMode !== 'tenant_photo' ? 'bg-gray-200 cursor-not-allowed' :
-            modernMeter.photoRequired ? 'bg-blue-500' : 'bg-gray-300'
-          }`}
-          title={modernMeter.collectionMode !== 'tenant_photo' ? 'Nuotrauka tik nuomininko režime' : 
-                 modernMeter.photoRequired ? 'Reikia nuotraukos' : 'Nereikia nuotraukos'}
-        >
-          <span
-            className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${
-              modernMeter.photoRequired ? 'translate-x-4 left-0.5' : 'translate-x-0 left-0.5'
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* Actions */}
-      <div className="px-2 py-2 text-right">
-        <div className="flex items-center justify-end gap-0.5">
-          <button
-            onClick={() => onEdit(modernMeter)}
-            className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-700 transition-colors"
-            title="Redaguoti"
-          >
-            <Edit3 className="w-3 h-3" />
-          </button>
-          <button
-            onClick={() => onDelete(meter.id)}
-            className="p-1 hover:bg-red-50 rounded text-red-600 hover:text-red-700 transition-colors"
-            title="Ištrinti"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
+    <>
+      <div className="h-full rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] text-black shadow-sm transition-shadow hover:shadow-md">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_150px_200px_110px_150px_minmax(0,1.1fr)_96px] lg:items-center">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowIconSelector(true)}
+              className="w-7 h-7 bg-[#2F8481]/10 rounded-md flex items-center justify-center hover:bg-[#2F8481]/20 transition-all duration-200 hover:scale-105 shrink-0"
+              title="Keisti piktogramą"
+            >
+              <div className="w-4 h-4 text-[#2F8481]">{selectedIcon}</div>
+            </button>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-black/45">Skaitliukas</div>
+              <div className="font-semibold text-black text-sm truncate">{meter.name}</div>
+              {meter.description ? (
+                <div className="text-[11px] text-black/55 truncate">{meter.description}</div>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex flex-col items-center lg:items-stretch gap-1 text-[12px] text-black/70">
+            <span className="lg:hidden text-[10px] font-semibold uppercase tracking-wide text-black/45">Tipas</span>
+            <select
+              value={meter.type}
+              onChange={(event) => onTypeChange(index, event.target.value as 'individual' | 'communal')}
+              className="w-full rounded-md border border-black/15 bg-white px-2 py-1 text-[12px] font-medium text-black/70 focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
+            >
+              <option value="individual">Individualus</option>
+              <option value="communal">Bendras</option>
+            </select>
+          </div>
+          <div className="flex flex-col items-center lg:items-stretch gap-1 text-[12px] text-black/70">
+            <span className="lg:hidden text-[10px] font-semibold uppercase tracking-wide text-black/45">Paskirstymas</span>
+            <select
+              value={meter.distribution_method}
+              onChange={(event) => onInlineUpdate(index, 'distribution_method', event.target.value as DistributionMethod)}
+              className="w-full rounded-md border border-black/15 bg-white px-2 py-1 text-[12px] font-medium text-black/70 focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
+            >
+              {distributionOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col items-center text-[12px] text-black/70">
+            <span className="lg:hidden text-[10px] font-semibold uppercase tracking-wide text-black/45">Vienetas</span>
+            <span className="font-medium text-black">{unitLabel}</span>
+          </div>
+          <div className="flex flex-col items-center text-[12px] text-black/70">
+            <span className="lg:hidden text-[10px] font-semibold uppercase tracking-wide text-black/45">Kaina</span>
+            <span className="font-semibold text-black whitespace-nowrap">{priceDisplay}</span>
+          </div>
+          <div className="flex flex-col items-center lg:items-start gap-1 text-[12px] text-black/70">
+            <span className="lg:hidden text-[10px] font-semibold uppercase tracking-wide text-black/45">Rodmenys</span>
+            <div className={`text-[12px] font-semibold ${lastReading.isStale ? 'text-[#b45309]' : 'text-black'}`}>{lastReading.valueLabel}</div>
+            <div className={`text-[11px] leading-tight ${lastReading.isStale ? 'text-[#b45309]' : 'text-black/50'}`}>{lastReading.metaLabel}</div>
+            <select
+              value={modernMeter.collectionMode}
+              onChange={(event) => {
+                const selected = event.target.value as 'landlord_only' | 'tenant_photo';
+                onUpdate({
+                  ...modernMeter,
+                  collectionMode: selected,
+                  photoRequired: selected === 'tenant_photo'
+                });
+              }}
+              className="w-full lg:max-w-[180px] rounded-md border border-black/15 bg-white px-2.5 py-1 text-[12px] font-medium text-black/70 focus:border-[#2F8481] focus:outline-none focus:ring-2 focus:ring-[#2F8481]/30"
+            >
+              <option value="landlord_only">Pildo nuomotojas</option>
+              <option value="tenant_photo">Pildo nuomininkas (su nuotrauka)</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => onEdit(modernMeter)}
+              className="p-2 hover:bg-[#2F8481]/10 rounded-md text-black/60 hover:text-[#2F8481] transition-all duration-200"
+            >
+              <Edit3 className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(meter.id)}
+              className="p-2 hover:bg-red-50 rounded-md text-red-500 hover:text-red-600 transition-all duration-200"
+              title="Ištrinti"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
-      
-      {/* Icon Selector Modal */}
       <IconSelector
         isOpen={showIconSelector}
         onClose={() => setShowIconSelector(false)}
@@ -398,9 +353,12 @@ const MeterRow: React.FC<{
         }}
         currentIcon={selectedIcon}
       />
-    </div>
+    </>
   );
-};
+});
+
+MeterCard.displayName = 'MeterCard';
+
 
 // Edit Meter Modal Component
 interface EditMeterModalProps {
@@ -614,7 +572,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
   );
 };
 
-export const MetersTable: React.FC<MetersTableProps> = ({
+export const MetersTable = memo<MetersTableProps>(({
   meters,
   onMetersChange,
   onPresetApply,
@@ -682,53 +640,35 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   // Adapter functions for modern design
   const convertToModernMeter = (meter: LocalMeter): ModernMeter => {
-    console.log('🔍 Converting meter to modern format:', {
-      name: meter.name,
-      type: meter.type,
-      distribution_method: meter.distribution_method
-    });
-    
-    // Determine the correct type based on meter name
-    let type: ModernMeter['type'] = 'electricity';
-    if (meter.name?.includes('Vanduo') && meter.name?.includes('šaltas')) {
-      type = 'water_cold';
-    } else if (meter.name?.includes('Vanduo') && meter.name?.includes('karštas')) {
-      type = 'water_hot';
-    } else if (meter.name?.includes('Elektra') && meter.name?.includes('individuali')) {
-      type = 'electricity';
-    } else if (meter.name?.includes('Elektra') && meter.name?.includes('bendra')) {
-      type = 'electricity_common';
-    } else if (meter.name?.includes('Šildymas') || meter.name?.includes('Dujos')) {
-      type = 'heating';
-    } else {
-      type = 'electricity_common'; // Default for other communal services
-    }
-
+    const mode = meter.collectionMode || (meter.tenantPhotoEnabled ? 'tenant_photo' : 'landlord_only');
     return {
       id: meter.id,
-      type: type,
+      type: meter.name?.includes('Vanduo') && meter.name?.includes('šaltas') ? 'water_cold' :
+            meter.name?.includes('Vanduo') && meter.name?.includes('karštas') ? 'water_hot' :
+            meter.name?.includes('Elektra') && meter.name?.includes('individuali') ? 'electricity' :
+            meter.name?.includes('Elektra') && meter.name?.includes('bendra') ? 'electricity_common' :
+            meter.name?.includes('Šildymas') || meter.name?.includes('Dujos') ? 'heating' : 'electricity_common',
       mode: meter.type === 'individual' ? 'individual' : 'shared',
       unit: meter.unit,
       price: meter.unit === 'Kitas' ? (meter.fixed_price || 0) : (meter.price_per_unit || 0),
-      allocation: meter.distribution_method,
-      photoRequired: meter.requires_photo || false,
-      enableMeterEditing: meter.enableMeterEditing ?? true,
+      allocation: meter.distribution_method as Allocation,
+      photoRequired: mode === 'tenant_photo' ? (meter.requires_photo || false) : false,
       visibleToTenant: true,
       active: meter.is_active,
       name: meter.name,
       description: meter.description,
-      collectionMode: meter.collectionMode || 'landlord_only' // Ensure collectionMode is set
+      collectionMode: mode as 'landlord_only' | 'tenant_photo'
     };
   };
 
   const convertFromModernMeter = (modernMeter: ModernMeter): Partial<LocalMeter> => {
-    // Validate allocation before converting
     const validDistributionMethods = ['per_apartment', 'per_area', 'per_consumption', 'fixed_split'];
     const allocation = modernMeter.allocation || '';
     const distributionMethod = validDistributionMethods.includes(allocation) 
       ? allocation as DistributionMethod 
       : 'per_apartment';
-    
+    const collectionMode = (modernMeter.collectionMode || 'landlord_only') as 'landlord_only' | 'tenant_photo';
+    const tenantMode = collectionMode === 'tenant_photo';
     return {
       id: modernMeter.id,
       name: modernMeter.name,
@@ -737,11 +677,13 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       price_per_unit: modernMeter.unit === 'Kitas' ? 0 : modernMeter.price,
       fixed_price: modernMeter.unit === 'Kitas' ? modernMeter.price : undefined,
       distribution_method: distributionMethod,
-      requires_photo: modernMeter.photoRequired,
+      requires_photo: tenantMode ? (modernMeter.photoRequired ?? true) : false,
       enableMeterEditing: modernMeter.enableMeterEditing,
       is_active: modernMeter.active,
       description: modernMeter.description,
-      collectionMode: modernMeter.collectionMode || 'landlord_only' // Ensure collectionMode is set
+      collectionMode,
+      landlordReadingEnabled: !tenantMode,
+      tenantPhotoEnabled: tenantMode
     };
   };
 
@@ -818,10 +760,10 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     try {
       console.log('handleAddAvailableMeter called with:', availableMeter);
       console.log('Current meters:', meters);
-      
-      // Convert available meter to regular meter format
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const collectionMode: 'landlord_only' | 'tenant_photo' = availableMeter.tenantPhotoEnabled ? 'tenant_photo' : 'landlord_only';
       const newMeter: LocalMeter = {
-        id: `${availableMeter.name}_${Date.now()}`,
+        id: tempId,
         name: availableMeter.name,
         description: availableMeter.description,
         type: availableMeter.type,
@@ -829,13 +771,18 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         price_per_unit: availableMeter.unit === 'Kitas' ? 0 : availableMeter.price_per_unit,
         fixed_price: availableMeter.unit === 'Kitas' ? availableMeter.fixed_price : undefined,
         distribution_method: availableMeter.distribution_method,
-        requires_photo: availableMeter.requires_photo,
+        requires_photo: collectionMode === 'tenant_photo' ? (availableMeter.requires_photo ?? true) : false,
         is_active: true,
         is_inherited: false,
         is_custom: false,
-        collectionMode: 'landlord_only' as const, // Default to landlord_only for new meters
-        landlordReadingEnabled: availableMeter.landlordReadingEnabled || false,
-        tenantPhotoEnabled: availableMeter.tenantPhotoEnabled || false
+        collectionMode,
+        landlordReadingEnabled: collectionMode === 'landlord_only',
+        tenantPhotoEnabled: collectionMode === 'tenant_photo',
+        lastReadingValue: null,
+        previousReadingValue: null,
+        lastReadingDate: null,
+        lastTotalCost: null,
+        lastUpdatedAt: null
       };
       
       console.log('Created new meter:', newMeter);
@@ -845,6 +792,9 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       console.log('Updated meters array:', updatedMeters);
       
       onMetersChange(updatedMeters);
+
+      // put the newly added meter into edit mode
+      setEditingId(tempId);
       console.log('onMetersChange called successfully');
       
       // Show success message
@@ -858,26 +808,30 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   const handleAddMeters = useCallback((newMeters: any[]) => {
     console.log('🔍 handleAddMeters called with:', newMeters);
-    
     const metersToAdd = newMeters.map(meter => {
       console.log('🔍 Processing meter:', meter);
-      
+      const collectionMode: 'landlord_only' | 'tenant_photo' = meter.tenantPhotoEnabled ? 'tenant_photo' : 'landlord_only';
       const processedMeter = {
         id: meter.id,
         name: meter.name || meter.label || meter.title || meter.custom_name || '',
         description: meter.description || meter.notes || '',
-        type: meter.mode, // Use mode field directly - it should be 'individual' or 'communal'
+        type: meter.mode,
         unit: meter.unit,
         price_per_unit: meter.unit === 'Kitas' ? 0 : (meter.defaultPrice || meter.price_per_unit || 0),
         fixed_price: meter.unit === 'Kitas' ? (meter.defaultPrice || meter.fixed_price || 0) : undefined,
         distribution_method: meter.allocation || meter.distribution,
-        requires_photo: meter.requirePhoto || meter.requiresPhoto || meter.requires_photo || false,
+        requires_photo: collectionMode === 'tenant_photo' ? (meter.requirePhoto || meter.requiresPhoto || meter.requires_photo || false) : false,
         is_active: true,
         is_inherited: false,
         is_custom: meter.is_custom || false,
-        collectionMode: 'landlord_only' as const, // Default to landlord_only for new meters
-        landlordReadingEnabled: meter.landlordReadingEnabled || false,
-        tenantPhotoEnabled: meter.tenantPhotoEnabled || false
+        collectionMode,
+        landlordReadingEnabled: collectionMode === 'landlord_only',
+        tenantPhotoEnabled: collectionMode === 'tenant_photo',
+        lastReadingValue: meter.currentReading ?? meter.lastReading ?? null,
+        previousReadingValue: meter.previousReading ?? null,
+        lastReadingDate: meter.lastReadingDate ?? null,
+        lastTotalCost: meter.lastTotalCost ?? null,
+        lastUpdatedAt: meter.updatedAt ?? null
       };
       
       console.log('🔍 Processed meter:', processedMeter);
@@ -886,6 +840,12 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     
     console.log('🔍 Final metersToAdd:', metersToAdd);
     onMetersChange([...meters, ...metersToAdd]);
+    if (metersToAdd.length > 0) {
+      const lastTempMeter = metersToAdd[metersToAdd.length - 1];
+      if (lastTempMeter?.id) {
+        setEditingId(lastTempMeter.id);
+      }
+    }
   }, [meters, onMetersChange]);
 
   const handleDeleteMeter = useCallback((index: number) => {
@@ -973,11 +933,16 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       } else if (field === 'description' && value !== meter.description) {
         updatedMeter.description = value as string;
         hasChanges = true;
-      } else if (field === 'requires_photo' && value !== meter.requires_photo) {
-        updatedMeter.requires_photo = value as boolean;
-        hasChanges = true;
+      } else if (field === 'requires_photo') {
+         updatedMeter.requires_photo = value as boolean;
+         hasChanges = true;
       } else if (field === 'collectionMode' && value !== meter.collectionMode) {
-        updatedMeter.collectionMode = value as 'landlord_only' | 'tenant_photo';
+        const mode = value as 'landlord_only' | 'tenant_photo';
+        updatedMeter.collectionMode = mode;
+        const isTenantMode = mode === 'tenant_photo';
+        updatedMeter.landlordReadingEnabled = !isTenantMode;
+        updatedMeter.tenantPhotoEnabled = isTenantMode;
+        updatedMeter.requires_photo = isTenantMode ? (meter.requires_photo ?? true) : false;
         hasChanges = true;
       }
     });
@@ -1189,20 +1154,21 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   }, []);
                         
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div className="bg-white rounded-2xl border border-black/10 shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-black/10 bg-gradient-to-r from-white to-[#2F8481]/5">
+        <div className="mx-auto flex w-full max-w-full flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl">
           <div>
-                          <h2 className="text-lg font-semibold text-gray-900">Skaitliukai</h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <h2 className="text-xl font-bold text-black">Skaitliukai</h2>
+            <p className="text-sm text-black/60 mt-1">
               Valdykite skaitliukus ir jų nustatymus
             </p>
           </div>
           <div className="flex items-center gap-3">
             <button
+            type="button"
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-[#2F8481] text-white rounded-lg hover:bg-[#297a77] transition-colors flex items-center gap-2"
+              className="px-5 py-3 bg-[#2F8481] text-white rounded-xl hover:opacity-90 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02] font-semibold"
             >
               <Plus className="w-4 h-4" />
               Pridėti skaitiklį
@@ -1212,65 +1178,40 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       </div>
 
       {/* Content */}
-      <div className="p-6">
-        <div className="space-y-6">
+      <div className="px-5 pb-6 pt-5">
+        <div className="mx-auto w-full max-w-full space-y-6 lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl">
           {/* Current meters */}
           {meters.length > 0 && (
             <div>
-              <h4 className="text-md font-semibold text-gray-900 mb-4">Dabartiniai skaitliukai ({meters.length})</h4>
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="max-h-[60vh] overflow-y-auto overflow-x-auto">{/* Added horizontal scroll */}
-                <div className="grid grid-cols-[50px_minmax(180px,2fr)_120px_100px_140px_160px_120px_100px_100px] gap-0 min-w-[1070px]">
-                  {/* Table Header */}
-                  <div className="contents text-xs text-gray-500 font-medium bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                    <div className="px-2 py-2"></div> {/* Icon space */}
-                    <div className="px-2 py-2">Pavadinimas</div>
-                    <div className="px-2 py-2">Tipas</div>
-                    <div className="px-2 py-2">Vienetas</div>
-                    <div className="px-2 py-2 text-right">Kaina</div>
-                    <div className="px-2 py-2">Paskirstymas</div>
-                    <div className="px-2 py-2 flex items-center gap-1 group relative">
-                      Rodmenys (nuomotojas)
-                      <div 
-                        className="w-3 h-3 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs cursor-help hover:bg-gray-200 transition-colors"
-                        title="Rodmenys (nuomotojas): Rodmenis suveda tik nuomotojas. Nuomininkui šis skaitliukas nerodomas iki sąskaitos."
-                      >
-                        ?
-                      </div>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Rodmenys (nuomotojas): Rodmenis suveda tik nuomotojas. Nuomininkui šis skaitliukas nerodomas iki sąskaitos.
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                      </div>
-                    </div>
-                    <div className="px-2 py-2 flex items-center gap-1 group relative">
-                      Rodmuo + nuotrauka (nuomininkas)
-                      <div 
-                        className="w-3 h-3 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs cursor-help hover:bg-blue-200 transition-colors"
-                        title="Rodmuo + nuotrauka (nuomininkas): Nuomininkas pateikia rodmenį su nuotrauka ir skaičiumi. Nuomotojas tvirtina."
-                      >
-                        ?
-                      </div>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Rodmuo + nuotrauka (nuomininkas): Nuomininkas pateikia rodmenį su nuotrauka ir skaičiumi. Nuomotojas tvirtina.
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                      </div>
-                    </div>
-                    <div className="px-2 py-2 text-right">Veiksmai</div>
-                  </div>
-                  
-                  {/* Table Rows */}
-                  {meters.map((meter) => (
-                    <MeterRow
-                      key={meter.id}
-                      meter={meter}
-                      onUpdate={handleModernMeterChange}
-                      onDelete={handleModernMeterDelete}
-                      onEdit={handleModernMeterEdit}
-                    />
-                  ))}
+              <h4 className="text-lg font-bold text-black mb-5 flex items-center gap-2">
+                <div className="w-2 h-2 bg-[#2F8481] rounded-full" />
+                Dabartiniai skaitliukai ({meters.length})
+              </h4>
+              <div className="space-y-4">
+                <div className="hidden lg:grid lg:grid-cols-[minmax(0,2fr)_150px_200px_110px_150px_minmax(0,1.1fr)_96px] items-center gap-3 rounded-lg bg-white px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-black/45 shadow-sm">
+                  <span>Skaitliukas</span>
+                  <span className="text-center">Tipas</span>
+                  <span className="text-center">Paskirstymas</span>
+                  <span className="text-center">Vienetas</span>
+                  <span className="text-center">Kaina</span>
+                  <span className="text-center">Rodmenys</span>
+                  <span className="text-right">Veiksmai</span>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                {meters.map((meter, index) => (
+                  <MeterCard
+                    key={meter.id}
+                    meter={meter}
+                    index={index}
+                    onUpdate={handleModernMeterChange}
+                    onDelete={handleModernMeterDelete}
+                    onEdit={handleModernMeterEdit}
+                    onInlineUpdate={handleInlineUpdate}
+                    onTypeChange={handleTypeChange}
+                  />
+                ))}
                 </div>
               </div>
-            </div>
             </div>
           )}
 
@@ -1333,4 +1274,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       )}
     </div>
   );
-};
+});
+
+// Add displayName for better debugging
+MetersTable.displayName = 'MetersTable';

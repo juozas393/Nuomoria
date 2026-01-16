@@ -1,17 +1,19 @@
 import React, { createContext, useContext, ReactNode, useCallback } from 'react';
 import { useOptimizedQuery } from '../hooks/useOptimizedQuery';
-import { propertyApi, addressApi } from '../lib/database';
+import { propertyApi, addressApi, Property, Address } from '../lib/database';
 import { useAuth } from './AuthContext';
+import { CACHE_DURATION, ERROR_MESSAGES } from '../constants/app';
+import { FRONTEND_MODE, getModeStatus } from '../config/frontendMode';
 
 interface DataContextType {
   // Properties
-  properties: any[] | null;
+  properties: Property[] | null;
   propertiesLoading: boolean;
   propertiesError: Error | null;
   refetchProperties: () => void;
   
   // Addresses
-  addresses: any[] | null;
+  addresses: Address[] | null;
   addressesLoading: boolean;
   addressesError: Error | null;
   refetchAddresses: () => void;
@@ -36,32 +38,40 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
   const { user } = useAuth();
 
   // Real API data with proper loading states and caching
-  const [properties, setProperties] = React.useState<any[]>([]);
-  const [addresses, setAddresses] = React.useState<any[]>([]);
+  const [properties, setProperties] = React.useState<Property[]>([]);
+  const [addresses, setAddresses] = React.useState<Address[]>([]);
   const [propertiesLoading, setPropertiesLoading] = React.useState(true);
   const [addressesLoading, setAddressesLoading] = React.useState(true);
   const [propertiesError, setPropertiesError] = React.useState<Error | null>(null);
   const [addressesError, setAddressesError] = React.useState<Error | null>(null);
   
   // Optimized cache with separate timestamps for different data types
-  const [lastFetchTime, setLastFetchTime] = React.useState<{
+  // Using useRef to avoid effect dependency issues
+  const lastFetchTimeRef = React.useRef<{
     properties: number;
     addresses: number;
   }>({ properties: 0, addresses: 0 });
-  const CACHE_DURATION = 30000; // 30 seconds cache for better performance
 
   // Load data on mount and when user changes
   React.useEffect(() => {
     const loadData = async () => {
-      if (!user) {
+      // ⚠️ FRONTEND MODE - Skip all API calls
+      if (FRONTEND_MODE) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`${getModeStatus()}: Using mock data, no API calls`);
+        }
         setPropertiesLoading(false);
         setAddressesLoading(false);
+        setProperties([]);
+        setAddresses([]);
+        setPropertiesError(null);
+        setAddressesError(null);
         return;
       }
 
       // Check cache validity - only for very recent fetches
       const now = Date.now();
-      const lastFetch = Math.max(lastFetchTime.properties, lastFetchTime.addresses);
+      const lastFetch = Math.max(lastFetchTimeRef.current.properties, lastFetchTimeRef.current.addresses);
       if (now - lastFetch < CACHE_DURATION && lastFetch > 0) {
         setPropertiesLoading(false);
         setAddressesLoading(false);
@@ -73,6 +83,11 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
         setPropertiesLoading(true);
         setAddressesLoading(true);
         
+        // TypeScript check: user must exist at this point
+        if (!user?.id) {
+          throw new Error('User not authenticated');
+        }
+        
         const [propertiesData, addressesData] = await Promise.all([
           propertyApi.getAllWithEnhancedMeters(user.id),
           addressApi.getAll(user.id)
@@ -82,10 +97,10 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
         setAddresses(addressesData || []);
         setPropertiesError(null);
         setAddressesError(null);
-        setLastFetchTime({ properties: now, addresses: now });
+        lastFetchTimeRef.current = { properties: now, addresses: now };
       } catch (error) {
         // Security: Don't expose sensitive error details
-        const genericError = new Error('Klaida kraunant duomenis. Bandykite dar kartą.');
+        const genericError = new Error(ERROR_MESSAGES.GENERIC);
         setPropertiesError(genericError);
         setAddressesError(genericError);
         setProperties([]);
@@ -100,15 +115,29 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
   }, [user?.id]); // Only depend on user ID to prevent unnecessary re-renders
 
   const refetchProperties = React.useCallback(async () => {
-    if (!user) return;
+    // ⚠️ FRONTEND MODE - Skip all database fetches
+    if (FRONTEND_MODE) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`${getModeStatus()}: Skipping property refetch in frontend mode`);
+      }
+      return;
+    }
     try {
       setPropertiesLoading(true);
+      
+      // TypeScript check: user must exist at this point
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
       const data = await propertyApi.getAllWithEnhancedMeters(user.id);
       setProperties(data || []);
       setPropertiesError(null);
+      // Update cache timestamp
+      lastFetchTimeRef.current.properties = Date.now();
     } catch (error) {
       // Security: Don't expose sensitive error details
-      const genericError = new Error('Klaida kraunant duomenis. Bandykite dar kartą.');
+      const genericError = new Error(ERROR_MESSAGES.GENERIC);
       setPropertiesError(genericError);
     } finally {
       setPropertiesLoading(false);
@@ -116,15 +145,29 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
   }, [user]);
 
   const refetchAddresses = React.useCallback(async () => {
-    if (!user) return;
+    // ⚠️ FRONTEND MODE - Skip all database fetches
+    if (FRONTEND_MODE) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`${getModeStatus()}: Skipping address refetch in frontend mode`);
+      }
+      return;
+    }
     try {
       setAddressesLoading(true);
+      
+      // TypeScript check: user must exist at this point
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
       const data = await addressApi.getAll(user.id);
       setAddresses(data || []);
       setAddressesError(null);
+      // Update cache timestamp
+      lastFetchTimeRef.current.addresses = Date.now();
     } catch (error) {
       // Security: Don't expose sensitive error details
-      const genericError = new Error('Klaida kraunant duomenis. Bandykite dar kartą.');
+      const genericError = new Error(ERROR_MESSAGES.GENERIC);
       setAddressesError(genericError);
     } finally {
       setAddressesLoading(false);
@@ -134,24 +177,17 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
   // Memoized computed values to prevent unnecessary re-renders
   const tenantCount = React.useMemo(() => {
     if (!properties) return 0;
-    const count = properties.filter(p => p.tenant_name && p.tenant_name !== 'Laisvas').length;
-    // console.log('🔍 tenantCount calculated:', count, 'from', properties.length, 'properties');
-    return count;
+    return properties.filter(p => p.tenant_name && p.tenant_name !== 'Laisvas').length;
   }, [properties]);
 
   const propertyCount = React.useMemo(() => {
-    const count = properties?.length || 0;
-    // console.log('🔍 propertyCount calculated:', count);
-    return count;
+    return properties?.length || 0;
   }, [properties]);
 
   const addressCount = React.useMemo(() => {
     // Count addresses from addresses array, not properties
     if (!addresses || !Array.isArray(addresses)) return 0;
-    
-    const count = addresses.length;
-    // console.log('🔍 addressCount calculated from addresses:', count, 'addresses:', addresses);
-    return count;
+    return addresses.length;
   }, [addresses]);
 
   // Memoized context value to prevent unnecessary re-renders
