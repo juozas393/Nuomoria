@@ -3,6 +3,8 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnp
+.pnp.js
 
 # Environment variables
 .env
@@ -15,9 +17,41 @@ yarn-error.log*
 build/
 dist/
 out/
+.next/
+.vercel
+
+# Supabase temp
+supabase/.temp/
+
+# Testing
+coverage/
+.nyc_output
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Runtime data
 pids
+*.pid
+*.seed
+*.pid.lock
+
+# Logs
+logs/
+*.log
+
+# Temporary
+*.tmp
+*.bak
+rename-to-apps.bat
 *.pid
 *.seed
 *.pid.lock
