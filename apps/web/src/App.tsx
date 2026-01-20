@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 // Performance context temporarily disabled to prevent reload loops
 import { AppShell } from './components/ui/AppShell';
@@ -78,9 +78,8 @@ const PerformanceWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
 
 // Role-based redirect component for home page
 const RoleBasedRedirect: React.FC = () => {
-  const { useAuth } = require('./context/AuthContext');
+  // useAuth is imported at the top of the file
   const { user, loading } = useAuth();
-  const { Navigate } = require('react-router-dom');
 
   if (loading) {
     return <LoadingFallback message="Tikrinama rolė..." />;
