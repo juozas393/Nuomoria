@@ -86,10 +86,7 @@ serve(async (req: Request) => {
           <!-- Logo -->
           <tr>
             <td style="padding: 28px 24px 20px; text-align: center;">
-              <!-- Light mode logo (dark text) -->
-              <img class="logo-light" src="https://hlcvskkxrnwxtktscpyy.supabase.co/storage/v1/object/public/assets/logocanvaTransparent.png" alt="Nuomoria" style="max-width: 160px; width: 100%; height: auto; display: block; margin: 0 auto;" />
-              <!-- Dark mode logo (light text) -->
-              <img class="logo-dark" src="https://hlcvskkxrnwxtktscpyy.supabase.co/storage/v1/object/public/assets/logocanv.png" alt="Nuomoria" style="max-width: 160px; width: 100%; height: auto; display: none; margin: 0 auto;" />
+              <img src="https://hlcvskkxrnwxtktscpyy.supabase.co/storage/v1/object/public/assets/logocanv.png" alt="Nuomoria" style="max-width: 160px; width: 100%; height: auto; display: block; margin: 0 auto;" />
             </td>
           </tr>
           
