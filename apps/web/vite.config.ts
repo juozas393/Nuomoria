@@ -5,6 +5,11 @@ import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [react()],
+    // Polyfill process.env for CRA compatibility
+    define: {
+        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+        'process.env': JSON.stringify({}),
+    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
@@ -25,3 +30,4 @@ export default defineConfig({
         sourcemap: true,
     },
 })
+
