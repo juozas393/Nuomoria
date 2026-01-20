@@ -3,7 +3,7 @@ import { MeterPriceData } from '../components/properties/MeterPriceManager';
 
 // Update individual apartment meter
 export const updateApartmentMeter = async (
-  meterId: string, 
+  meterId: string,
   updates: Partial<MeterPriceData>
 ): Promise<void> => {
   const { error } = await supabase
@@ -24,7 +24,7 @@ export const updateApartmentMeter = async (
 
 // Update global address meter (affects all apartments)
 export const updateAddressMeter = async (
-  addressMeterId: string, 
+  addressMeterId: string,
   updates: Partial<MeterPriceData>
 ): Promise<void> => {
   // First update the address meter
@@ -111,7 +111,7 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
     const convertedMeters: MeterPriceData[] = (addressMeters || []).map(addressMeter => {
       // Use the type directly from address_meters (address settings)
       const meterType = addressMeter.type || 'individual';
-      
+
       console.log('🔍 Converting address meter from settings:', {
         name: addressMeter.name,
         type: addressMeter.type,
@@ -119,15 +119,15 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
         price_per_unit: addressMeter.price_per_unit,
         fixed_price: addressMeter.fixed_price
       });
-      
+
       // Determine policy based on type and distribution from address settings
       const policy = {
         scope: addressMeter.distribution_method === 'fixed_split' ? 'none' as const
-              : meterType === 'individual' ? 'apartment' as const
-              : 'building' as const,
+          : meterType === 'individual' ? 'apartment' as const
+            : 'building' as const,
         collectionMode: 'landlord_only' as const
       };
-      
+
       return {
         id: addressMeter.id, // Use actual address_meter ID
         name: addressMeter.name,
@@ -144,7 +144,7 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
     });
 
     console.log('📊 Converted address meters to apartment format:', convertedMeters);
-    
+
     // Debug: Log each meter's final configuration
     convertedMeters.forEach(meter => {
       console.log('🔍 Final meter configuration:', {
@@ -156,7 +156,7 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
         fixed_price: meter.fixed_price
       });
     });
-    
+
     return convertedMeters;
 
   } catch (error) {
@@ -193,37 +193,37 @@ export const getAddressMeters = async (addressId: string): Promise<Omit<MeterPri
 
 // Calculate meter cost for apartment
 export const calculateMeterCost = (
-  meter: MeterPriceData, 
+  meter: MeterPriceData,
   apartmentCount: number = 1,
   consumption?: number
 ): number => {
   if (!meter) return 0;
-  
+
   // Fixed meters - use fixed_price
   if (meter.unit === 'Kitas' || meter.distribution_method === 'fixed_split') {
     return meter.fixed_price || 0;
   }
-  
+
   // For communal meters, calculate based on total consumption
   if (meter.type === 'communal') {
     const totalConsumption = consumption || 0;
     const totalCost = totalConsumption * (meter.price_per_unit || 0);
     return totalCost / apartmentCount;
   }
-  
+
   // Individual meters - cost is per consumption
   return meter.price_per_unit || 0;
 };
 
 // Get meter readings for cost calculation
 export const getMeterReadings = async (
-  meterId: string, 
+  meterId: string,
   meterType: 'address' | 'apartment' = 'address',
   period?: string
 ): Promise<{ current: number; previous: number; consumption: number }> => {
   try {
     console.log('📊 Getting meter readings for:', { meterId, meterType });
-    
+
     const { data, error } = await supabase
       .from('meter_readings')
       .select('current_reading, previous_reading, consumption')
@@ -244,7 +244,7 @@ export const getMeterReadings = async (
       previous: reading?.previous_reading || 0,
       consumption: reading?.consumption || 0
     };
-    
+
     console.log('📊 Meter readings result:', result);
     return result;
   } catch (error) {

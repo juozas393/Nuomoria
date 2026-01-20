@@ -12,42 +12,42 @@ const EmailConfirmation: React.FC = () => {
     const handleGoogleCallback = async () => {
       try {
         console.log('🔄 EmailConfirmation: Starting Google callback handling');
-        
+
         // Get the current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError) {
           console.error('❌ Session error:', sessionError);
           setStatus('error');
           setMessage('Klaida gaunant sesiją. Bandykite dar kartą.');
           setTimeout(() => navigate('/login'), 3000);
           return;
-      }
+        }
 
-      if (!session) {
+        if (!session) {
           console.log('ℹ️ No session found, redirecting to login');
-        navigate('/login');
-        return;
-      }
+          navigate('/login');
+          return;
+        }
 
-      console.log('✅ Session acquired:', {
-        user: session.user?.email,
-        uid: session.user?.id,
+        console.log('✅ Session acquired:', {
+          user: session.user?.email,
+          uid: session.user?.id,
           provider: session.user?.app_metadata?.provider
         });
 
         // Check if this is a Google OAuth callback
         if (session.user?.app_metadata?.provider === 'google') {
           console.log('🔗 Google OAuth callback detected');
-          
+
           const googleEmail = session.user.email;
           const googleUserId = session.user.id;
-          
+
           // Check if this is a linking operation
           const isLinking = localStorage.getItem('linkingGoogle') === 'true';
           const currentUserId = localStorage.getItem('currentUserId');
           const currentUserEmail = localStorage.getItem('currentUserEmail');
-          
+
           if (isLinking && currentUserId) {
             console.log('🔗 Google account linking operation detected');
             console.log('🔗 Current user ID:', currentUserId);
@@ -63,7 +63,7 @@ const EmailConfirmation: React.FC = () => {
           }
         } else {
           console.log('ℹ️ Not a Google OAuth callback, redirecting to dashboard');
-          navigate('/nuomotojas2');
+          navigate('/');
         }
       } catch (error) {
         console.error('❌ Error in Google callback handling:', error);
@@ -115,7 +115,7 @@ const EmailConfirmation: React.FC = () => {
 
         // Now link the Google account to the current user
         await linkGoogleToUser(currentUserId, googleEmail, googleUserId);
-        
+
       } catch (error) {
         console.error('❌ Error in Google linking:', error);
         setStatus('error');
@@ -127,7 +127,7 @@ const EmailConfirmation: React.FC = () => {
     const handleGoogleSignIn = async (googleUserId: string, googleEmail: string) => {
       try {
         console.log('ℹ️ Regular Google sign-in detected');
-        
+
         // Check if this Google account is already linked to a user
         const { data: existingUser, error: checkError } = await supabase
           .from('users')
@@ -143,7 +143,7 @@ const EmailConfirmation: React.FC = () => {
           // The user is already linked, just go to dashboard
           setStatus('success');
           setMessage('Sėkmingai prisijungta su Google paskyra!');
-          setTimeout(() => navigate('/nuomotojas2'), 2000);
+          setTimeout(() => navigate('/'), 2000);
           return;
         }
 
@@ -160,15 +160,15 @@ const EmailConfirmation: React.FC = () => {
           console.log('⚠️ Found regular account with same contact email, but not linked to Google');
           console.log('🔍 Regular user:', regularUser);
           console.log('ℹ️ This is normal - contact email can be shared, but Google email should be unique');
-          
+
           // This is actually OK - contact emails can be shared
           // The important thing is that Google email should be unique
           // Let's continue with normal Google sign-in process
-          
+
           console.log('✅ Contact email conflict is OK - proceeding with Google sign-in');
           setStatus('success');
           setMessage('Sėkmingai prisijungta su Google paskyra!');
-          setTimeout(() => navigate('/nuomotojas2'), 2000);
+          setTimeout(() => navigate('/'), 2000);
           return;
         }
 
@@ -176,8 +176,8 @@ const EmailConfirmation: React.FC = () => {
         console.log('ℹ️ New Google account, creating new user or continuing...');
         setStatus('success');
         setMessage('Sėkmingai prisijungta su Google paskyra!');
-        setTimeout(() => navigate('/nuomotojas2'), 2000);
-        
+        setTimeout(() => navigate('/'), 2000);
+
       } catch (error) {
         console.error('❌ Error in Google sign-in:', error);
         setStatus('error');
@@ -189,7 +189,7 @@ const EmailConfirmation: React.FC = () => {
     const linkGoogleToUser = async (userId: string, googleEmail: string, googleUserId: string) => {
       try {
         console.log('🔗 Attempting to link Google account to user...');
-        
+
         // Method 1: Try direct database update
         // Security: Use centralized environment configuration
         const response = await fetch(`${supabaseConfig.url}/rest/v1/users?id=eq.${userId}`, {
@@ -210,17 +210,17 @@ const EmailConfirmation: React.FC = () => {
           console.log('✅ Google account linked successfully via direct API call');
           setStatus('success');
           setMessage('Google paskyra sėkmingai prijungta!');
-          
+
           // Clear linking flags
           localStorage.removeItem('linkingGoogle');
           localStorage.removeItem('currentUserId');
           localStorage.removeItem('currentUserEmail');
-          
+
           setTimeout(() => navigate('/profile'), 2000);
           return;
         } else {
           console.log('⚠️ Direct API call failed, trying Supabase client...');
-          
+
           // Method 2: Try Supabase client
           const { error: updateError } = await supabase
             .from('users')
@@ -232,13 +232,13 @@ const EmailConfirmation: React.FC = () => {
 
           if (updateError) {
             console.log('⚠️ Supabase client update failed:', updateError.message);
-            
+
             // Method 3: Store in localStorage as fallback
             console.log('🔄 Using localStorage fallback');
             localStorage.setItem('google_linked', 'true');
             // Security: Don't store sensitive Google data in localStorage
             // In production, use secure server-side session management
-            
+
             setStatus('success');
             setMessage('Google paskyra prijungta! (Laikinas sprendimas - duomenys išsaugoti lokalioje atmintyje)');
           } else {
@@ -246,28 +246,28 @@ const EmailConfirmation: React.FC = () => {
             setStatus('success');
             setMessage('Google paskyra sėkmingai prijungta!');
           }
-          
+
           // Clear linking flags
           localStorage.removeItem('linkingGoogle');
           localStorage.removeItem('currentUserId');
           localStorage.removeItem('currentUserEmail');
-          
+
           setTimeout(() => navigate('/profile'), 2000);
           return;
         }
       } catch (error) {
         console.error('❌ Error linking Google account:', error);
-        
+
         // Fallback: Store in localStorage
         localStorage.setItem('google_linked', 'true');
         // Security: Don't store sensitive Google data in localStorage
         // In production, use secure server-side session management
-        
+
         // Clear linking flags
         localStorage.removeItem('linkingGoogle');
         localStorage.removeItem('currentUserId');
         localStorage.removeItem('currentUserEmail');
-        
+
         setStatus('success');
         setMessage('Google paskyra prijungta! (Laikinas sprendimas)');
         setTimeout(() => navigate('/profile'), 2000);

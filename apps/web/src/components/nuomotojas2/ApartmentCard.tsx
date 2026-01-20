@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { 
-  PlusIcon, 
+import {
+  PlusIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   ChatBubbleLeftRightIcon,
@@ -45,14 +45,15 @@ import {
   PaperAirplaneIcon,
   DocumentCheckIcon
 } from '@heroicons/react/24/outline';
-import { 
+import {
   CheckCircleIcon as CheckCircleSolidIcon,
-  XCircleIcon as XCircleSolidIcon 
+  XCircleIcon as XCircleSolidIcon
 } from '@heroicons/react/24/solid';
 import { PropertyDetailsModal } from '../properties/PropertyDetailsModal';
 import { ReadingRequestModal } from '../properties/ReadingRequestModal';
 import { ReadingsInbox } from '../properties/ReadingsInbox';
 import { type DistributionMethod } from '../../constants/meterDistribution';
+import InviteTenantModal from './InviteTenantModal';
 
 interface MeterReading {
   id: string;
@@ -166,19 +167,22 @@ interface ApartmentCardProps {
   isSelected?: boolean;
 }
 
-const ApartmentCard: React.FC<ApartmentCardProps> = ({ 
-  apartment, 
-  onEdit, 
+const ApartmentCard: React.FC<ApartmentCardProps> = ({
+  apartment,
+  onEdit,
   onDelete,
   isSelected = false
 }) => {
   const [showEnhancedModal, setShowEnhancedModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  
+
   // Reading request functionality
   const [isReadingRequestModalOpen, setIsReadingRequestModalOpen] = useState(false);
   const [isReadingsInboxOpen, setIsReadingsInboxOpen] = useState(false);
-  const [readingSubmissions, setReadingSubmissions] = useState<any[]>([]); // Mock data for now
+  const [readingSubmissions, setReadingSubmissions] = useState<any[]>([]);
+
+  // Tenant invitation modal
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false); // Mock data for now
 
   // Mock meters data for this apartment
   const apartmentMeters = useMemo(() => [
@@ -308,9 +312,9 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
       console.log('Approving submission:', submissionId);
     }
     // Security: API call functionality implemented
-    setReadingSubmissions(prev => 
-      prev.map(sub => 
-        sub.id === submissionId 
+    setReadingSubmissions(prev =>
+      prev.map(sub =>
+        sub.id === submissionId
           ? { ...sub, status: 'approved' }
           : sub
       )
@@ -323,9 +327,9 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
       console.log('Rejecting submission:', submissionId, reason);
     }
     // Security: API call functionality implemented
-    setReadingSubmissions(prev => 
-      prev.map(sub => 
-        sub.id === submissionId 
+    setReadingSubmissions(prev =>
+      prev.map(sub =>
+        sub.id === submissionId
           ? { ...sub, status: 'rejected' }
           : sub
       )
@@ -349,7 +353,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
 
   const getContractDateColor = (contractEnd: string) => {
     const daysUntilExpiry = getDaysUntilContractEnd(contractEnd);
-    
+
     if (daysUntilExpiry < 0) return 'text-red-600'; // Baigėsi
     if (daysUntilExpiry <= 30) return 'text-orange-600'; // Artėja
     if (daysUntilExpiry <= 90) return 'text-yellow-600'; // Artėja
@@ -447,15 +451,15 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
   // Calculate deposit return percentage
   const calculateDepositReturn = () => {
     if (!apartment.tenant?.deposit) return { percentage: 0, returned: 0, total: 0 };
-    
+
     const total = apartment.tenant.deposit;
     let returned = total;
-    
+
     // Simple calculation - can be enhanced with actual business logic
     if (apartment.tenant.cleaning_required) {
       returned = Math.max(0, total - (apartment.tenant.cleaning_cost || 0));
     }
-    
+
     return {
       percentage: Math.round((returned / total) * 100),
       returned,
@@ -465,7 +469,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
 
   const getDepositConfig = () => {
     const { percentage, returned, total } = calculateDepositReturn();
-    
+
     if (percentage === 100) {
       return {
         bgColor: 'bg-primary-50',
@@ -564,14 +568,13 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
   return (
     <>
       {/* Modern Enhanced Card */}
-      <div 
-        className={`group rounded-3xl shadow-lg border-2 border-transparent transition-all duration-700 overflow-hidden relative cursor-pointer hover:scale-[1.04] hover:-translate-y-3 hover:rotate-1 ${
-          isSelected
+      <div
+        className={`group rounded-3xl shadow-lg border-2 border-transparent transition-all duration-700 overflow-hidden relative cursor-pointer hover:scale-[1.04] hover:-translate-y-3 hover:rotate-1 ${isSelected
             ? 'bg-gradient-to-br from-primary-50 to-primary-100 border-primary-500 shadow-2xl shadow-primary-300/50'
-            : isContractExpired() 
-              ? 'bg-gradient-to-br from-gray-50 to-gray-100 hover:border-gray-400 hover:shadow-2xl hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200' 
+            : isContractExpired()
+              ? 'bg-gradient-to-br from-gray-50 to-gray-100 hover:border-gray-400 hover:shadow-2xl hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200'
               : 'bg-white hover:border-primary-400 hover:shadow-3xl hover:shadow-primary-200/50 hover:bg-gradient-to-br hover:from-white hover:to-primary-50/30'
-        }`}
+          }`}
         onClick={() => {
           onEdit(apartment);
           setShowEnhancedModal(true);
@@ -582,11 +585,10 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
         {/* Status Badge - Top Right Corner */}
         {statusConfig.badgeText && (
           <div className="absolute top-3 right-3 z-10">
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium shadow-sm ${
-              statusConfig.priority === 'warning' 
-                ? 'bg-red-100 text-red-700 border border-red-200' 
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium shadow-sm ${statusConfig.priority === 'warning'
+                ? 'bg-red-100 text-red-700 border border-red-200'
                 : 'bg-orange-100 text-orange-700 border border-orange-200'
-            }`}>
+              }`}>
               {statusConfig.badgeText}
             </span>
           </div>
@@ -598,7 +600,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
           {apartment.status === 'occupied' && (
             <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 opacity-50"></div>
           )}
-          
+
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
@@ -606,7 +608,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 <div className={`p-3 rounded-xl ${statusConfig.bgColor} border ${statusConfig.borderColor} shadow-sm`}>
                   <StatusIcon className={`w-5 h-5 ${statusConfig.color}`} />
                 </div>
-                
+
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Butas {apartment.apartmentNumber}</h3>
                   <p className="text-sm text-gray-600 flex items-center gap-2">
@@ -615,10 +617,10 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                   </p>
                 </div>
               </div>
-              
+
               {/* Quick Actions */}
               <div className={`flex items-center space-x-2 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                <button 
+                <button
                   className="p-3 bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-md hover:shadow-xl hover:scale-125 hover:-translate-y-1 transition-all duration-500 border border-gray-100 hover:border-gray-200"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -627,10 +629,10 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 >
                   <EyeIcon className="w-5 h-5 text-gray-700 group-hover:scale-110 transition-transform duration-500" />
                 </button>
-                
+
                 {/* Reading Request Button */}
                 {apartment.tenant && apartmentMeters.filter(m => m.requires_photo && m.is_active).length > 0 && (
-                  <button 
+                  <button
                     className="p-2 bg-orange-100 rounded-lg shadow-sm hover:shadow-md hover:bg-orange-200 transition-all duration-200"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -641,10 +643,10 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                     <PaperAirplaneIcon className="w-4 h-4 text-orange-600" />
                   </button>
                 )}
-                
+
                 {/* Readings Inbox Button */}
                 {apartment.tenant && readingSubmissions.length > 0 && (
-                  <button 
+                  <button
                     className="p-2 bg-blue-100 rounded-lg shadow-sm hover:shadow-md hover:bg-blue-200 transition-all duration-200 relative"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -660,8 +662,8 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                     )}
                   </button>
                 )}
-                
-                <button 
+
+                <button
                   className="p-2 bg-white rounded-lg shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -687,7 +689,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                       <p className="text-sm text-gray-600">{apartment.tenant.phone}</p>
                     </div>
                   </div>
-                  
+
                   {/* Contract Status */}
                   <div className="text-right">
                     <div className="text-sm font-medium text-gray-900">
@@ -728,39 +730,39 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 </div>
 
                 {/* Additional Issues - Modern Badge Layout */}
-                {(apartment.tenant.cleaning_required || 
-                  apartment.tenant.notification_count || 
+                {(apartment.tenant.cleaning_required ||
+                  apartment.tenant.notification_count ||
                   apartment.tenant.tenant_response === 'does_not_want_to_renew') && (
-                  <div className="flex flex-wrap gap-2">
-                    {apartment.tenant.cleaning_required && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-                        🧹 Reikia valymo
-                      </span>
-                    )}
-                    {apartment.tenant.notification_count && apartment.tenant.notification_count > 0 && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                        📢 {apartment.tenant.notification_count} pranešimas
-                      </span>
-                    )}
-                    {apartment.tenant.tenant_response === 'does_not_want_to_renew' && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                        🚪 Išsikrausto
-                      </span>
-                    )}
-                    {isContractEndingSoon() && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
-                        <ClockIcon className="w-3 h-3 mr-1" />
-                        Baigiasi
-                      </span>
-                    )}
-                    {isContractExpired() && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                        <CalendarIcon className="w-3 h-3 mr-1" />
-                        Baigėsi
-                      </span>
-                    )}
-                  </div>
-                )}
+                    <div className="flex flex-wrap gap-2">
+                      {apartment.tenant.cleaning_required && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                          🧹 Reikia valymo
+                        </span>
+                      )}
+                      {apartment.tenant.notification_count && apartment.tenant.notification_count > 0 && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                          📢 {apartment.tenant.notification_count} pranešimas
+                        </span>
+                      )}
+                      {apartment.tenant.tenant_response === 'does_not_want_to_renew' && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                          🚪 Išsikrausto
+                        </span>
+                      )}
+                      {isContractEndingSoon() && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
+                          <ClockIcon className="w-3 h-3 mr-1" />
+                          Baigiasi
+                        </span>
+                      )}
+                      {isContractExpired() && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                          <CalendarIcon className="w-3 h-3 mr-1" />
+                          Baigėsi
+                        </span>
+                      )}
+                    </div>
+                  )}
               </div>
             )}
 
@@ -772,23 +774,32 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 </div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">Butas laisvas</h4>
                 <p className="text-sm text-gray-600 mb-4">Galima nuomoti</p>
-                <div className="text-2xl font-bold text-primary-600">
+                <div className="text-2xl font-bold text-primary-600 mb-4">
                   {formatCurrency(apartment.monthlyRent)}/mėn
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsInviteModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2F8481] text-white rounded-xl font-medium hover:bg-[#267673] transition-colors shadow-lg shadow-[#2F8481]/25"
+                >
+                  <UserIcon className="w-5 h-5" />
+                  Pakviesti nuomininką
+                </button>
               </div>
             )}
           </div>
         </div>
 
         {/* Quick Action Footer */}
-        <div className={`px-6 py-4 border-b-2 border-transparent transition-all duration-300 ${
-          isHovered 
-            ? 'bg-blue-50 border-b-blue-500' 
+        <div className={`px-6 py-4 border-b-2 border-transparent transition-all duration-300 ${isHovered
+            ? 'bg-blue-50 border-b-blue-500'
             : 'bg-gray-50'
-        }`}>
+          }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(apartment);
@@ -798,7 +809,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 <PencilIcon className="w-4 h-4" />
                 <span>Redaguoti</span>
               </button>
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   // Security: Don't log sensitive apartment IDs
@@ -813,7 +824,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 <span>Detalės</span>
               </button>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <span className="text-xs text-gray-500">Atnaujinta</span>
               <span className="text-xs font-medium text-gray-700">
@@ -875,6 +886,19 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
         onApproveSubmission={handleApproveSubmission}
         onRejectSubmission={handleRejectSubmission}
         onViewPhoto={handleViewPhoto}
+      />
+
+      {/* Invite Tenant Modal */}
+      <InviteTenantModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        propertyId={apartment.id}
+        propertyLabel={`Butas ${apartment.apartmentNumber}`}
+        defaultRent={apartment.monthlyRent}
+        defaultDeposit={apartment.monthlyRent}
+        onSuccess={() => {
+          // Could refresh data here if needed
+        }}
       />
 
     </>

@@ -17,10 +17,13 @@ import { getAddressSettings, saveAddressSettings, getDefaultAddressSettings } fr
 import { addressApi, propertyApi, meterReadingApi } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { Tenant } from '../types/tenant';
+// Context Panel imports removed - using modal instead
 // Optimized image loading
-import addressImage from '../assets/address.jpg';
+// Background image path (optimized - modern cityscape)
+const addressImage = '/images/DashboardBackground_bw.png';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatCurrency } from '../utils/format';
+import MessagingPanel from '../components/MessagingPanel';
 
 // Using centralized Tenant type from types/tenant.ts
 
@@ -39,14 +42,14 @@ interface Address {
 
 const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const { user } = useAuth();
-  
+
   // Performance monitoring removed to prevent reload loops
-  
+
   // Optimized data hooks with RBAC
   const { properties, loading: propertiesLoading, refetch: refetchProperties } = useProperties();
   const { addresses, loading: addressesLoading, refetch: refetchAddresses } = useAddresses();
   const { tenantCount, propertyCount, addressCount } = useStats();
-  
+
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [showAddApartmentModal, setShowAddApartmentModal] = useState(false);
   const [selectedAddressForApartment, setSelectedAddressForApartment] = useState<string>('');
@@ -59,10 +62,12 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const [addressToDelete, setAddressToDelete] = useState<any>(null);
   const [showDeleteAllAddressesModal, setShowDeleteAllAddressesModal] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
-  
+
+
+
   // Derived state with memoization for performance
   const isLoading = propertiesLoading || addressesLoading;
-  
+
   // Debug loading states removed - issue resolved
 
 
@@ -70,7 +75,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   // Optimized tenants conversion - minimal processing for fast rendering
   const allTenants = useMemo(() => {
     if (!properties || !Array.isArray(properties)) return [];
-    
+
     return properties.map((property: any) => ({
       id: property.id,
       name: property.tenant_name || 'Laisvas',
@@ -120,7 +125,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   // Filter tenants based on selected address
   const tenants = useMemo(() => {
     if (!selectedAddress) return allTenants;
-    return allTenants.filter((tenant: any) => 
+    return allTenants.filter((tenant: any) =>
       tenant.address_id === selectedAddress.id || tenant.address === selectedAddress.full_address
     );
   }, [allTenants, selectedAddress]);
@@ -128,7 +133,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   // Optimized address list - fast calculation
   const addressList = useMemo(() => {
     if (!addresses || !Array.isArray(addresses)) return [];
-    
+
     return addresses.map(address => ({
       id: address.id,
       full_address: address.full_address,
@@ -146,7 +151,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
   const handleOpenAddressSettings = useCallback((address: string, addressId?: string) => {
     let settings = getAddressSettings(address);
-    
+
     // If no settings exist for this address, create default ones
     if (!settings) {
       const defaultSettings = getDefaultAddressSettings(address);
@@ -157,7 +162,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
         updatedAt: new Date().toISOString()
       };
     }
-    
+
     setAddressSettings(settings);
     setSelectedAddressId(addressId);
     setShowAddressSettingsModal(true);
@@ -191,22 +196,22 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
   const confirmDeleteAddress = useCallback(async () => {
     if (!addressToDelete) return;
-    
+
     try {
       // Starting bulk address deletion - logging removed for production
-      
+
       // 1. Find all properties for this address
-      const propertiesToDelete = properties?.filter(property => 
-        property.address?.id === addressToDelete.id || 
+      const propertiesToDelete = properties?.filter(property =>
+        property.address?.id === addressToDelete.id ||
         property.address === addressToDelete.full_address
       ) || [];
-      
+
       const propertyIds = propertiesToDelete.map(p => p.id);
       // Found properties to delete - logging removed for production
-      
+
       // 2. Bulk delete all related data in parallel
       const deletePromises = [];
-      
+
       // Delete all meter readings for all properties at once
       if (propertyIds.length > 0) {
         console.log(`🗑️ Bulk deleting meter readings for ${propertyIds.length} properties`);
@@ -218,7 +223,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             .then(() => console.log(`✅ Bulk deleted meter readings for ${propertyIds.length} properties`))
         );
       }
-      
+
       // Delete all properties at once
       if (propertyIds.length > 0) {
         console.log(`🗑️ Bulk deleting ${propertyIds.length} properties`);
@@ -230,7 +235,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             .then(() => console.log(`✅ Bulk deleted ${propertyIds.length} properties`))
         );
       }
-      
+
       // Delete user_addresses relationships
       console.log(`🗑️ Deleting user_addresses relationships for address: ${addressToDelete.id}`);
       deletePromises.push(
@@ -240,23 +245,23 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
           .eq('address_id', addressToDelete.id)
           .then(() => console.log(`✅ User addresses relationships deleted for address: ${addressToDelete.id}`))
       );
-      
+
       // Wait for all deletions to complete
       await Promise.all(deletePromises);
-      
+
       // Delete the address itself
       console.log(`🗑️ Deleting address: ${addressToDelete.id}`);
       await addressApi.delete(addressToDelete.id);
       console.log(`✅ Address deleted: ${addressToDelete.id}`);
-      
+
       console.log('🎉 Bulk address deletion completed successfully');
-      
+
       // Close modal and refresh data
       setShowDeleteAddressModal(false);
       setAddressToDelete(null);
       setSelectedAddress(null);
       await refreshData();
-      
+
     } catch (error) {
       // Error deleting address - logging removed for production
       // Security: Error notification handled by alert
@@ -276,27 +281,27 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const confirmDeleteAllAddresses = useCallback(async () => {
     try {
       console.log('🗑️ Starting deletion of ALL addresses');
-      
+
       if (!addresses || addresses.length === 0) {
         console.log('ℹ️ No addresses to delete');
         setShowDeleteAllAddressesModal(false);
         return;
       }
-      
+
       const addressIds = addresses.map(addr => addr.id);
       console.log(`📋 Found ${addresses.length} addresses to delete:`, addressIds);
-      
+
       // 1. Find all properties for all addresses
-      const allProperties = properties?.filter(property => 
+      const allProperties = properties?.filter(property =>
         addressIds.includes(property.address?.id)
       ) || [];
-      
+
       const propertyIds = allProperties.map(p => p.id);
       console.log(`📋 Found ${allProperties.length} properties to delete:`, propertyIds);
-      
+
       // 2. Bulk delete all related data in parallel
       const deletePromises = [];
-      
+
       // Delete all meter readings for all properties at once
       if (propertyIds.length > 0) {
         console.log(`🗑️ Bulk deleting meter readings for ${propertyIds.length} properties`);
@@ -308,7 +313,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             .then(() => console.log(`✅ Bulk deleted meter readings for ${propertyIds.length} properties`))
         );
       }
-      
+
       // Delete all properties at once
       if (propertyIds.length > 0) {
         console.log(`🗑️ Bulk deleting ${propertyIds.length} properties`);
@@ -320,7 +325,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             .then(() => console.log(`✅ Bulk deleted ${propertyIds.length} properties`))
         );
       }
-      
+
       // Delete all user_addresses relationships
       console.log(`🗑️ Deleting all user_addresses relationships`);
       deletePromises.push(
@@ -330,10 +335,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
           .in('address_id', addressIds)
           .then(() => console.log(`✅ All user addresses relationships deleted`))
       );
-      
+
       // Wait for all deletions to complete
       await Promise.all(deletePromises);
-      
+
       // Delete all addresses at once
       console.log(`🗑️ Bulk deleting ${addresses.length} addresses`);
       await supabase
@@ -341,17 +346,17 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
         .delete()
         .in('id', addressIds);
       console.log(`✅ Bulk deleted ${addresses.length} addresses`);
-      
+
       console.log('🎉 ALL addresses deletion completed successfully');
-      
+
       // Close modal and refresh data
       setShowDeleteAllAddressesModal(false);
       setSelectedAddress(null);
       await refreshData();
-      
+
       // Show success message
       alert(`Sėkmingai ištrinta ${addresses.length} adresų ir ${allProperties.length} butų!`);
-      
+
     } catch (error) {
       // Error deleting all addresses - logging removed for production
       alert('Klaida ištrynimo metu');
@@ -379,7 +384,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
     window.addEventListener('openAddAddressModal', handleOpenAddAddressModal);
     window.addEventListener('meters-synchronized', handleMetersSynchronized);
-    
+
     return () => {
       window.removeEventListener('openAddAddressModal', handleOpenAddAddressModal);
       window.removeEventListener('meters-synchronized', handleMetersSynchronized);
@@ -406,37 +411,35 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
   const handleSettingsClick = useCallback((address: string, addressId?: string) => {
     // Find the address object from properties
-    const addressObj = properties?.find(property => 
-      property.address?.id === addressId || 
+    const addressObj = properties?.find(property =>
+      property.address?.id === addressId ||
       property.address?.full_address === address ||
       property.address === address
     )?.address;
-    
+
     if (addressObj) {
       setSelectedAddress(addressObj);
       setSelectedAddressId(addressId);
-      
+
       // Load address settings
       const settings = getAddressSettings(address);
       setAddressSettings(settings);
-      
+
       setShowAddressSettingsModal(true);
-    } else {
-      // Address not found for settings - logging removed for production
     }
   }, [properties]);
 
   return (
-    <div 
+    <div
       className="min-h-full bg-cover bg-center bg-no-repeat relative"
-      style={{ 
+      style={{
         backgroundImage: `url(${addressImage})`,
         backgroundAttachment: 'fixed'
       }}
     >
       {/* Overlay for entire page */}
       <div className="absolute inset-0 bg-black/50"></div>
-      
+
       {/* Content wrapper */}
       <div className="relative z-10 min-h-full">
         {/* Page Header */}
@@ -450,15 +453,18 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="bg-white/95 rounded-2xl shadow-2xl p-4">
+          {/* Main Content - with gaming theme background */}
+          <div
+            className="bg-white/95 rounded-2xl shadow-2xl p-4 bg-cover bg-center"
+            style={{ backgroundImage: `url('/images/FormsBackground.png')` }}
+          >
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2F8481]"></div>
                 <span className="ml-3 text-gray-600">Kraunama...</span>
               </div>
             ) : (
-                            <div>
+              <div>
                 {addressCount === 0 ? (
                   <div className="text-center py-12">
                     <div className="text-gray-500 text-lg mb-4">Nėra pridėtų adresų</div>
@@ -477,18 +483,18 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                       <h2 className="text-2xl font-bold text-gray-900">Adresų kortelės</h2>
                       <p className="text-gray-600">Pasirinkite adresą, kad peržiūrėtumėte jo nuomininkus</p>
                     </div>
-                    
+
                     {/* Show all addresses - optimized rendering */}
                     <div className="space-y-4">
-                        {addressList.map((address) => {
-                          // Lazy calculate tenant count only when rendering
-                          const addressTenants = allTenants.filter(tenant => 
-                            tenant.address === address.full_address || 
-                            tenant.address_id === address.id
-                          );
-                          
-                          return (
-                          <div key={address.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                      {addressList.map((address) => {
+                        // Lazy calculate tenant count only when rendering
+                        const addressTenants = allTenants.filter(tenant =>
+                          tenant.address === address.full_address ||
+                          tenant.address_id === address.id
+                        );
+
+                        return (
+                          <div key={address.id} data-address-id={address.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
                             {/* Address Header */}
                             <div className="bg-white sticky top-0 z-10 border-b px-4 py-2">
                               <div className="flex items-center justify-between">
@@ -517,7 +523,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                 </div>
                               </div>
                             </div>
-                            
+
                             {/* Tenants List */}
                             {addressTenants.length > 0 ? (
                               <div className="divide-y divide-gray-100">
@@ -578,7 +584,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
           <PlusIcon className="w-6 h-6 sm:w-5 sm:h-5" />
           <span className="hidden sm:inline sm:ml-2 font-medium text-sm whitespace-nowrap">Pridėti adresą</span>
         </button>
-        
+
         <button
           onClick={handleDeleteAllAddresses}
           className="flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3 bg-red-600 text-white rounded-full sm:rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -604,11 +610,11 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
-              
+
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Ištrinti adresą?
               </h3>
-              
+
               <p className="text-sm text-gray-600 mb-6">
                 Ar tikrai norite ištrinti adresą <strong>{addressToDelete.full_address}</strong>?
                 <br />
@@ -616,7 +622,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                   Šis veiksmas ištrins visus butus, nuomininkus ir susijusius duomenis!
                 </span>
               </p>
-              
+
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={cancelDeleteAddress}
@@ -645,11 +651,11 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <TrashIcon className="w-8 h-8 text-red-600" />
               </div>
-              
+
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Ištrinti VISUS adresus?
               </h3>
-              
+
               <p className="text-sm text-gray-600 mb-6">
                 Ar tikrai norite ištrinti <strong>VISUS</strong> adresus?
                 <br />
@@ -659,7 +665,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                   <strong>Šis veiksmas negrįžtamas!</strong>
                 </span>
               </p>
-              
+
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={cancelDeleteAllAddresses}
@@ -693,283 +699,243 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       {selectedTenant && (
         <React.Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>}>
           <TenantDetailModalPro
-          tenant={selectedTenant}
-          isOpen={!!selectedTenant}
-          onClose={() => setSelectedTenant(null)}
-          property={{
-            id: selectedTenant.id,
-            address: selectedTenant.address,
-            rooms: selectedTenant.rooms || 0,
-            area: selectedTenant.area || 0,
-            floor: 0,
-            type: 'apartment',
-            status: selectedTenant.status
-          }}
-          moveOut={{
-            notice: '',
-            planned: '',
-            status: 'none'
-          }}
-          documents={[]}
-                    meters={selectedTenant.meters ? Array.from(selectedTenant.meters.values()).map((meter: any) => {
-            // Passing meter to TenantDetailModalPro
-            return {
-              id: meter.id,
-              name: meter.name,
-              type: meter.type,
-              serialNumber: meter.serialNumber,
-              lastReading: meter.lastReading,
-              lastReadingDate: meter.lastReadingDate,
-              requires_photo: meter.requires_photo,
-              price_per_unit: meter.price_per_unit,
-              fixed_price: meter.fixed_price,
-              distribution_method: meter.distribution_method,
-              description: meter.description,
-              unit: meter.unit,
-              currentReading: meter.currentReading,
-              status: meter.status,
-              isFixedMeter: meter.isFixedMeter,
-              isCommunalMeter: meter.isCommunalMeter,
-              costPerApartment: meter.costPerApartment
-            };
-          }) : []}
-        />
+            tenant={selectedTenant}
+            isOpen={!!selectedTenant}
+            onClose={() => setSelectedTenant(null)}
+            property={{
+              id: selectedTenant.id,
+              address: selectedTenant.address,
+              rooms: selectedTenant.rooms || 0,
+              area: selectedTenant.area || 0,
+              floor: 0,
+              type: 'apartment',
+              status: selectedTenant.status
+            }}
+            moveOut={{
+              notice: '',
+              planned: '',
+              status: 'none'
+            }}
+            documents={[]}
+            meters={selectedTenant.meters ? Array.from(selectedTenant.meters.values()).map((meter: any) => {
+              // Passing meter to TenantDetailModalPro
+              return {
+                id: meter.id,
+                name: meter.name,
+                type: meter.type,
+                serialNumber: meter.serialNumber,
+                lastReading: meter.lastReading,
+                lastReadingDate: meter.lastReadingDate,
+                requires_photo: meter.requires_photo,
+                price_per_unit: meter.price_per_unit,
+                fixed_price: meter.fixed_price,
+                distribution_method: meter.distribution_method,
+                description: meter.description,
+                unit: meter.unit,
+                currentReading: meter.currentReading,
+                status: meter.status,
+                isFixedMeter: meter.isFixedMeter,
+                isCommunalMeter: meter.isCommunalMeter,
+                costPerApartment: meter.costPerApartment
+              };
+            }) : []}
+          />
         </React.Suspense>
       )}
 
       {/* Add Address Modal */}
       <React.Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>}>
         <AddAddressModal
-        isOpen={showAddAddressModal}
-        onClose={() => setShowAddAddressModal(false)}
-        onSave={async (addressData) => {
-          try {
-            // Saving address data
-            
-            // Get current user session
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (authError || !user) {
-              throw new Error('Neprisijungęs vartotojas. Prašome prisijungti.');
-            }
-            
-            // Check if address already exists for this user (exact match)
-            const { data: existingAddresses, error: checkError } = await supabase
-              .from('addresses')
-              .select('id, full_address')
-              .eq('created_by', user.id)
-              .eq('full_address', addressData.address.fullAddress);
+          isOpen={showAddAddressModal}
+          onClose={() => setShowAddAddressModal(false)}
+          onSave={async (addressData) => {
+            try {
+              // Saving address data
 
-            if (checkError) {
-              // Error checking existing addresses - logging removed for production
-              throw checkError;
-            }
+              // Get current user session
+              const { data: { user }, error: authError } = await supabase.auth.getUser();
+              if (authError || !user) {
+                throw new Error('Neprisijungęs vartotojas. Prašome prisijungti.');
+              }
 
-            if (existingAddresses && existingAddresses.length > 0) {
-              // Address already exists
-              alert('Šis adresas jau egzistuoja jūsų sąraše. Naudokite esamą adresą ir pridėkite butus prie jo.');
+              // Check if address already exists (in user's accessible addresses via user_addresses)
+              // Helper function to normalize address for comparison
+              const normalizeAddr = (addr: string): string => {
+                return addr
+                  .toLowerCase()
+                  .trim()
+                  .replace(/\s+/g, ' ')
+                  .replace(/g\.\s*/g, 'g. ')
+                  .replace(/pr\.\s*/g, 'pr. ')
+                  .replace(/al\.\s*/g, 'al. ')
+                  .replace(/[ąĄ]/g, 'a')
+                  .replace(/[čČ]/g, 'c')
+                  .replace(/[ęĘ]/g, 'e')
+                  .replace(/[ėĖ]/g, 'e')
+                  .replace(/[įĮ]/g, 'i')
+                  .replace(/[šŠ]/g, 's')
+                  .replace(/[ųŲ]/g, 'u')
+                  .replace(/[ūŪ]/g, 'u')
+                  .replace(/[žŽ]/g, 'z');
+              };
+
+              const { data: userAddressLinks, error: checkError } = await supabase
+                .from('user_addresses')
+                .select('address_id, addresses!inner(id, full_address)')
+                .eq('user_id', user.id);
+
+              if (checkError) {
+                console.error('Error checking existing addresses:', checkError);
+                // Continue with creation if check fails (non-blocking)
+              }
+
+              // Check for duplicate using normalization
+              const normalizedInput = normalizeAddr(addressData.address.fullAddress);
+              const duplicateAddress = userAddressLinks?.find((ua: any) => {
+                const existingAddr = ua.addresses?.full_address;
+                if (!existingAddr) return false;
+                return normalizeAddr(existingAddr) === normalizedInput;
+              });
+
+              if (duplicateAddress) {
+                // Silently close modal and scroll to existing address
+                setShowAddAddressModal(false);
+                await refreshData();
+                setTimeout(() => {
+                  const addressElement = document.querySelector(`[data-address-id="${duplicateAddress.address_id}"]`);
+                  if (addressElement) {
+                    addressElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }, 300);
+                return;
+              }
+
+              // Save address to database
+              const { data, error } = await supabase
+                .from('addresses')
+                .insert({
+                  full_address: addressData.address.fullAddress,
+                  city: addressData.address.city,
+                  postal_code: addressData.location.postalCode,
+                  coordinates_lat: addressData.location.coordinates?.lat,
+                  coordinates_lng: addressData.location.coordinates?.lng,
+                  created_by: user.id
+                })
+                .select()
+                .single();
+
+              if (error) {
+                // Error saving address - logging removed for production
+                throw error;
+              }
+
+              // Address saved successfully
+
               setShowAddAddressModal(false);
+              // Refresh data after adding address
               await refreshData();
-              return;
-            }
-            
-            // Save address to database
-            const { data, error } = await supabase
-              .from('addresses')
-              .insert({
-                full_address: addressData.address.fullAddress,
-                city: addressData.address.city,
-                postal_code: addressData.location.postalCode,
-                coordinates_lat: addressData.location.coordinates?.lat,
-                coordinates_lng: addressData.location.coordinates?.lng,
-                created_by: user.id
-              })
-              .select()
-              .single();
+              // Show success message
+              // Address added successfully
 
-            if (error) {
-              // Error saving address - logging removed for production
-              throw error;
-            }
+            } catch (error: any) {
+              // Error in onSave - logging removed for production
+              if (process.env.NODE_ENV === 'development') {
+                console.error('Error saving address:', error);
+              }
 
-            // Address saved successfully
-            
-            setShowAddAddressModal(false);
-            // Refresh data after adding address
-            await refreshData();
-            // Show success message
-            // Address added successfully
-            
-          } catch (error) {
-            // Error in onSave - logging removed for production
-            alert('Klaida išsaugant adresą');
-          }
-        }}
-      />
+              // Check for Supabase error structure
+              const errorCode = error?.code || error?.status || error?.statusCode;
+              const errorMsg = error?.message || error?.error?.message || '';
+
+              let errorMessage = 'Klaida išsaugant adresą. Bandykite dar kartą.';
+
+              if (errorCode === 403 || errorCode === 'PGRST301' || errorMsg.includes('403') || errorMsg.includes('permission denied') || errorMsg.includes('row-level security')) {
+                errorMessage = 'Klaida: neturite teisių išsaugoti adreso. Prašome:\n1. Patikrinkite, ar esate prisijungę\n2. Jei problema išlieka, atsijunkite ir prisijunkite iš naujo\n3. Jei problema tęsiasi, susisiekite su administratoriumi';
+              } else if (errorCode === 400 || errorMsg.includes('400')) {
+                errorMessage = 'Klaida: neteisingi duomenys. Patikrinkite visus laukus ir bandykite dar kartą.';
+              } else if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
+                errorMessage = 'Klaida: ryšio problema. Patikrinkite interneto ryšį ir bandykite dar kartą.';
+              }
+
+              alert(errorMessage);
+            }
+          }}
+        />
       </React.Suspense>
 
       {/* Add Apartment Modal */}
       <React.Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>}>
         <AddApartmentModal
-        isOpen={showAddApartmentModal}
-        onClose={() => setShowAddApartmentModal(false)}
-        address={selectedAddressForApartment}
-        onAdd={async (apartmentData: any) => {
-          try {
-            // Validate required fields
-            if (!selectedAddressIdForApartment) {
-              throw new Error('Nepasirinktas adresas');
-            }
-
-            if (apartmentData.type === 'single') {
-              // Validate single apartment data
-              if (!apartmentData.apartmentNumber?.trim()) {
-                throw new Error('Buto numeris yra privalomas');
-              }
-              if (!apartmentData.tenantName?.trim()) {
-                throw new Error('Nuomininko vardas yra privalomas');
-              }
-              if (!apartmentData.contractStart) {
-                throw new Error('Sutarties pradžios data yra privaloma');
-              }
-              if (!apartmentData.contractEnd) {
-                throw new Error('Sutarties pabaigos data yra privaloma');
+          isOpen={showAddApartmentModal}
+          onClose={() => setShowAddApartmentModal(false)}
+          address={selectedAddressForApartment}
+          onAdd={async (apartmentData: any) => {
+            try {
+              // Validate required fields
+              if (!selectedAddressIdForApartment) {
+                throw new Error('Nepasirinktas adresas');
               }
 
-              // Create single apartment in database
-              const { data, error } = await supabase
-                .from('properties')
-                .insert({
-                  address_id: selectedAddressIdForApartment,
-                  apartment_number: apartmentData.apartmentNumber.trim(),
-                  tenant_name: apartmentData.tenantName.trim(),
-                  phone: apartmentData.tenantPhone?.trim() || '',
-                  email: apartmentData.tenantEmail?.trim() || '',
-                  rent: apartmentData.monthlyRent || 0,
-                  area: apartmentData.area || 0,
-                  rooms: apartmentData.rooms || 0,
-                  contract_start: apartmentData.contractStart,
-                  contract_end: apartmentData.contractEnd,
-                  deposit_amount: apartmentData.deposit || 0,
-                  deposit_paid_amount: 0,
-                  deposit_paid: false,
-                  deposit_returned: false,
-                  deposit_deductions: 0,
-                  status: apartmentData.tenantName?.trim() ? 'occupied' : 'vacant',
-                  auto_renewal_enabled: false,
-                  notification_count: 0,
-                  original_contract_duration_months: 12
-                })
-                .select();
-
-              if (error) {
-                // Error adding apartment - logging removed for production
-                if (error.code === '23505') {
-                  throw new Error('Butas su tokiu numeriu jau egzistuoja šiame adrese');
-                } else if (error.code === '23503') {
-                  throw new Error('Klaida: adresas nerastas arba neturite teisių');
-                } else if (error.code === '42501') {
-                  throw new Error('Klaida: neturite teisių pridėti butą');
+              if (apartmentData.type === 'single') {
+                // Validate single apartment data
+                if (!apartmentData.apartmentNumber?.trim()) {
+                  throw new Error('Buto numeris yra privalomas');
                 }
-                throw new Error(`Duomenų bazės klaida: ${error.message}`);
-              }
-
-              // Apartment added successfully
-              
-              // Create meters for the new apartment
-              if (data && data.length > 0 && apartmentData.meters && apartmentData.meters.length > 0) {
-                const propertyId = data[0].id;
-                const metersToInsert = apartmentData.meters.map((meter: any) => ({
-                  property_id: propertyId,
-                  name: meter.name,
-                  type: 'individual', // Default to individual for apartment meters
-                  unit: meter.unit,
-                  price_per_unit: meter.rate,
-                  initial_reading: meter.initialReading || 0,
-                  require_photo: meter.photoRequired || false,
-                  status: 'active',
-                  notes: meter.note || ''
-                }));
-
-                const { error: metersError } = await supabase
-                  .from('apartment_meters')
-                  .insert(metersToInsert);
-
-                if (metersError) {
-                  // Error creating apartment meters - logging removed for production
-                  // Don't throw error here, apartment was created successfully
-                } else {
-                  // Apartment meters created successfully
+                if (!apartmentData.tenantName?.trim()) {
+                  throw new Error('Nuomininko vardas yra privalomas');
                 }
-              }
-              
-            } else if (apartmentData.type === 'multiple') {
-              // Validate multiple apartments data
-              for (let i = 0; i < apartmentData.apartments.length; i++) {
-                const apt = apartmentData.apartments[i];
-                if (!apt.apartmentNumber?.trim()) {
-                  throw new Error(`Buto ${i + 1}: numeris yra privalomas`);
+                if (!apartmentData.contractStart) {
+                  throw new Error('Sutarties pradžios data yra privaloma');
                 }
-                if (!apt.tenantName?.trim()) {
-                  throw new Error(`Buto ${i + 1}: nuomininko vardas yra privalomas`);
+                if (!apartmentData.contractEnd) {
+                  throw new Error('Sutarties pabaigos data yra privaloma');
                 }
-                if (!apt.contractStart) {
-                  throw new Error(`Buto ${i + 1}: sutarties pradžios data yra privaloma`);
-                }
-                if (!apt.contractEnd) {
-                  throw new Error(`Buto ${i + 1}: sutarties pabaigos data yra privaloma`);
-                }
-              }
 
-              // Create multiple apartments in database
-              const apartmentsToInsert = apartmentData.apartments.map((apt: any) => ({
-                address_id: selectedAddressIdForApartment,
-                apartment_number: apt.apartmentNumber.trim(),
-                tenant_name: apt.tenantName.trim(),
-                phone: apt.tenantPhone?.trim() || '',
-                email: apt.tenantEmail?.trim() || '',
-                rent: apt.monthlyRent || 0,
-                area: apt.area || 0,
-                rooms: apt.rooms || 0,
-                contract_start: apt.contractStart,
-                contract_end: apt.contractEnd,
-                deposit_amount: apt.deposit || 0,
-                deposit_paid_amount: 0,
-                deposit_paid: false,
-                deposit_returned: false,
-                deposit_deductions: 0,
-                status: apt.tenantName?.trim() ? 'occupied' : 'vacant',
-                auto_renewal_enabled: false,
-                notification_count: 0,
-                original_contract_duration_months: 12
-              }));
+                // Create single apartment in database
+                const { data, error } = await supabase
+                  .from('properties')
+                  .insert({
+                    address_id: selectedAddressIdForApartment,
+                    apartment_number: apartmentData.apartmentNumber.trim(),
+                    tenant_name: apartmentData.tenantName.trim(),
+                    phone: apartmentData.tenantPhone?.trim() || '',
+                    email: apartmentData.tenantEmail?.trim() || '',
+                    rent: apartmentData.monthlyRent || 0,
+                    area: apartmentData.area || 0,
+                    rooms: apartmentData.rooms || 0,
+                    contract_start: apartmentData.contractStart,
+                    contract_end: apartmentData.contractEnd,
+                    deposit_amount: apartmentData.deposit || 0,
+                    deposit_paid_amount: 0,
+                    deposit_paid: false,
+                    deposit_returned: false,
+                    deposit_deductions: 0,
+                    status: apartmentData.tenantName?.trim() ? 'occupied' : 'vacant',
+                    auto_renewal_enabled: false,
+                    notification_count: 0,
+                    original_contract_duration_months: 12
+                  })
+                  .select();
 
-              const { data, error } = await supabase
-                .from('properties')
-                .insert(apartmentsToInsert)
-                .select();
-
-              if (error) {
-                // Error adding apartments - logging removed for production
-                if (error.code === '23505') {
-                  throw new Error('Vienas ar keli butai su tokiu numeriu jau egzistuoja šiame adrese');
-                } else if (error.code === '23503') {
-                  throw new Error('Klaida: adresas nerastas arba neturite teisių');
-                } else if (error.code === '42501') {
-                  throw new Error('Klaida: neturite teisių pridėti butus');
+                if (error) {
+                  // Error adding apartment - logging removed for production
+                  if (error.code === '23505') {
+                    throw new Error('Butas su tokiu numeriu jau egzistuoja šiame adrese');
+                  } else if (error.code === '23503') {
+                    throw new Error('Klaida: adresas nerastas arba neturite teisių');
+                  } else if (error.code === '42501') {
+                    throw new Error('Klaida: neturite teisių pridėti butą');
+                  }
+                  throw new Error(`Duomenų bazės klaida: ${error.message}`);
                 }
-                throw new Error(`Duomenų bazės klaida: ${error.message}`);
-              }
 
-              // Apartments added successfully
-              
-              // Create meters for all new apartments
-              if (data && data.length > 0 && apartmentData.meters && apartmentData.meters.length > 0) {
-                const metersToInsert = [];
-                
-                for (let i = 0; i < data.length; i++) {
-                  const property = data[i];
-                  const propertyMeters = apartmentData.meters.map((meter: any) => ({
-                    property_id: property.id,
+                // Apartment added successfully
+
+                // Create meters for the new apartment
+                if (data && data.length > 0 && apartmentData.meters && apartmentData.meters.length > 0) {
+                  const propertyId = data[0].id;
+                  const metersToInsert = apartmentData.meters.map((meter: any) => ({
+                    property_id: propertyId,
                     name: meter.name,
                     type: 'individual', // Default to individual for apartment meters
                     unit: meter.unit,
@@ -979,34 +945,132 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                     status: 'active',
                     notes: meter.note || ''
                   }));
-                  
-                  metersToInsert.push(...propertyMeters);
+
+                  const { error: metersError } = await supabase
+                    .from('apartment_meters')
+                    .insert(metersToInsert);
+
+                  if (metersError) {
+                    // Error creating apartment meters - logging removed for production
+                    // Don't throw error here, apartment was created successfully
+                  } else {
+                    // Apartment meters created successfully
+                  }
                 }
 
-                const { error: metersError } = await supabase
-                  .from('apartment_meters')
-                  .insert(metersToInsert);
+              } else if (apartmentData.type === 'multiple') {
+                // Validate multiple apartments data
+                for (let i = 0; i < apartmentData.apartments.length; i++) {
+                  const apt = apartmentData.apartments[i];
+                  if (!apt.apartmentNumber?.trim()) {
+                    throw new Error(`Buto ${i + 1}: numeris yra privalomas`);
+                  }
+                  if (!apt.tenantName?.trim()) {
+                    throw new Error(`Buto ${i + 1}: nuomininko vardas yra privalomas`);
+                  }
+                  if (!apt.contractStart) {
+                    throw new Error(`Buto ${i + 1}: sutarties pradžios data yra privaloma`);
+                  }
+                  if (!apt.contractEnd) {
+                    throw new Error(`Buto ${i + 1}: sutarties pabaigos data yra privaloma`);
+                  }
+                }
 
-                if (metersError) {
-                  // Error creating apartment meters - logging removed for production
-                  // Don't throw error here, apartments were created successfully
-                } else {
-                  // Apartment meters created successfully for all apartments
+                // Create multiple apartments in database
+                const apartmentsToInsert = apartmentData.apartments.map((apt: any) => ({
+                  address_id: selectedAddressIdForApartment,
+                  apartment_number: apt.apartmentNumber.trim(),
+                  tenant_name: apt.tenantName.trim(),
+                  phone: apt.tenantPhone?.trim() || '',
+                  email: apt.tenantEmail?.trim() || '',
+                  rent: apt.monthlyRent || 0,
+                  area: apt.area || 0,
+                  rooms: apt.rooms || 0,
+                  contract_start: apt.contractStart,
+                  contract_end: apt.contractEnd,
+                  deposit_amount: apt.deposit || 0,
+                  deposit_paid_amount: 0,
+                  deposit_paid: false,
+                  deposit_returned: false,
+                  deposit_deductions: 0,
+                  status: apt.tenantName?.trim() ? 'occupied' : 'vacant',
+                  auto_renewal_enabled: false,
+                  notification_count: 0,
+                  original_contract_duration_months: 12
+                }));
+
+                const { data, error } = await supabase
+                  .from('properties')
+                  .insert(apartmentsToInsert)
+                  .select();
+
+                if (error) {
+                  // Error adding apartments - logging removed for production
+                  if (error.code === '23505') {
+                    throw new Error('Vienas ar keli butai su tokiu numeriu jau egzistuoja šiame adrese');
+                  } else if (error.code === '23503') {
+                    throw new Error('Klaida: adresas nerastas arba neturite teisių');
+                  } else if (error.code === '42501') {
+                    throw new Error('Klaida: neturite teisių pridėti butus');
+                  }
+                  throw new Error(`Duomenų bazės klaida: ${error.message}`);
+                }
+
+                // Apartments added successfully
+
+                // Create meters for all new apartments
+                if (data && data.length > 0 && apartmentData.meters && apartmentData.meters.length > 0) {
+                  const metersToInsert = [];
+
+                  for (let i = 0; i < data.length; i++) {
+                    const property = data[i];
+                    const propertyMeters = apartmentData.meters.map((meter: any) => ({
+                      property_id: property.id,
+                      name: meter.name,
+                      type: 'individual', // Default to individual for apartment meters
+                      unit: meter.unit,
+                      price_per_unit: meter.rate,
+                      initial_reading: meter.initialReading || 0,
+                      require_photo: meter.photoRequired || false,
+                      status: 'active',
+                      notes: meter.note || ''
+                    }));
+
+                    metersToInsert.push(...propertyMeters);
+                  }
+
+                  const { error: metersError } = await supabase
+                    .from('apartment_meters')
+                    .insert(metersToInsert);
+
+                  if (metersError) {
+                    // Error creating apartment meters - logging removed for production
+                    // Don't throw error here, apartments were created successfully
+                  } else {
+                    // Apartment meters created successfully for all apartments
+                  }
                 }
               }
+
+              setShowAddApartmentModal(false);
+              // Refresh data after adding apartment(s)
+              await refreshData();
+
+            } catch (error) {
+              // Error adding apartment(s) - logging removed for production
+              alert('Klaida pridedant butą(us)');
             }
-            
-            setShowAddApartmentModal(false);
-            // Refresh data after adding apartment(s)
-            await refreshData();
-            
-          } catch (error) {
-            // Error adding apartment(s) - logging removed for production
-            alert('Klaida pridedant butą(us)');
-          }
-        }}
-      />
+          }}
+        />
       </React.Suspense>
+
+      {/* Floating Chat */}
+      {user?.id && (
+        <MessagingPanel
+          currentUserId={user.id}
+          currentUserName={user.email?.split('@')[0]}
+        />
+      )}
     </div>
   );
 });

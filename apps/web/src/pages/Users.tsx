@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userApi } from '../lib/userApi';
 import type { UserWithPermissions, UserRole, Permission } from '../types/user';
-import { 
-  UserIcon, 
-  PlusIcon, 
-  PencilIcon, 
+import {
+  UserIcon,
+  PlusIcon,
+  PencilIcon,
   TrashIcon,
   ShieldCheckIcon,
   EyeIcon,
@@ -52,7 +52,7 @@ const Users: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       if (editingUser) {
         // Update existing user
@@ -63,7 +63,7 @@ const Users: React.FC = () => {
           phone: formData.phone,
           role: formData.role
         });
-        
+
         // Update permissions
         await userApi.updateUserPermissions(
           editingUser.id,
@@ -82,7 +82,7 @@ const Users: React.FC = () => {
           role: formData.role
         });
       }
-      
+
       setShowAddModal(false);
       setEditingUser(null);
       resetForm();
@@ -140,8 +140,8 @@ const Users: React.FC = () => {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.last_name.toLowerCase().includes(searchTerm.toLowerCase());
+      user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.last_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -226,7 +226,7 @@ const Users: React.FC = () => {
             <p className="mt-2 text-gray-600">Kraunama...</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg shadow overflow-hidden gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -266,22 +266,20 @@ const Users: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                        user.role === 'landlord' ? 'bg-blue-100 text-blue-800' :
-                        user.role === 'property_manager' ? 'bg-green-100 text-green-800' :
-                        user.role === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                          user.role === 'landlord' ? 'bg-blue-100 text-blue-800' :
+                            user.role === 'property_manager' ? 'bg-green-100 text-green-800' :
+                              user.role === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                        }`}>
                         {user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.is_active 
-                          ? 'bg-green-100 text-green-800' 
+                      <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${user.is_active
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'
-                      }`}>
+                        }`}>
                         {user.is_active ? (
                           <>
                             <EyeIcon className="w-3 h-3 mr-1" />
@@ -339,7 +337,7 @@ const Users: React.FC = () => {
                       required
                     />
                   </div>
-                  
+
                   {!editingUser && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Slaptažodis</label>
@@ -352,7 +350,7 @@ const Users: React.FC = () => {
                       />
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Vardas</label>
@@ -375,7 +373,7 @@ const Users: React.FC = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Telefonas</label>
                     <input
@@ -385,7 +383,7 @@ const Users: React.FC = () => {
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Rolė</label>
                     <select
@@ -400,7 +398,7 @@ const Users: React.FC = () => {
                       <option value="tenant">Nuomininkas</option>
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Teisės</label>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -417,7 +415,7 @@ const Users: React.FC = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-3 pt-4">
                     <button
                       type="button"

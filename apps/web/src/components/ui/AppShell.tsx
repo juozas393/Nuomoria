@@ -28,7 +28,7 @@ export const AppShell: React.FC = React.memo(() => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <Sidebar 
+      <Sidebar
         isOpen={sidebarOpen}
         onClose={toggleSidebar}
         currentPage={currentPage}
@@ -52,24 +52,40 @@ export const AppShell: React.FC = React.memo(() => {
               </button>
               <h1 className="text-xl font-semibold text-gray-900">Turto valdymas</h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {/* Notifications */}
               <NotificationBell onClick={() => setNotificationsOpen(true)} />
-              
+
               {/* User menu */}
               <div className="relative">
-                <button 
-                  onClick={() => navigate('/profile')}
+                <button
+                  onClick={() => navigate('/profilis')}
                   className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 bg-[#2F8481] rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-medium">
-                      {user?.first_name?.[0] || user?.email?.[0] || 'U'}
+                      {(() => {
+                        // Priority: username > real name > email
+                        if ((user as any)?.username) return (user as any).username.slice(0, 2).toUpperCase();
+                        const fn = user?.first_name && user.first_name !== 'User' ? user.first_name : null;
+                        const ln = user?.last_name && user.last_name !== 'Name' ? user.last_name : null;
+                        if (fn || ln) return ((fn?.[0] || '') + (ln?.[0] || '')).toUpperCase() || '?';
+                        if (user?.email) return user.email.split('@')[0].slice(0, 2).toUpperCase();
+                        return 'U';
+                      })()}
                     </span>
                   </div>
                   <span className="text-sm font-medium text-gray-700">
-                    {user?.first_name || user?.email || 'Neprisijungęs'}
+                    {(() => {
+                      // Priority: username > real name > email
+                      if ((user as any)?.username) return (user as any).username;
+                      const fn = user?.first_name && user.first_name !== 'User' ? user.first_name : null;
+                      const ln = user?.last_name && user.last_name !== 'Name' ? user.last_name : null;
+                      if (fn && ln) return `${fn} ${ln}`;
+                      if (fn) return fn;
+                      return user?.email || 'Vartotojas';
+                    })()}
                   </span>
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -97,9 +113,9 @@ export const AppShell: React.FC = React.memo(() => {
       </div>
 
       {/* Notification Center */}
-      <NotificationCenter 
-        isOpen={notificationsOpen} 
-        onClose={() => setNotificationsOpen(false)} 
+      <NotificationCenter
+        isOpen={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
       />
     </div>
   );

@@ -13,7 +13,7 @@ import './styles/performance.css';
 import './index.css';
 
 // Optimized lazy loading with preloading for critical pages
-const Nuomotojas2Dashboard = React.lazy(() => 
+const Nuomotojas2Dashboard = React.lazy(() =>
   import('./pages/Nuomotojas2Dashboard').then(module => {
     // Preload related components
     import('./components/properties/AddAddressModal');
@@ -26,24 +26,32 @@ const Nuomotojas2Dashboard = React.lazy(() =>
 const Dashboard = React.lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const Properties = React.lazy(() => import(/* webpackChunkName: "properties" */ './pages/Properties'));
 const Tenants = React.lazy(() => import(/* webpackChunkName: "tenants" */ './pages/Tenants'));
-const TenantDashboard = React.lazy(() => import(/* webpackChunkName: "tenant-dashboard" */ './pages/tenant/TenantDashboard'));
+const TenantDashboard = React.lazy(() => import(/* webpackChunkName: "tenant-dashboard" */ './features/tenant/pages/TenantDashboardPage'));
 const MetersPage = React.lazy(() => import(/* webpackChunkName: "meters" */ './pages/Meters'));
 const MeterPolicyDemo = React.lazy(() => import(/* webpackChunkName: "meter-demo" */ './pages/MeterPolicyDemo'));
 const Invoices = React.lazy(() => import(/* webpackChunkName: "invoices" */ './pages/Invoices'));
 const Analytics = React.lazy(() => import(/* webpackChunkName: "analytics" */ './pages/Analytics'));
 const Maintenance = React.lazy(() => import(/* webpackChunkName: "maintenance" */ './pages/Maintenance'));
 const Profile = React.lazy(() => import(/* webpackChunkName: "profile" */ './pages/Profile'));
+const Apartments = React.lazy(() => import(/* webpackChunkName: "apartments" */ './pages/Apartments'));
+const Settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './pages/Settings'));
+const Users = React.lazy(() => import(/* webpackChunkName: "users" */ './pages/Users'));
 
 // Auth pages - load immediately as they're critical
 const Login = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Login'));
 const NewLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/NewLogin'));
 const SupabaseLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseLogin'));
+const ProfessionalLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './features/auth/pages/LoginPage'));
+const OnboardingWrapper = React.lazy(() => import(/* webpackChunkName: "auth" */ './features/auth/pages/OnboardingWrapper'));
 const SupabaseAuthCallback = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseAuthCallback'));
 const EmailLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/EmailLogin'));
 const MagicLinkVerify = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/MagicLinkVerify'));
 const Register = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Register'));
 const EmailConfirmation = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/EmailConfirmation'));
 const Welcome = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Welcome'));
+
+// Test pages (for development)
+const TestModal = React.lazy(() => import('./pages/TestModal'));
 
 // Loading component with performance optimization
 interface LoadingFallbackProps {
@@ -68,6 +76,25 @@ const PerformanceWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
   return <>{children}</>;
 };
 
+// Role-based redirect component for home page
+const RoleBasedRedirect: React.FC = () => {
+  const { useAuth } = require('./context/AuthContext');
+  const { user, loading } = useAuth();
+  const { Navigate } = require('react-router-dom');
+
+  if (loading) {
+    return <LoadingFallback message="Tikrinama rolė..." />;
+  }
+
+  // Redirect based on user role
+  if (user?.role === 'tenant') {
+    return <Navigate to="/tenant" replace />;
+  }
+
+  // Default: landlord/admin/other -> landlord dashboard
+  return <Navigate to="/dashboard" replace />;
+};
+
 // Main App component
 function AppContent() {
   return (
@@ -76,78 +103,93 @@ function AppContent() {
         <React.Suspense fallback={<LoadingFallback />}>
           <Routes>
             {/* Public routes */}
-            <Route path="/login" element={<SupabaseLogin />} />
+            <Route path="/login" element={<ProfessionalLogin />} />
+            <Route path="/login-old" element={<SupabaseLogin />} />
             <Route path="/auth/callback" element={<SupabaseAuthCallback />} />
+            <Route path="/onboarding" element={<OnboardingWrapper />} />
             <Route path="/email-login" element={<EmailLogin />} />
             <Route path="/auth/verify" element={<MagicLinkVerify />} />
             <Route path="/register" element={<Register />} />
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/auth/old-callback" element={<EmailConfirmation />} />
-            
+            <Route path="/test-modal" element={<TestModal />} />
+
             {/* Protected routes with AppShell */}
             <Route path="/" element={
               <ProtectedRoute>
                 <AppShell />
               </ProtectedRoute>
             }>
-              <Route index element={<Navigate to="/nuomotojas2" replace />} />
+              {/* Role-based home page redirect */}
+              <Route index element={<RoleBasedRedirect />} />
+
+              {/* Landlord dashboard */}
               <Route path="dashboard" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunamas dashboard..." />}>
-                  <Dashboard />
+                  <Nuomotojas2Dashboard />
                 </React.Suspense>
               } />
-              <Route path="properties" element={
+              <Route path="turtas" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunami objektai..." />}>
                   <Properties />
                 </React.Suspense>
               } />
-              <Route path="tenants" element={
+              <Route path="butai" element={
+                <React.Suspense fallback={<LoadingFallback message="Kraunami butai..." />}>
+                  <Apartments />
+                </React.Suspense>
+              } />
+              <Route path="nuomininkai" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunami nuomininkai..." />}>
                   <Tenants />
                 </React.Suspense>
               } />
-              <Route path="tenant-dashboard" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomininko dashboard..." />}>
-                  <TenantDashboard />
-                </React.Suspense>
-              } />
-              <Route path="nuomotojas2" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomotojo dashboard..." />}>
-                  <Nuomotojas2Dashboard />
-                </React.Suspense>
-              } />
-              <Route path="meters" element={
+              <Route path="skaitikliai" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunami skaitliukai..." />}>
                   <MetersPage />
                 </React.Suspense>
               } />
-              <Route path="meter-policy-demo" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunama skaitliukų policy demo..." />}>
-                  <MeterPolicyDemo />
-                </React.Suspense>
-              } />
-              <Route path="invoices" element={
+              <Route path="saskaitos" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunamos sąskaitos..." />}>
                   <Invoices />
                 </React.Suspense>
               } />
-              <Route path="analytics" element={
+              <Route path="analitika" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunama analitika..." />}>
                   <Analytics />
                 </React.Suspense>
               } />
-              <Route path="maintenance" element={
+              <Route path="remontas" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunama priežiūra..." />}>
                   <Maintenance />
                 </React.Suspense>
               } />
-              <Route path="profile" element={
+              <Route path="profilis" element={
                 <React.Suspense fallback={<LoadingFallback message="Kraunamas profilis..." />}>
                   <Profile />
                 </React.Suspense>
               } />
+              <Route path="nustatymai" element={
+                <React.Suspense fallback={<LoadingFallback message="Kraunami nustatymai..." />}>
+                  <Settings />
+                </React.Suspense>
+              } />
+              <Route path="vartotojai" element={
+                <React.Suspense fallback={<LoadingFallback message="Kraunami vartotojai..." />}>
+                  <Users />
+                </React.Suspense>
+              } />
             </Route>
-            
+
+            {/* Tenant routes */}
+            <Route path="/tenant" element={
+              <ProtectedRoute>
+                <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomininko dashboard..." />}>
+                  <TenantDashboard />
+                </React.Suspense>
+              </ProtectedRoute>
+            } />
+
             {/* Catch all route */}
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
@@ -161,7 +203,7 @@ function AppContent() {
 function App() {
   useEffect(() => {
     // Performance optimizations on app start
-    
+
     // Preload critical resources
     const preloadCritical = () => {
       // Only preload resources that are actually used
@@ -179,7 +221,7 @@ function App() {
         document.head.appendChild(logoPreload);
       }
     };
-    
+
     // Set up performance monitoring
     const setupPerformanceMonitoring = () => {
       // Web Vitals monitoring
@@ -192,7 +234,7 @@ function App() {
           getTTFB(console.log);
         });
       }
-      
+
       // Memory usage monitoring (disabled for performance)
       // if ('memory' in performance) {
       //   const logMemoryUsage = () => {
@@ -211,7 +253,7 @@ function App() {
       //   }
       // }
     };
-    
+
     // Set up viewport meta for mobile optimization
     const setupViewport = () => {
       let viewport = document.querySelector('meta[name="viewport"]');
@@ -222,7 +264,7 @@ function App() {
       }
       viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes');
     };
-    
+
     preloadCritical();
     // setupPerformanceMonitoring(); // Temporarily disabled to prevent reload loops
     setupViewport();

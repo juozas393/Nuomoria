@@ -9,21 +9,21 @@ const Welcome: React.FC = () => {
   const [showPasskeyEnrollment, setShowPasskeyEnrollment] = useState(false);
 
   const handleContinue = () => {
-    navigate('/nuomotojas2');
+    navigate('/');
   };
 
   const handlePasskeyComplete = () => {
-    navigate('/nuomotojas2');
+    navigate('/');
   };
 
   const handlePasskeySkip = () => {
-    navigate('/nuomotojas2');
+    navigate('/');
   };
 
   if (showPasskeyEnrollment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <PasskeyEnrollment 
+        <PasskeyEnrollment
           onComplete={handlePasskeyComplete}
           onSkip={handlePasskeySkip}
         />
@@ -40,15 +40,15 @@ const Welcome: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          
+
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
             Sveiki atvykę!
           </h2>
-          
+
           <p className="mt-2 text-lg text-gray-600">
             {user?.first_name ? `Labas, ${user.first_name}!` : `Labas, ${user?.email}!`}
           </p>
-          
+
           <p className="mt-4 text-sm text-gray-500">
             Sėkmingai prisijungėte prie nekilnojamojo turto valdymo sistemos
           </p>
@@ -59,7 +59,7 @@ const Welcome: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Kas toliau?
             </h3>
-            
+
             <div className="space-y-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
@@ -76,7 +76,7 @@ const Welcome: React.FC = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-start">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
@@ -92,7 +92,7 @@ const Welcome: React.FC = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-start">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
@@ -118,7 +118,7 @@ const Welcome: React.FC = () => {
             >
               Sukurti passkey (rekomenduojama)
             </button>
-            
+
             <button
               onClick={handleContinue}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"

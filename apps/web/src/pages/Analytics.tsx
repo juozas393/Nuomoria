@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ChartBarIcon, 
+import {
+  ChartBarIcon,
   CurrencyEuroIcon,
   BuildingOfficeIcon,
   UsersIcon,
@@ -32,7 +32,7 @@ const Analytics: React.FC = () => {
   useEffect(() => {
     const loadAnalytics = async () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       const mockData: AnalyticsData = {
         totalRevenue: 8450,
         totalProperties: 12,
@@ -68,7 +68,7 @@ const Analytics: React.FC = () => {
           { property: 'Gedimino pr. 15', revenue: 520, occupancy: 100 },
         ]
       };
-      
+
       setData(mockData);
       setLoading(false);
     };
@@ -228,7 +228,7 @@ const Analytics: React.FC = () => {
                 </span>
                 <div className="flex items-center space-x-2">
                   <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-primary-500 h-2 rounded-full"
                       style={{ width: `${(item.revenue / 9000) * 100}%` }}
                     ></div>
@@ -255,10 +255,9 @@ const Analytics: React.FC = () => {
                 </span>
                 <div className="flex items-center space-x-2">
                   <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        item.occupancy === 100 ? 'bg-green-500' : 'bg-red-500'
-                      }`}
+                    <div
+                      className={`h-2 rounded-full ${item.occupancy === 100 ? 'bg-green-500' : 'bg-red-500'
+                        }`}
                       style={{ width: `${item.occupancy}%` }}
                     ></div>
                   </div>
@@ -273,7 +272,7 @@ const Analytics: React.FC = () => {
       </div>
 
       {/* Top Performing Properties */}
-      <div className="card p-6">
+      <div className="card p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Geriausiai veikiantys objektai
         </h3>

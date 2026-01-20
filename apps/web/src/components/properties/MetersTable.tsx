@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { 
+import React, { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import {
   Search,
   Plus,
   Info,
@@ -46,7 +46,9 @@ import {
   Fan,
   ArrowUpDown,
   Gauge,
-  Zap
+  Zap,
+  Copy,
+  MoreVertical
 } from 'lucide-react';
 import { ReadingRequestModal } from './ReadingRequestModal';
 import { ReadingsInbox } from './ReadingsInbox';
@@ -54,10 +56,10 @@ import { MetersPanel, Meter as ModernMeter } from './MetersPanel';
 import { IconSelector } from './IconSelector';
 import { UniversalAddMeterModal } from '../meters/UniversalAddMeterModal';
 import { fmtPriceLt, getUnitLabel } from '../../constants/meterTemplates';
-import { 
-  getAllowedDistributions, 
-  getDefaultDistribution, 
-  DISTRIBUTION_LABELS, 
+import {
+  getAllowedDistributions,
+  getDefaultDistribution,
+  DISTRIBUTION_LABELS,
   DISTRIBUTION_TOOLTIPS,
   convertLegacyDistribution,
   checkPrecondition,
@@ -138,7 +140,7 @@ const formatPrice = (price: number, unit: string): string => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 3
   });
-  
+
   return `${formattedPrice} €`;
 };
 
@@ -166,7 +168,7 @@ const isDistributionValid = (type: 'individual' | 'communal', distribution: stri
     // Individualūs skaitliukai turi būti "Pagal butus"
     return distribution === 'per_apartment';
   }
-  
+
   // Bendri skaitliukai gali būti bet kokiu metodu
   return true;
 };
@@ -175,23 +177,23 @@ const getDistributionWarning = (type: 'individual' | 'communal', distribution: s
   if (type === 'individual' && distribution !== 'per_apartment') {
     return 'Individualūs skaitliukai turi būti skaičiuojami pagal butus';
   }
-  
+
   if (type === 'communal' && distribution === 'per_apartment') {
     return 'Bendri skaitliukai gali būti skaičiuojami pagal butus';
   }
-  
+
   // Įspėjimas dėl "Pagal plotą" pasirinkimo
   if (type === 'communal' && distribution === 'per_area') {
     if (name.includes('Internetas') || name.includes('Šiukšlės') || name.includes('Liftas') || name.includes('Vėdinimas')) {
       return 'Šis skaitliukas dažniausiai skaičiuojamas pagal butus, ne pagal plotą';
     }
   }
-  
+
   // Įspėjimas dėl "Pagal butus" pasirinkimo šildymui
   if (type === 'communal' && distribution === 'per_apartment' && name.includes('Šildymas')) {
     return 'Šildymas be daliklių dažniausiai skaičiuojamas pagal plotą';
   }
-  
+
   return null;
 };
 
@@ -207,7 +209,7 @@ const MeterRow: React.FC<{
   onEdit: (meter: ModernMeter) => void;
 }> = ({ meter, onUpdate, onDelete, onEdit }) => {
   const [showIconSelector, setShowIconSelector] = useState(false);
-  
+
   const getMeterIcon = (name: string) => {
     if (name.includes('Vanduo')) return <Droplets className="w-5 h-5" />;
     if (name.includes('Elektra')) return <Zap className="w-5 h-5" />;
@@ -219,17 +221,17 @@ const MeterRow: React.FC<{
     if (name.includes('Liftas')) return <ArrowUpDown className="w-5 h-5" />;
     return <Gauge className="w-5 h-5" />;
   };
-  
+
   const [selectedIcon, setSelectedIcon] = useState<React.ReactNode>(getMeterIcon(meter.name));
-  
+
   // Convert meter to modern format inline
   const modernMeter: ModernMeter = {
     id: meter.id,
     type: meter.name?.includes('Vanduo') && meter.name?.includes('šaltas') ? 'water_cold' :
-          meter.name?.includes('Vanduo') && meter.name?.includes('karštas') ? 'water_hot' :
-          meter.name?.includes('Elektra') && meter.name?.includes('individuali') ? 'electricity' :
+      meter.name?.includes('Vanduo') && meter.name?.includes('karštas') ? 'water_hot' :
+        meter.name?.includes('Elektra') && meter.name?.includes('individuali') ? 'electricity' :
           meter.name?.includes('Elektra') && meter.name?.includes('bendra') ? 'electricity_common' :
-          meter.name?.includes('Šildymas') || meter.name?.includes('Dujos') ? 'heating' : 'electricity_common',
+            meter.name?.includes('Šildymas') || meter.name?.includes('Dujos') ? 'heating' : 'electricity_common',
     mode: meter.type === 'individual' ? 'individual' : 'shared',
     unit: meter.unit,
     price: meter.unit === 'Kitas' ? (meter.fixed_price || 0) : (meter.price_per_unit || 0),
@@ -246,8 +248,8 @@ const MeterRow: React.FC<{
     switch (unit) {
       case 'm3': return 'm³';
       case 'kWh': return 'kWh';
-              case 'GJ': return 'GJ';
-        case 'Kitas': return 'Kitas';
+      case 'GJ': return 'GJ';
+      case 'Kitas': return 'Kitas';
       default: return unit;
     }
   };
@@ -266,128 +268,99 @@ const MeterRow: React.FC<{
   };
 
   return (
-    <div className="contents border-t border-gray-100 hover:bg-gray-50 transition-colors">
-      {/* Icon */}
-      <div className="px-2 py-2 flex items-center justify-center">
+    <div className="contents border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors duration-150 group/row">
+      {/* Column 1: Icon + Name + Description */}
+      <div className="px-4 py-4 flex items-center gap-3">
         <button
           onClick={() => setShowIconSelector(true)}
-          className="w-6 h-6 bg-[#2F8481]/10 rounded flex items-center justify-center hover:bg-[#2F8481]/20 transition-colors"
+          className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center hover:bg-[#2F8481]/20 transition-colors flex-shrink-0"
           title="Keisti piktogramą"
+          aria-label="Keisti skaitliuko piktogramą"
         >
-          <div className="w-4 h-4">{selectedIcon}</div>
+          <div className="w-5 h-5 text-[#2F8481]">{selectedIcon}</div>
         </button>
+        <div className="min-w-0">
+          <div className="font-medium text-gray-900 text-sm leading-5 truncate">{meter.name}</div>
+          {meter.description && (
+            <div className="text-xs text-gray-500 mt-0.5 leading-4 truncate">{meter.description}</div>
+          )}
+        </div>
       </div>
 
-      {/* Name and description */}
-      <div className="px-2 py-2">
-        <div className="font-medium text-gray-900 text-xs leading-4 truncate">{meter.name}</div>
-        {meter.description && (
-          <div className="text-xs text-gray-500 mt-0.5 leading-3 truncate">{meter.description}</div>
-        )}
-      </div>
-
-      {/* Type badge */}
-      <div className="px-2 py-2">
-        <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
-          meter.type === 'individual' 
-            ? 'bg-[#2F8481]/10 text-[#2F8481]' 
-            : 'bg-orange-100 text-orange-700'
-        }`}>
+      {/* Column 2: Type + Unit (merged) */}
+      <div className="px-4 py-4 flex items-center gap-2">
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${meter.type === 'individual'
+          ? 'bg-[#2F8481]/10 text-[#2F8481]'
+          : 'bg-orange-100 text-orange-700'
+          }`}>
           {meter.type === 'individual' ? 'Ind.' : 'Bendr.'}
+        </span>
+        <span className="text-xs text-gray-500">•</span>
+        <span className="text-xs text-gray-600 font-medium">{getUnitLabel(meter.unit)}</span>
+      </div>
+
+      {/* Column 3: Price */}
+      <div className="px-4 py-4 text-right">
+        <span className="text-sm font-medium text-gray-900">{getPriceDisplay()}</span>
+      </div>
+
+      {/* Column 4: Distribution method */}
+      <div className="px-4 py-4">
+        <span className="text-xs text-gray-600">
+          {meter.type === 'communal' ? getDistributionLabel(meter.distribution_method) : 'Pagal suvartojimą'}
         </span>
       </div>
 
-      {/* Unit */}
-      <div className="px-2 py-2 text-xs text-gray-600">
-        {getUnitLabel(meter.unit)}
-      </div>
-
-      {/* Price */}
-      <div className="px-2 py-2 text-right text-xs font-medium text-gray-900">
-        {getPriceDisplay()}
-      </div>
-
-      {/* Distribution method */}
-      <div className="px-2 py-2 text-xs text-gray-600 truncate">
-        {meter.type === 'communal' ? getDistributionLabel(meter.distribution_method) : 'Pagal suvartojimą'}
-      </div>
-
-      {/* Collection mode toggle - XOR logic */}
-      <div className="px-2 py-2 flex items-center justify-center">
+      {/* Column 5: Reading Mode (single unified selector) */}
+      <div className="px-4 py-4 flex items-center justify-center">
         <button
           onClick={() => {
-            // XOR logic: if currently landlord_only, switch to tenant_photo, and vice versa
-            const newCollectionMode = modernMeter.collectionMode === 'landlord_only' ? 'tenant_photo' : 'landlord_only';
-                         const updatedMeter = { 
-               ...modernMeter, 
-               collectionMode: newCollectionMode as 'landlord_only' | 'tenant_photo',
-               // If switching to landlord_only, disable photo requirement
-               photoRequired: newCollectionMode === 'tenant_photo'
-             };
-            onUpdate(updatedMeter);
-          }}
-          className={`w-8 h-4 rounded-full transition-colors duration-200 ease-in-out relative ${
-            modernMeter.collectionMode === 'tenant_photo' ? 'bg-blue-500' : 'bg-gray-500'
-          }`}
-          title={modernMeter.collectionMode === 'tenant_photo' ? 'Pildo nuomininkas' : 'Pildo nuomotojas'}
-        >
-          <span
-            className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${
-              modernMeter.collectionMode === 'tenant_photo' ? 'translate-x-4 left-0.5' : 'translate-x-0 left-0.5'
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* Photo requirement toggle - only for tenant_photo mode */}
-      <div className="px-2 py-2 flex items-center justify-center">
-        <button
-          onClick={() => {
-            // Only allow photo toggle if in tenant_photo mode
-            if (modernMeter.collectionMode !== 'tenant_photo') return;
-            
-            const newPhotoRequired = !modernMeter.photoRequired;
-            const updatedMeter = { 
-              ...modernMeter, 
-              photoRequired: newPhotoRequired
+            // Toggle between landlord_only and tenant_photo modes
+            const newMode = meter.collectionMode === 'tenant_photo' ? 'landlord_only' : 'tenant_photo';
+            const updatedMeter = {
+              ...modernMeter,
+              photoRequired: newMode === 'tenant_photo',
+              collectionMode: newMode as 'landlord_only' | 'tenant_photo'
             };
             onUpdate(updatedMeter);
           }}
-          className={`w-8 h-4 rounded-full transition-colors duration-200 ease-in-out relative ${
-            modernMeter.collectionMode !== 'tenant_photo' ? 'bg-gray-200 cursor-not-allowed' :
-            modernMeter.photoRequired ? 'bg-blue-500' : 'bg-gray-300'
-          }`}
-          title={modernMeter.collectionMode !== 'tenant_photo' ? 'Nuotrauka tik nuomininko režime' : 
-                 modernMeter.photoRequired ? 'Reikia nuotraukos' : 'Nereikia nuotraukos'}
-        >
-          <span
-            className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${
-              modernMeter.photoRequired ? 'translate-x-4 left-0.5' : 'translate-x-0 left-0.5'
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer hover:opacity-80 ${meter.collectionMode === 'tenant_photo'
+            ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
-          />
+          title={meter.collectionMode === 'tenant_photo'
+            ? 'Nuomininkas pateikia rodmenį su nuotrauka. Spauskite norėdami pakeisti į nuomotojo režimą.'
+            : 'Nuomotojas pateikia rodmenį. Spauskite norėdami pakeisti į nuomininko režimą.'}
+          aria-label={`Rodmenų režimas: ${meter.collectionMode === 'tenant_photo' ? 'Nuomininkas su nuotrauka' : 'Nuomotojas'}`}
+        >
+          <span>{meter.collectionMode === 'tenant_photo' ? '📸' : '🏠'}</span>
+          <span>{meter.collectionMode === 'tenant_photo' ? 'Nuomininkas' : 'Nuomotojas'}</span>
         </button>
       </div>
 
-      {/* Actions */}
-      <div className="px-2 py-2 text-right">
-        <div className="flex items-center justify-end gap-0.5">
-          <button
-            onClick={() => onEdit(modernMeter)}
-            className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-700 transition-colors"
-            title="Redaguoti"
-          >
-            <Edit3 className="w-3 h-3" />
-          </button>
-          <button
-            onClick={() => onDelete(meter.id)}
-            className="p-1 hover:bg-red-50 rounded text-red-600 hover:text-red-700 transition-colors"
-            title="Ištrinti"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
+      {/* Column 6: Actions */}
+      <div className="px-4 py-4 flex items-center justify-end gap-1.5">
+        <button
+          onClick={() => onEdit(modernMeter)}
+          className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
+          title="Redaguoti"
+          aria-label="Redaguoti skaitliuką"
+        >
+          <Edit3 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(meter.id);
+          }}
+          className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+          title="Ištrinti"
+          aria-label="Ištrinti skaitliuką"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
-      
+
       {/* Icon Selector Modal */}
       <IconSelector
         isOpen={showIconSelector}
@@ -425,7 +398,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
   // Get allowed distribution methods based on meter name and mode with precondition checking
   const getAllowedDistributionMethods = (meterName: string, mode: string, context?: PreconditionContext) => {
     const allowedMethods = getAllowedDistributions(meterName, mode as 'individual' | 'communal');
-    
+
     if (!context) {
       return allowedMethods.map(method => ({
         value: method,
@@ -441,7 +414,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
         method,
         context
       );
-      
+
       return {
         value: method,
         label: DISTRIBUTION_LABELS[method],
@@ -473,15 +446,15 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipas</label>
             <select
               value={formData.type}
               onChange={(e) => {
                 const newType = e.target.value as 'individual' | 'communal';
-                setFormData(prev => ({ 
-                  ...prev, 
+                setFormData(prev => ({
+                  ...prev,
                   type: newType
                   // Don't automatically change distribution_method - let user decide
                 }));
@@ -499,8 +472,8 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
               value={formData.unit}
               onChange={(e) => {
                 const newUnit = e.target.value as 'm3' | 'kWh' | 'GJ' | 'Kitas';
-                setFormData(prev => ({ 
-                  ...prev, 
+                setFormData(prev => ({
+                  ...prev,
                   unit: newUnit
                   // Don't automatically change distribution_method - let user decide
                 }));
@@ -509,8 +482,8 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
             >
               <option value="m3">m³ (kubiniai metrai)</option>
               <option value="kWh">kWh (kilovatvalandės)</option>
-                              <option value="GJ">GJ (gigadžauliai)</option>
-                <option value="Kitas">Kitas</option>
+              <option value="GJ">GJ (gigadžauliai)</option>
+              <option value="Kitas">Kitas</option>
             </select>
           </div>
 
@@ -548,8 +521,8 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
             >
               {getAllowedDistributionMethods(formData.name, formData.type).map(method => (
-                <option 
-                  key={method.value} 
+                <option
+                  key={method.value}
                   value={method.value}
                   disabled={method.disabled}
                   title={method.tooltip}
@@ -632,6 +605,130 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingMeter, setEditingMeter] = useState<LocalMeter | null>(null);
+  const [selectedMeterId, setSelectedMeterId] = useState<string | null>(null);
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
+
+  // Refs for connector line
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const listItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [connectorPath, setConnectorPath] = useState<string>('');
+  const lastValidPath = useRef<string>('');
+
+  // Auto-select first meter when meters are available - use useLayoutEffect for synchronous selection
+  useLayoutEffect(() => {
+    if (meters.length > 0 && !selectedMeterId) {
+      setSelectedMeterId(meters[0].id);
+    }
+  }, [meters, selectedMeterId]);
+
+  // Calculate connector path with robust measurement
+  const updateConnector = useCallback(() => {
+    if (!selectedMeterId || !containerRef.current || !panelRef.current) {
+      setConnectorPath('');
+      return;
+    }
+
+    const selectedItemEl = listItemRefs.current.get(selectedMeterId);
+    if (!selectedItemEl) {
+      setConnectorPath('');
+      return;
+    }
+
+    // Double RAF technique: wait for layout to fully settle after fonts/images/transitions
+    const measure = () => {
+      if (!containerRef.current || !panelRef.current || !selectedItemEl) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const itemRect = selectedItemEl.getBoundingClientRect();
+      const panelRect = panelRef.current.getBoundingClientRect();
+
+      // Validate bounding boxes - skip if zero or invalid
+      if (containerRect.width === 0 || containerRect.height === 0 ||
+        itemRect.width === 0 || itemRect.height === 0 ||
+        panelRect.width === 0 || panelRect.height === 0) {
+        // Use last valid path to prevent flicker
+        if (lastValidPath.current) {
+          setConnectorPath(lastValidPath.current);
+        }
+        return;
+      }
+
+      // Calculate positions relative to container
+      const startX = itemRect.right - containerRect.left;
+      const startY = itemRect.top + itemRect.height / 2 - containerRect.top;
+      const endX = panelRect.left - containerRect.left;
+      const endY = panelRect.top + 40 - containerRect.top; // 40px from panel top
+
+      // Validate calculated positions
+      if (startX <= 0 || startY <= 0 || endX <= 0 || endY <= 0 ||
+        startX > containerRect.width || endX > containerRect.width ||
+        startY > containerRect.height || endY > containerRect.height) {
+        if (lastValidPath.current) {
+          setConnectorPath(lastValidPath.current);
+        }
+        return;
+      }
+
+      // Create a smooth bezier curve
+      const controlX1 = startX + 20;
+      const controlX2 = endX - 20;
+
+      const path = `M ${startX} ${startY} C ${controlX1} ${startY}, ${controlX2} ${endY}, ${endX} ${endY}`;
+      lastValidPath.current = path;
+      setConnectorPath(path);
+    };
+
+    // Initial measure
+    requestAnimationFrame(() => {
+      // Second RAF to catch final layout after modal/fonts/scroll settle
+      requestAnimationFrame(measure);
+    });
+  }, [selectedMeterId]);
+
+  // Update connector on mount, selection, and resize - use useLayoutEffect for synchronous measurement
+  useLayoutEffect(() => {
+    // Trigger initial measurement with double RAF
+    updateConnector();
+
+    // ResizeObserver for container, panel, and selected item
+    const resizeObserver = new ResizeObserver(() => {
+      updateConnector();
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    if (panelRef.current) {
+      resizeObserver.observe(panelRef.current);
+    }
+    // Also observe the selected item
+    const selectedItemEl = selectedMeterId ? listItemRefs.current.get(selectedMeterId) : null;
+    if (selectedItemEl) {
+      resizeObserver.observe(selectedItemEl);
+    }
+
+    // Scroll listener on list container
+    const listContainer = listContainerRef.current;
+    const handleScroll = () => {
+      updateConnector();
+    };
+    if (listContainer) {
+      listContainer.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    // Window resize listener
+    window.addEventListener('resize', updateConnector);
+
+    return () => {
+      resizeObserver.disconnect();
+      if (listContainer) {
+        listContainer.removeEventListener('scroll', handleScroll);
+      }
+      window.removeEventListener('resize', updateConnector);
+    };
+  }, [updateConnector, selectedMeterId]);
 
   // Reading request functionality
   const [isReadingRequestModalOpen, setIsReadingRequestModalOpen] = useState(false);
@@ -687,7 +784,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       type: meter.type,
       distribution_method: meter.distribution_method
     });
-    
+
     // Determine the correct type based on meter name
     let type: ModernMeter['type'] = 'electricity';
     if (meter.name?.includes('Vanduo') && meter.name?.includes('šaltas')) {
@@ -725,10 +822,10 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     // Validate allocation before converting
     const validDistributionMethods = ['per_apartment', 'per_area', 'per_consumption', 'fixed_split'];
     const allocation = modernMeter.allocation || '';
-    const distributionMethod = validDistributionMethods.includes(allocation) 
-      ? allocation as DistributionMethod 
+    const distributionMethod = validDistributionMethods.includes(allocation)
+      ? allocation as DistributionMethod
       : 'per_apartment';
-    
+
     return {
       id: modernMeter.id,
       name: modernMeter.name,
@@ -741,7 +838,10 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       enableMeterEditing: modernMeter.enableMeterEditing,
       is_active: modernMeter.active,
       description: modernMeter.description,
-      collectionMode: modernMeter.collectionMode || 'landlord_only' // Ensure collectionMode is set
+      collectionMode: modernMeter.collectionMode || 'landlord_only',
+      // Mutual exclusion: derive toggle values from collectionMode only
+      landlordReadingEnabled: modernMeter.collectionMode === 'landlord_only',
+      tenantPhotoEnabled: modernMeter.collectionMode === 'tenant_photo'
     };
   };
 
@@ -754,7 +854,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       const updatedMeters = [...meters];
       updatedMeters[meterIndex] = { ...updatedMeters[meterIndex], ...updatedMeter };
       onMetersChange(updatedMeters);
-      
+
       // Update database in background (non-blocking)
       if (onMeterUpdate) {
         Promise.resolve().then(() => {
@@ -781,17 +881,17 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     if (editingMeter) {
       try {
         // Update local state immediately for instant UI response
-        const updatedMeters = meters.map(m => 
+        const updatedMeters = meters.map(m =>
           m.id === editingMeter.id ? { ...m, ...updatedMeter } : m
         );
         onMetersChange(updatedMeters);
-        
+
         // Close modal and reset state immediately
         setShowEditModal(false);
         setEditingMeter(null);
-        
+
         console.log('✅ Meter updated locally:', editingMeter.id);
-        
+
         // Update the database in the background (non-blocking)
         if (onMeterUpdate) {
           // Use Promise.resolve().then() to make it truly non-blocking
@@ -818,7 +918,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     try {
       console.log('handleAddAvailableMeter called with:', availableMeter);
       console.log('Current meters:', meters);
-      
+
       // Convert available meter to regular meter format
       const newMeter: LocalMeter = {
         id: `${availableMeter.name}_${Date.now()}`,
@@ -837,19 +937,20 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         landlordReadingEnabled: availableMeter.landlordReadingEnabled || false,
         tenantPhotoEnabled: availableMeter.tenantPhotoEnabled || false
       };
-      
+
       console.log('Created new meter:', newMeter);
-      
+
       // Add to meters array
       const updatedMeters = [...meters, newMeter];
       console.log('Updated meters array:', updatedMeters);
-      
+
       onMetersChange(updatedMeters);
       console.log('onMetersChange called successfully');
-      
-      // Show success message
-              alert(`Skaitliukas "${availableMeter.name}" sėkmingai pridėtas!`);
-      
+
+      // Auto-select the newly added meter for immediate editing
+      setSelectedMeterId(newMeter.id);
+      console.log('✅ Auto-selected new meter for editing:', newMeter.id);
+
     } catch (error) {
       console.error('Error adding meter:', error);
       alert('Klaida pridedant skaitiklį. Bandykite dar kartą.');
@@ -858,10 +959,10 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   const handleAddMeters = useCallback((newMeters: any[]) => {
     console.log('🔍 handleAddMeters called with:', newMeters);
-    
+
     const metersToAdd = newMeters.map(meter => {
       console.log('🔍 Processing meter:', meter);
-      
+
       const processedMeter = {
         id: meter.id,
         name: meter.name || meter.label || meter.title || meter.custom_name || '',
@@ -879,13 +980,20 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         landlordReadingEnabled: meter.landlordReadingEnabled || false,
         tenantPhotoEnabled: meter.tenantPhotoEnabled || false
       };
-      
+
       console.log('🔍 Processed meter:', processedMeter);
       return processedMeter;
     });
-    
+
     console.log('🔍 Final metersToAdd:', metersToAdd);
     onMetersChange([...meters, ...metersToAdd]);
+
+    // Auto-select the first newly added meter for immediate editing
+    if (metersToAdd.length > 0) {
+      setSelectedMeterId(metersToAdd[0].id);
+      setShowAddModal(false);
+      console.log('✅ Auto-selected new meter for editing:', metersToAdd[0].id);
+    }
   }, [meters, onMetersChange]);
 
   const handleDeleteMeter = useCallback((index: number) => {
@@ -893,7 +1001,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     setDeletedMeter({ id: meter.id, index, meter });
     const newMeters = meters.filter((_, i) => i !== index);
     onMetersChange(newMeters);
-    
+
     setTimeout(() => {
       setDeletedMeter(null);
     }, 5000);
@@ -916,11 +1024,11 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   }, [deletedMeter, meters, onMetersChange]);
 
   const handleInlineUpdate = useCallback((index: number, field: keyof LocalMeter, value: any) => {
-    const updatedMeters = meters.map((meter, i) => 
+    const updatedMeters = meters.map((meter, i) =>
       i === index ? { ...meter, [field]: value } : meter
     );
     onMetersChange(updatedMeters);
-    
+
     // Update database in background (non-blocking)
     if (onMeterUpdate) {
       Promise.resolve().then(() => {
@@ -985,11 +1093,11 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     // If type changed, update distribution method automatically
     if (editingValues.type && editingValues.type !== meter.type) {
       const recommendedDistribution = getRecommendedDistribution(
-        editingValues.type as 'individual' | 'communal', 
-        updatedMeter.unit, 
+        editingValues.type as 'individual' | 'communal',
+        updatedMeter.unit,
         updatedMeter.name
       );
-              updatedMeter.distribution_method = recommendedDistribution;
+      updatedMeter.distribution_method = recommendedDistribution;
       hasChanges = true;
     }
 
@@ -1001,7 +1109,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     if (hasChanges) {
       const updatedMeters = meters.map((m, i) => i === index ? updatedMeter : m);
       onMetersChange(updatedMeters);
-      
+
       // Update database in background (non-blocking)
       if (onMeterUpdate) {
         Promise.resolve().then(() => {
@@ -1031,16 +1139,16 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   const handleTypeChange = useCallback((index: number, newType: 'individual' | 'communal') => {
     const meter = meters[index];
     const recommendedDistribution = getRecommendedDistribution(newType, meter.unit, meter.name);
-    
-    const updatedMeter = { 
-      ...meter, 
-      type: newType, 
-              distribution_method: recommendedDistribution
+
+    const updatedMeter = {
+      ...meter,
+      type: newType,
+      distribution_method: recommendedDistribution
     };
-    
+
     const updatedMeters = meters.map((m, i) => i === index ? updatedMeter : m);
     onMetersChange(updatedMeters);
-    
+
     // Update database in background (non-blocking)
     if (onMeterUpdate) {
       Promise.resolve().then(() => {
@@ -1060,7 +1168,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       const updatedMeter = { ...meter, is_inherited: false, inherited_from_address_id: undefined };
       const updatedMeters = meters.map((m, i) => i === index ? updatedMeter : m);
       onMetersChange(updatedMeters);
-      
+
       // Update database in background (non-blocking)
       if (onMeterUpdate) {
         Promise.resolve().then(() => {
@@ -1081,7 +1189,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       const updatedMeter = { ...meter, is_inherited: true };
       const updatedMeters = meters.map((m, i) => i === index ? updatedMeter : m);
       onMetersChange(updatedMeters);
-      
+
       // Update database in background (non-blocking)
       if (onMeterUpdate) {
         Promise.resolve().then(() => {
@@ -1115,7 +1223,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   // Get allowed distribution methods based on meter name and mode with precondition checking
   const getAllowedDistributionMethods = (meterName: string, mode: string, context?: PreconditionContext) => {
     const allowedMethods = getAllowedDistributions(meterName, mode as 'individual' | 'communal');
-    
+
     if (!context) {
       return allowedMethods.map(method => ({
         value: method,
@@ -1131,7 +1239,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         method,
         context
       );
-      
+
       return {
         value: method,
         label: DISTRIBUTION_LABELS[method],
@@ -1155,15 +1263,15 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   const handleSendReadingRequest = useCallback((selectedMeterIds: string[], period: string, dueDate: string) => {
     console.log('Sending reading request:', { selectedMeterIds, period, dueDate });
     // TODO: Implement API call to send reading request
-            alert(`Prašymas išsiųstas ${selectedMeterIds.length} skaitliukams. Laikotarpis: ${period}, terminas: ${dueDate}`);
+    alert(`Prašymas išsiųstas ${selectedMeterIds.length} skaitliukams. Laikotarpis: ${period}, terminas: ${dueDate}`);
   }, []);
 
   const handleApproveSubmission = useCallback((submissionId: string) => {
     console.log('Approving submission:', submissionId);
     // TODO: Implement API call to approve submission
-    setReadingSubmissions(prev => 
-      prev.map(sub => 
-        sub.id === submissionId 
+    setReadingSubmissions(prev =>
+      prev.map(sub =>
+        sub.id === submissionId
           ? { ...sub, status: 'approved' }
           : sub
       )
@@ -1173,9 +1281,9 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   const handleRejectSubmission = useCallback((submissionId: string, reason: string) => {
     console.log('Rejecting submission:', submissionId, reason);
     // TODO: Implement API call to reject submission
-    setReadingSubmissions(prev => 
-      prev.map(sub => 
-        sub.id === submissionId 
+    setReadingSubmissions(prev =>
+      prev.map(sub =>
+        sub.id === submissionId
           ? { ...sub, status: 'rejected' }
           : sub
       )
@@ -1187,110 +1295,551 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     // TODO: Implement photo viewer modal
     window.open(photoUrl, '_blank');
   }, []);
-                        
+  // Get meter icon based on name/type
+  const getMeterIcon = (name: string, isSelected: boolean) => {
+    const iconClass = `w-4 h-4 ${isSelected ? 'text-[#2F8481]' : 'text-gray-500'}`;
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('vanduo') || lowerName.includes('water')) {
+      return <Droplets className={iconClass} />;
+    } else if (lowerName.includes('elektr') || lowerName.includes('electric')) {
+      return <Zap className={iconClass} />;
+    } else if (lowerName.includes('šild') || lowerName.includes('heat') || lowerName.includes('duj')) {
+      return <Flame className={iconClass} />;
+    }
+    return <Gauge className={iconClass} />;
+  };
+
+  // Get allocation label
+  const getAllocationLabel = (method: string) => {
+    switch (method) {
+      case 'per_consumption': return 'Pagal suvartojimą';
+      case 'per_apartment': return 'Pagal butus';
+      case 'per_area': return 'Pagal plotą';
+      case 'fixed_split': return 'Fiksuotas';
+      default: return method;
+    }
+  };
+
+  // Get short allocation label
+  const getAllocationShort = (method: string) => {
+    switch (method) {
+      case 'per_consumption': return 'Suvartojimas';
+      case 'per_apartment': return 'Butai';
+      case 'per_area': return 'Plotas';
+      case 'fixed_split': return 'Fiksuotas';
+      default: return method;
+    }
+  };
+
+  // Check if meter is fully configured
+  const isMeterConfigured = (meter: LocalMeter) => {
+    return meter.price_per_unit > 0 && meter.distribution_method && meter.collectionMode;
+  };
+
+  // Get reading mode label
+  const getReadingModeLabel = (mode: string) => {
+    return mode === 'tenant_photo' ? 'Nuomininkas' : 'Savininkas';
+  };
+
+  // Get selected meter
+  const selectedMeter = meters.find(m => m.id === selectedMeterId);
+
+  // Duplicate meter handler
+  const handleDuplicateMeter = (meter: LocalMeter) => {
+    const newMeter: LocalMeter = {
+      ...meter,
+      id: `${meter.id}_copy_${Date.now()}`,
+      name: `${meter.name} (kopija)`,
+    };
+    onMetersChange([...meters, newMeter]);
+    setSelectedMeterId(newMeter.id);
+  };
+
+  // Quick add preset meters
+  const presetMeters = [
+    { name: 'Šaltas vanduo', icon: Droplets, unit: 'm3' as const, price: 2.50 },
+    { name: 'Karštas vanduo', icon: Droplets, unit: 'm3' as const, price: 4.80 },
+    { name: 'Elektra', icon: Zap, unit: 'kWh' as const, price: 0.25 },
+    { name: 'Šildymas', icon: Flame, unit: 'GJ' as const, price: 45.00 },
+  ];
+
+  const handleAddPreset = (preset: typeof presetMeters[0]) => {
+    const newMeter: LocalMeter = {
+      id: `meter_${Date.now()}`,
+      name: preset.name,
+      type: 'individual',
+      unit: preset.unit,
+      price_per_unit: preset.price,
+      distribution_method: 'per_consumption',
+      description: '',
+      is_active: true,
+      requires_photo: true,
+      collectionMode: 'tenant_photo',
+      landlordReadingEnabled: true,
+      tenantPhotoEnabled: true,
+    };
+    onMetersChange([...meters, newMeter]);
+    setSelectedMeterId(newMeter.id);
+    setShowAddDropdown(false);
+  };
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-                          <h2 className="text-lg font-semibold text-gray-900">Skaitliukai</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Valdykite skaitliukus ir jų nustatymus
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-[#2F8481] text-white rounded-lg hover:bg-[#297a77] transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Pridėti skaitiklį
-            </button>
+    <div className="relative" ref={containerRef}>
+      {/* SVG Connector Line - Premium & Clear */}
+      {connectorPath && selectedMeter && (
+        <svg
+          className="absolute inset-0 pointer-events-none z-20"
+          style={{ width: '100%', height: '100%' }}
+        >
+          <defs>
+            {/* Strong teal gradient */}
+            <linearGradient id="connectorGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.9" />
+              <stop offset="50%" stopColor="#0d9488" stopOpacity="1" />
+              <stop offset="100%" stopColor="#14b8a6" stopOpacity="0.9" />
+            </linearGradient>
+            {/* Glow filter */}
+            <filter id="connectorGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Glow layer (behind) */}
+          <path
+            d={connectorPath}
+            fill="none"
+            stroke="#14b8a6"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeOpacity="0.2"
+            className="transition-all duration-200"
+          />
+
+          {/* Main connector line */}
+          <path
+            d={connectorPath}
+            fill="none"
+            stroke="url(#connectorGradient)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            className="transition-all duration-200"
+          />
+
+          {/* Start endpoint - ring + dot */}
+          <circle
+            cx={connectorPath.split(' ')[1]}
+            cy={connectorPath.split(' ')[2]}
+            r="6"
+            fill="white"
+            stroke="#14b8a6"
+            strokeWidth="2"
+            className="transition-all duration-200"
+          />
+          <circle
+            cx={connectorPath.split(' ')[1]}
+            cy={connectorPath.split(' ')[2]}
+            r="3"
+            fill="#0d9488"
+            className="transition-all duration-200"
+          />
+
+          {/* End endpoint - extract end coordinates */}
+          {(() => {
+            const parts = connectorPath.split(' ');
+            const endX = parts[parts.length - 2];
+            const endY = parts[parts.length - 1];
+            return (
+              <>
+                <circle cx={endX} cy={endY} r="6" fill="white" stroke="#14b8a6" strokeWidth="2" className="transition-all duration-200" />
+                <circle cx={endX} cy={endY} r="3" fill="#0d9488" className="transition-all duration-200" />
+              </>
+            );
+          })()}
+        </svg>
+      )}
+
+      {/* 3-Column Split Layout: LIST | GUTTER | EDITOR */}
+      <div
+        className="grid transition-all duration-200"
+        style={{
+          gridTemplateColumns: selectedMeter ? '1fr 48px 1fr' : '1fr',
+          gap: '0'
+        }}
+      >
+        {/* LEFT: Meters List - Browse Zone */}
+        <div className="transition-all duration-200">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-md p-4">
+            {/* List Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Gauge className="w-4 h-4 text-gray-400" />
+                  <span className="text-[14px] font-semibold text-gray-900">
+                    Skaitliukai ({meters.length})
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5 ml-6">Pasirinkite, kad redaguotumėte → Taikoma visiems butams</p>
+              </div>
+
+              {/* Split Add Button */}
+              <div className="relative">
+                <div className="flex">
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="px-3 py-1.5 bg-[#2F8481] text-white rounded-l-lg hover:bg-[#297a77] transition-all text-[12px] font-medium flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Pridėti
+                  </button>
+                  <button
+                    onClick={() => setShowAddDropdown(!showAddDropdown)}
+                    className="px-2 py-1.5 bg-[#2F8481] text-white rounded-r-lg hover:bg-[#297a77] transition-all border-l border-white/20"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Dropdown */}
+                {showAddDropdown && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20">
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                      Greitas pridėjimas
+                    </div>
+                    {presetMeters.map((preset) => (
+                      <button
+                        key={preset.name}
+                        onClick={() => handleAddPreset(preset)}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2.5 text-[13px] text-gray-700"
+                      >
+                        <preset.icon className="w-4 h-4 text-gray-400" />
+                        {preset.name}
+                        <span className="ml-auto text-[11px] text-gray-400">{preset.price.toFixed(2)} €</span>
+                      </button>
+                    ))}
+                    <div className="border-t border-gray-100 mt-1 pt-1">
+                      <button
+                        onClick={() => { setShowAddModal(true); setShowAddDropdown(false); }}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2.5 text-[13px] text-gray-700"
+                      >
+                        <Wrench className="w-4 h-4 text-gray-400" />
+                        Pasirinktinis...
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Meters List */}
+            {meters.length > 0 ? (
+              <div ref={listContainerRef} className="space-y-2">
+                {meters.map((meter, index) => {
+                  const isSelected = meter.id === selectedMeterId;
+                  const isConfigured = isMeterConfigured(meter);
+
+                  return (
+                    <div
+                      key={meter.id}
+                      ref={(el) => {
+                        if (el) listItemRefs.current.set(meter.id, el);
+                      }}
+                      onClick={() => setSelectedMeterId(meter.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') setSelectedMeterId(meter.id);
+                        if (e.key === 'ArrowDown' && index < meters.length - 1) {
+                          setSelectedMeterId(meters[index + 1].id);
+                        }
+                        if (e.key === 'ArrowUp' && index > 0) {
+                          setSelectedMeterId(meters[index - 1].id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={isSelected}
+                      className={`group flex items-center gap-3 px-3.5 py-3.5 rounded-xl cursor-pointer transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#2F8481]/50 ${isSelected
+                        ? 'bg-teal-50/80 border-l-4 border-l-[#2F8481] border border-t-teal-200/60 border-r-teal-200/60 border-b-teal-200/60 shadow-sm'
+                        : 'bg-gray-50/60 hover:bg-gray-100/80 border border-gray-100/80 hover:border-gray-200/80'
+                        }`}
+                    >
+                      {/* Status dot + Icon */}
+                      <div className="relative">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-[#2F8481]/10' : 'bg-gray-100'
+                          }`}>
+                          {getMeterIcon(meter.name, isSelected)}
+                        </div>
+                        {/* Status dot */}
+                        <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${isConfigured ? 'bg-emerald-400' : 'bg-amber-400'
+                          }`} />
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[13px] font-bold truncate ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                            {meter.name}
+                          </span>
+                          <span className={`inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${meter.type === 'individual'
+                            ? 'bg-teal-50 text-teal-700 border-teal-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                            {meter.type === 'individual' ? 'Individualus' : 'Bendras'}
+                          </span>
+                          {isSelected && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#2F8481]/10 text-[#2F8481] text-[9px] font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#2F8481] animate-pulse" />
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                        {/* Row 2: Summary - clearer typography */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[12px] leading-snug">
+                          <span className="font-bold text-gray-900">{(meter.unit === 'Kitas' ? (meter.fixed_price ?? 0) : (meter.price_per_unit ?? 0)).toFixed(2)} €/{meter.unit}</span>
+                          <span className="text-gray-300 text-[10px]">•</span>
+                          <span className="text-gray-600 font-medium">Paskirstymas: <span className="text-gray-900">{getAllocationShort(meter.distribution_method)}</span></span>
+                          <span className="text-gray-300 text-[10px]">•</span>
+                          <span className="text-gray-600 font-medium">Rodmenys: <span className="text-gray-900">{getReadingModeLabel(meter.collectionMode)}</span></span>
+                        </div>
+                      </div>
+
+                      {/* Delete button - visible on hover */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Ar tikrai norite ištrinti "${meter.name}"?`)) {
+                            onMetersChange(meters.filter(m => m.id !== meter.id));
+                            if (selectedMeterId === meter.id) {
+                              setSelectedMeterId(null);
+                            }
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
+                        title="Ištrinti"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Empty State */
+              <div className="text-center py-10 px-4 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Gauge className="w-6 h-6 text-gray-400" />
+                </div>
+                <p className="text-[13px] font-medium text-gray-600 mb-1">Nėra pridėtų skaitliukų</p>
+                <p className="text-[11px] text-gray-400 mb-4">Pridėkite skaitliukus, kad galėtumėte skaičiuoti mokesčius</p>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="px-4 py-2 bg-[#2F8481] text-white rounded-lg text-[12px] font-medium inline-flex items-center gap-1.5 hover:bg-[#297a77] transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Pridėti pirmąjį
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="p-6">
-        <div className="space-y-6">
-          {/* Current meters */}
-          {meters.length > 0 && (
-            <div>
-              <h4 className="text-md font-semibold text-gray-900 mb-4">Dabartiniai skaitliukai ({meters.length})</h4>
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="max-h-[60vh] overflow-y-auto overflow-x-auto">{/* Added horizontal scroll */}
-                <div className="grid grid-cols-[50px_minmax(180px,2fr)_120px_100px_140px_160px_120px_100px_100px] gap-0 min-w-[1070px]">
-                  {/* Table Header */}
-                  <div className="contents text-xs text-gray-500 font-medium bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                    <div className="px-2 py-2"></div> {/* Icon space */}
-                    <div className="px-2 py-2">Pavadinimas</div>
-                    <div className="px-2 py-2">Tipas</div>
-                    <div className="px-2 py-2">Vienetas</div>
-                    <div className="px-2 py-2 text-right">Kaina</div>
-                    <div className="px-2 py-2">Paskirstymas</div>
-                    <div className="px-2 py-2 flex items-center gap-1 group relative">
-                      Rodmenys (nuomotojas)
-                      <div 
-                        className="w-3 h-3 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs cursor-help hover:bg-gray-200 transition-colors"
-                        title="Rodmenys (nuomotojas): Rodmenis suveda tik nuomotojas. Nuomininkui šis skaitliukas nerodomas iki sąskaitos."
-                      >
-                        ?
-                      </div>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Rodmenys (nuomotojas): Rodmenis suveda tik nuomotojas. Nuomininkui šis skaitliukas nerodomas iki sąskaitos.
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                      </div>
-                    </div>
-                    <div className="px-2 py-2 flex items-center gap-1 group relative">
-                      Rodmuo + nuotrauka (nuomininkas)
-                      <div 
-                        className="w-3 h-3 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs cursor-help hover:bg-blue-200 transition-colors"
-                        title="Rodmuo + nuotrauka (nuomininkas): Nuomininkas pateikia rodmenį su nuotrauka ir skaičiumi. Nuomotojas tvirtina."
-                      >
-                        ?
-                      </div>
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                        Rodmuo + nuotrauka (nuomininkas): Nuomininkas pateikia rodmenį su nuotrauka ir skaičiumi. Nuomotojas tvirtina.
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                      </div>
-                    </div>
-                    <div className="px-2 py-2 text-right">Veiksmai</div>
+        {/* GUTTER: Simple Divider Column */}
+        {selectedMeter && (
+          <div className="relative flex items-center justify-center">
+            {/* Simple vertical divider */}
+            <div className="w-px h-full bg-gradient-to-b from-transparent via-gray-200/60 to-transparent" />
+          </div>
+        )}
+
+        {/* RIGHT: Editor Panel - Workspace Zone */}
+        {selectedMeter ? (
+          <div
+            className="bg-white rounded-xl border border-gray-200 shadow-lg transition-all duration-200 flex flex-col"
+            ref={panelRef}
+          >
+            {/* Panel Header - Workspace bar */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#2F8481]/10 flex items-center justify-center flex-shrink-0">
+                    {getMeterIcon(selectedMeter.name, true)}
                   </div>
-                  
-                  {/* Table Rows */}
-                  {meters.map((meter) => (
-                    <MeterRow
-                      key={meter.id}
-                      meter={meter}
-                      onUpdate={handleModernMeterChange}
-                      onDelete={handleModernMeterDelete}
-                      onEdit={handleModernMeterEdit}
-                    />
-                  ))}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-bold text-gray-900 truncate">{selectedMeter.name}</span>
+                      <span className="inline-flex px-1.5 py-0.5 rounded bg-[#2F8481]/10 text-[#2F8481] text-[9px] font-semibold uppercase tracking-wide">
+                        Editing
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <div className="w-1 h-1 rounded-full bg-emerald-400/70" />
+                      <span className="text-[10px] text-gray-400/80 font-medium">Auto-saved</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleDuplicateMeter(selectedMeter)}
+                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Kopijuoti skaitliuką"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedMeterId(null)}
+                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Uždaryti"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
-            </div>
-          )}
 
-          {/* Add Meter Button - removed duplicate */}
-        </div>
+            {/* Form Content */}
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 h-[400px]">
+
+              {/* Card 1: Type */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Tipas</h4>
+                </div>
+                <p className="text-[12px] font-medium text-gray-600 mb-3">
+                  {selectedMeter.type === 'individual'
+                    ? 'Individualus – kiekvienas butas turi atskirą skaitliuką.'
+                    : 'Bendras – vienas skaitliukas visam pastatui, sąnaudos paskirstomos.'}
+                </p>
+                <div className="flex gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), mode: 'individual' })}
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all ${selectedMeter.type === 'individual'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    Individualus
+                  </button>
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), mode: 'shared' })}
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all ${selectedMeter.type === 'communal'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    Bendras
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 2: Pricing */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Kainodara</h4>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 p-1 flex items-center shadow-sm">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={selectedMeter.unit === 'Kitas' ? (selectedMeter.fixed_price ?? 0) : (selectedMeter.price_per_unit ?? 0)}
+                    onChange={(e) => {
+                      const newPrice = parseFloat(e.target.value) || 0;
+                      handleModernMeterChange({ ...convertToModernMeter(selectedMeter), price: newPrice });
+                    }}
+                    placeholder="0.00"
+                    className="flex-1 px-3 py-2 text-[14px] font-bold text-gray-900 bg-transparent border-none focus:ring-0 focus:outline-none"
+                  />
+                  <div className="px-3 py-1.5 bg-gray-100 rounded-md text-[12px] font-bold text-gray-600 mr-1">
+                    €/{selectedMeter.unit === 'Kitas' ? 'Kitas' : selectedMeter.unit}
+                  </div>
+                </div>
+                <p className="text-[11px] font-medium text-gray-500 mt-2">
+                  {selectedMeter.unit === 'Kitas' ? 'Fiksuota mėnesinė suma.' : 'Kaina naudojama mėnesiniam mokesčiui skaičiuoti.'}
+                </p>
+              </div>
+
+              {/* Card 3: Readings */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Rodmenys</h4>
+                </div>
+                <div className="flex gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm mb-3">
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), collectionMode: 'landlord_only', photoRequired: false })}
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'landlord_only'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Savininkas
+                  </button>
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), collectionMode: 'tenant_photo', photoRequired: true })}
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'tenant_photo'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    <Camera className="w-4 h-4" />
+                    Nuomininkas
+                  </button>
+                </div>
+
+                {/* Info Callout */}
+                <div className="flex items-start gap-2.5 px-3 py-2.5 bg-blue-50/50 rounded-lg border border-blue-100">
+                  <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-[12px] font-medium text-blue-900 leading-relaxed">
+                    {selectedMeter.collectionMode === 'tenant_photo'
+                      ? 'Nuomininkas pateikia rodmenis su nuotrauka.'
+                      : 'Savininkas suveda ir deklaruoja rodmenis.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div className="pt-3 mt-3 border-t border-gray-100">
+                <button
+                  onClick={() => { handleModernMeterDelete(selectedMeter.id); setSelectedMeterId(null); }}
+                  className="w-full px-4 py-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50/80 border border-dashed border-gray-200 hover:border-red-200 rounded-xl text-[12px] font-medium transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Ištrinti skaitliuką
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : meters.length > 0 ? (
+          /* Empty Selection State */
+          <div className="bg-gray-50/50 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center" ref={panelRef}>
+            <div className="text-center py-14 px-10">
+              <div className="w-16 h-16 bg-gray-100/80 rounded-2xl flex items-center justify-center mx-auto mb-4 ring-4 ring-gray-50">
+                <Edit3 className="w-7 h-7 text-gray-400" />
+              </div>
+              <p className="text-[15px] text-gray-700 font-semibold">Pasirinkite skaitliuką</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">kad galėtumėte redaguoti nustatymus</p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Undo Snackbar */}
-      {deletedMeter && (
-        <div className="fixed bottom-6 left-6 bg-neutral-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50 animate-in slide-in-from-bottom-2 duration-300">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium">Skaitliukas pašalintas</span>
-          <button
-            onClick={handleUndoDelete}
-            className="text-[#2F8481] hover:text-[#2a7875] text-sm font-semibold transition-colors duration-200"
-          >
-            Atšaukti
-          </button>
-        </div>
-      )}
+      {
+        deletedMeter && (
+          <div className="fixed bottom-6 left-6 bg-neutral-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50 animate-in slide-in-from-bottom-2 duration-300">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium">Skaitliukas pašalintas</span>
+            <button
+              onClick={handleUndoDelete}
+              className="text-[#2F8481] hover:text-[#2a7875] text-sm font-semibold transition-colors duration-200"
+            >
+              Atšaukti
+            </button>
+          </div>
+        )
+      }
 
       {/* Reading Request Modal */}
       <ReadingRequestModal
@@ -1321,16 +1870,18 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       />
 
       {/* Edit Meter Modal */}
-      {editingMeter && (
-        <EditMeterModal
-          meter={editingMeter}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingMeter(null);
-          }}
-          onSave={handleEditMeterSave}
-        />
-      )}
-    </div>
+      {
+        editingMeter && (
+          <EditMeterModal
+            meter={editingMeter}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingMeter(null);
+            }}
+            onSave={handleEditMeterSave}
+          />
+        )
+      }
+    </div >
   );
 };

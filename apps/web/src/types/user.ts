@@ -1,8 +1,8 @@
 export type UserRole = 'admin' | 'landlord' | 'property_manager' | 'tenant' | 'maintenance';
 
-export type Permission = 
+export type Permission =
   | 'manage_users'
-  | 'manage_addresses' 
+  | 'manage_addresses'
   | 'manage_properties'
   | 'view_properties'
   | 'view_analytics'
@@ -17,6 +17,7 @@ export interface User {
   first_name: string;
   last_name: string;
   phone?: string;
+  avatar_url?: string;  // Profile photo URL
   role: UserRole;
   is_active: boolean;
   last_login?: string;
@@ -83,7 +84,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   admin: [
     'manage_users',
     'manage_addresses',
-    'manage_properties', 
+    'manage_properties',
     'view_properties',
     'view_analytics',
     'manage_finances',
@@ -92,7 +93,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   landlord: [
     'manage_addresses',
     'manage_properties',
-    'view_properties', 
+    'view_properties',
     'view_analytics',
     'manage_finances'
   ],

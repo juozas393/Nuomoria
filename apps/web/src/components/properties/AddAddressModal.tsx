@@ -4,10 +4,10 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  XMarkIcon, 
-  BuildingOfficeIcon, 
-  MapPinIcon, 
+import {
+  XMarkIcon,
+  BuildingOfficeIcon,
+  MapPinIcon,
   UserGroupIcon,
   BoltIcon,
   PlusIcon,
@@ -22,6 +22,8 @@ import { type DistributionMethod } from '../../constants/meterDistribution';
 import { supabase } from '../../lib/supabase';
 import { addressApi } from '../../lib/database';
 import { sendNotificationNew } from '../../utils/notificationSystem';
+// Background image path (optimized)
+const addressBg = '/images/FormsBackground.png';
 
 // Form schema
 const addressSchema = z.object({
@@ -123,13 +125,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         fullAddress: '',
         city: ''
       },
-                           location: {
-          postalCode: '',
+      location: {
+        postalCode: '',
         coordinates: undefined
-        },
+      },
       buildingInfo: {
         buildingType: 'Butų namas',
-                 floors: 1,
+        floors: 1,
         totalApartments: 1,
         yearBuilt: undefined
       },
@@ -245,9 +247,24 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
     }
   ];
 
-  // Normalize address for comparison
+  // Normalize address for comparison - handles Lithuanian diacritics and common abbreviations
   const normalizeAddress = (address: string): string => {
-    return address.toLowerCase().trim().replace(/\s+/g, ' ');
+    return address
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')              // Collapse whitespace
+      .replace(/g\.\s*/g, 'g. ')         // Normalize "g." abbreviation
+      .replace(/pr\.\s*/g, 'pr. ')       // Normalize "pr." abbreviation
+      .replace(/al\.\s*/g, 'al. ')       // Normalize "al." abbreviation
+      .replace(/[ąĄ]/g, 'a')             // Lithuanian diacritics
+      .replace(/[čČ]/g, 'c')
+      .replace(/[ęĘ]/g, 'e')
+      .replace(/[ėĖ]/g, 'e')
+      .replace(/[įĮ]/g, 'i')
+      .replace(/[šŠ]/g, 's')
+      .replace(/[ųŲ]/g, 'u')
+      .replace(/[ūŪ]/g, 'u')
+      .replace(/[žŽ]/g, 'z');
   };
 
   // Check for similar addresses
@@ -256,16 +273,16 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       // Checking for similar addresses - logging removed for production
       const addresses = await addressApi.getAll(user?.id);
       // User addresses from DB - logging removed for production
-      
+
       // If no addresses exist or API fails, return empty array
       if (!addresses || addresses.length === 0) {
         // No user addresses found in database - logging removed for production
         return [];
       }
-      
+
       const normalizedInput = normalizeAddress(address);
       // Normalized input - logging removed for production
-      
+
       const similarAddresses = addresses
         .filter(addr => {
           if (!addr.full_address) return false;
@@ -276,7 +293,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           return isExactMatch;
         })
         .map(addr => addr.full_address);
-      
+
       // Found similar addresses - logging removed for production
       return similarAddresses;
     } catch (error) {
@@ -306,40 +323,40 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       try {
         // Parse address components first
         const addressParts = parseAddressComponents(fullAddress);
-        
+
         // Try geocoding with the full address
         const result = await geocodeAddressWithRateLimit(fullAddress, 'Lithuania');
-        
+
         if (result) {
           // Set coordinates
           setValue('location.coordinates', {
             lat: result.lat,
             lng: result.lng
           });
-          
+
           // Set extracted postal code if available
           if (addressParts.postalCode) {
             setValue('location.postalCode', addressParts.postalCode);
           } else if (result.postcode) {
             setValue('location.postalCode', result.postcode);
           }
-          
+
           // Set city if available
           if (result.city) {
             setValue('address.city', result.city);
           } else if (addressParts.city) {
             setValue('address.city', addressParts.city);
           }
-          
+
           setShowMap(true);
           setIsAddressVerified(true);
           setGeocodingError(null);
-          
+
           console.log('Geocoding successful:', result);
         } else {
           setGeocodingError('Nepavyko rasti adreso koordinačių. Jei norite tęsti, privalote įvesti pašto kodą.');
           setIsAddressVerified(false);
-          
+
           // Still parse address components even if geocoding fails
           if (addressParts.city) {
             setValue('address.city', addressParts.city);
@@ -386,80 +403,80 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
     if (isOpen) {
       // Reset meters to ensure fresh defaults
       setCommunalMeters([]);
-      
+
       const defaultMeters: CommunalMeter[] = [
-        { 
-          id: 'meter-1', 
-          name: 'Vanduo (šaltas)', 
-          type: 'individual', 
-          unit: 'm3', 
-          price_per_unit: 1.2, 
-          distribution_method: 'per_consumption', 
-          description: 'Šalto vandens suvartojimas', 
-          is_active: true, 
-          requires_photo: true, 
+        {
+          id: 'meter-1',
+          name: 'Vanduo (šaltas)',
+          type: 'individual',
+          unit: 'm3',
+          price_per_unit: 1.2,
+          distribution_method: 'per_consumption',
+          description: 'Šalto vandens suvartojimas',
+          is_active: true,
+          requires_photo: true,
           collectionMode: 'tenant_photo',
           landlordReadingEnabled: true,
           tenantPhotoEnabled: true
         },
-        { 
-          id: 'meter-2', 
-          name: 'Vanduo (karštas)', 
-          type: 'individual', 
-          unit: 'm3', 
-          price_per_unit: 3.5, 
-          distribution_method: 'per_consumption', 
-          description: 'Karšto vandens suvartojimas', 
-          is_active: true, 
-          requires_photo: true, 
+        {
+          id: 'meter-2',
+          name: 'Vanduo (karštas)',
+          type: 'individual',
+          unit: 'm3',
+          price_per_unit: 3.5,
+          distribution_method: 'per_consumption',
+          description: 'Karšto vandens suvartojimas',
+          is_active: true,
+          requires_photo: true,
           collectionMode: 'tenant_photo',
           landlordReadingEnabled: true,
           tenantPhotoEnabled: false
         },
-        { 
-          id: 'meter-3', 
-          name: 'Elektra (individuali)', 
-          type: 'individual', 
-          unit: 'kWh', 
-          price_per_unit: 0.15, 
-          distribution_method: 'per_consumption', 
-          description: 'Elektros suvartojimas', 
-          is_active: true, 
-          requires_photo: true, 
+        {
+          id: 'meter-3',
+          name: 'Elektra (individuali)',
+          type: 'individual',
+          unit: 'kWh',
+          price_per_unit: 0.15,
+          distribution_method: 'per_consumption',
+          description: 'Elektros suvartojimas',
+          is_active: true,
+          requires_photo: true,
           collectionMode: 'tenant_photo',
           landlordReadingEnabled: true,
           tenantPhotoEnabled: false
         },
-        { 
-          id: 'meter-4', 
-          name: 'Elektra (bendra)', 
-          type: 'communal', 
-          unit: 'kWh', 
-          price_per_unit: 0.15, 
-          distribution_method: 'per_apartment', 
-          description: 'Namo apsvietimas', 
-          is_active: true, 
-          requires_photo: false, 
+        {
+          id: 'meter-4',
+          name: 'Elektra (bendra)',
+          type: 'communal',
+          unit: 'kWh',
+          price_per_unit: 0.15,
+          distribution_method: 'per_apartment',
+          description: 'Namo apsvietimas',
+          is_active: true,
+          requires_photo: false,
           collectionMode: 'landlord_only',
           landlordReadingEnabled: false,
           tenantPhotoEnabled: false
         },
-        { 
-          id: 'meter-5', 
-          name: 'Šildymas', 
-          type: 'individual', 
-          unit: 'GJ', 
-          price_per_unit: 25.0, 
-          distribution_method: 'per_area', 
-          description: 'Namo šildymo sąnaudos', 
-          is_active: true, 
-          requires_photo: true, 
+        {
+          id: 'meter-5',
+          name: 'Šildymas',
+          type: 'individual',
+          unit: 'GJ',
+          price_per_unit: 25.0,
+          distribution_method: 'per_area',
+          description: 'Namo šildymo sąnaudos',
+          is_active: true,
+          requires_photo: true,
           collectionMode: 'tenant_photo',
           landlordReadingEnabled: true,
           tenantPhotoEnabled: true
         }
       ];
-      
+
       // Set default meters after a small delay to ensure state is cleared
       setTimeout(() => {
         setCommunalMeters(defaultMeters);
@@ -483,10 +500,18 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
     setIsSubmitting(true);
 
     try {
+      // Verify user is authenticated before proceeding
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        alert('Klaida: neesate prisijungę. Prašome prisijungti ir bandyti dar kartą.');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Patikriname pašto kodą, jei nerandamos koordinatės
       const hasCoordinates = formData.location?.coordinates?.lat && formData.location?.coordinates?.lng;
       const hasPostalCode = formData.location?.postalCode && formData.location.postalCode.length === 5;
-      
+
       if (!hasCoordinates && !hasPostalCode) {
         alert('Jei nerandamos koordinatės, privalote įvesti pašto kodą.');
         setIsSubmitting(false);
@@ -494,11 +519,24 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       }
 
       // 1. Save address
+      // Extract city from form data, or try to parse it from the full address
+      const extractCity = (fullAddress: string): string => {
+        // Try to extract city from address like "Street 123, City" or "Street 123, City, Country"
+        const parts = fullAddress.split(',').map(p => p.trim());
+        if (parts.length >= 2) {
+          // Usually city is the second part (after street) or last significant part
+          return parts[parts.length - 1] || parts[1] || 'Nenurodyta';
+        }
+        return 'Nenurodyta';
+      };
+
+      const city = formData.address.city || extractCity(formData.address.fullAddress);
+
       const addressData = {
         full_address: formData.address.fullAddress,
         street: formData.address.street,
         house_number: formData.address.houseNumber,
-        city: formData.address.city,
+        city: city,
         postal_code: formData.location.postalCode,
         coordinates_lat: formData.location.coordinates?.lat,
         coordinates_lng: formData.location.coordinates?.lng,
@@ -524,8 +562,76 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
       if (addressError) throw addressError;
 
+      // 1.5 Create address_settings with building info and contacts
+      try {
+        const addressSettingsData = {
+          address_id: address.id,
+          building_info: {
+            totalApartments: formData.buildingInfo.totalApartments,
+            totalFloors: formData.buildingInfo.totalFloors || 1,
+            yearBuilt: null,
+            buildingType: 'apartment',
+            heatingType: 'central',
+            parkingSpaces: null
+          },
+          contact_info: {
+            managerName: formData.contacts.contactPerson || '',
+            managerPhone: formData.contacts.companyPhone || '',
+            managerEmail: formData.contacts.companyEmail || '',
+            emergencyContact: '',
+            emergencyPhone: ''
+          },
+          financial_settings: {
+            defaultDeposit: 500,
+            latePaymentFee: 10,
+            gracePeriodDays: 5,
+            autoRenewalEnabled: true,
+            defaultContractDuration: 12
+          },
+          notification_settings: {
+            rentReminderDays: 3,
+            contractExpiryReminderDays: 30,
+            meterReminderDays: 5,
+            maintenanceNotifications: true
+          },
+          communal_config: {
+            enableMeterEditing: true,
+            requirePhotos: true
+          }
+        };
+
+        const { error: settingsError } = await supabase
+          .from('address_settings')
+          .insert([addressSettingsData]);
+
+        if (settingsError) {
+          console.error('⚠️ Error creating address_settings (non-fatal):', settingsError.message);
+          // Non-fatal: address is still created successfully
+        } else {
+          console.log('✅ Address settings created successfully');
+        }
+      } catch (settingsErr) {
+        console.error('⚠️ Exception creating address_settings (non-fatal):', settingsErr);
+        // Non-fatal: continue with address creation
+      }
+
       // 2. Save address meters (defaults for all apartments)
       if (communalMeters.length > 0) {
+        // Defensive guard: ensure mutual exclusion of reading toggles before saving
+        const metersWithBothEnabled = communalMeters.filter(
+          m => m.landlordReadingEnabled && m.tenantPhotoEnabled
+        );
+        if (metersWithBothEnabled.length > 0) {
+          console.warn('⚠️ Found meters with both toggles enabled, auto-fixing to tenant mode:',
+            metersWithBothEnabled.map(m => m.name));
+          // Auto-fix: prioritize tenant mode when both are enabled
+          communalMeters.forEach(m => {
+            if (m.landlordReadingEnabled && m.tenantPhotoEnabled) {
+              m.landlordReadingEnabled = false;
+            }
+          });
+        }
+
         const addressMetersData = communalMeters.map(meter => ({
           address_id: address.id,
           name: meter.name,
@@ -549,19 +655,19 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
             console.error(`Invalid meter type: ${meter.type} for meter: ${meter.name}`);
             throw new Error(`Invalid meter type: ${meter.type}. Must be 'individual' or 'communal'`);
           }
-          
+
           // Ensure unit is valid
           if (!['m3', 'kWh', 'GJ', 'Kitas'].includes(meter.unit)) {
             console.error(`Invalid meter unit: ${meter.unit} for meter: ${meter.name}`);
             throw new Error(`Invalid meter unit: ${meter.unit}. Must be 'm3', 'kWh', 'GJ', or 'Kitas'`);
           }
-          
+
           // Ensure distribution_method is valid
           if (!['per_apartment', 'per_area', 'per_consumption', 'fixed_split'].includes(meter.distribution_method)) {
             console.error(`Invalid distribution method: ${meter.distribution_method} for meter: ${meter.name}`);
             throw new Error(`Invalid distribution method: ${meter.distribution_method}. Must be 'per_apartment', 'per_area', 'per_consumption', or 'fixed_split'`);
           }
-          
+
           return meter;
         });
 
@@ -573,13 +679,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         if (metersError) {
           console.error('Error inserting meters:', metersError);
           console.error('Data that failed:', JSON.stringify(validatedData, null, 2));
-          
+
           // Check if it's an RLS policy error
           if (metersError.message?.includes('row-level security policy')) {
             console.error('❌ RLS Policy Error: The address_meters table has Row Level Security enabled but no proper INSERT policy.');
             console.error('❌ Please run the fix-address-meters-rls.sql script in Supabase SQL Editor to fix this issue.');
           }
-          
+
           throw metersError;
         }
 
@@ -615,82 +721,92 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         .select();
 
       if (apartmentsError) throw apartmentsError;
-      
+
       console.log('✅ Created apartments:', apartments);
       console.log('✅ Apartments count:', apartments?.length || 0);
 
-      // 4. Create individual meter configs for each apartment
-      if (apartments && apartments.length > 0) {
+      // 4. Create apartment meters for each apartment (efficient bulk insert)
+      if (apartments && apartments.length > 0 && communalMeters.length > 0) {
         try {
-          console.log('Creating apartment meters for', apartments.length, 'apartments');
-          
-          // Create all apartment meters at once using Promise.all
-          const meterPromises = apartments.map(async (apartment) => {
-            const { error: triggerError } = await supabase.rpc('create_apartment_meters_from_address', {
-              p_property_id: apartment.id,
-              p_address_id: address.id
-            });
-            
-            if (triggerError) {
-              throw new Error(`Failed to create meters for apartment ${apartment.apartment_number}: ${triggerError.message}`);
-            }
-            
-            return { apartmentId: apartment.id, apartmentNumber: apartment.apartment_number };
-          });
-          
-          const results = await Promise.all(meterPromises);
-          console.log(`✅ Created meters for ${results.length} apartments successfully`);
-          
-        } catch (meterError) {
-          console.error('Error in meter creation process:', meterError);
-          const errorMessage = meterError instanceof Error ? meterError.message : 'Nežinoma klaida';
-          alert('Adresas sukurtas sėkmingai, bet kilo problema kuriant skaitliukus. Skaitliukus galite pridėti vėliau.');
+          // Create all apartment meter records in memory using flatMap
+          const apartmentMetersData = apartments.flatMap(apartment =>
+            communalMeters.map(meter => ({
+              property_id: apartment.id,
+              name: meter.name,
+              type: meter.type,
+              unit: meter.unit,
+              price_per_unit: meter.price_per_unit || 0,
+              fixed_price: meter.fixed_price || 0,
+              distribution_method: meter.distribution_method || 'per_apartment',  // Required field
+              serial_number: null,
+              is_active: meter.is_active ?? true,
+              requires_photo: meter.requires_photo ?? true
+            }))
+          );
+
+          console.log(`📊 Creating ${apartmentMetersData.length} apartment meters (${apartments.length} apartments × ${communalMeters.length} meters)`);
+
+          // Single bulk insert for all apartment meters
+          const { error: apartmentMetersError } = await supabase
+            .from('apartment_meters')
+            .insert(apartmentMetersData);
+
+          if (apartmentMetersError) {
+            console.error('⚠️ Error creating apartment meters (non-fatal):');
+            console.error('  Message:', apartmentMetersError.message);
+            console.error('  Details:', apartmentMetersError.details);
+            console.error('  Hint:', apartmentMetersError.hint);
+            console.error('  Code:', apartmentMetersError.code);
+            console.error('  Full error:', JSON.stringify(apartmentMetersError, null, 2));
+            // Non-fatal: address is still created successfully
+          } else {
+            console.log('✅ Successfully created apartment meters:', apartmentMetersData.length);
+          }
+        } catch (meterCopyError: any) {
+          console.error('⚠️ Exception in apartment meter creation (non-fatal):');
+          console.error('  Message:', meterCopyError?.message);
+          console.error('  Full error:', meterCopyError);
+          // Non-fatal: continue with address creation
         }
-      } else {
-        console.log('No apartments to create meters for');
       }
 
       // 5. Add current user to address as landlord
+      // NOTE: The database trigger 'addresses_autolink_trigger' automatically creates this link
+      // So we only need to do this as a fallback if the trigger didn't work
       try {
-        console.log('Current user data:', user);
-        
         if (user?.id) {
-          console.log('Adding user to address:', {
-            userId: user.id,
-            addressId: address.id,
-            role: 'landlord'
-          });
-          
-          const { data: userAddressData, error: userAddressError } = await supabase
+          // Check if link already exists (created by trigger)
+          const { data: existingLink } = await supabase
             .from('user_addresses')
-            .insert([{
-              user_id: user.id,
-              address_id: address.id,
-              role_at_address: 'landlord',
-              role: 'landlord'
-            }])
-            .select();
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('address_id', address.id)
+            .maybeSingle();
 
-          if (userAddressError) {
-            console.error('Error adding user to address:', userAddressError);
-            
-            // Check if it's an RLS policy error
-            if (userAddressError.message?.includes('row-level security policy')) {
-              console.error('❌ RLS Policy Error: The user_addresses table has Row Level Security enabled but no proper INSERT policy.');
-              console.error('❌ Please run the fix-rls-policies.sql script in Supabase SQL Editor to fix this issue.');
-              
-              // Show user-friendly error message
-              setSuccessMessage('Klaida: trūksta duomenų bazės teisių. Administratorius turi atnaujinti duomenų bazės nustatymus.');
+          if (!existingLink) {
+            // Only insert if link doesn't exist
+            const { error: userAddressError } = await supabase
+              .from('user_addresses')
+              .insert([{
+                user_id: user.id,
+                address_id: address.id,
+                role_at_address: 'landlord',
+                role: 'landlord'
+              }]);
+
+            if (userAddressError && !userAddressError.message?.includes('duplicate')) {
+              console.error('Error adding user to address:', userAddressError);
             }
           } else {
-            console.log('✅ User added to address successfully:', userAddressData);
-            console.log('✅ User successfully added to address as landlord:', userAddressData);
+            console.log('✅ User already linked to address (by trigger)');
           }
-        } else {
-          console.error('No current user found');
         }
       } catch (userError) {
-        console.error('Error in user-address assignment:', userError);
+        // Ignore duplicate key errors - the trigger already created the link
+        const errorMsg = userError instanceof Error ? userError.message : '';
+        if (!errorMsg.includes('duplicate')) {
+          console.error('Error in user-address assignment:', userError);
+        }
       }
 
       // 6. Send notification to tenants about meter readings (if no photo required)
@@ -698,7 +814,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       if (metersWithoutPhoto.length > 0) {
         try {
           console.log(`Sending meter reading notifications to tenants for ${metersWithoutPhoto.length} meters without photo requirement...`);
-          
+
           // Send notification to each apartment
           for (const apartment of apartments || []) {
             if (apartment.tenant_name && apartment.tenant_name !== 'Laisvas') {
@@ -718,7 +834,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                   meters: metersWithoutPhoto.map(m => m.name)
                 }
               };
-              
+
               const success = await sendNotificationNew(notification);
               if (success) {
                 console.log(`✅ Notification sent to tenant ${apartment.tenant_name} for apartment ${apartment.apartment_number}`);
@@ -736,45 +852,45 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
       // Show success message with notification info
       const notificationCount = apartments?.filter(a => a.tenant_name && a.tenant_name !== 'Laisvas').length || 0;
-      const message = notificationCount > 0 && metersWithoutPhoto.length > 0 
+      const message = notificationCount > 0 && metersWithoutPhoto.length > 0
         ? `Adresas sukurtas sėkmingai! Išsiųsta ${notificationCount} pranešimų nuomininkams apie skaitliukų rodmenų pateikimą.`
         : 'Adresas sukurtas sėkmingai!';
-      
+
       setSuccessMessage(message);
       setShowSuccess(true);
-      
+
       // Refresh data after successful save
       setTimeout(() => {
         onSave(formData); // Call onSave with the full form data
-        
+
         // Force refresh of addresses and properties data
         // Note: This will be handled by the parent component's onSave callback
       }, 2000);
 
-    } catch (error) {
+    } catch (error: any) {
       // Security: Don't log sensitive error details
       if (process.env.NODE_ENV === 'development') {
         console.error('Error saving address:', error);
       }
-      
+
       // Provide generic error messages to prevent information disclosure
       let errorMessage = 'Klaida išsaugant adresą. Bandykite dar kartą.';
-      
-      if (error instanceof Error) {
-        // Security: Only show safe error messages
-        if (error.message.includes('requires_photo')) {
-          errorMessage = 'Klaida: trūksta duomenų bazės stulpelio. Praneškite administratoriui.';
-        } else if (error.message.includes('400')) {
-          errorMessage = 'Klaida: neteisingi duomenys. Patikrinkite visus laukus ir bandykite dar kartą.';
-        } else if (error.message.includes('permission')) {
-          errorMessage = 'Klaida: neturite teisių išsaugoti adreso. Prisijunkite iš naujo.';
-        } else if (error.message.includes('row-level security policy')) {
-          errorMessage = 'Klaida: trūksta duomenų bazės teisių. Administratorius turi atnaujinti duomenų bazės nustatymus.';
-        }
-        // Security: Don't expose raw error messages
+
+      // Check for Supabase error structure
+      const errorCode = error?.code || error?.status || error?.statusCode;
+      const errorMsg = error?.message || error?.error?.message || '';
+
+      if (errorCode === 403 || errorCode === 'PGRST301' || errorMsg.includes('403') || errorMsg.includes('permission denied') || errorMsg.includes('row-level security')) {
+        errorMessage = 'Klaida: neturite teisių išsaugoti adreso. Prašome:\n1. Patikrinkite, ar esate prisijungę\n2. Jei problema išlieka, atsijunkite ir prisijunkite iš naujo\n3. Jei problema tęsiasi, susisiekite su administratoriumi';
+      } else if (errorCode === 400 || errorMsg.includes('400')) {
+        errorMessage = 'Klaida: neteisingi duomenys. Patikrinkite visus laukus ir bandykite dar kartą.';
+      } else if (errorMsg.includes('requires_photo')) {
+        errorMessage = 'Klaida: trūksta duomenų bazės stulpelio. Praneškite administratoriui.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
+        errorMessage = 'Klaida: ryšio problema. Patikrinkite interneto ryšį ir bandykite dar kartą.';
       }
-      
-      alert('Klaida išsaugant adresą');
+
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -782,7 +898,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
   const handleClose = () => {
     if (isSubmitting) return;
-    
+
     // Reset form state
     reset();
     setCurrentStep(0);
@@ -795,7 +911,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
     setCommunalMeters([]);
     setShowSuccess(false);
     setSuccessMessage('');
-    
+
     onClose();
   };
 
@@ -822,7 +938,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                   <h3 className="text-lg font-semibold text-[#0B0F10]">Panašus adresas rastas</h3>
                 </div>
               </div>
-              
+
               <div className="mb-6">
                 <p className="text-sm text-neutral-600 mb-3">
                   Šis adresas jau egzistuoja sistemoje:
@@ -838,7 +954,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                   Negalite sukurti dviejų identiškų adresų. Jei reikia pridėti naują butą prie esamo adreso, naudokite &quot;Pridėti butą&quot; funkciją.
                 </p>
               </div>
-              
+
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
@@ -854,9 +970,9 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 >
                   Suprantu
                 </button>
-                </div>
               </div>
             </div>
+          </div>
         </div>
       )}
 
@@ -877,13 +993,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                   <h3 className="text-lg font-semibold text-[#0B0F10]">Sėkmingai!</h3>
                 </div>
               </div>
-              
+
               <div className="mb-6">
                 <p className="text-sm text-neutral-600">
                   {successMessage}
                 </p>
               </div>
-              
+
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -902,101 +1018,146 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       )}
 
       {/* Main Modal */}
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-[min(100vw-32px,1200px)] max-h-[90vh] flex flex-col">
-          
-          {/* Header */}
-          <div className="sticky top-0 z-20 bg-white border-b border-neutral-200">
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <BuildingOfficeIcon className="h-6 w-6 text-[#2F8481]" />
-                <h2 className="text-lg font-semibold text-[#0B0F10]">Pridėti naują adresą</h2>
-          </div>
-          <button
-                onClick={handleClose}
-                className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        {/* Modal Container with Background */}
+        <div className="relative rounded-2xl shadow-2xl w-full max-w-[min(100vw-32px,1100px)] max-h-[90vh] flex flex-col border border-white/20 overflow-hidden bg-[#F8FAFC]/90">
 
-            {/* Steps */}
-            <div className="flex gap-1 p-2">
-              {steps.map((step, i) => (
-                <button
-                  key={step}
-                  className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    i === currentStep 
-                      ? 'bg-[#2F8481] text-white' 
-                      : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200'
-                  }`}
-                  onClick={() => setCurrentStep(i)}
-                >
-                  {step}
-                </button>
-              ))}
+          {/* Background Image Layer - Dominant Presence */}
+          <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
+            {/* Base Image - Very high visibility */}
+            <img
+              src={addressBg}
+              alt=""
+              className="w-full h-full object-cover opacity-[0.85]"
+              style={{ objectPosition: '30% 70%' }}
+            />
+            {/* Minimal corner overlay for header/footer readability only */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-white/30" />
+          </div>
+
+          {/* Compact Header */}
+          <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md rounded-t-2xl border-b border-white/40 shadow-sm">
+            <div className="flex items-center justify-between px-4 py-2">
+              {/* Left: Title only */}
+              <h2 className="text-[15px] font-bold text-gray-900">Naujas adresas</h2>
+
+              {/* Center: Ultra-compact Stepper */}
+              <div className="flex items-center">
+                {steps.map((step, i) => (
+                  <React.Fragment key={step}>
+                    {i > 0 && (
+                      <div className={`w-6 h-[2px] ${i <= currentStep ? 'bg-[#2F8481]' : 'bg-gray-200'}`} />
+                    )}
+                    <button
+                      onClick={() => setCurrentStep(i)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all ${i === currentStep ? 'bg-[#2F8481]/10' : 'hover:bg-gray-50'
+                        }`}
+                      title={step}
+                    >
+                      <span className={`w-[18px] h-[18px] rounded-full text-[10px] flex items-center justify-center font-bold ${i <= currentStep ? 'bg-[#2F8481] text-white' : 'bg-gray-200 text-gray-500'
+                        }`}>
+                        {i < currentStep ? '✓' : i + 1}
+                      </span>
+                      <span className={`text-[11px] font-semibold hidden md:inline ${i === currentStep ? 'text-[#2F8481]' : 'text-gray-500'
+                        }`}>
+                        {step}
+                      </span>
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {/* Right: Close */}
+              <button
+                onClick={handleClose}
+                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-all"
+                aria-label="Uždaryti"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
             </div>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <form onSubmit={handleSubmit(handleFinalSave)} className="space-y-6">
-              
+          <div className="relative z-10 flex-1 overflow-y-auto px-5 py-4 bg-transparent">
+            <form onSubmit={handleSubmit(handleFinalSave)} className="space-y-4">
+
               {/* Step 1: Address */}
               {currentStep === 0 && (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <MapPinIcon className="h-4 w-4 text-[#2F8481]" />
-                      <h3 className="text-[15px] font-semibold text-[#0B0F10]">Adreso informacija</h3>
-                    </div>
-                    
+                  {/* Step Header */}
+                  <div className="mb-2">
+                    <h3 className="text-[16px] font-bold text-gray-900">1. Adresas</h3>
+                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                      Įveskite pilną adresą, kad galėtume nustatyti pastato vietą.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-md p-5">
                     <div className="space-y-4">
                       {/* Full Address */}
-                            <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Pilnas adresas
-                  </label>
-                   <Controller
-                     name="address.fullAddress"
-                     control={control}
-                     render={({ field }) => (
+                      <div>
+                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
+                          Pilnas adresas <span className="text-red-500">*</span>
+                        </label>
+                        <Controller
+                          name="address.fullAddress"
+                          control={control}
+                          render={({ field }) => (
                             <input
                               {...field}
                               type="text"
-                              placeholder="Mituvos g. 13, Kaunas"
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.address?.fullAddress ? 'border-rose-300' : ''
-                              }`}
-                       />
-                     )}
-                   />
-                   {errors.address?.fullAddress && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.address.fullAddress.message}</p>
-                   )}
-                 </div>
+                              placeholder="pvz., Mituvos g. 13, Kaunas"
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] transition-colors ${errors.address?.fullAddress
+                                ? 'border-red-300 bg-red-50/30'
+                                : 'border-neutral-300'
+                                }`}
+                            />
+                          )}
+                        />
+                        {errors.address?.fullAddress ? (
+                          <p className="text-red-600 text-[12px] mt-1 flex items-center gap-1">
+                            <span>⚠</span> Įveskite gatvę ir namo numerį (pvz., „Mituvos g. 13, Kaunas")
+                          </p>
+                        ) : (
+                          <p className="text-gray-400 text-[11px] mt-1">Gatvė, namo numeris, miestas</p>
+                        )}
+                      </div>
 
                       {/* Postal Code */}
-                                 <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      <div>
+                        <label className="block text-[13px] font-medium text-gray-700 mb-1">
                           Pašto kodas
-                   </label>
-                   <Controller
-                     name="location.postalCode"
-                     control={control}
-                     render={({ field }) => (
-                         <input
-                           {...field}
-                           type="text"
+                          {!watchedValues.location?.coordinates?.lat && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </label>
+                        <Controller
+                          name="location.postalCode"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="text"
                               placeholder="44269"
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.location?.postalCode ? 'border-rose-300' : ''
-                              }`}
+                              maxLength={5}
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] transition-colors ${errors.location?.postalCode
+                                ? 'border-red-300 bg-red-50/30'
+                                : 'border-neutral-300'
+                                }`}
                             />
-                     )}
-                   />
-                   {errors.location?.postalCode && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.location.postalCode.message}</p>
+                          )}
+                        />
+                        {errors.location?.postalCode ? (
+                          <p className="text-red-600 text-[12px] mt-1 flex items-center gap-1">
+                            <span>⚠</span> {errors.location.postalCode.message}
+                          </p>
+                        ) : (
+                          <p className="text-gray-400 text-[11px] mt-1">
+                            {watchedValues.location?.coordinates?.lat
+                              ? 'Neprivaloma – koordinatės rastos'
+                              : 'Privaloma, jei koordinatės nerandamos automatiškai'}
+                          </p>
                         )}
                       </div>
 
@@ -1009,8 +1170,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                               <div className="flex items-center gap-1 text-xs text-neutral-600">
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#2F8481]"></div>
                                 Tikrinama...
-                     </div>
-                   )}
+                              </div>
+                            )}
                             {isAddressVerified && (
                               <div className="flex items-center gap-1 text-xs text-green-600">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1019,8 +1180,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                                 Patvirtintas
                               </div>
                             )}
-                 </div>
-              </div>
+                          </div>
+                        </div>
 
                         {geocodingError && (
                           <p className="text-rose-600 text-xs">{geocodingError}</p>
@@ -1031,15 +1192,15 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium text-neutral-700">Žemėlapis</span>
-                    <button
-                      type="button"
+                              <button
+                                type="button"
                                 onClick={() => setShowMap(!showMap)}
                                 className="flex items-center gap-1 text-xs text-[#2F8481] hover:text-[#2a7875]"
-                    >
+                              >
                                 {showMap ? <EyeSlashIcon className="h-3 w-3" /> : <EyeIcon className="h-3 w-3" />}
                                 {showMap ? 'Suskleisti' : 'Rodyti'}
-                    </button>
-                </div>
+                              </button>
+                            </div>
 
                             {showMap && (
                               <div className="border border-neutral-200 rounded-lg overflow-hidden">
@@ -1052,12 +1213,12 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                                   marginHeight={0}
                                   marginWidth={0}
                                   title="Address Map"
-                   />
-                 </div>
-               )}
-                 </div>
-               )}
-            </div>
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1065,415 +1226,421 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
               {/* Step 2: Building Details */}
               {currentStep === 1 && (
-              <div className="space-y-4">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <BuildingOfficeIcon className="h-4 w-4 text-[#2F8481]" />
-                      <h3 className="text-[15px] font-semibold text-[#0B0F10]">Pastato informacija</h3>
-                    </div>
-                    
+                <div className="space-y-4">
+                  {/* Step Header */}
+                  <div className="mb-2">
+                    <h3 className="text-[16px] font-bold text-gray-900">2. Pastato detalės</h3>
+                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                      Nurodykite pastato tipą ir butų skaičių – tai padės sukurti tinkamą struktūrą.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-md p-5">
                     <div className="grid grid-cols-2 gap-4">
                       {/* Building Type */}
-                <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      <div>
+                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                           Pastato tipas
-                  </label>
-                  <Controller
-                    name="buildingInfo.buildingType"
-                    control={control}
-                    render={({ field }) => (
-                      <select
-                        {...field}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.buildingInfo?.buildingType ? 'border-rose-300' : ''
-                              }`}
-                      >
-                        <option value="Butų namas">Butų namas</option>
+                        </label>
+                        <Controller
+                          name="buildingInfo.buildingType"
+                          control={control}
+                          render={({ field }) => (
+                            <select
+                              {...field}
+                              className={`w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900 ${errors.buildingInfo?.buildingType ? 'border-red-300' : ''
+                                }`}
+                            >
+                              <option value="Butų namas">Butų namas</option>
                               <option value="Gyvenamasis namas">Gyvenamasis namas</option>
                               <option value="Kita">Kita</option>
-                      </select>
-                    )}
-                  />
+                            </select>
+                          )}
+                        />
                         {errors.buildingInfo?.buildingType && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.buildingInfo.buildingType.message}</p>
+                          <p className="text-red-600 text-[12px] mt-1">{errors.buildingInfo.buildingType.message}</p>
                         )}
-                </div>
+                      </div>
 
                       {/* Total Apartments */}
-                  <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      <div>
+                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                           Butų skaičius
-                    </label>
-                    <Controller
-                      name="buildingInfo.totalApartments"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="number"
-                          min="1"
+                        </label>
+                        <Controller
+                          name="buildingInfo.totalApartments"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="number"
+                              min="1"
                               value={field.value || 1}
                               onChange={(e) => {
                                 const value = parseInt(e.target.value) || 1;
                                 field.onChange(Math.max(1, value));
                               }}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.buildingInfo?.totalApartments ? 'border-rose-300' : ''
-                          }`}
+                              className={`w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900 ${errors.buildingInfo?.totalApartments ? 'border-red-300' : ''
+                                }`}
+                            />
+                          )}
                         />
-                      )}
-                    />
-                    {errors.buildingInfo?.totalApartments && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.buildingInfo.totalApartments.message}</p>
-                    )}
-                  </div>
+                        {errors.buildingInfo?.totalApartments && (
+                          <p className="text-red-600 text-[12px] mt-1">{errors.buildingInfo.totalApartments.message}</p>
+                        )}
+                      </div>
 
                       {/* Floors */}
-                <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      <div>
+                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                           Aukštų skaičius
-                  </label>
-                  <Controller
-                    name="buildingInfo.floors"
-                    control={control}
-                    render={({ field }) => (
-                      <input
-                        {...field}
-                        type="number"
-                        min="1"
+                        </label>
+                        <Controller
+                          name="buildingInfo.floors"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="number"
+                              min="1"
                               value={field.value || 1}
                               onChange={(e) => {
                                 const value = parseInt(e.target.value) || 1;
                                 field.onChange(Math.max(1, value));
                               }}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.buildingInfo?.floors ? 'border-rose-300' : ''
-                        }`}
-                      />
-                    )}
-                  />
-                  {errors.buildingInfo?.floors && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.buildingInfo.floors.message}</p>
-                  )}
-                </div>
+                              className={`w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900 ${errors.buildingInfo?.floors ? 'border-red-300' : ''
+                                }`}
+                            />
+                          )}
+                        />
+                        {errors.buildingInfo?.floors && (
+                          <p className="text-red-600 text-[12px] mt-1">{errors.buildingInfo.floors.message}</p>
+                        )}
+                      </div>
 
                       {/* Year Built */}
-                  <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                        Statybos metai
-                      </label>
-                      <Controller
-                        name="buildingInfo.yearBuilt"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            value={field.value || ''}
-                            type="number"
+                      <div>
+                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
+                          Statybos metai
+                        </label>
+                        <Controller
+                          name="buildingInfo.yearBuilt"
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              value={field.value || ''}
+                              type="number"
                               min="1900"
-                            max={new Date().getFullYear()}
+                              max={new Date().getFullYear()}
                               placeholder="2000"
-                              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
+                              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
                   </div>
-              </div>
-            </div>
                 </div>
               )}
-              
-                            {/* Step 3: Contacts */}
+
+              {/* Step 3: Contacts */}
               {currentStep === 2 && (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4">
-                    <h3 className="text-[15px] font-semibold text-[#0B0F10] mb-4">Kontaktai</h3>
-              
-              <div className="space-y-4">
+                  {/* Step Header */}
+                  <div className="mb-2">
+                    <h3 className="text-[16px] font-bold text-gray-900">3. Kontaktai</h3>
+                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                      Pasirinkite, kas administruoja pastatą. Jei nuomotojas – naudosime jūsų profilio duomenis.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-md p-5">
+                    <div className="space-y-4">
                       {/* Management Type */}
-                <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">
-                          Administravimo tipas
-                  </label>
-                  <Controller
-                    name="contacts.managementType"
-                    control={control}
-                    render={({ field }) => (
-                      <select
-                        {...field}
-                              className={`w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm ${
-                                errors.contacts?.managementType ? 'border-rose-300' : ''
-                              }`}
-                      >
-                                                 <option value="Nuomotojas">Nuomotojas</option>
-                         <option value="Bendrija">Bendrija</option>
-                         <option value="Administravimo įmonė">Administravimo įmonė</option>
-                      </select>
-                    )}
-                  />
+                      <div>
+                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
+                          Kas administruoja pastatą?
+                        </label>
+                        <Controller
+                          name="contacts.managementType"
+                          control={control}
+                          render={({ field }) => (
+                            <select
+                              {...field}
+                              className={`w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900 ${errors.contacts?.managementType ? 'border-red-300' : ''
+                                }`}
+                            >
+                              <option value="Nuomotojas">Nuomotojas</option>
+                              <option value="Bendrija">Bendrija</option>
+                              <option value="Administravimo įmonė">Administravimo įmonė</option>
+                            </select>
+                          )}
+                        />
                         {errors.contacts?.managementType && (
-                          <p className="text-rose-600 text-xs mt-1">{errors.contacts.managementType.message}</p>
+                          <p className="text-red-600 text-[12px] mt-1">{errors.contacts.managementType.message}</p>
                         )}
-                                 </div>
+                      </div>
 
                       {/* Nuomotojas Info */}
                       {watchedValues.contacts?.managementType === 'Nuomotojas' && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                          <p className="text-sm text-green-700">
-                            ✓ Nuomotojo informacija bus paimta iš jūsų profilio
-                      </p>
-                    </div>
-                  )}
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3.5">
+                          <p className="text-[13px] font-medium text-emerald-800 flex items-center gap-2">
+                            <span>✓</span> Nuomotojo informacija bus paimta iš jūsų profilio
+                          </p>
+                        </div>
+                      )}
 
                       {/* Bendrija Info */}
                       {watchedValues.contacts?.managementType === 'Bendrija' && (
-                        <div className="grid grid-cols-2 gap-3">
-                    <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                               Pirmininko vardas
-                      </label>
-                      <Controller
-                        name="contacts.chairmanName"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
+                            </label>
+                            <Controller
+                              name="contacts.chairmanName"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  {...field}
                                   value={field.value || ''}
-                            type="text"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
-                    </div>
-                    <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              Telefonas
-                      </label>
-                      <Controller
-                        name="contacts.chairmanPhone"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
+                                  type="text"
+                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                                />
+                              )}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
+                              Telefono numeris
+                            </label>
+                            <Controller
+                              name="contacts.chairmanPhone"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  {...field}
                                   value={field.value || ''}
-                            type="tel"
-                            placeholder="+370xxxxxxxx"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
-                    </div>
+                                  type="tel"
+                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                                />
+                              )}
+                            />
+                          </div>
                           <div className="col-span-2">
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                            <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                               El. paštas
-                      </label>
-                      <Controller
-                        name="contacts.chairmanEmail"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
+                            </label>
+                            <Controller
+                              name="contacts.chairmanEmail"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  {...field}
                                   value={field.value || ''}
-                            type="email"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
+                                  type="email"
+                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Administravimo įmonė Info */}
                       {watchedValues.contacts?.managementType === 'Administravimo įmonė' && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                           <div className="col-span-2">
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                            <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                               Įmonės pavadinimas
-                      </label>
-                      <Controller
-                        name="contacts.companyName"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
+                            </label>
+                            <Controller
+                              name="contacts.companyName"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  {...field}
                                   value={field.value || ''}
-                            type="text"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
-                    </div>
-                    <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                                  type="text"
+                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                                />
+                              )}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                               Kontaktinis asmuo
-                      </label>
-                      <Controller
-                        name="contacts.contactPerson"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
+                            </label>
+                            <Controller
+                              name="contacts.contactPerson"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  {...field}
                                   value={field.value || ''}
-                            type="text"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
-                    </div>
-                    <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
-                              Telefonas
-                      </label>
-                      <Controller
-                        name="contacts.companyPhone"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
+                                  type="text"
+                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                                />
+                              )}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
+                              Telefono numeris
+                            </label>
+                            <Controller
+                              name="contacts.companyPhone"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  {...field}
                                   value={field.value || ''}
-                            type="tel"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
-                    </div>
+                                  type="tel"
+                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                                />
+                              )}
+                            />
+                          </div>
                           <div className="col-span-2">
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                            <label className="block text-[13px] font-bold text-gray-700 mb-1.5">
                               El. paštas
-                      </label>
-                      <Controller
-                        name="contacts.companyEmail"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
+                            </label>
+                            <Controller
+                              name="contacts.companyEmail"
+                              control={control}
+                              render={({ field }) => (
+                                <input
+                                  {...field}
                                   value={field.value || ''}
-                            type="email"
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-sm"
-                          />
-                        )}
-                      />
+                                  type="email"
+                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900"
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
                 </div>
               )}
 
-      {/* Step 4: Communal Meters */}
-      {currentStep === 3 && (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-neutral-200 bg-white p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <BoltIcon className="h-4 w-4 text-[#2F8481]" />
-              <h3 className="text-[15px] font-semibold text-[#0B0F10]">Komunaliniai skaitliukai</h3>
+              {/* Step 4: Communal Meters */}
+              {currentStep === 3 && (
+                <div className="space-y-4 h-full flex flex-col">
+                  {/* Step Header */}
+                  <div className="mb-2 shrink-0">
+                    <h3 className="text-[16px] font-bold text-gray-900">4. Skaitliukai</h3>
+                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                      Sukonfigūruokite pastato skaitliukus. Galite redaguoti kiekvieną atskirai arba naudoti šablonus.
+                    </p>
                   </div>
-                  
-            <p className="text-sm text-neutral-600 mb-4">
-              Konfigūruokite skaitliukus, kurie bus naudojami visiems butams šiame adrese
-            </p>
 
-            <MetersTable
-              meters={communalMeters}
-              onMetersChange={setCommunalMeters}
-              onPresetApply={(meters) => setCommunalMeters(meters)}
-              onMeterDelete={(id) => {
-                setCommunalMeters(prev => prev.filter(m => m.id !== id));
-              }}
-              onMeterUpdate={(id, updates) => {
-                // Only update local state - no database operations in this context
-                setCommunalMeters(prev => prev.map(m => 
-                  m.id === id ? { ...m, ...updates } : m
-                ));
-                console.log('✅ Meter updated in local state:', id, updates);
-              }}
-            />
+                  <div className="flex-1 min-h-0">
+                    <MetersTable
+                      meters={communalMeters}
+                      onMetersChange={setCommunalMeters}
+                      onPresetApply={(meters) => setCommunalMeters(meters)}
+                      onMeterDelete={(id) => {
+                        setCommunalMeters(prev => prev.filter(m => m.id !== id));
+                      }}
+                      onMeterUpdate={(id, updates) => {
+                        setCommunalMeters(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+                      }}
+                    />
                   </div>
                 </div>
               )}
 
 
-    </form>
+            </form>
           </div>
 
-          {/* Footer */}
-          <div className="sticky bottom-0 bg-white border-t border-neutral-200 p-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
+          {/* Compact Footer */}
+          <div className="sticky bottom-0 z-20 bg-white border-t border-gray-200 px-4 py-3 flex justify-between items-center rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-1.5">
               {currentStep > 0 && (
-                       <button
-                         type="button"
-                  onClick={() => setCurrentStep(currentStep - 1)}
-                  className="flex items-center gap-2 px-4 py-2 text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
-                >
-                  <ArrowLeftIcon className="h-4 w-4" />
-                  Atgal
-                       </button>
-              )}
                 <button
                   type="button"
-                onClick={handleClose}
-                className="px-4 py-2 text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+                  onClick={() => setCurrentStep(currentStep - 1)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded-md transition-all text-[13px] font-medium"
                 >
-                  Atšaukti
+                  <ArrowLeftIcon className="h-3 w-3" />
+                  Atgal
                 </button>
-                    </div>
+              )}
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-2.5 py-1.5 text-neutral-400 hover:text-neutral-600 rounded-md transition-all text-[13px]"
+              >
+                Atšaukti
+              </button>
+            </div>
 
-            <div className="flex items-center gap-2">
+            {/* Step indicator */}
+            <div className="text-[11px] text-neutral-400 hidden sm:block">
+              {currentStep + 1} / {steps.length}
+            </div>
+
+            <div>
               {currentStep < steps.length - 1 ? (
-                    <button
+                <button
                   type="button"
                   onClick={async () => {
                     if (currentStep === 0) {
                       const fullAddress = watchedValues.address?.fullAddress;
                       if (fullAddress) {
-                        // Checking for similar addresses - logging removed for production
                         const foundSimilarAddresses = await checkForSimilarAddresses(fullAddress);
-                        // Found similar addresses - logging removed for production
                         if (foundSimilarAddresses && foundSimilarAddresses.length > 0) {
-                          // Showing duplicate modal with addresses - logging removed for production
                           setSimilarAddresses(foundSimilarAddresses);
                           setShowDuplicateModal(true);
                           return;
-                        } else {
-                          // No similar addresses found, continuing to next step - logging removed for production
                         }
                       }
                     }
-                    
-                    // Patikriname pašto kodą, jei nerandamos koordinatės
+
                     if (currentStep === 0) {
                       const hasCoordinates = watchedValues.location?.coordinates?.lat && watchedValues.location?.coordinates?.lng;
                       const hasPostalCode = watchedValues.location?.postalCode && watchedValues.location.postalCode.length === 5;
-                      
+
                       if (!hasCoordinates && !hasPostalCode) {
                         alert('Jei nerandamos koordinatės, privalote įvesti pašto kodą.');
                         return;
                       }
                     }
-                    
+
                     setCurrentStep(currentStep + 1);
                   }}
                   disabled={currentStep === 0 && !watchedValues.address.fullAddress}
-                  title={currentStep === 0 && !watchedValues.address.fullAddress ? 'Įveskite adresą, kad galėtumėte tęsti' : ''}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  className="px-4 py-1.5 bg-[#2F8481] text-white hover:bg-[#297a77] disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all text-[13px] font-medium"
                 >
-                  Toliau
-                    </button>
-                  ) : (
-                    <button
+                  {currentStep === 0 && 'Tęsti → Pastatas'}
+                  {currentStep === 1 && 'Tęsti → Kontaktai'}
+                  {currentStep === 2 && 'Tęsti → Skaitliukai'}
+                </button>
+              ) : (
+                <button
                   type="button"
                   onClick={() => handleFinalSave(watchedValues)}
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  className="px-4 py-1.5 bg-[#2F8481] text-white hover:bg-[#297a77] disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all text-[13px] font-medium inline-flex items-center gap-1.5"
                 >
-                  {isSubmitting ? 'Saugoma...' : `Išsaugoti ir sukurti ${watchedValues.buildingInfo?.totalApartments || 1} butą`}
-                    </button>
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Kuriama...
+                    </>
+                  ) : (
+                    <>Sukurti {watchedValues.buildingInfo?.totalApartments || 1} butą</>
                   )}
-                </div>
-              </div>
+                </button>
+              )}
             </div>
-      </div>
+          </div>
+        </div >
+      </div >
     </>
   );
 });

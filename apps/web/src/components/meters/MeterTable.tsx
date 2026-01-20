@@ -32,8 +32,8 @@ const convertMeterToLegacy = (meter: Meter): MeterRow => ({
   unit: meter.unit,
   rate: meter.price || meter.price_per_unit || 0,
   initialReading: 0,
-        mode: meter.mode || (meter.type === 'individual' ? 'individual' : 'communal'),
-        allocation: meter.allocation || 'per_apartment',
+  mode: meter.mode || (meter.type === 'individual' ? 'individual' : 'communal'),
+  allocation: meter.allocation || 'per_apartment',
   photoRequired: meter.photoRequired || meter.requires_photo || false,
   active: meter.active !== undefined ? meter.active : meter.is_active
 });
@@ -155,7 +155,7 @@ const MeterTable = React.memo<Props>(({ value, onChange, allowDuplicatesByKey = 
       </div>
 
       {/* Lentelė */}
-      <div className="overflow-x-auto border rounded-md">
+      <div className="overflow-x-auto border rounded-md gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
             <tr className="text-gray-600">

@@ -31,8 +31,8 @@
     "@types/jest": "^27.5.2",
     "@types/leaflet": "^1.9.20",
     "@types/node": "^16.18.126",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.5",
     "@types/react-router-dom": "^5.3.3",
     "@types/react-window": "^1.8.8",
     "chart.js": "^4.5.1",
@@ -41,9 +41,9 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^0.526.0",
     "nanoid": "^5.1.5",
-    "react": "^19.1.0",
+    "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",
-    "react-dom": "^19.1.0",
+    "react-dom": "^18.3.1",
     "react-hook-form": "^7.62.0",
     "react-intersection-observer": "^9.16.0",
     "react-leaflet": "^5.0.0",
@@ -93,7 +93,12 @@
     ],
     "rules": {
       "@typescript-eslint/no-unused-vars": "warn",
-      "react-hooks/exhaustive-deps": "warn"
+      "react-hooks/exhaustive-deps": "warn",
+      "no-console": "warn",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "no-duplicate-imports": "warn",
+      "import/first": "warn",
+      "arrow-body-style": "warn"
     }
   },
   "browserslist": {
@@ -136,7 +141,7 @@
     "npm": ">=8.0.0"
   },
   "resolutions": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

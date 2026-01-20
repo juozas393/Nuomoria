@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const EmailLogin: React.FC = () => {
   const navigate = useNavigate();
   const { sendMagicLink, sendOTP, verifyOTP } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [method, setMethod] = useState<'magic-link' | 'otp'>('magic-link');
   const [otpCode, setOtpCode] = useState('');
@@ -79,7 +79,7 @@ const EmailLogin: React.FC = () => {
       const result = await verifyOTP(email, otpCode);
       if (result.success) {
         setMessage({ type: 'success', text: 'Sėkmingai prisijungta!' });
-        setTimeout(() => navigate('/nuomotojas2'), 1000);
+        setTimeout(() => navigate('/'), 1000);
       } else {
         setMessage({ type: 'error', text: result.error || 'Neteisingas kodas' });
       }
@@ -191,14 +191,12 @@ const EmailLogin: React.FC = () => {
           </div>
 
           {message && (
-            <div className={`rounded-md p-4 ${
-              message.type === 'success' 
-                ? 'bg-green-50 border border-green-200' 
+            <div className={`rounded-md p-4 ${message.type === 'success'
+                ? 'bg-green-50 border border-green-200'
                 : 'bg-red-50 border border-red-200'
-            }`}>
-              <p className={`text-sm ${
-                message.type === 'success' ? 'text-green-800' : 'text-red-800'
               }`}>
+              <p className={`text-sm ${message.type === 'success' ? 'text-green-800' : 'text-red-800'
+                }`}>
                 {message.text}
               </p>
             </div>

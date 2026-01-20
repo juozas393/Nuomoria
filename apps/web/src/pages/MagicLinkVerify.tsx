@@ -6,14 +6,14 @@ const MagicLinkVerify: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { verifyMagicLink } = useAuth();
-  
+
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [message, setMessage] = useState<string>('');
 
   useEffect(() => {
     const handleVerification = async () => {
       const token = searchParams.get('token');
-      
+
       if (!token) {
         setStatus('error');
         setMessage('Neteisinga nuoroda. Trūksta patvirtinimo kodo.');
@@ -23,11 +23,11 @@ const MagicLinkVerify: React.FC = () => {
       try {
         console.log('🔗 Verifying magic link token:', token);
         const result = await verifyMagicLink(token);
-        
+
         if (result.success) {
           setStatus('success');
           setMessage('Sėkmingai prisijungta! Nukreipiama į pagrindinį puslapį...');
-          setTimeout(() => navigate('/nuomotojas2'), 2000);
+          setTimeout(() => navigate('/'), 2000);
         } else {
           setStatus('error');
           setMessage(result.error || 'Nepavyko patvirtinti nuorodos.');
@@ -94,7 +94,7 @@ const MagicLinkVerify: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600">
             {message}
           </p>
-          
+
           {status === 'error' && (
             <div className="mt-6">
               <button

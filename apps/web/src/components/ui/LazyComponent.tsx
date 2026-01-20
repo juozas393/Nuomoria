@@ -31,11 +31,11 @@ export const LazyComponent: React.FC<LazyComponentProps> = React.memo(({
 /**
  * Higher-order component for lazy loading with preloading
  */
-export function withLazyLoading<T extends object>(
+export function withLazyLoading<T extends object = any>(
   importFunc: () => Promise<{ default: ComponentType<T> }>,
   fallback?: React.ReactNode
 ) {
-  const LazyComponent = lazy(importFunc);
+  const LazyLoadedComponent = lazy(importFunc);
   
   return React.memo((props: T) => (
     <Suspense fallback={fallback || (
@@ -43,7 +43,7 @@ export function withLazyLoading<T extends object>(
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
       </div>
     )}>
-      <LazyComponent {...props} />
+      <LazyLoadedComponent {...(props as any)} />
     </Suspense>
   ));
 }

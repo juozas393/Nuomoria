@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
-import { 
+import {
   Cog6ToothIcon,
   BellIcon,
   UserIcon,
@@ -85,7 +85,7 @@ const Dashboard: React.FC = () => {
   const [properties, setProperties] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  
+
   // Use localStorage for background image persistence
   const [currentBackgroundImage, setCurrentBackgroundImage] = useLocalStorage<string>(
     'dashboardBackgroundImage',
@@ -113,55 +113,55 @@ const Dashboard: React.FC = () => {
         occupancyRate,
         averageRent
       },
-             recentActivity: [
-         {
-           id: '1',
-           type: 'invoice' as const,
-           title: 'Payment received',
-           description: 'Vokiečių 117 - 850€ payment successfully received',
-           property: 'Vokiečių 117',
-           time: '2 min ago',
-           status: 'success' as const
-         },
-         {
-           id: '2',
-           type: 'maintenance' as const,
-           title: 'Maintenance request',
-           description: 'Plumbing issues require attention',
-           property: 'Vokiečių 117',
-           time: '15 min ago',
-           status: 'warning' as const
-         },
-         {
-           id: '3',
-           type: 'tenant' as const,
-           title: 'New tenant',
-           description: 'Jonas Jonaitis - lease agreement signed',
-           property: 'Vokiečių 117',
-           time: '1 hour ago',
-           status: 'info' as const
-         }
-       ],
-             upcomingTasks: [
-         {
-           id: '1',
-           title: 'Property inspection',
-           type: 'inspection' as const,
-           property: 'Vokiečių 117',
-           tenant: 'Jonas Jonaitis',
-           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-           priority: 'high' as const
-         },
-         {
-           id: '2',
-           title: 'Rent collection',
-           type: 'payment' as const,
-           property: 'Vokiečių 117',
-           tenant: 'Jonas Jonaitis',
-           dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-           priority: 'medium' as const
-         }
-       ],
+      recentActivity: [
+        {
+          id: '1',
+          type: 'invoice' as const,
+          title: 'Payment received',
+          description: 'Vokiečių 117 - 850€ payment successfully received',
+          property: 'Vokiečių 117',
+          time: '2 min ago',
+          status: 'success' as const
+        },
+        {
+          id: '2',
+          type: 'maintenance' as const,
+          title: 'Maintenance request',
+          description: 'Plumbing issues require attention',
+          property: 'Vokiečių 117',
+          time: '15 min ago',
+          status: 'warning' as const
+        },
+        {
+          id: '3',
+          type: 'tenant' as const,
+          title: 'New tenant',
+          description: 'Jonas Jonaitis - lease agreement signed',
+          property: 'Vokiečių 117',
+          time: '1 hour ago',
+          status: 'info' as const
+        }
+      ],
+      upcomingTasks: [
+        {
+          id: '1',
+          title: 'Property inspection',
+          type: 'inspection' as const,
+          property: 'Vokiečių 117',
+          tenant: 'Jonas Jonaitis',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+          priority: 'high' as const
+        },
+        {
+          id: '2',
+          title: 'Rent collection',
+          type: 'payment' as const,
+          property: 'Vokiečių 117',
+          tenant: 'Jonas Jonaitis',
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+          priority: 'medium' as const
+        }
+      ],
       financialSummary: {
         monthlyRevenue: 8500,
         pendingPayments: 2500,
@@ -244,25 +244,25 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section with Background */}
-      <div 
+      {/* Hero Section with B&W Background */}
+      <div
         className="relative h-64 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${currentBackgroundImage})` }}
+        style={{ backgroundImage: `url('/images/ProfileBackground_bw.png')` }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-40" />
-                  <div className="relative h-full flex items-center justify-center">
-            <div className="text-center text-white">
-              <h1 className="text-4xl font-bold mb-4">Turto valdymo dashboard</h1>
-              <p className="text-xl">Valdykite savo nuosavybę efektyviai</p>
-            </div>
+        <div className="relative h-full flex items-center justify-center">
+          <div className="text-center text-white">
+            <h1 className="text-4xl font-bold mb-4">Turto valdymo dashboard</h1>
+            <p className="text-xl">Valdykite savo nuosavybę efektyviai</p>
           </div>
+        </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
         <div className="space-y-6">
           {/* Overview Section - Removed for deleted components */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Apžvalga</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-blue-50 rounded-lg p-4">
@@ -285,7 +285,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Quick Actions - Removed for deleted components */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Greiti veiksmai</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <button className="bg-blue-600 text-white rounded-lg p-4 hover:bg-blue-700 transition-colors">
@@ -305,7 +305,7 @@ const Dashboard: React.FC = () => {
 
           {/* Analytics and Tasks Grid - Removed for deleted components */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Finansai</h2>
               <div className="space-y-4">
                 <div className="flex justify-between">
@@ -322,8 +322,8 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-            
-            <div className="bg-white rounded-lg shadow-sm p-6">
+
+            <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Užduotys</h2>
               <div className="space-y-3">
                 {data?.upcomingTasks.slice(0, 3).map((task, index) => (

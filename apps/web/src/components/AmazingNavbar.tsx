@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { 
-  Bars3Icon, 
-  XMarkIcon, 
-  MagnifyingGlassIcon, 
-  BellIcon, 
+import {
+  Bars3Icon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
+  BellIcon,
   UserCircleIcon,
   Cog6ToothIcon,
   QuestionMarkCircleIcon,
@@ -25,40 +25,40 @@ interface AmazingNavbarProps {
 
 const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, currentPage, sidebarOpen = false }) => {
   const { user, logout } = useAuth();
-  
+
   // Debug info
   console.log('AmazingNavbar - sidebarOpen:', sidebarOpen);
-  
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  
+
   const searchRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  
+
   // Memoized handlers
   const handleLogout = useCallback(() => {
     console.log('Logout clicked');
     logout();
     setUserMenuOpen(false);
   }, [logout]);
-  
+
   const handleMenuToggle = useCallback(() => {
     console.log('Hamburger clicked!');
     onMenuToggle();
   }, [onMenuToggle]);
-  
+
   const handleSearchToggle = useCallback(() => {
     setSearchOpen(!searchOpen);
   }, [searchOpen]);
-  
+
   const handleNotificationsToggle = useCallback(() => {
     setNotificationsOpen(!notificationsOpen);
   }, [notificationsOpen]);
-  
+
   const handleUserMenuToggle = useCallback(() => {
     setUserMenuOpen(!userMenuOpen);
   }, [userMenuOpen]);
@@ -180,7 +180,7 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
                 <Bars3Icon className="h-5 w-5 sm:h-6 sm:w-6" />
               )}
             </button>
-            
+
             {/* Page info - hidden on mobile, visible on desktop */}
             <div className="hidden md:flex items-center space-x-3">
               <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
@@ -191,7 +191,7 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
                 <p className="text-sm text-gray-500">{pageInfo.subtitle}</p>
               </div>
             </div>
-            
+
             {/* Mobile page title */}
             <div className="md:hidden flex items-center space-x-2 ml-2">
               <div className="w-6 h-6 bg-primary-500 rounded flex items-center justify-center">
@@ -253,9 +253,8 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
                       return (
                         <div
                           key={notification.id}
-                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-all duration-200 ${
-                            notification.unread ? 'bg-blue-50' : ''
-                          }`}
+                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-all duration-200 ${notification.unread ? 'bg-blue-50' : ''
+                            }`}
                         >
                           <div className="flex items-start space-x-3">
                             <div className="flex-shrink-0">
@@ -293,11 +292,28 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
                 onClick={handleUserMenuToggle}
                 className="flex items-center space-x-2 p-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition-all duration-200 border-b-2 border-transparent hover:border-b-primary-500"
               >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary-500 rounded-full flex items-center justify-center">
-                  <UserCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center overflow-hidden bg-primary-500">
+                  {(user as any)?.avatar_url ? (
+                    <img
+                      src={(user as any).avatar_url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white text-xs sm:text-sm font-semibold">
+                      {user?.first_name?.[0]}{user?.last_name?.[0]}
+                    </span>
+                  )}
                 </div>
                 <span className="hidden md:block text-sm font-medium text-black">
-                  {user ? `${user.first_name} ${user.last_name}` : 'User'}
+                  {(() => {
+                    const fn = user?.first_name && user.first_name !== 'User' ? user.first_name : null;
+                    const ln = user?.last_name && user.last_name !== 'Name' ? user.last_name : null;
+                    if (fn && ln) return `${fn} ${ln}`;
+                    if (fn) return fn;
+                    if ((user as any)?.username) return (user as any).username;
+                    return user?.email || 'Vartotojas';
+                  })()}
                 </span>
                 <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400" />
               </button>
@@ -306,20 +322,45 @@ const AmazingNavbar: React.FC<AmazingNavbarProps> = React.memo(({ onMenuToggle, 
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-strong border border-gray-200 z-50">
                   <div className="p-4 border-b border-gray-200">
-                    <p className="text-sm font-medium text-black">{user ? `${user.first_name} ${user.last_name}` : 'User'}</p>
+                    <p className="text-sm font-medium text-black">
+                      {(() => {
+                        const fn = user?.first_name && user.first_name !== 'User' ? user.first_name : null;
+                        const ln = user?.last_name && user.last_name !== 'Name' ? user.last_name : null;
+                        if (fn && ln) return `${fn} ${ln}`;
+                        if (fn) return fn;
+                        if ((user as any)?.username) return (user as any).username;
+                        return user?.email || 'Vartotojas';
+                      })()}
+                    </p>
                     <p className="text-sm text-gray-500">{user?.email}</p>
                   </div>
                   <div className="p-2">
-                    <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200">
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        window.location.href = '/profilis';
+                      }}
+                      className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                    >
+                      <UserCircleIcon className="h-4 w-4" />
+                      <span>Profilis</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        window.location.href = '/nustatymai';
+                      }}
+                      className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                    >
                       <Cog6ToothIcon className="h-4 w-4" />
-                      <span>Settings</span>
+                      <span>Nustatymai</span>
                     </button>
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
                     >
                       <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                      <span>Logout</span>
+                      <span>Atsijungti</span>
                     </button>
                   </div>
                 </div>

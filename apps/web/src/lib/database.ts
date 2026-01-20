@@ -168,7 +168,7 @@ export const addressApi = {
     if (error) {
       throw error;
     }
-    
+
     return data || [];
   },
 
@@ -263,7 +263,7 @@ export const addressApi = {
     if (error) throw error;
 
     const duplicates = new Map<string, Address[]>();
-    
+
     // Group addresses by full_address
     addresses?.forEach(address => {
       const key = address.full_address.toLowerCase().trim();
@@ -376,11 +376,11 @@ export const propertyApi = {
   async ensureApartmentMeters(): Promise<void> {
     try {
       // Ensuring apartment meters exist for all properties - logging removed for production
-      
+
       // For now, skip the automatic creation to avoid errors
       // The SQL script should be run manually in Supabase SQL editor
       // Skipping automatic apartment meters creation - logging removed for production
-      
+
     } catch (error) {
       // Error in ensureApartmentMeters - logging removed for production
       // Don't throw error to prevent app from crashing
@@ -448,7 +448,7 @@ export const propertyApi = {
           .select('*')
           .in('address_id', addressIds)
           .order('created_at', { ascending: false });
-        
+
         if (basicError) {
           // Security: Don't log sensitive database errors in production
           if (process.env.NODE_ENV === 'development') {
@@ -495,7 +495,7 @@ export const propertyApi = {
         .from('properties')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (basicError) {
         // Security: Don't log sensitive database errors in production
         if (process.env.NODE_ENV === 'development') {
@@ -1016,5 +1016,413 @@ export const communalExpenseApi = {
       .eq('id', id);
 
     if (error) throw error;
+  }
+};
+
+// Tenant Invitation Types
+export interface TenantInvitation {
+  id: string;
+  property_id: string;
+  email: string;
+  full_name?: string;
+  phone?: string;
+  contract_start?: string;
+  contract_end?: string;
+  rent?: number;
+  deposit?: number;
+  status: 'pending' | 'accepted' | 'declined';
+  token: string;
+  invited_by?: string;
+  invited_by_email?: string;
+  property_label?: string;
+  created_at: string;
+  responded_at?: string;
+}
+
+// Tenant Invitation API
+export const tenantInvitationApi = {
+  // Create a new invitation (landlord)
+  async create(invitation: {
+    property_id: string;
+    email: string;
+    full_name?: string;
+    phone?: string;
+    contract_start?: string;
+    contract_end?: string;
+    rent?: number;
+    deposit?: number;
+    property_label?: string;
+  }): Promise<TenantInvitation> {
+    // Get current user info for invited_by fields
+    const { data: userData } = await supabase.auth.getUser();
+
+    const { data, error } = await supabase
+      .from('tenant_invitations')
+      .insert([{
+        ...invitation,
+        invited_by: userData?.user?.id,
+        invited_by_email: userData?.user?.email,
+        status: 'pending'
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Get invitations for a specific property (landlord view)
+  async getByPropertyId(propertyId: string): Promise<TenantInvitation[]> {
+    const { data, error } = await supabase
+      .from('tenant_invitations')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get pending invitations for current user (tenant view)
+  async getMyPendingInvitations(): Promise<TenantInvitation[]> {
+    const { data: userData } = await supabase.auth.getUser();
+    const userEmail = userData?.user?.email;
+
+    if (!userEmail) return [];
+
+    const { data, error } = await supabase
+      .from('tenant_invitations')
+      .select('*')
+      .eq('status', 'pending')
+      .ilike('email', userEmail)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Accept invitation (tenant)
+  async accept(invitationId: string): Promise<TenantInvitation> {
+    const { data, error } = await supabase
+      .from('tenant_invitations')
+      .update({
+        status: 'accepted',
+        responded_at: new Date().toISOString()
+      })
+      .eq('id', invitationId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // After accepting, update the property status to 'occupied'
+    if (data) {
+      await supabase
+        .from('properties')
+        .update({
+          status: 'occupied',
+          tenant_name: data.full_name || data.email,
+          email: data.email,
+          phone: data.phone,
+          contract_start: data.contract_start,
+          contract_end: data.contract_end,
+          rent: data.rent,
+          deposit_amount: data.deposit
+        })
+        .eq('id', data.property_id);
+    }
+
+    return data;
+  },
+
+  // Decline invitation (tenant)
+  async decline(invitationId: string): Promise<TenantInvitation> {
+    const { data, error } = await supabase
+      .from('tenant_invitations')
+      .update({
+        status: 'declined',
+        responded_at: new Date().toISOString()
+      })
+      .eq('id', invitationId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Cancel/delete invitation (landlord)
+  async cancel(invitationId: string): Promise<void> {
+    const { error } = await supabase
+      .from('tenant_invitations')
+      .delete()
+      .eq('id', invitationId);
+
+    if (error) throw error;
+  },
+
+  // Join by code (tenant) - find invitation by token prefix and accept it
+  async joinByCode(code: string): Promise<TenantInvitation> {
+    // Clean and normalize the code (remove dashes, lowercase)
+    const cleanCode = code.replace(/-/g, '').toLowerCase();
+
+    if (cleanCode.length < 8) {
+      throw new Error('Neteisingas kvietimo kodas');
+    }
+
+    // Get current user info
+    const { data: userData } = await supabase.auth.getUser();
+    const userEmail = userData?.user?.email;
+    const userName = userData?.user?.user_metadata?.full_name ||
+      userData?.user?.user_metadata?.name ||
+      userEmail?.split('@')[0];
+
+    if (!userEmail) {
+      throw new Error('Turite būti prisijungęs');
+    }
+
+    // Search for invitation where token starts with the code
+    const { data: invitations, error: searchError } = await supabase
+      .from('tenant_invitations')
+      .select('*')
+      .eq('status', 'pending')
+      .ilike('token', `${cleanCode}%`);
+
+    if (searchError) throw searchError;
+
+    if (!invitations || invitations.length === 0) {
+      throw new Error('Kvietimas nerastas arba jau panaudotas');
+    }
+
+    // Use the first matching invitation
+    const invitation = invitations[0];
+
+    // Accept the invitation and update with tenant's real email
+    const { data, error } = await supabase
+      .from('tenant_invitations')
+      .update({
+        status: 'accepted',
+        email: userEmail, // Update with actual tenant email
+        full_name: userName,
+        responded_at: new Date().toISOString()
+      })
+      .eq('id', invitation.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update property status to occupied with tenant info
+    if (data) {
+      await supabase
+        .from('properties')
+        .update({
+          status: 'occupied',
+          tenant_name: userName || userEmail,
+          email: userEmail,
+          phone: data.phone,
+          contract_start: data.contract_start,
+          contract_end: data.contract_end,
+          rent: data.rent,
+          deposit_amount: data.deposit
+        })
+        .eq('id', data.property_id);
+    }
+
+    return data;
+  }
+};
+
+// Message Types
+export interface Conversation {
+  id: string;
+  property_id?: string;
+  participant_1: string;
+  participant_2: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  other_user?: {
+    id: string;
+    email?: string;
+    full_name?: string;
+    avatar_url?: string;
+  };
+  last_message?: Message;
+  unread_count?: number;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  message_type: 'text' | 'invitation_code' | 'system';
+  metadata?: {
+    invitation_id?: string;
+    property_label?: string;
+    code?: string;
+  };
+  is_read: boolean;
+  created_at: string;
+}
+
+// Messages API
+export const messagesApi = {
+  // Get or create conversation between two users
+  async getOrCreateConversation(otherUserId: string, propertyId?: string): Promise<Conversation> {
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData?.user?.id;
+
+    if (!currentUserId) throw new Error('Turite būti prisijungęs');
+
+    // Try to find existing conversation (check both orderings)
+    const { data: existing } = await supabase
+      .from('conversations')
+      .select('*')
+      .or(`and(participant_1.eq.${currentUserId},participant_2.eq.${otherUserId}),and(participant_1.eq.${otherUserId},participant_2.eq.${currentUserId})`)
+      .single();
+
+    if (existing) return existing;
+
+    // Create new conversation
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({
+        participant_1: currentUserId,
+        participant_2: otherUserId,
+        property_id: propertyId
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Get all conversations for current user
+  async getMyConversations(): Promise<Conversation[]> {
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData?.user?.id;
+
+    if (!currentUserId) return [];
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .or(`participant_1.eq.${currentUserId},participant_2.eq.${currentUserId}`)
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get messages for a conversation
+  async getMessages(conversationId: string, limit = 50): Promise<Message[]> {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Send a message
+  async sendMessage(conversationId: string, content: string, messageType: 'text' | 'invitation_code' | 'system' = 'text', metadata?: any): Promise<Message> {
+    const { data: userData } = await supabase.auth.getUser();
+    const senderId = userData?.user?.id;
+
+    if (!senderId) throw new Error('Turite būti prisijungęs');
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content,
+        message_type: messageType,
+        metadata
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Send invitation code as message
+  async sendInvitationCode(conversationId: string, invitationId: string, code: string, propertyLabel: string): Promise<Message> {
+    return this.sendMessage(
+      conversationId,
+      `Kvietimo kodas: ${code}`,
+      'invitation_code',
+      { invitation_id: invitationId, code, property_label: propertyLabel }
+    );
+  },
+
+  // Mark messages as read
+  async markAsRead(conversationId: string): Promise<void> {
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData?.user?.id;
+
+    if (!currentUserId) return;
+
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', currentUserId)
+      .eq('is_read', false);
+  },
+
+  // Get unread count
+  async getUnreadCount(): Promise<number> {
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData?.user?.id;
+
+    if (!currentUserId) return 0;
+
+    // Get conversations where user is participant
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`participant_1.eq.${currentUserId},participant_2.eq.${currentUserId}`);
+
+    if (!conversations?.length) return 0;
+
+    const conversationIds = conversations.map(c => c.id);
+
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .in('conversation_id', conversationIds)
+      .neq('sender_id', currentUserId)
+      .eq('is_read', false);
+
+    if (error) return 0;
+    return count || 0;
+  },
+
+  // Subscribe to new messages (realtime)
+  subscribeToMessages(conversationId: string, callback: (message: Message) => void) {
+    return supabase
+      .channel(`messages:${conversationId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+      }, (payload) => {
+        callback(payload.new as Message);
+      })
+      .subscribe();
+  },
+
+  // Unsubscribe
+  unsubscribe(channel: any) {
+    supabase.removeChannel(channel);
   }
 };

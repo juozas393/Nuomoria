@@ -20,9 +20,9 @@ export function VirtualizedList<T>({
 }: VirtualizedListProps<T>) {
   const itemData = useMemo(() => items, [items]);
 
-  const Item = ({ index, style, data }: { index: number; style: React.CSSProperties; data: T[] }) => {
+  const Item = ({ index, style, data }: { index: number; style: React.CSSProperties; data: T[] }): React.ReactElement => {
     const item = data[index];
-    return renderItem({ index, style, item });
+    return renderItem({ index, style, item }) as React.ReactElement;
   };
 
   if (items.length === 0) {
