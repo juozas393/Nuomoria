@@ -112,7 +112,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
             if (mode === 'email') {
                 const inviteCode = formatInviteCode(invitation.token);
 
-                const landlordName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Nuomotojas';
+                const landlordName = (user as any)?.user_metadata?.full_name || (user as any)?.user_metadata?.name || user?.first_name || 'Nuomotojas';
 
                 const { data: emailData, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
                     body: {
