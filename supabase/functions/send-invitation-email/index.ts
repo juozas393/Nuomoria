@@ -115,11 +115,15 @@ serve(async (req: Request) => {
                   Jūsų kvietimo kodas
                 </p>
                 
-                <div style="background-color: #1e293b; border-radius: 10px; padding: 18px 20px; display: inline-block;">
-                  <p style="margin: 0; font-family: 'SF Mono', 'Fira Code', Consolas, monospace; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: 3px;">
+                <div style="background-color: #1e293b; border-radius: 10px; padding: 18px 20px; display: inline-block; cursor: pointer;">
+                  <p style="margin: 0; font-family: 'SF Mono', 'Fira Code', Consolas, monospace; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: 3px; -webkit-user-select: all; user-select: all;">
                     ${formattedCode}
                   </p>
                 </div>
+                
+                <p class="text-muted" style="margin: 8px 0 0; color: #9ca3af; font-size: 10px;">
+                  Paspauskite kodą, kad pažymėtumėte
+                </p>
               </div>
               
               <!-- CTA Button -->
