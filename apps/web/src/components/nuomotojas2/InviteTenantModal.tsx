@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import {
     XMarkIcon,
     UserPlusIcon,
@@ -33,6 +34,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
     defaultDeposit = 0,
     onSuccess
 }) => {
+    const { user } = useAuth();
     const [mode, setMode] = useState<InviteMode>('code'); // Default to code mode - simpler
     const [email, setEmail] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,11 +112,14 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
             if (mode === 'email') {
                 const inviteCode = formatInviteCode(invitation.token);
 
+                const landlordName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'Nuomotojas';
+
                 const { data: emailData, error: emailError } = await supabase.functions.invoke('send-invitation-email', {
                     body: {
                         to: invitationEmail,
                         inviteCode: inviteCode,
                         propertyLabel: propertyLabel,
+                        landlordName: landlordName,
                     }
                 });
 
