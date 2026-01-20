@@ -41,6 +41,19 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [createdInvitation, setCreatedInvitation] = useState<TenantInvitation | null>(null);
     const [copied, setCopied] = useState(false);
+    const [lastEmailSentAt, setLastEmailSentAt] = useState<number | null>(null);
+    const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+    // Rate limiting: 60 seconds between emails
+    const COOLDOWN_DURATION = 60;
+
+    // Update cooldown timer
+    React.useEffect(() => {
+        if (cooldownSeconds > 0) {
+            const timer = setTimeout(() => setCooldownSeconds(prev => prev - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [cooldownSeconds]);
 
     // Format token for display (shorter, user-friendly format)
     const formatInviteCode = (token: string) => {
@@ -100,6 +113,32 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                 ? email.trim().toLowerCase()
                 : `pending_${Date.now()}@placeholder.local`;
 
+            // Check for rate limiting in email mode
+            if (mode === 'email') {
+                // Check if user is on cooldown
+                if (lastEmailSentAt) {
+                    const secondsSinceLastEmail = Math.floor((Date.now() - lastEmailSentAt) / 1000);
+                    if (secondsSinceLastEmail < COOLDOWN_DURATION) {
+                        const remaining = COOLDOWN_DURATION - secondsSinceLastEmail;
+                        setError(`Palaukite ${remaining} sek. prieš siunčiant kitą laišką`);
+                        setCooldownSeconds(remaining);
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
+
+                // Check if there's already a pending invitation for this email
+                const existingInvitations = await tenantInvitationApi.getByPropertyId(propertyId);
+                const pendingForEmail = existingInvitations.find(
+                    inv => inv.email.toLowerCase() === invitationEmail.toLowerCase() && inv.status === 'pending'
+                );
+                if (pendingForEmail) {
+                    setError('Šiam el. paštui jau išsiųstas kvietimas. Palaukite kol bus priimtas arba atmestas.');
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             const invitation = await tenantInvitationApi.create({
                 property_id: propertyId,
                 email: invitationEmail,
@@ -129,6 +168,10 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                     console.error('Failed to send invitation email:', emailError);
                     // Don't fail the whole flow - invitation was created, just email failed
                     // User can still share the code manually
+                } else {
+                    // Email sent successfully - set cooldown
+                    setLastEmailSentAt(Date.now());
+                    setCooldownSeconds(COOLDOWN_DURATION);
                 }
             }
 
