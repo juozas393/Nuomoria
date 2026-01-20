@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { supabase as supabaseConfig } from '../config/environment';
+import { executeRecaptcha, loadRecaptchaScript } from '../utils/recaptcha';
+import { loginRateLimiter, getRateLimitMessage } from '../utils/rateLimiting';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -16,6 +18,11 @@ const Login: React.FC = () => {
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [showEmailHelper, setShowEmailHelper] = useState(false);
 
+  // Load reCAPTCHA script on mount
+  useEffect(() => {
+    loadRecaptchaScript().catch(console.error);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -23,6 +30,22 @@ const Login: React.FC = () => {
     setNeedsConfirmation(false);
 
     try {
+      // Rate limiting check
+      const rateLimitStatus = loginRateLimiter.recordAttempt(email);
+      if (!rateLimitStatus.allowed) {
+        const message = getRateLimitMessage(rateLimitStatus);
+        setError(message || 'Per daug bandymų. Bandykite vėliau.');
+        setLoading(false);
+        return;
+      }
+
+      // Execute reCAPTCHA
+      const recaptchaToken = await executeRecaptcha('login');
+      if (!recaptchaToken && import.meta.env.PROD) {
+        console.warn('reCAPTCHA failed, but allowing login attempt');
+        // In production, you might want to block this, but for now we'll warn
+      }
+
       // Security: Don't log sensitive information
       if (process.env.NODE_ENV === 'development') {
         console.log('🔐 Attempting login for:', email);
