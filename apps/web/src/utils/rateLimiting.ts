@@ -67,7 +67,7 @@ class RateLimiter {
 
   isAllowed(identifier: string): { allowed: boolean; remainingAttempts: number; resetTime?: number } {
     this.cleanup();
-    
+
     const now = Date.now();
     const entry = this.storage.get(identifier);
 
@@ -78,8 +78,8 @@ class RateLimiter {
 
     // Check if currently blocked
     if (entry.blockedUntil && now < entry.blockedUntil) {
-      return { 
-        allowed: false, 
+      return {
+        allowed: false,
         remainingAttempts: 0,
         resetTime: entry.blockedUntil
       };
@@ -94,15 +94,15 @@ class RateLimiter {
 
     // Check if within limit
     const remainingAttempts = Math.max(0, this.config.maxAttempts - entry.attempts);
-    return { 
-      allowed: entry.attempts < this.config.maxAttempts, 
-      remainingAttempts 
+    return {
+      allowed: entry.attempts < this.config.maxAttempts,
+      remainingAttempts
     };
   }
 
   recordAttempt(identifier: string): { allowed: boolean; remainingAttempts: number; blockedUntil?: number } {
     this.cleanup();
-    
+
     const now = Date.now();
     const entry = this.storage.get(identifier);
 
@@ -119,8 +119,8 @@ class RateLimiter {
 
     // Check if currently blocked
     if (entry.blockedUntil && now < entry.blockedUntil) {
-      return { 
-        allowed: false, 
+      return {
+        allowed: false,
         remainingAttempts: 0,
         blockedUntil: entry.blockedUntil
       };
@@ -140,22 +140,22 @@ class RateLimiter {
 
     // Increment attempts
     entry.attempts++;
-    
+
     // Check if limit exceeded
     if (entry.attempts >= this.config.maxAttempts) {
       entry.blockedUntil = now + this.config.blockDurationMs;
       this.saveToStorage();
-      return { 
-        allowed: false, 
+      return {
+        allowed: false,
         remainingAttempts: 0,
         blockedUntil: entry.blockedUntil
       };
     }
 
     this.saveToStorage();
-    return { 
-      allowed: true, 
-      remainingAttempts: this.config.maxAttempts - entry.attempts 
+    return {
+      allowed: true,
+      remainingAttempts: this.config.maxAttempts - entry.attempts
     };
   }
 
@@ -187,6 +187,34 @@ export const otpVerificationRateLimiter = new RateLimiter({
   windowMs: 10 * 60 * 1000, // 10 minutes
   maxAttempts: 3, // 3 verification attempts per 10 minutes
   blockDurationMs: 30 * 60 * 1000 // Block for 30 minutes
+});
+
+// Login rate limiter - protection against brute force
+export const loginRateLimiter = new RateLimiter({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  maxAttempts: 5, // 5 login attempts per 5 minutes
+  blockDurationMs: 15 * 60 * 1000 // Block for 15 minutes after 5 failed attempts
+});
+
+// Registration rate limiter - protection against spam accounts
+export const registrationRateLimiter = new RateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxAttempts: 3, // 3 registrations per hour per IP/session
+  blockDurationMs: 24 * 60 * 60 * 1000 // Block for 24 hours
+});
+
+// Email sending rate limiter - protection against spam
+export const emailSendRateLimiter = new RateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxAttempts: 2, // 2 emails per minute
+  blockDurationMs: 5 * 60 * 1000 // Block for 5 minutes
+});
+
+// API request rate limiter - general protection
+export const apiRateLimiter = new RateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxAttempts: 100, // 100 requests per minute
+  blockDurationMs: 5 * 60 * 1000 // Block for 5 minutes
 });
 
 // Utility functions
