@@ -22,7 +22,8 @@
     "vite"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --mode development",
+    "dev:docker": "vite --mode docker",
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
