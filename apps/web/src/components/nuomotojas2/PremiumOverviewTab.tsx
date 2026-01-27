@@ -1,21 +1,46 @@
-import React, { useState } from 'react';
+import React, { memo, ReactNode } from 'react';
 import {
-    User, Home, Phone, Calendar, Euro, FileText, Droplets, Clock,
-    Camera, MapPin, Building2, Layers, Ruler, Edit3, Plus, ChevronLeft, ChevronRight,
-    Zap, Thermometer, Wifi, CheckCircle2, Circle, ArrowRight, Settings, MessageSquare, AlertCircle, X
+    Home, User, Euro, FileText, Droplets, Plus, Settings,
+    Upload, Camera, ChevronRight, Phone, Calendar, CheckCircle2,
+    Circle, Clock, MoreHorizontal, ArrowRight
 } from 'lucide-react';
 
-// Types
+// =============================================================================
+// SURFACE HIERARCHY (Premium Design System)
+// =============================================================================
+
+// Surface 1: Standard cards
+const surface1 = 'bg-white/78 backdrop-blur-[10px] border border-white/60 shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl';
+
+// Surface 2: Hero/Primary cards (stronger presence)
+const surface2 = 'bg-white/92 backdrop-blur-[14px] border border-white/80 shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] rounded-xl';
+
+// Sticky bar
+const stickyBg = 'bg-gray-900/90 backdrop-blur-xl rounded-xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]';
+
+// =============================================================================
+// TYPOGRAPHY TOKENS
+// =============================================================================
+
+const heading = 'text-[12px] font-bold text-gray-900';
+const subtext = 'text-[10px] text-gray-500';
+const tiny = 'text-[9px] text-gray-400';
+const cta = 'text-[10px] font-bold text-teal-600 hover:text-teal-700 cursor-pointer transition-colors';
+const ctaBtn = 'px-2.5 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-all active:scale-[0.98]';
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
 interface Tenant {
     name: string;
-    email?: string;
     phone?: string;
-    status?: 'vacant' | 'expired' | 'pending' | 'moving_out' | 'active';
-    contractStart?: string;
     contractEnd?: string;
     monthlyRent?: number;
     deposit?: number;
-    photos?: string[];
+    paymentDay?: number;
+    overdue?: number;
+    status?: string;
 }
 
 interface PropertyInfo {
@@ -25,983 +50,612 @@ interface PropertyInfo {
     area?: number;
     floor?: number;
     type?: string;
-    status?: string;
 }
-
-interface AddressInfo {
-    buildingType?: string;
-    totalApartments?: number;
-    floors?: number;
-    yearBuilt?: number;
-    managementType?: string;
-    chairmanName?: string;
-    chairmanPhone?: string;
-}
-
-interface MoveOut {
-    notice?: string;
-    planned?: string;
-    status?: string;
-}
-
-// Occupancy state
-type OccupancyState = 'VACANT' | 'RESERVED' | 'OCCUPIED' | 'NOTICE_GIVEN' | 'MOVED_OUT_PENDING';
-
-const hasMeaningfulValue = (value: any): boolean => {
-    if (value === null || value === undefined) return false;
-    if (typeof value === 'number' && value === 0) return false;
-    if (typeof value === 'string' && (!value || value.toLowerCase() === 'none')) return false;
-    return true;
-};
-
-const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '—';
-
-const translatePropertyType = (type?: string): string => {
-    const dict: Record<string, string> = {
-        'apartment': 'Butas', 'house': 'Namas', 'studio': 'Studija',
-        'room': 'Kambarys', 'commercial': 'Komercinis', 'flat': 'Butas', 'office': 'Biuras'
-    };
-    return dict[type?.toLowerCase() || ''] || type || 'Butas';
-};
-
-const getOccupancyState = (tenant: any, moveOut: any): OccupancyState => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (!tenant?.name || tenant.name === 'Laisvas' || tenant.status === 'vacant') {
-        return 'VACANT';
-    }
-
-    const leaseStart = tenant.contractStart ? new Date(tenant.contractStart) : null;
-    const leaseEnd = tenant.contractEnd ? new Date(tenant.contractEnd) : null;
-    const moveOutDate = moveOut?.planned ? new Date(moveOut.planned) : null;
-
-    if (leaseStart && leaseStart > today) return 'RESERVED';
-    if (moveOutDate && moveOutDate < today && hasMeaningfulValue(moveOut?.status)) return 'MOVED_OUT_PENDING';
-    if (moveOutDate && moveOutDate >= today) return 'NOTICE_GIVEN';
-    if (leaseEnd && leaseEnd < today) return 'MOVED_OUT_PENDING';
-
-    return 'OCCUPIED';
-};
-
-const getOccupancyLabel = (state: OccupancyState): string => {
-    const labels: Record<OccupancyState, string> = {
-        'VACANT': 'Laisvas', 'RESERVED': 'Rezervuotas', 'OCCUPIED': 'Gyvenamas',
-        'NOTICE_GIVEN': 'Išsikraustymas', 'MOVED_OUT_PENDING': 'Laukia uždarymo'
-    };
-    return labels[state];
-};
-
-const getOccupancyColor = (state: OccupancyState): string => {
-    const colors: Record<OccupancyState, string> = {
-        'VACANT': 'bg-neutral-100 text-neutral-700 border-neutral-200',
-        'RESERVED': 'bg-blue-50 text-blue-700 border-blue-200',
-        'OCCUPIED': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        'NOTICE_GIVEN': 'bg-amber-50 text-amber-700 border-amber-200',
-        'MOVED_OUT_PENDING': 'bg-rose-50 text-rose-700 border-rose-200'
-    };
-    return colors[state];
-};
 
 interface PremiumOverviewProps {
     tenant: Tenant;
     property: PropertyInfo;
-    moveOut: MoveOut;
-    addressInfo?: AddressInfo;
+    photos?: string[];
     meters?: any[];
+    documents?: any[];
+    activities?: { text: string; time: string }[];
     onAddTenant?: () => void;
-    onCreateLease?: () => void;
-    onAddPayment?: () => void;
-    onEditProperty?: () => void;
+    onViewTenant?: () => void;
+    onSetPrice?: () => void;
     onUploadPhoto?: () => void;
+    onManagePhotos?: () => void;
+    onLayoutPhotos?: () => void;
     onNavigateTab?: (tab: string) => void;
-    onShowNotes?: () => void;
-    onReorderPhotos?: (photos: string[]) => void;
-    onDeletePhoto?: (index: number) => void;
+    onOpenSettings?: () => void;
+    onUploadDocument?: () => void;
+    onManageMeters?: () => void;
 }
+
+// =============================================================================
+// A) COMMAND HEADER
+// =============================================================================
+
+interface CommandHeaderProps {
+    property: PropertyInfo;
+    isVacant: boolean;
+    nextAction: { label: string; short: string; onClick?: () => void };
+    onDocs?: () => void;
+    onSettings?: () => void;
+}
+
+const CommandHeader = memo<CommandHeaderProps>(({
+    property, isVacant, nextAction, onDocs, onSettings
+}) => (
+    <div className={`${surface1} px-3 py-2 mb-2`}>
+        <div className="flex items-center justify-between">
+            {/* Left: Address + chips */}
+            <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <Home className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                    <p className={heading}>{property.address || 'Adresas'}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                        {[property.type === 'house' ? 'Namas' : 'Butas', `${property.rooms || 1} kamb.`, property.area ? `${property.area} m²` : null]
+                            .filter(Boolean)
+                            .map((chip, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-gray-100/80 text-[8px] font-medium text-gray-600 rounded">
+                                    {chip}
+                                </span>
+                            ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Center: Status + Next action */}
+            <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg ${isVacant ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                    }`}>
+                    {isVacant ? 'Laisvas' : 'Išnuomotas'}
+                </span>
+                <button
+                    onClick={nextAction.onClick}
+                    className="px-2.5 py-1 bg-amber-100 text-amber-800 text-[10px] font-semibold rounded-lg flex items-center gap-1.5 hover:bg-amber-200 transition-colors"
+                >
+                    <ArrowRight className="w-3 h-3" />
+                    {nextAction.short}
+                </button>
+            </div>
+
+            {/* Right: Primary CTA + secondary */}
+            <div className="flex items-center gap-2">
+                <button onClick={nextAction.onClick} className={ctaBtn}>
+                    {nextAction.label}
+                </button>
+                <div className="h-5 w-px bg-gray-200" />
+                <button onClick={onDocs} className="flex items-center gap-1 px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span className="text-[9px] font-medium">Dok.</span>
+                </button>
+                <button onClick={onSettings} className="flex items-center gap-1 px-2 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <Settings className="w-3.5 h-3.5" />
+                    <span className="text-[9px] font-medium">Nust.</span>
+                </button>
+            </div>
+        </div>
+    </div>
+));
+CommandHeader.displayName = 'CommandHeader';
+
+// =============================================================================
+// B1) NEXT STEPS HERO CARD (Surface 2)
+// =============================================================================
+
+interface Task { label: string; done: boolean; cta: string; onClick?: () => void; }
+
+interface NextStepsHeroProps {
+    tasks: Task[];
+    onViewAll?: () => void;
+}
+
+const NextStepsHero = memo<NextStepsHeroProps>(({ tasks, onViewAll }) => {
+    const remaining = tasks.filter(t => !t.done);
+    const progress = Math.round(((tasks.length - remaining.length) / tasks.length) * 100);
+    const topTasks = remaining.slice(0, 3);
+    const isComplete = remaining.length === 0;
+
+    if (isComplete) {
+        return (
+            <div className={`${surface2} p-3 flex items-center gap-2.5`}>
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                <span className="text-[12px] font-bold text-emerald-700">Būstas paruoštas nuomai</span>
+                <span className={`${tiny} ml-auto`}>100%</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className={surface2}>
+            {/* Header with progress */}
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-teal-100 rounded-lg flex items-center justify-center">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                    </div>
+                    <span className={heading}>Kiti žingsniai</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-gradient-to-r from-teal-400 to-teal-600 rounded-full transition-all duration-500"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                    <span className="text-[10px] font-bold text-teal-600">{progress}%</span>
+                </div>
+            </div>
+
+            {/* Tasks */}
+            <div className="p-2.5 space-y-1">
+                {topTasks.map((task, i) => (
+                    <div key={i} className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50/80 transition-colors group">
+                        <div className="flex items-center gap-2.5">
+                            <Circle className="w-4 h-4 text-gray-300 group-hover:text-teal-400 transition-colors" />
+                            <span className="text-[11px] text-gray-700 font-medium">{task.label}</span>
+                        </div>
+                        <button
+                            onClick={task.onClick}
+                            className="px-2.5 py-1 bg-teal-500 text-white text-[9px] font-bold rounded-md hover:bg-teal-600 transition-all opacity-80 group-hover:opacity-100"
+                        >
+                            {task.cta}
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            {remaining.length > 3 && (
+                <div className="px-3 pb-2.5">
+                    <button onClick={onViewAll} className={`${cta} w-full text-center py-1.5 border-t border-gray-100 pt-2`}>
+                        Žiūrėti visus ({remaining.length - 3} daugiau) →
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+});
+NextStepsHero.displayName = 'NextStepsHero';
+
+// =============================================================================
+// B2) MONEY SNAPSHOT (Compact rows)
+// =============================================================================
+
+interface MoneySnapshotProps {
+    rent: number | null;
+    deposit: number | null;
+    paymentDay: number | null;
+    overdue: number;
+    isVacant: boolean;
+    onSetPrice?: () => void;
+    onAddDeposit?: () => void;
+}
+
+const MoneySnapshot = memo<MoneySnapshotProps>(({
+    rent, deposit, paymentDay, overdue, isVacant, onSetPrice, onAddDeposit
+}) => (
+    <div className={surface1}>
+        <div className="px-3 py-2 border-b border-gray-100">
+            <span className={heading}>Finansai</span>
+        </div>
+        <div className="p-2.5 space-y-2">
+            {/* Rent row */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Euro className="w-4 h-4 text-gray-400" />
+                    <span className={subtext}>Nuoma/mėn</span>
+                </div>
+                {rent ? (
+                    <span className="text-[13px] font-bold text-gray-900">€{rent}</span>
+                ) : (
+                    <button onClick={onSetPrice} className={cta}>Nustatyti →</button>
+                )}
+            </div>
+
+            {/* Deposit row */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Euro className="w-4 h-4 text-gray-400" />
+                    <span className={subtext}>Užstatas</span>
+                </div>
+                {deposit ? (
+                    <span className="text-[13px] font-bold text-gray-900">€{deposit}</span>
+                ) : (
+                    <button onClick={onAddDeposit} className={cta}>Pridėti →</button>
+                )}
+            </div>
+
+            {/* Payment day + Overdue */}
+            <div className="flex items-center gap-4 pt-1 border-t border-gray-100">
+                <div className="flex items-center justify-between flex-1">
+                    <span className={tiny}>Mokėjimo d.</span>
+                    <span className="text-[11px] font-semibold text-gray-700">
+                        {!isVacant && paymentDay ? `${paymentDay} d.` : 'Netaikoma'}
+                    </span>
+                </div>
+                <div className="flex items-center justify-between flex-1">
+                    <span className={tiny}>Skola</span>
+                    <span className={`text-[11px] font-semibold ${overdue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {overdue > 0 ? `€${overdue}` : 'Nėra'}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+));
+MoneySnapshot.displayName = 'MoneySnapshot';
+
+// =============================================================================
+// B3) PHOTO GALLERY HERO (Surface 2, skeleton empty state)
+// =============================================================================
+
+interface PhotoGalleryHeroProps {
+    photos: string[];
+    onUpload?: () => void;
+    onManage?: () => void;
+    onLayout?: () => void;
+}
+
+const PhotoGalleryHero = memo<PhotoGalleryHeroProps>(({ photos, onUpload, onManage, onLayout }) => {
+    const count = photos.length;
+    const overflow = Math.max(0, count - 3);
+
+    return (
+        <div className={surface2}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Camera className="w-3.5 h-3.5 text-purple-600" />
+                    </div>
+                    <span className={heading}>Nuotraukos</span>
+                    <span className={`${tiny} ml-1`}>{count} <span className="text-teal-600 font-medium">(rek: 8+)</span></span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <button onClick={onLayout} className="px-2 py-1 text-[9px] text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
+                        Išdėst.
+                    </button>
+                    <button onClick={onUpload} className="px-2.5 py-1 bg-teal-500 text-white text-[9px] font-bold rounded-md hover:bg-teal-600 transition-all">
+                        Įkelti
+                    </button>
+                    <button onClick={onManage} className="px-2 py-1 text-[9px] text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
+                        Tvarkyti
+                    </button>
+                </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-3">
+                {count > 0 ? (
+                    /* Filled: Cover + thumbs */
+                    <div className="flex gap-2 h-[80px]">
+                        <div className="relative w-[80px] h-full rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 group cursor-pointer">
+                            <img src={photos[0]} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-teal-500 text-white text-[7px] font-bold uppercase rounded shadow-sm">
+                                Viršelis
+                            </span>
+                        </div>
+                        <div className="flex-1 grid grid-cols-3 gap-1.5">
+                            {[1, 2].map(idx => (
+                                <div key={idx} className="rounded-md overflow-hidden bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity">
+                                    {photos[idx] ? <img src={photos[idx]} className="w-full h-full object-cover" /> : null}
+                                </div>
+                            ))}
+                            <div
+                                onClick={onManage}
+                                className="rounded-md bg-gray-800 cursor-pointer hover:bg-gray-700 transition-colors flex items-center justify-center"
+                            >
+                                <span className="text-white text-sm font-bold">+{overflow > 0 ? overflow : count}</span>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* Empty: Skeleton gallery + CTA */
+                    <div className="flex gap-3">
+                        {/* Skeleton gallery frame */}
+                        <div className="flex gap-1.5">
+                            {/* Cover skeleton */}
+                            <div className="w-[56px] h-[56px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg" />
+                            {/* Thumb skeletons */}
+                            <div className="grid grid-cols-2 gap-1">
+                                {[0, 1, 2, 3].map(i => (
+                                    <div key={i} className="w-[26px] h-[26px] bg-gray-100 rounded" />
+                                ))}
+                            </div>
+                        </div>
+                        {/* CTA side */}
+                        <div className="flex-1 flex flex-col justify-center">
+                            <p className="text-[11px] font-semibold text-gray-800">Pridėkite nuotraukas</p>
+                            <p className={`${tiny} mb-2`}>Nuotraukos padidina susidomėjimą 40%</p>
+                            <button onClick={onUpload} className="w-fit px-3 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-all flex items-center gap-1.5">
+                                <Upload className="w-3 h-3" />
+                                Įkelti nuotraukas
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+});
+PhotoGalleryHero.displayName = 'PhotoGalleryHero';
+
+// =============================================================================
+// B4) TENANT CARD (Compact)
+// =============================================================================
+
+interface TenantCardProps {
+    tenant: Tenant;
+    isVacant: boolean;
+    onAdd?: () => void;
+    onView?: () => void;
+}
+
+const TenantCard = memo<TenantCardProps>(({ tenant, isVacant, onAdd, onView }) => (
+    <div className={surface1}>
+        <div className="px-3 py-2 border-b border-gray-100">
+            <span className={heading}>Nuomininkas</span>
+        </div>
+        <div className="p-2.5">
+            {isVacant ? (
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className={subtext}>Nėra priskirto nuomininko</p>
+                        <p className={tiny}>Pridėkite nuomininką norint valdyti nuomą</p>
+                    </div>
+                    <button onClick={onAdd} className={ctaBtn + ' flex items-center gap-1'}>
+                        <Plus className="w-3 h-3" />Pridėti
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 bg-gradient-to-br from-teal-100 to-teal-200 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-teal-700">{tenant.name?.charAt(0) || 'N'}</span>
+                        </div>
+                        <div>
+                            <p className="text-[12px] font-bold text-gray-900">{tenant.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                {tenant.phone && <span className={`${tiny} flex items-center gap-0.5`}><Phone className="w-2.5 h-2.5" />{tenant.phone}</span>}
+                                {tenant.contractEnd && <span className={`${tiny} flex items-center gap-0.5`}><Calendar className="w-2.5 h-2.5" />iki {tenant.contractEnd}</span>}
+                            </div>
+                        </div>
+                    </div>
+                    <button onClick={onView} className={`${cta} flex items-center gap-0.5`}>
+                        Nuoma<ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
+        </div>
+    </div>
+));
+TenantCard.displayName = 'TenantCard';
+
+// =============================================================================
+// C) OPERATIONS ROW: Mini Cards + Activity
+// =============================================================================
+
+interface MiniCardProps {
+    icon: ReactNode;
+    title: string;
+    value: string | number | null;
+    status?: string;
+    cta: string;
+    onAction?: () => void;
+}
+
+const MiniCard = memo<MiniCardProps>(({ icon, title, value, status, cta, onAction }) => (
+    <div
+        className={`${surface1} p-2.5 cursor-pointer hover:bg-white/90 transition-all`}
+        onClick={onAction}
+    >
+        <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center">{icon}</div>
+                <span className={heading}>{title}</span>
+            </div>
+            <span className={`${cta} flex items-center gap-0.5`}>{cta}<ChevronRight className="w-3 h-3" /></span>
+        </div>
+        <div className="flex items-center justify-between">
+            {value !== null ? (
+                <span className="text-[14px] font-bold text-gray-900">{value}</span>
+            ) : (
+                <span className={subtext}>Nėra</span>
+            )}
+            {status && <span className={tiny}>{status}</span>}
+        </div>
+    </div>
+));
+MiniCard.displayName = 'MiniCard';
+
+interface ActivityCardProps {
+    activities: { text: string; time: string }[];
+    onUpload?: () => void;
+}
+
+const ActivityCard = memo<ActivityCardProps>(({ activities, onUpload }) => (
+    <div className={surface1}>
+        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+            <span className={heading}>Paskutinė veikla</span>
+            {activities.length > 0 && <button className={cta}>Visos →</button>}
+        </div>
+        <div className="px-3 py-2">
+            {activities.length > 0 ? (
+                <div className="space-y-1.5">
+                    {activities.slice(0, 3).map((a, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                            <Clock className="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className={subtext}>{a.text}</p>
+                                <p className={tiny}>{a.time}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="flex items-center justify-between">
+                    <p className={subtext}>Nėra veiklos—pradėkite įkeldami nuotraukas</p>
+                    <button onClick={onUpload} className={cta}>Įkelti →</button>
+                </div>
+            )}
+        </div>
+    </div>
+));
+ActivityCard.displayName = 'ActivityCard';
+
+// =============================================================================
+// D) STICKY BAR (Minimal)
+// =============================================================================
+
+interface StickyBarProps {
+    address: string;
+    isVacant: boolean;
+    onPrimary?: () => void;
+}
+
+const StickyBar = memo<StickyBarProps>(({ address, isVacant, onPrimary }) => (
+    <div className={`${stickyBg} px-3 py-2 mt-2`}>
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-teal-500 rounded-lg flex items-center justify-center">
+                    <Home className="w-3.5 h-3.5 text-white" />
+                </div>
+                <p className="text-white text-[11px] font-semibold truncate max-w-[140px]">{address}</p>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 text-[9px] font-bold rounded ${isVacant ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>
+                    {isVacant ? 'Laisvas' : 'Išnuom.'}
+                </span>
+                <button onClick={onPrimary} className="px-3 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-all">
+                    {isVacant ? '+ Nuomininkas' : 'Nuoma'}
+                </button>
+                <button className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                    <MoreHorizontal className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    </div>
+));
+StickyBar.displayName = 'StickyBar';
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
     tenant,
     property,
-    moveOut,
-    addressInfo,
+    photos = [],
     meters = [],
+    documents = [],
+    activities = [],
     onAddTenant,
-    onCreateLease,
-    onAddPayment,
-    onEditProperty,
+    onViewTenant,
+    onSetPrice,
     onUploadPhoto,
+    onManagePhotos,
+    onLayoutPhotos,
     onNavigateTab,
-    onShowNotes,
-    onReorderPhotos,
-    onDeletePhoto
+    onOpenSettings,
+    onUploadDocument,
+    onManageMeters,
 }) => {
-    const occupancyState = getOccupancyState(tenant, moveOut);
-    const isVacant = occupancyState === 'VACANT';
-    const photos = tenant.photos || [];
-    const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-    const [lightboxOpen, setLightboxOpen] = useState(false);
-    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const isVacant = !tenant?.name || tenant.status === 'vacant';
 
-    // Zoom state for lightbox
-    const [zoomLevel, setZoomLevel] = useState(1);
-    const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
-    const [isPanning, setIsPanning] = useState(false);
-    const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+    // Tasks
+    const tasks: Task[] = [
+        { label: 'Pridėkite nuotraukas', done: photos.length >= 3, cta: 'Įkelti', onClick: onUploadPhoto },
+        { label: 'Nustatykite kainą', done: !!tenant.monthlyRent, cta: 'Nustatyti', onClick: onSetPrice },
+        { label: 'Užpildykite būsto info', done: !!property.rooms && !!property.area, cta: 'Pildyti', onClick: () => onNavigateTab?.('bustas') },
+        { label: 'Konfigūruokite skaitiklius', done: meters.length > 0, cta: 'Valdyti', onClick: () => onNavigateTab?.('komunaliniai') },
+        { label: 'Priskirkite nuomininką', done: !isVacant, cta: 'Pridėti', onClick: onAddTenant },
+    ];
 
-    // Edit mode for reordering/deleting
-    const [editMode, setEditMode] = useState(false);
-    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-    const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-    // Open lightbox with specific photo
-    const openLightbox = (index: number) => {
-        setLightboxIndex(index);
-        setZoomLevel(1);
-        setPanPosition({ x: 0, y: 0 });
-        setLightboxOpen(true);
-    };
-
-    // Close lightbox and reset zoom
-    const closeLightbox = () => {
-        setLightboxOpen(false);
-        setZoomLevel(1);
-        setPanPosition({ x: 0, y: 0 });
-    };
-
-    // Handle zoom via mouse wheel - SMOOTH
-    const handleWheel = (e: React.WheelEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const delta = e.deltaY > 0 ? -0.2 : 0.2; // Smaller increments for smooth zoom
-        setZoomLevel(prev => {
-            const newZoom = Math.max(1, Math.min(4, prev + delta));
-            if (newZoom <= 1) {
-                setPanPosition({ x: 0, y: 0 });
-            }
-            return newZoom;
-        });
-    };
-
-    // Handle SINGLE click to cycle zoom levels (1x → 2x → 3x → 1x)
-    // FIXED: Only trigger if user wasn't panning
-    const [wasPanning, setWasPanning] = useState(false);
-
-    const handleImageClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        // Don't zoom if user was just panning
-        if (wasPanning) {
-            setWasPanning(false);
-            return;
-        }
-        if (zoomLevel === 1) {
-            setZoomLevel(2);
-        } else if (zoomLevel < 2.5) {
-            setZoomLevel(3);
-        } else {
-            setZoomLevel(1);
-            setPanPosition({ x: 0, y: 0 });
-        }
-    };
-
-    // Handle double-click to toggle max zoom
-    const handleDoubleClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (wasPanning) return; // Ignore if was panning
-        if (zoomLevel > 1) {
-            setZoomLevel(1);
-            setPanPosition({ x: 0, y: 0 });
-        } else {
-            setZoomLevel(3);
-        }
-    };
-
-    // Pan handlers for zoomed image
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (zoomLevel > 1) {
-            e.preventDefault();
-            setIsPanning(true);
-            setWasPanning(false);
-            setPanStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
-        }
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (isPanning && zoomLevel > 1) {
-            setWasPanning(true); // Mark that we actually moved
-            setPanPosition({
-                x: e.clientX - panStart.x,
-                y: e.clientY - panStart.y
-            });
-        }
-    };
-
-    const handleMouseUp = () => {
-        setIsPanning(false);
-    };
-
-    // Drag and drop for reordering with VISUAL PREVIEW
-    const handleDragStart = (e: React.DragEvent, index: number) => {
-        setDraggedIndex(index);
-
-        // Create custom drag image
-        const img = e.currentTarget.querySelector('img');
-        if (img) {
-            // Create a styled drag preview element
-            const dragPreview = document.createElement('div');
-            dragPreview.style.cssText = `
-                width: 120px;
-                height: 90px;
-                background-image: url(${photos[index]});
-                background-size: cover;
-                background-position: center;
-                border-radius: 12px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-                border: 3px solid #2F8481;
-                transform: rotate(-3deg);
-            `;
-            document.body.appendChild(dragPreview);
-            e.dataTransfer.setDragImage(dragPreview, 60, 45);
-
-            // Clean up after drag starts
-            setTimeout(() => {
-                document.body.removeChild(dragPreview);
-            }, 0);
-        }
-
-        e.dataTransfer.effectAllowed = 'move';
-    };
-
-    const handleDragOver = (e: React.DragEvent, index: number) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        setDragOverIndex(index);
-    };
-
-    const handleDrop = (index: number) => {
-        if (draggedIndex !== null && draggedIndex !== index && onReorderPhotos) {
-            const newPhotos = [...photos];
-            const [dragged] = newPhotos.splice(draggedIndex, 1);
-            newPhotos.splice(index, 0, dragged);
-            onReorderPhotos(newPhotos);
-        }
-        setDraggedIndex(null);
-        setDragOverIndex(null);
-    };
-
-    const handleDragEnd = () => {
-        setDraggedIndex(null);
-        setDragOverIndex(null);
-    };
-
-    // Calculate checklist status
-    const hasPropertyData = hasMeaningfulValue(property.rooms) || hasMeaningfulValue(property.area);
-    const hasRentPrice = hasMeaningfulValue(tenant.monthlyRent);
-    const hasTenant = !isVacant;
-    const hasLease = hasMeaningfulValue(tenant.contractStart);
-
-    // Calculate meters needing attention
-    const pendingMeters = meters.filter(m => !m.lastReading || m.status === 'waiting').length;
+    // Next action (highest priority incomplete)
+    const nextTask = tasks.find(t => !t.done);
+    const nextAction = nextTask
+        ? { label: nextTask.cta, short: nextTask.label.split(' ').pop() || '', onClick: nextTask.onClick }
+        : { label: 'Paruoštas', short: 'Paruoštas', onClick: undefined };
 
     return (
-        <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* LEFT COLUMN - Main Content (2/3 width) */}
-                <div className="md:col-span-2 space-y-4">
+        <div className="space-y-2 pb-2">
+            {/* A) Command Header */}
+            <CommandHeader
+                property={property}
+                isVacant={isVacant}
+                nextAction={nextAction}
+                onDocs={() => onNavigateTab?.('dokumentai')}
+                onSettings={onOpenSettings}
+            />
 
-                    {/* COMPACT PHOTO CARD for VACANT / FULL GALLERY for OCCUPIED */}
-                    {isVacant ? (
-                        // VACANT: Dynamic photo grid based on photo count
-                        <div className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
-                            {photos.length === 0 ? (
-                                // No photos - placeholder with CTA
-                                <div className="flex items-center gap-4">
-                                    <div className="w-20 h-20 bg-neutral-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                        <Camera className="w-8 h-8 text-neutral-300" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-semibold text-neutral-900 mb-1">Būsto nuotraukos</h3>
-                                        <p className="text-sm text-neutral-500 mb-2">Pridėkite nuotraukas pritraukti nuomininkų</p>
-                                        <button
-                                            onClick={onUploadPhoto}
-                                            className="flex items-center gap-1.5 text-sm text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            Įkelti nuotraukas
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : photos.length === 1 ? (
-                                // 1 photo - single larger image with info
-                                <div className="flex items-center gap-4">
-                                    <img
-                                        src={photos[0]}
-                                        alt="Butas"
-                                        onClick={() => openLightbox(0)}
-                                        className="w-40 h-40 object-cover rounded-xl flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity shadow-md"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-semibold text-neutral-900 mb-1">Būsto nuotraukos</h3>
-                                        <p className="text-sm text-neutral-500 mb-3">1 nuotrauka</p>
-                                        <button
-                                            onClick={onUploadPhoto}
-                                            className="flex items-center gap-1.5 text-sm text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            Pridėti daugiau
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : photos.length === 2 ? (
-                                // 2 photos - side by side larger
-                                <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-semibold text-neutral-900">Būsto nuotraukos</h3>
-                                        <button
-                                            onClick={onUploadPhoto}
-                                            className="flex items-center gap-1 text-sm text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            Pridėti
-                                        </button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <img
-                                            src={photos[0]}
-                                            alt="Butas 1"
-                                            onClick={() => openLightbox(0)}
-                                            className="w-full h-40 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-md"
-                                        />
-                                        <img
-                                            src={photos[1]}
-                                            alt="Butas 2"
-                                            onClick={() => openLightbox(1)}
-                                            className="w-full h-40 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-md"
-                                        />
-                                    </div>
-                                </div>
-                            ) : photos.length === 3 ? (
-                                // 3 photos - 1 large + 2 small
-                                <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-semibold text-neutral-900">Būsto nuotraukos</h3>
-                                        <button
-                                            onClick={onUploadPhoto}
-                                            className="flex items-center gap-1 text-sm text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            Pridėti
-                                        </button>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <img
-                                            src={photos[0]}
-                                            alt="Butas 1"
-                                            onClick={() => openLightbox(0)}
-                                            className="col-span-2 w-full h-44 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-md"
-                                        />
-                                        <div className="flex flex-col gap-3">
-                                            <img
-                                                src={photos[1]}
-                                                alt="Butas 2"
-                                                onClick={() => openLightbox(1)}
-                                                className="w-full h-[86px] object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-md"
-                                            />
-                                            <img
-                                                src={photos[2]}
-                                                alt="Butas 3"
-                                                onClick={() => openLightbox(2)}
-                                                className="w-full h-[86px] object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity shadow-md"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                // 4+ photos - 2x2 grid with +N overlay larger
-                                <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-neutral-900">Būsto nuotraukos</h3>
-                                            <span className="text-xs text-neutral-500">({photos.length})</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => setEditMode(!editMode)}
-                                                className={`flex items-center gap-1 text-sm font-medium transition-colors ${editMode
-                                                    ? 'text-amber-600 hover:text-amber-700'
-                                                    : 'text-neutral-500 hover:text-neutral-700'
-                                                    }`}
-                                            >
-                                                <Edit3 className="w-4 h-4" />
-                                                {editMode ? 'Baigti' : 'Redaguoti'}
-                                            </button>
-                                            <button
-                                                onClick={onUploadPhoto}
-                                                className="flex items-center gap-1 text-sm text-[#2F8481] font-medium hover:underline"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                                Pridėti
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Photo Grid with optional edit mode */}
-                                    <div className="grid grid-cols-4 gap-3">
-                                        {photos.slice(0, 4).map((photo, idx) => (
-                                            <div
-                                                key={idx}
-                                                className={`relative group ${editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${draggedIndex === idx ? 'opacity-50 scale-95' : ''
-                                                    } ${dragOverIndex === idx && draggedIndex !== idx ? 'ring-2 ring-[#2F8481]' : ''}`}
-                                                draggable={editMode}
-                                                onDragStart={(e) => handleDragStart(e, idx)}
-                                                onDragOver={(e) => handleDragOver(e, idx)}
-                                                onDrop={() => handleDrop(idx)}
-                                                onDragEnd={handleDragEnd}
-                                                onClick={() => !editMode && openLightbox(idx)}
-                                            >
-                                                <img
-                                                    src={photo}
-                                                    alt={`Butas ${idx + 1}`}
-                                                    className={`w-full h-32 object-cover rounded-xl shadow-md transition-all ${editMode ? 'hover:opacity-80' : 'hover:opacity-90'
-                                                        }`}
-                                                />
-
-                                                {/* Delete button in edit mode */}
-                                                {editMode && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onDeletePhoto?.(idx);
-                                                        }}
-                                                        className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                )}
-
-                                                {/* +N overlay on 4th photo */}
-                                                {idx === 3 && photos.length > 4 && !editMode && (
-                                                    <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center hover:bg-black/40 transition-colors">
-                                                        <span className="text-white font-bold text-xl">+{photos.length - 4}</span>
-                                                    </div>
-                                                )}
-
-                                                {/* Drag hint in edit mode */}
-                                                {editMode && (
-                                                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-black/50 rounded text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        Tempk
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Show all photos in edit mode */}
-                                    {editMode && photos.length > 4 && (
-                                        <div className="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-neutral-200">
-                                            {photos.slice(4).map((photo, idx) => (
-                                                <div
-                                                    key={idx + 4}
-                                                    className={`relative group cursor-grab active:cursor-grabbing ${draggedIndex === idx + 4 ? 'opacity-50 scale-95' : ''
-                                                        } ${dragOverIndex === idx + 4 && draggedIndex !== idx + 4 ? 'ring-2 ring-[#2F8481]' : ''}`}
-                                                    draggable
-                                                    onDragStart={(e) => handleDragStart(e, idx + 4)}
-                                                    onDragOver={(e) => handleDragOver(e, idx + 4)}
-                                                    onDrop={() => handleDrop(idx + 4)}
-                                                    onDragEnd={handleDragEnd}
-                                                >
-                                                    <img
-                                                        src={photo}
-                                                        alt={`Butas ${idx + 5}`}
-                                                        className="w-full h-32 object-cover rounded-xl shadow-md hover:opacity-80 transition-all"
-                                                    />
-                                                    <button
-                                                        onClick={() => onDeletePhoto?.(idx + 4)}
-                                                        className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        // OCCUPIED: Full photo gallery
-                        <div className="relative bg-neutral-900 rounded-2xl overflow-hidden aspect-[16/9] group shadow-lg">
-                            {photos.length > 0 ? (
-                                <>
-                                    <img
-                                        src={photos[currentPhotoIndex]}
-                                        alt={`Butas ${currentPhotoIndex + 1}`}
-                                        onClick={() => openLightbox(currentPhotoIndex)}
-                                        className="w-full h-full object-cover cursor-pointer"
-                                    />
-                                    {photos.length > 1 && (
-                                        <>
-                                            <button
-                                                onClick={() => setCurrentPhotoIndex(i => i > 0 ? i - 1 : photos.length - 1)}
-                                                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <ChevronLeft className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => setCurrentPhotoIndex(i => i < photos.length - 1 ? i + 1 : 0)}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <ChevronRight className="w-5 h-5" />
-                                            </button>
-                                        </>
-                                    )}
-                                    <div className="absolute top-3 right-3 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-lg text-white text-sm font-medium">
-                                        {currentPhotoIndex + 1} / {photos.length}
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200">
-                                    <Camera className="w-12 h-12 text-neutral-300 mb-3" />
-                                    <p className="text-neutral-500 font-medium mb-2">Nuotraukų nėra</p>
-                                    <button
-                                        onClick={onUploadPhoto}
-                                        className="flex items-center gap-2 px-4 py-2 bg-[#2F8481] text-white rounded-lg hover:bg-[#267270] transition-colors text-sm font-medium"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Įkelti nuotraukas
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* PROPERTY METRICS - Always visible */}
-                    <div className="grid grid-cols-4 gap-2">
-                        <div className="bg-white border border-neutral-200 rounded-xl p-3 text-center">
-                            <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-                                <Layers className="w-4 h-4 text-[#2F8481]" />
-                            </div>
-                            <div className="text-xl font-bold text-neutral-900">{hasMeaningfulValue(property.rooms) ? property.rooms : '—'}</div>
-                            <div className="text-xs text-neutral-500">Kamb.</div>
-                        </div>
-                        <div className="bg-white border border-neutral-200 rounded-xl p-3 text-center">
-                            <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-                                <Ruler className="w-4 h-4 text-[#2F8481]" />
-                            </div>
-                            <div className="text-xl font-bold text-neutral-900">{hasMeaningfulValue(property.area) ? property.area : '—'}</div>
-                            <div className="text-xs text-neutral-500">m²</div>
-                        </div>
-                        <div className="bg-white border border-neutral-200 rounded-xl p-3 text-center">
-                            <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-                                <Building2 className="w-4 h-4 text-[#2F8481]" />
-                            </div>
-                            <div className="text-xl font-bold text-neutral-900">{hasMeaningfulValue(property.floor) ? property.floor : '—'}</div>
-                            <div className="text-xs text-neutral-500">Aukšt.</div>
-                        </div>
-                        <div className="bg-white border border-neutral-200 rounded-xl p-3 text-center">
-                            <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-                                <Home className="w-4 h-4 text-[#2F8481]" />
-                            </div>
-                            <div className="text-sm font-semibold text-neutral-900 truncate">{translatePropertyType(property.type)}</div>
-                            <div className="text-xs text-neutral-500">Tipas</div>
-                        </div>
-                    </div>
-
-                    {/* COMPACT UTILITIES SUMMARY - replaces detailed list */}
-                    <div className="bg-white border border-neutral-200 rounded-xl p-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
-                                    <Droplets className="w-5 h-5 text-[#2F8481]" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-neutral-900">Komunaliniai</h3>
-                                    <p className="text-sm text-neutral-500">
-                                        {meters.length} skaitliuk{meters.length === 1 ? 'as' : 'ai'}
-                                        {pendingMeters > 0 && (
-                                            <span className="text-amber-600"> • {pendingMeters} laukia</span>
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => onNavigateTab?.('komunaliniai')}
-                                className="flex items-center gap-1 text-sm text-[#2F8481] font-medium hover:underline"
-                            >
-                                Peržiūrėti
-                                <ArrowRight className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* VACANT-SPECIFIC QUICK ACTIONS - meaningful for setup */}
-                    {isVacant && (
-                        <div className="grid grid-cols-2 gap-3">
-                            <button
-                                onClick={() => onNavigateTab?.('bustas')}
-                                className="flex items-center gap-3 p-4 bg-white border border-neutral-200 rounded-xl hover:border-[#2F8481]/30 hover:shadow-sm transition-all text-left"
-                            >
-                                <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <Euro className="w-5 h-5 text-[#2F8481]" />
-                                </div>
-                                <div>
-                                    <div className="font-medium text-neutral-900">Nustatyti kainą</div>
-                                    <div className="text-xs text-neutral-500">Nuomos mokestis</div>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => onNavigateTab?.('komunaliniai')}
-                                className="flex items-center gap-3 p-4 bg-white border border-neutral-200 rounded-xl hover:border-[#2F8481]/30 hover:shadow-sm transition-all text-left"
-                            >
-                                <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <Settings className="w-5 h-5 text-[#2F8481]" />
-                                </div>
-                                <div>
-                                    <div className="font-medium text-neutral-900">Komunaliniai</div>
-                                    <div className="text-xs text-neutral-500">Skaitiklių nustatymai</div>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => onNavigateTab?.('dokumentai')}
-                                className="flex items-center gap-3 p-4 bg-white border border-neutral-200 rounded-xl hover:border-[#2F8481]/30 hover:shadow-sm transition-all text-left"
-                            >
-                                <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <FileText className="w-5 h-5 text-[#2F8481]" />
-                                </div>
-                                <div>
-                                    <div className="font-medium text-neutral-900">Dokumentai</div>
-                                    <div className="text-xs text-neutral-500">Įkelti failus</div>
-                                </div>
-                            </button>
-                            <button
-                                onClick={onShowNotes}
-                                className="flex items-center gap-3 p-4 bg-white border border-neutral-200 rounded-xl hover:border-[#2F8481]/30 hover:shadow-sm transition-all text-left"
-                            >
-                                <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <MessageSquare className="w-5 h-5 text-[#2F8481]" />
-                                </div>
-                                <div>
-                                    <div className="font-medium text-neutral-900">Pastabos</div>
-                                    <div className="text-xs text-neutral-500">Vidiniai komentarai</div>
-                                </div>
-                            </button>
-                        </div>
-                    )}
-
-                    {/* OCCUPIED: TENANT INFO + QUICK LINKS */}
-                    {!isVacant && (
-                        <>
-                            {/* Tenant info card */}
-                            <div className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 bg-[#2F8481]/10 rounded-full flex items-center justify-center">
-                                        <User className="w-7 h-7 text-[#2F8481]" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="font-semibold text-neutral-900 text-lg">{tenant.name}</div>
-                                        <div className="text-sm text-neutral-500">{tenant.email || tenant.phone || '—'}</div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-bold text-[#2F8481]">€{tenant.monthlyRent || 0}</div>
-                                        <div className="text-xs text-neutral-500">/ mėn</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Quick links for occupied */}
-                            <div className="grid grid-cols-4 gap-2">
-                                <button
-                                    onClick={() => onNavigateTab?.('komunaliniai')}
-                                    className="flex flex-col items-center gap-1.5 p-3 bg-white border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors"
-                                >
-                                    <Droplets className="w-5 h-5 text-neutral-500" />
-                                    <span className="text-xs text-neutral-600">Rodmenys</span>
-                                </button>
-                                <button
-                                    onClick={() => onNavigateTab?.('dokumentai')}
-                                    className="flex flex-col items-center gap-1.5 p-3 bg-white border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors"
-                                >
-                                    <FileText className="w-5 h-5 text-neutral-500" />
-                                    <span className="text-xs text-neutral-600">Dokumentai</span>
-                                </button>
-                                <button className="flex flex-col items-center gap-1.5 p-3 bg-white border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors">
-                                    <Euro className="w-5 h-5 text-neutral-500" />
-                                    <span className="text-xs text-neutral-600">Mokėjimai</span>
-                                </button>
-                                <button className="flex flex-col items-center gap-1.5 p-3 bg-white border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors">
-                                    <Clock className="w-5 h-5 text-neutral-500" />
-                                    <span className="text-xs text-neutral-600">Istorija</span>
-                                </button>
-                            </div>
-                        </>
-                    )}
+            {/* B) Hero Row: 60/40 split */}
+            <div className="grid grid-cols-[3fr_2fr] gap-2">
+                {/* Left 60%: Next Steps + Money */}
+                <div className="space-y-2">
+                    {isVacant && <NextStepsHero tasks={tasks} />}
+                    <MoneySnapshot
+                        rent={tenant.monthlyRent || null}
+                        deposit={tenant.deposit || null}
+                        paymentDay={tenant.paymentDay || null}
+                        overdue={tenant.overdue || 0}
+                        isVacant={isVacant}
+                        onSetPrice={onSetPrice}
+                        onAddDeposit={() => onNavigateTab?.('nuoma')}
+                    />
                 </div>
 
-                {/* RIGHT COLUMN - Sidebar (1/3 width) - STICKY */}
-                <div className="space-y-4 md:sticky md:top-4 self-start">
-
-                    {/* PRIMARY ACTION CARD - elevated */}
-                    <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-md">
-                        <div className="flex items-center justify-between mb-4">
-                            <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${getOccupancyColor(occupancyState)}`}>
-                                {getOccupancyLabel(occupancyState)}
-                            </span>
-                            <button onClick={onEditProperty} className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-                                <Edit3 className="w-4 h-4 text-neutral-400" />
-                            </button>
-                        </div>
-
-                        {/* Primary CTA */}
-                        {isVacant ? (
-                            <div className="space-y-3">
-                                <button
-                                    onClick={onAddTenant}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#2F8481] text-white rounded-xl hover:bg-[#267270] transition-colors font-medium shadow-sm"
-                                >
-                                    <User className="w-5 h-5" />
-                                    Pridėti nuomininką
-                                </button>
-                                <button
-                                    onClick={onCreateLease}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-200 text-neutral-700 rounded-xl hover:bg-neutral-50 transition-colors text-sm font-medium"
-                                >
-                                    <FileText className="w-4 h-4" />
-                                    Pridėti sutartį
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <button
-                                    onClick={onAddPayment}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#2F8481] text-white rounded-xl hover:bg-[#267270] transition-colors font-medium shadow-sm"
-                                >
-                                    <Euro className="w-5 h-5" />
-                                    Pridėti mokėjimą
-                                </button>
-                                <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-neutral-200 text-neutral-700 rounded-xl hover:bg-neutral-50 transition-colors text-sm font-medium">
-                                    <FileText className="w-4 h-4" />
-                                    Peržiūrėti sutartį
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* NEXT STEPS CHECKLIST - VACANT only */}
-                    {isVacant && (
-                        <div className="bg-white border border-neutral-200 rounded-xl p-4">
-                            <h3 className="font-semibold text-neutral-900 mb-3 flex items-center gap-2">
-                                <AlertCircle className="w-4 h-4 text-amber-500" />
-                                Paruošti nuomai
-                            </h3>
-                            <div className="space-y-2.5">
-                                <div className="flex items-center justify-between py-1.5">
-                                    <div className="flex items-center gap-2">
-                                        {hasPropertyData ? (
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                        ) : (
-                                            <Circle className="w-4 h-4 text-neutral-300" />
-                                        )}
-                                        <span className={`text-sm ${hasPropertyData ? 'text-neutral-500' : 'text-neutral-900'}`}>
-                                            Būsto duomenys
-                                        </span>
-                                    </div>
-                                    {!hasPropertyData && (
-                                        <button
-                                            onClick={onEditProperty}
-                                            className="text-xs text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            Sutvarkyti
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex items-center justify-between py-1.5">
-                                    <div className="flex items-center gap-2">
-                                        {hasRentPrice ? (
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                        ) : (
-                                            <Circle className="w-4 h-4 text-neutral-300" />
-                                        )}
-                                        <span className={`text-sm ${hasRentPrice ? 'text-neutral-500' : 'text-neutral-900'}`}>
-                                            Nuomos kaina
-                                        </span>
-                                    </div>
-                                    {!hasRentPrice && (
-                                        <button
-                                            onClick={onCreateLease}
-                                            className="text-xs text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            Sutvarkyti
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex items-center justify-between py-1.5">
-                                    <div className="flex items-center gap-2">
-                                        {hasTenant ? (
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                        ) : (
-                                            <Circle className="w-4 h-4 text-neutral-300" />
-                                        )}
-                                        <span className={`text-sm ${hasTenant ? 'text-neutral-500' : 'text-neutral-900'}`}>
-                                            Nuomininkas
-                                        </span>
-                                    </div>
-                                    {!hasTenant && (
-                                        <button
-                                            onClick={onAddTenant}
-                                            className="text-xs text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            Pridėti
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex items-center justify-between py-1.5">
-                                    <div className="flex items-center gap-2">
-                                        {hasLease ? (
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                        ) : (
-                                            <Circle className="w-4 h-4 text-neutral-300" />
-                                        )}
-                                        <span className={`text-sm ${hasLease ? 'text-neutral-500' : 'text-neutral-900'}`}>
-                                            Sutartis
-                                        </span>
-                                    </div>
-                                    {!hasLease && (
-                                        <button
-                                            onClick={onCreateLease}
-                                            className="text-xs text-[#2F8481] font-medium hover:underline"
-                                        >
-                                            Sukurti
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* FINANCIAL SUMMARY - OCCUPIED only */}
-                    {!isVacant && (
-                        <div className="bg-white border border-neutral-200 rounded-xl p-4">
-                            <h3 className="font-semibold text-neutral-900 mb-3">Finansai</h3>
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm text-neutral-500">Nuoma/mėn</span>
-                                    <span className="font-bold text-[#2F8481]">€{tenant.monthlyRent || 0}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm text-neutral-500">Depozitas</span>
-                                    <span className="font-medium text-neutral-900">€{tenant.deposit || 0}</span>
-                                </div>
-                                <div className="flex justify-between items-center pt-2 border-t">
-                                    <span className="text-sm text-neutral-500">Sutartis iki</span>
-                                    <span className="text-sm font-medium text-neutral-900">{formatDate(tenant.contractEnd)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                {/* Right 40%: Photos + Tenant */}
+                <div className="space-y-2">
+                    <PhotoGalleryHero
+                        photos={photos}
+                        onUpload={onUploadPhoto}
+                        onManage={onManagePhotos}
+                        onLayout={onLayoutPhotos}
+                    />
+                    <TenantCard
+                        tenant={tenant}
+                        isVacant={isVacant}
+                        onAdd={onAddTenant}
+                        onView={onViewTenant}
+                    />
                 </div>
             </div>
 
-            {/* LIGHTBOX MODAL - Fullscreen photo viewer with ZOOM */}
-            {lightboxOpen && photos.length > 0 && (
-                <div
-                    className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
-                    onClick={closeLightbox}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                >
-                    {/* Close button */}
-                    <button
-                        onClick={closeLightbox}
-                        className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
+            {/* C) Operations Row */}
+            <div className="grid grid-cols-2 gap-2">
+                <MiniCard
+                    icon={<Droplets className="w-3.5 h-3.5 text-blue-500" />}
+                    title="Skaitikliai"
+                    value={meters.length > 0 ? meters.length : null}
+                    status={meters.length > 0 ? 'Pask. skaitymas: šiandien' : undefined}
+                    cta="Valdyti"
+                    onAction={onManageMeters || (() => onNavigateTab?.('komunaliniai'))}
+                />
+                <MiniCard
+                    icon={<FileText className="w-3.5 h-3.5 text-orange-500" />}
+                    title="Dokumentai"
+                    value={documents.length > 0 ? documents.length : null}
+                    status={documents.length > 0 ? 'Pask. įkeltas: vakar' : undefined}
+                    cta="Įkelti"
+                    onAction={onUploadDocument || (() => onNavigateTab?.('dokumentai'))}
+                />
+            </div>
 
-                    {/* Photo counter + Zoom level */}
-                    <div className="absolute top-4 left-4 flex items-center gap-3 z-10">
-                        <div className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm font-medium">
-                            {lightboxIndex + 1} / {photos.length}
-                        </div>
-                        {zoomLevel > 1 && (
-                            <div className="px-3 py-2 bg-[#2F8481]/80 backdrop-blur-sm rounded-full text-white text-sm font-medium">
-                                {zoomLevel.toFixed(1)}x
-                            </div>
-                        )}
-                    </div>
+            <ActivityCard activities={activities} onUpload={onUploadPhoto} />
 
-                    {/* Zoom hint */}
-                    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-lg text-white/70 text-xs z-10">
-                        Click = Zoom • Scroll = Fine tune • Drag = Pan
-                    </div>
-
-                    {/* Main image with zoom */}
-                    <div
-                        className="overflow-hidden"
-                        onWheel={handleWheel}
-                        onClick={handleImageClick}
-                        onDoubleClick={handleDoubleClick}
-                        onMouseDown={handleMouseDown}
-                        style={{ cursor: zoomLevel > 1 ? (isPanning ? 'grabbing' : 'grab') : 'zoom-in' }}
-                    >
-                        <img
-                            src={photos[lightboxIndex]}
-                            alt={`Būsto nuotrauka ${lightboxIndex + 1}`}
-                            draggable={false}
-                            className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl select-none transition-transform duration-300 ease-out"
-                            style={{
-                                transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`
-                            }}
-                        />
-                    </div>
-
-                    {/* Navigation arrows - hidden when zoomed */}
-                    {photos.length > 1 && zoomLevel === 1 && (
-                        <>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setLightboxIndex(i => i > 0 ? i - 1 : photos.length - 1);
-                                }}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-                            >
-                                <ChevronLeft className="w-8 h-8" />
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setLightboxIndex(i => i < photos.length - 1 ? i + 1 : 0);
-                                }}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-                            >
-                                <ChevronRight className="w-8 h-8" />
-                            </button>
-                        </>
-                    )}
-
-                    {/* Thumbnail strip at bottom - hidden when zoomed */}
-                    {photos.length > 1 && zoomLevel === 1 && (
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 p-2 bg-white/10 backdrop-blur-sm rounded-xl">
-                            {photos.map((photo, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setLightboxIndex(idx);
-                                    }}
-                                    className={`w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${idx === lightboxIndex
-                                        ? 'border-white scale-105'
-                                        : 'border-transparent opacity-60 hover:opacity-100'
-                                        }`}
-                                >
-                                    <img src={photo} alt="" className="w-full h-full object-cover" />
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-        </>
+            {/* D) Sticky Bar */}
+            <StickyBar
+                address={property.address || 'Būstas'}
+                isVacant={isVacant}
+                onPrimary={isVacant ? onAddTenant : onViewTenant}
+            />
+        </div>
     );
 };
 
