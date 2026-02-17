@@ -27,7 +27,22 @@ export default defineConfig({
     },
     build: {
         outDir: 'build',
-        sourcemap: true,
+        target: 'es2020',
+        minify: 'esbuild',
+        sourcemap: false,
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+                    'vendor-supabase': ['@supabase/supabase-js'],
+                    'vendor-icons': ['lucide-react'],
+                    'vendor-ui': ['framer-motion', '@headlessui/react'],
+                    'vendor-charts': ['chart.js', 'react-chartjs-2'],
+                    'vendor-maps': ['leaflet', 'react-leaflet'],
+                    'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+                },
+            },
+        },
     },
 })
 

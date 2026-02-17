@@ -18,7 +18,7 @@ export const QuickSummaryCard = memo<QuickSummaryCardProps>(({
     return (
         <Component
             onClick={onClick}
-            className={`w-full flex items-center justify-between gap-3 p-3 bg-white/80 rounded-xl text-left transition-all ${ANIMATION.hover} ${onClick ? 'hover:bg-white cursor-pointer active:scale-[0.99]' : ''
+            className={`w-full flex items-center justify-between gap-3 p-3 bg-white/80 rounded-xl text-left transition-colors ${ANIMATION.hover} ${onClick ? 'hover:bg-white cursor-pointer active:scale-[0.99]' : ''
                 }`}
         >
             <div className="flex items-center gap-3">

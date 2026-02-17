@@ -5,7 +5,7 @@ const AddAddressModal = React.lazy(() => import('../components/properties/AddAdd
 const AddApartmentModal = React.lazy(() => import('../components/properties/AddApartmentModal').then(module => ({ default: module.AddApartmentModal })));
 const TenantListOptimized = React.lazy(() => import('../components/nuomotojas2/TenantListOptimized'));
 const TenantDetailModalPro = React.lazy(() => import('../components/nuomotojas2/TenantDetailModalPro'));
-import { PlusIcon, Cog6ToothIcon, TrashIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, Cog6ToothIcon, TrashIcon, BuildingOfficeIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 // VirtualizedList removed for stability - using optimized regular rendering
 import { useAuth } from '../context/AuthContext';
 import { useProperties, useAddresses, useStats } from '../context/DataContext';
@@ -20,10 +20,11 @@ import { Tenant } from '../types/tenant';
 // Context Panel imports removed - using modal instead
 // Optimized image loading
 // Background image path (optimized - modern cityscape)
-const addressImage = '/images/DashboardBackground_bw.png';
+const addressImage = '/images/DashboardBackground_bw.webp';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatCurrency } from '../utils/format';
 import MessagingPanel from '../components/MessagingPanel';
+import { ParticleDrift } from '../components/ui/ParticleDrift';
 
 // Using centralized Tenant type from types/tenant.ts
 
@@ -62,6 +63,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const [addressToDelete, setAddressToDelete] = useState<any>(null);
   const [showDeleteAllAddressesModal, setShowDeleteAllAddressesModal] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [apartmentToDelete, setApartmentToDelete] = useState<{ id: string; name: string; apartmentNumber: string } | null>(null);
+  const [showDeleteApartmentModal, setShowDeleteApartmentModal] = useState(false);
+  const [isDeletingApartment, setIsDeletingApartment] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
 
 
@@ -188,6 +193,49 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
     refetchProperties();
     refetchAddresses();
   }, [refetchProperties, refetchAddresses]);
+
+  const handleDeleteApartment = useCallback((e: React.MouseEvent, tenant: any) => {
+    e.stopPropagation(); // Don't open tenant modal
+    setApartmentToDelete({
+      id: tenant.id,
+      name: tenant.name,
+      apartmentNumber: tenant.apartmentNumber
+    });
+    setShowDeleteApartmentModal(true);
+  }, []);
+
+  const confirmDeleteApartment = useCallback(async () => {
+    if (!apartmentToDelete) return;
+    setIsDeletingApartment(true);
+    try {
+      // Delete meter readings first
+      await supabase
+        .from('meter_readings')
+        .delete()
+        .eq('property_id', apartmentToDelete.id);
+
+      // Delete the property
+      const { error } = await supabase
+        .from('properties')
+        .delete()
+        .eq('id', apartmentToDelete.id);
+
+      if (error) throw error;
+
+      setShowDeleteApartmentModal(false);
+      setApartmentToDelete(null);
+      await refreshData();
+    } catch (error) {
+      alert('Klaida trinant butą. Bandykite dar kartą.');
+    } finally {
+      setIsDeletingApartment(false);
+    }
+  }, [apartmentToDelete, refreshData]);
+
+  const cancelDeleteApartment = useCallback(() => {
+    setShowDeleteApartmentModal(false);
+    setApartmentToDelete(null);
+  }, []);
 
   const handleDeleteAddress = useCallback((addressId: string, address: string) => {
     setAddressToDelete({ id: addressId, full_address: address });
@@ -431,14 +479,11 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
   return (
     <div
-      className="min-h-full bg-cover bg-center bg-no-repeat relative"
-      style={{
-        backgroundImage: `url(${addressImage})`,
-        backgroundAttachment: 'fixed'
-      }}
+      className="min-h-full relative overflow-hidden bg-cover bg-center bg-fixed"
+      style={{ backgroundImage: `url('/images/BlueArchBackground.webp')` }}
     >
-      {/* Overlay for entire page */}
-      <div className="absolute inset-0 bg-black/50"></div>
+      {/* Particle drift background — snowfall-style effect */}
+      <ParticleDrift />
 
       {/* Content wrapper */}
       <div className="relative z-10 min-h-full">
@@ -446,8 +491,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold text-white">Pagrindinis dashboard</h1>
-              <div className="text-white/90 text-sm">
+              <h1 className="text-3xl font-bold text-gray-900">Pagrindinis dashboard</h1>
+              <div className="text-gray-500 text-sm">
                 {addressCount} adresai • {propertyCount} butai
               </div>
             </div>
@@ -455,8 +500,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
           {/* Main Content - with gaming theme background */}
           <div
-            className="bg-white/95 rounded-2xl shadow-2xl p-4 bg-cover bg-center"
-            style={{ backgroundImage: `url('/images/FormsBackground.png')` }}
+            className="bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)] p-4 bg-cover bg-center border border-gray-200/80"
+            style={{ backgroundImage: `url('/images/CardsBackground.webp')` }}
           >
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -468,10 +513,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                 {addressCount === 0 ? (
                   <div className="text-center py-12">
                     <div className="text-gray-500 text-lg mb-4">Nėra pridėtų adresų</div>
-                    <p className="text-gray-400 mb-6">Pradėkite pridėdami pirmąjį adresą</p>
+                    <p className="text-gray-500 mb-6">Pradėkite pridėdami pirmąjį adresą</p>
                     <button
                       onClick={() => setShowAddAddressModal(true)}
-                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#2F8481] to-[#297a77] text-white rounded-lg hover:from-[#297a77] hover:to-[#2F8481] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      className="inline-flex items-center px-6 py-3 bg-[#2F8481] hover:bg-[#297a77] text-white rounded-xl font-semibold transition-colors shadow-sm"
                     >
                       <PlusIcon className="w-5 h-5 mr-2" />
                       Pridėti pirmąjį adresą
@@ -494,28 +539,47 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                         );
 
                         return (
-                          <div key={address.id} data-address-id={address.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
-                            {/* Address Header */}
-                            <div className="bg-white sticky top-0 z-10 border-b px-4 py-2">
+                          <div key={address.id} data-address-id={address.id} className="rounded-2xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-gray-200/60 bg-white">
+                            {/* Address Header — Gradient */}
+                            <div className="bg-gradient-to-r from-[#2F8481] to-[#3a9f9c] px-4 py-3">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3 flex-1">
-                                  <BuildingOfficeIcon className="h-5 w-5 text-[#2F8481] flex-shrink-0" />
-                                  <h3 className="text-lg font-semibold text-gray-900 truncate">{address.full_address}</h3>
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full flex-shrink-0">
-                                    {addressTenants.length} butų
-                                  </span>
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
+                                    <BuildingOfficeIcon className="h-5 w-5 text-white" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h3 className="text-[14px] font-bold text-white truncate">{address.full_address}</h3>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-[11px] text-white/70">{addressTenants.length} butų</span>
+                                      {addressTenants.length > 0 && (
+                                        <>
+                                          <span className="text-[11px] text-white/40">•</span>
+                                          <span className="text-[11px] text-white/90 font-medium">
+                                            {Math.round((addressTenants.filter(t => t.status === 'active').length / addressTenants.length) * 100)}% užimta
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="flex items-center space-x-2 flex-shrink-0">
+                                <div className="flex items-center gap-1 flex-shrink-0">
                                   <button
                                     onClick={() => handleAddApartment(address.full_address, address.id)}
-                                    className="p-2 text-gray-600 hover:text-[#2F8481] hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="p-1.5 text-white/70 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
                                     title="Pridėti butą"
                                   >
                                     <PlusIcon className="h-4 w-4" />
                                   </button>
                                   <button
+                                    onClick={(e) => { e.stopPropagation(); setEditingAddressId(editingAddressId === address.id ? null : address.id); }}
+                                    className={`p-1.5 rounded-lg transition-colors ${editingAddressId === address.id ? 'text-white bg-white/20' : 'text-white/70 hover:text-white hover:bg-white/15'}`}
+                                    title={editingAddressId === address.id ? 'Baigti redagavimą' : 'Redaguoti'}
+                                  >
+                                    <PencilSquareIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
                                     onClick={() => handleSettingsClick(address.full_address, address.id)}
-                                    className="p-2 text-gray-600 hover:text-[#2F8481] hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="p-1.5 text-white/70 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
                                     title="Nustatymai"
                                   >
                                     <Cog6ToothIcon className="h-4 w-4" />
@@ -524,38 +588,85 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                               </div>
                             </div>
 
-                            {/* Tenants List */}
+                            {/* Apartment Rows */}
                             {addressTenants.length > 0 ? (
-                              <div className="divide-y divide-gray-100">
-                                {addressTenants.map((tenant) => (
-                                  <div
-                                    key={tenant.id}
-                                    className="grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-3 hover:bg-gray-50 cursor-pointer"
-                                    onClick={() => handleTenantClick(tenant)}
-                                  >
-                                    <div className="size-8 rounded-xl bg-gradient-to-br from-[#2F8481] to-[#297a77] text-white grid place-items-center text-sm font-bold flex-shrink-0">
-                                      {tenant.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="text-sm font-medium text-gray-900 truncate">{tenant.name}</div>
-                                      <div className="text-xs text-neutral-500 truncate">
-                                        Butas {tenant.apartmentNumber} • {tenant.address}
+                              <div className="divide-y divide-gray-200/80">
+                                {addressTenants.map((tenant) => {
+                                  const isVacant = tenant.status === 'vacant';
+                                  const statusConfig = tenant.status === 'active'
+                                    ? { label: 'Aktyvus', dotColor: 'bg-emerald-500', textColor: 'text-emerald-700' }
+                                    : tenant.status === 'expired'
+                                      ? { label: 'Baigėsi', dotColor: 'bg-red-500', textColor: 'text-red-700' }
+                                      : tenant.status === 'moving_out'
+                                        ? { label: 'Išsikrausto', dotColor: 'bg-amber-500', textColor: 'text-amber-700' }
+                                        : isVacant
+                                          ? { label: 'Laisvas', dotColor: 'bg-gray-400', textColor: 'text-gray-500' }
+                                          : { label: 'Laukia', dotColor: 'bg-blue-500', textColor: 'text-blue-700' };
+
+                                  return (
+                                    <div
+                                      key={tenant.id}
+                                      className="group/row flex items-center gap-2.5 px-3 py-2 hover:bg-[#2F8481]/[0.07] border-l-2 border-l-transparent hover:border-l-[#2F8481] transition-colors cursor-pointer"
+                                      onClick={() => handleTenantClick(tenant)}
+                                    >
+                                      {/* Avatar / Icon */}
+                                      {isVacant ? (
+                                        <div className="size-7 rounded-md bg-gray-100 text-gray-400 grid place-items-center flex-shrink-0">
+                                          <BuildingOfficeIcon className="h-3.5 w-3.5" />
+                                        </div>
+                                      ) : (
+                                        <div className="size-7 rounded-md bg-gradient-to-br from-[#2F8481] to-[#297a77] text-white grid place-items-center text-[11px] font-bold flex-shrink-0">
+                                          {tenant.name.charAt(0).toUpperCase()}
+                                        </div>
+                                      )}
+
+                                      {/* Info */}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-[13px] font-semibold text-gray-900 truncate">
+                                          {isVacant ? `Butas ${tenant.apartmentNumber}` : tenant.name}
+                                        </div>
+                                        <div className="text-[11px] text-gray-500 truncate mt-0.5">
+                                          {isVacant
+                                            ? [tenant.rooms ? tenant.rooms + ' kamb.' : null, tenant.area ? tenant.area + ' m²' : null].filter(Boolean).join(' • ') || 'Laisvas butas'
+                                            : `Butas ${tenant.apartmentNumber}${tenant.rooms ? ' • ' + tenant.rooms + ' kamb.' : ''}${tenant.area ? ' • ' + tenant.area + ' m²' : ''}`
+                                          }
+                                        </div>
+                                      </div>
+
+                                      {/* Right — status + price + delete */}
+                                      <div className="flex items-center gap-3 flex-shrink-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
+                                          <span className={`text-[10px] font-medium ${statusConfig.textColor}`}>{statusConfig.label}</span>
+                                        </div>
+                                        {!isVacant && (
+                                          <div className="text-[13px] font-bold text-gray-900 tabular-nums">
+                                            {formatCurrency(tenant.monthlyRent)}
+                                          </div>
+                                        )}
+                                        {editingAddressId === address.id && (
+                                          <button
+                                            onClick={(e) => handleDeleteApartment(e, tenant)}
+                                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Ištrinti butą"
+                                          >
+                                            <TrashIcon className="h-4 w-4" />
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
-                                    <div className="text-right">
-                                      <div className="text-sm font-semibold text-gray-900">
-                                        {tenant.status === 'vacant' ? '—' : formatCurrency(tenant.monthlyRent)}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             ) : (
-                              <div className="px-4 py-8 text-center text-gray-500">
-                                <p className="text-sm">Nėra butų šiame adrese</p>
+                              <div className="px-4 py-8 text-center">
+                                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                                  <BuildingOfficeIcon className="h-6 w-6 text-gray-400" />
+                                </div>
+                                <p className="text-[12px] text-gray-500 mb-2">Nėra butų šiame adrese</p>
                                 <button
                                   onClick={() => handleAddApartment(address.full_address, address.id)}
-                                  className="mt-2 inline-flex items-center px-3 py-1 bg-[#2F8481] text-white text-xs rounded-lg hover:bg-[#297a77] transition-colors"
+                                  className="inline-flex items-center px-3 py-1.5 bg-[#2F8481] text-white text-[11px] font-semibold rounded-lg hover:bg-[#297a77] transition-colors"
                                 >
                                   <PlusIcon className="h-3 w-3 mr-1" />
                                   Pridėti butą
@@ -578,7 +689,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 sm:bottom-6 sm:left-6">
         <button
           onClick={() => setShowAddAddressModal(true)}
-          className="flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3 bg-[#2F8481] text-white rounded-full sm:rounded-lg hover:bg-[#297a77] transition-all duration-200 shadow-lg hover:shadow-xl"
+          className="flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3 bg-[#2F8481] text-white rounded-full sm:rounded-lg hover:bg-[#297a77] transition-colors duration-200 shadow-lg hover:shadow-xl"
           title="Pridėti adresą"
         >
           <PlusIcon className="w-6 h-6 sm:w-5 sm:h-5" />
@@ -587,7 +698,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
         <button
           onClick={handleDeleteAllAddresses}
-          className="flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3 bg-red-600 text-white rounded-full sm:rounded-lg hover:bg-red-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+          className="flex items-center justify-center w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3 bg-red-600 text-white rounded-full sm:rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-lg hover:shadow-xl"
           title="Ištrinti visus adresus (TESTAVIMUI)"
         >
           <TrashIcon className="w-6 h-6 sm:w-5 sm:h-5" />
@@ -598,6 +709,59 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
 
       {/* Apartment functionality moved to Address Modal */}
+
+      {/* Delete Apartment Confirmation Modal */}
+      {showDeleteApartmentModal && apartmentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={cancelDeleteApartment} />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrashIcon className="w-8 h-8 text-red-600" />
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Ištrinti butą?
+              </h3>
+
+              <p className="text-sm text-gray-600 mb-6">
+                Ar tikrai norite ištrinti butą <strong>Nr. {apartmentToDelete.apartmentNumber}</strong>
+                {apartmentToDelete.name !== 'Laisvas' && (
+                  <> (nuomininkas: <strong>{apartmentToDelete.name}</strong>)</>
+                )}?
+                <br />
+                <span className="text-red-600 font-medium">
+                  Bus ištrinti visi susiję skaitiklių rodmenys ir duomenys!
+                </span>
+              </p>
+
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={cancelDeleteApartment}
+                  disabled={isDeletingApartment}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  Atšaukti
+                </button>
+                <button
+                  onClick={confirmDeleteApartment}
+                  disabled={isDeletingApartment}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {isDeletingApartment ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      Trinama...
+                    </>
+                  ) : (
+                    'Ištrinti'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Address Confirmation Modal */}
       {showDeleteAddressModal && addressToDelete && (
@@ -716,7 +880,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
               planned: '',
               status: 'none'
             }}
-            documents={[]}
+
             meters={selectedTenant.meters ? Array.from(selectedTenant.meters.values()).map((meter: any) => {
               // Passing meter to TenantDetailModalPro
               return {

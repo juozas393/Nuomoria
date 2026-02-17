@@ -24,7 +24,6 @@ const Users: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
     first_name: '',
     last_name: '',
     phone: '',
@@ -71,16 +70,9 @@ const Users: React.FC = () => {
           currentUser?.id || ''
         );
       } else {
-        // Create new user
-        await userApi.register({
-          email: formData.email,
-          password: formData.password,
-          confirmPassword: formData.password,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          phone: formData.phone,
-          role: formData.role
-        });
+        // New users should sign up via Google OAuth
+        // This admin form only supports editing existing users
+        console.warn('Creating users through admin panel is not supported - users should sign up via Google OAuth');
       }
 
       setShowAddModal(false);
@@ -96,7 +88,6 @@ const Users: React.FC = () => {
     setEditingUser(user);
     setFormData({
       email: user.email,
-      password: '',
       first_name: user.first_name,
       last_name: user.last_name,
       phone: user.phone || '',
@@ -120,7 +111,6 @@ const Users: React.FC = () => {
   const resetForm = () => {
     setFormData({
       email: '',
-      password: '',
       first_name: '',
       last_name: '',
       phone: '',
@@ -226,7 +216,7 @@ const Users: React.FC = () => {
             <p className="mt-2 text-gray-600">Kraunama...</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
+          <div className="bg-white rounded-lg shadow overflow-hidden gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -267,18 +257,18 @@ const Users: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                          user.role === 'landlord' ? 'bg-blue-100 text-blue-800' :
-                            user.role === 'property_manager' ? 'bg-green-100 text-green-800' :
-                              user.role === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-gray-100 text-gray-800'
+                        user.role === 'landlord' ? 'bg-blue-100 text-blue-800' :
+                          user.role === 'property_manager' ? 'bg-green-100 text-green-800' :
+                            user.role === 'maintenance' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
                         }`}>
                         {user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${user.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
                         }`}>
                         {user.is_active ? (
                           <>
@@ -338,18 +328,7 @@ const Users: React.FC = () => {
                     />
                   </div>
 
-                  {!editingUser && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Slaptažodis</label>
-                      <input
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required={!editingUser}
-                      />
-                    </div>
-                  )}
+
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>

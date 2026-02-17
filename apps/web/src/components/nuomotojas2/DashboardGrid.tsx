@@ -65,7 +65,7 @@ const WidgetWrapper = memo<WidgetWrapperProps>(({
     children
 }) => (
     <div
-        className={`rounded-xl overflow-hidden transition-all duration-200 ${SIZE_CLASSES[size]} ${isEditing ? 'ring-2 ring-teal-400/50 ring-offset-2' : ''
+        className={`rounded-xl overflow-hidden transition-colors duration-200 ${SIZE_CLASSES[size]} ${isEditing ? 'ring-2 ring-teal-400/50 ring-offset-2' : ''
             } ${isDragging ? 'opacity-50 scale-95' : ''} ${isDragOver ? 'ring-2 ring-teal-500' : ''}`}
         draggable={isEditing}
         onDragStart={isEditing ? onDragStart : undefined}

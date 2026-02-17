@@ -243,7 +243,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                                 </div>
                                 <button
                                     onClick={handleCopyCode}
-                                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${copied
+                                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors ${copied
                                         ? 'bg-green-500 text-white'
                                         : 'bg-[#2F8481] text-white hover:bg-[#267673]'
                                         }`}
@@ -283,7 +283,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                         <div className="flex gap-2 mb-6">
                             <button
                                 onClick={() => { setMode('code'); setError(null); }}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${mode === 'code'
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${mode === 'code'
                                     ? 'bg-[#2F8481] text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
@@ -293,7 +293,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                             </button>
                             <button
                                 onClick={() => { setMode('email'); setError(null); }}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${mode === 'email'
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${mode === 'email'
                                     ? 'bg-[#2F8481] text-white'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
@@ -334,7 +334,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                                         value={email}
                                         onChange={(e) => { setEmail(e.target.value); setError(null); }}
                                         placeholder="nuomininkas@example.com"
-                                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:border-[#2F8481] focus:ring-2 focus:ring-[#2F8481]/20 outline-none transition-all"
+                                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:border-[#2F8481] focus:ring-2 focus:ring-[#2F8481]/20 outline-none transition-colors"
                                         autoFocus
                                     />
                                 </div>

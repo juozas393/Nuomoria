@@ -155,7 +155,7 @@ const MeterTable = React.memo<Props>(({ value, onChange, allowDuplicatesByKey = 
       </div>
 
       {/* Lentelė */}
-      <div className="overflow-x-auto border rounded-md gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
+      <div className="overflow-x-auto border rounded-md gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
             <tr className="text-gray-600">

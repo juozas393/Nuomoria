@@ -2,14 +2,14 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
-// Performance context temporarily disabled to prevent reload loops
+import { DensityProvider } from './context/DensityContext';
 import { AppShell } from './components/ui/AppShell';
-// PerformanceMonitor temporarily disabled to prevent reload loops
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RoleGuard } from './components/RoleGuard';
 import ErrorBoundary from './components/ErrorBoundary';
+import ErrorFallbackPage from './components/ErrorFallbackPage';
 
-// Import performance CSS
-import './styles/performance.css';
+// Import global CSS
 import './index.css';
 
 // Optimized lazy loading with preloading for critical pages
@@ -23,10 +23,11 @@ const Nuomotojas2Dashboard = React.lazy(() =>
 );
 
 // Lazy load other pages with chunk names for better caching
-const Dashboard = React.lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
+
 const Properties = React.lazy(() => import(/* webpackChunkName: "properties" */ './pages/Properties'));
 const Tenants = React.lazy(() => import(/* webpackChunkName: "tenants" */ './pages/Tenants'));
 const TenantDashboard = React.lazy(() => import(/* webpackChunkName: "tenant-dashboard" */ './features/tenant/pages/TenantDashboardPage'));
+const TenantSettingsPage = React.lazy(() => import(/* webpackChunkName: "tenant-settings" */ './features/tenant/pages/TenantSettingsPage'));
 const MetersPage = React.lazy(() => import(/* webpackChunkName: "meters" */ './pages/Meters'));
 const MeterPolicyDemo = React.lazy(() => import(/* webpackChunkName: "meter-demo" */ './pages/MeterPolicyDemo'));
 const Invoices = React.lazy(() => import(/* webpackChunkName: "invoices" */ './pages/Invoices'));
@@ -38,43 +39,73 @@ const Settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './p
 const Users = React.lazy(() => import(/* webpackChunkName: "users" */ './pages/Users'));
 
 // Auth pages - load immediately as they're critical
-const Login = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Login'));
-const NewLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/NewLogin'));
 const SupabaseLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseLogin'));
 const ProfessionalLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './features/auth/pages/LoginPage'));
 const OnboardingWrapper = React.lazy(() => import(/* webpackChunkName: "auth" */ './features/auth/pages/OnboardingWrapper'));
 const SupabaseAuthCallback = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseAuthCallback'));
 const EmailLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/EmailLogin'));
 const MagicLinkVerify = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/MagicLinkVerify'));
-const Register = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Register'));
+
 const EmailConfirmation = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/EmailConfirmation'));
 const Welcome = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Welcome'));
+
+// Guide page
+const GuidePage = React.lazy(() => import(/* webpackChunkName: "guide" */ './pages/GuidePage'));
 
 // Test pages (for development)
 const TestModal = React.lazy(() => import('./pages/TestModal'));
 
-// Loading component with performance optimization
+// Loading component with skeleton layout
 interface LoadingFallbackProps {
   message?: string;
 }
 
 // eslint-disable-next-line react/prop-types
 const LoadingFallback: React.FC<LoadingFallbackProps> = React.memo(({ message = 'Kraunama...' }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <p className="text-gray-600 text-sm">{message}</p>
+  <div className="min-h-screen bg-gray-50 p-6">
+    {/* Top bar skeleton */}
+    <div className="flex items-center justify-between mb-8">
+      <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse"></div>
+      <div className="flex gap-3">
+        <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse"></div>
+        <div className="h-8 w-32 bg-gray-200 rounded-lg animate-pulse"></div>
+      </div>
     </div>
+    {/* Stats row skeleton */}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="h-3 w-20 bg-gray-200 rounded animate-pulse mb-3"></div>
+          <div className="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+      ))}
+    </div>
+    {/* Content cards skeleton */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="flex-1">
+              <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-2"></div>
+              <div className="h-3 w-48 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 w-full bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+    {/* Subtle loading text */}
+    <p className="text-center text-gray-400 text-xs mt-6">{message}</p>
   </div>
 ));
 
 LoadingFallback.displayName = 'LoadingFallback';
 
-// Performance monitor wrapper - temporarily disabled to prevent reload loops
-const PerformanceWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Performance monitoring temporarily disabled to prevent reload loops
-  return <>{children}</>;
-};
+
 
 // Role-based redirect component for home page
 const RoleBasedRedirect: React.FC = () => {
@@ -85,12 +116,17 @@ const RoleBasedRedirect: React.FC = () => {
     return <LoadingFallback message="Tikrinama rolė..." />;
   }
 
+  // If no user or no role, redirect to onboarding
+  if (!user?.role || !['landlord', 'tenant', 'admin'].includes(user.role)) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   // Redirect based on user role
-  if (user?.role === 'tenant') {
+  if (user.role === 'tenant') {
     return <Navigate to="/tenant" replace />;
   }
 
-  // Default: landlord/admin/other -> landlord dashboard
+  // Landlord/admin -> landlord dashboard
   return <Navigate to="/dashboard" replace />;
 };
 
@@ -108,10 +144,11 @@ function AppContent() {
             <Route path="/onboarding" element={<OnboardingWrapper />} />
             <Route path="/email-login" element={<EmailLogin />} />
             <Route path="/auth/verify" element={<MagicLinkVerify />} />
-            <Route path="/register" element={<Register />} />
+
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/auth/old-callback" element={<EmailConfirmation />} />
             <Route path="/test-modal" element={<TestModal />} />
+            <Route path="/pagalba" element={<GuidePage />} />
 
             {/* Protected routes with AppShell */}
             <Route path="/" element={
@@ -122,70 +159,135 @@ function AppContent() {
               {/* Role-based home page redirect */}
               <Route index element={<RoleBasedRedirect />} />
 
-              {/* Landlord dashboard */}
+              {/* Landlord-only routes — tenants get redirected to /tenant */}
               <Route path="dashboard" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunamas dashboard..." />}>
-                  <Nuomotojas2Dashboard />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunamas dashboard..." />}>
+                      <Nuomotojas2Dashboard />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="turtas" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunami objektai..." />}>
-                  <Properties />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunami objektai..." />}>
+                      <Properties />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="butai" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunami butai..." />}>
-                  <Apartments />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunami butai..." />}>
+                      <Apartments />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="nuomininkai" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunami nuomininkai..." />}>
-                  <Tenants />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunami nuomininkai..." />}>
+                      <Tenants />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="skaitikliai" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunami skaitliukai..." />}>
-                  <MetersPage />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunami skaitliukai..." />}>
+                      <MetersPage />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="saskaitos" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunamos sąskaitos..." />}>
-                  <Invoices />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunamos sąskaitos..." />}>
+                      <Invoices />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="analitika" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunama analitika..." />}>
-                  <Analytics />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunama analitika..." />}>
+                      <Analytics />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="remontas" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunama priežiūra..." />}>
-                  <Maintenance />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunama priežiūra..." />}>
+                      <Maintenance />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="profilis" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunamas profilis..." />}>
-                  <Profile />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunamas profilis..." />}>
+                      <Profile />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="nustatymai" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunami nustatymai..." />}>
-                  <Settings />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunami nustatymai..." />}>
+                      <Settings />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
               } />
               <Route path="vartotojai" element={
-                <React.Suspense fallback={<LoadingFallback message="Kraunami vartotojai..." />}>
-                  <Users />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunami vartotojai..." />}>
+                      <Users />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
+              } />
+
+              {/* Guide page - accessible by all roles */}
+              <Route path="pagalba" element={
+                <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                  <React.Suspense fallback={<LoadingFallback message="Kraunamas gidas..." />}>
+                    <GuidePage />
+                  </React.Suspense>
+                </ErrorBoundary>
               } />
             </Route>
 
             {/* Tenant routes */}
             <Route path="/tenant" element={
               <ProtectedRoute>
-                <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomininko dashboard..." />}>
-                  <TenantDashboard />
-                </React.Suspense>
+                <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
+                  <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomininko dashboard..." />}>
+                    <TenantDashboard />
+                  </React.Suspense>
+                </RoleGuard>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/tenant/settings" element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
+                  <React.Suspense fallback={<LoadingFallback message="Kraunami nustatymai..." />}>
+                    <TenantSettingsPage />
+                  </React.Suspense>
+                </RoleGuard>
               </ProtectedRoute>
             } />
 
@@ -221,37 +323,7 @@ function App() {
       }
     };
 
-    // Set up performance monitoring
-    const setupPerformanceMonitoring = () => {
-      // Web Vitals monitoring
-      if ('web-vital' in window) {
-        import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
-          getCLS(console.log);
-          getFID(console.log);
-          getFCP(console.log);
-          getLCP(console.log);
-          getTTFB(console.log);
-        });
-      }
 
-      // Memory usage monitoring (disabled for performance)
-      // if ('memory' in performance) {
-      //   const logMemoryUsage = () => {
-      //     const memory = (performance as any).memory;
-      //     console.log('Memory Usage:', {
-      //       used: Math.round(memory.usedJSHeapSize / 1024 / 1024),
-      //       total: Math.round(memory.totalJSHeapSize / 1024 / 1024),
-      //       limit: Math.round(memory.jsHeapSizeLimit / 1024 / 1024),
-      //     });
-      //   };
-      //   
-      //   // Log memory usage every 30 seconds in development
-      //   if (process.env.NODE_ENV === 'development') {
-      //     const interval = setInterval(logMemoryUsage, 30000);
-      //     return () => clearInterval(interval);
-      //   }
-      // }
-    };
 
     // Set up viewport meta for mobile optimization
     const setupViewport = () => {
@@ -265,7 +337,6 @@ function App() {
     };
 
     preloadCritical();
-    // setupPerformanceMonitoring(); // Temporarily disabled to prevent reload loops
     setupViewport();
   }, []);
 
@@ -273,9 +344,9 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <DataProvider>
-          <PerformanceWrapper>
+          <DensityProvider>
             <AppContent />
-          </PerformanceWrapper>
+          </DensityProvider>
         </DataProvider>
       </AuthProvider>
     </ErrorBoundary>

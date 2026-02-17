@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  CameraIcon, 
+import {
+  CameraIcon,
   CloudArrowUpIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
@@ -77,13 +77,13 @@ const TenantMeters: React.FC = () => {
   useEffect(() => {
     const fetchMeterConfigs = async () => {
       if (!user) return;
-      
+
       try {
         setIsLoading(true);
-        
+
         // Get tenant's property ID from user_addresses table
         console.log('🔍 Fetching property for user:', user.id);
-        
+
         // First get user's address association
         const { data: userAddresses, error: addressError } = await supabase
           .from('user_addresses')
@@ -91,13 +91,13 @@ const TenantMeters: React.FC = () => {
           .eq('user_id', user.id)
           .eq('role', 'tenant')
           .single();
-          
+
         if (addressError || !userAddresses) {
           console.log('❌ No address found for tenant:', addressError);
           setIsLoading(false);
           return;
         }
-        
+
         // Then get any property from that address for demo
         const { data: properties, error: propertyError } = await supabase
           .from('properties')
@@ -105,21 +105,21 @@ const TenantMeters: React.FC = () => {
           .eq('address_id', userAddresses.address_id)
           .limit(1)
           .single();
-          
+
         if (propertyError || !properties) {
           console.log('❌ No property found for address:', propertyError);
           setIsLoading(false);
           return;
         }
-        
+
         const propertyId = properties.id;
         console.log('✅ Found property ID for tenant:', propertyId);
-        
+
         try {
           const configs = await propertyMeterConfigsApi.getByPropertyId(propertyId);
-          
+
           setMeterConfigs(configs || []);
-          
+
           // Create readings for ALL meters (photo required and not required)
           const allReadings: MeterReading[] = (configs || []).map((config: MeterConfig, index: number) => ({
             id: `reading-${index + 1}`,
@@ -135,20 +135,20 @@ const TenantMeters: React.FC = () => {
             location: 'Butas 15, Vilniaus g. 15', // TODO: Get from property info
             requirePhoto: config.require_photo
           }));
-          
+
           setReadings(allReadings);
-          
+
         } catch (error) {
           console.error('Error fetching meter configurations:', error);
         }
-        
+
       } catch (error) {
         console.error('Error fetching meter configurations:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     fetchMeterConfigs();
   }, [user]);
 
@@ -174,40 +174,40 @@ const TenantMeters: React.FC = () => {
 
   const getMeterTypeInfo = (type: string) => {
     const types = {
-      electricity: { 
-        name: 'Elektros skaitliukas', 
-        icon: '⚡', 
-        color: 'yellow', 
+      electricity: {
+        name: 'Elektros skaitliukas',
+        icon: '⚡',
+        color: 'yellow',
         unit: 'kWh',
         description: 'Elektros energijos suvartojimas',
         averageMonthly: 300, // kWh per mėnesį
         maxReasonable: 800, // maksimalus protingas suvartojimas
         minReasonable: 50    // minimalus protingas suvartojimas
       },
-      water: { 
-        name: 'Vandens skaitliukas', 
-        icon: '💧', 
-        color: 'blue', 
+      water: {
+        name: 'Vandens skaitliukas',
+        icon: '💧',
+        color: 'blue',
         unit: 'm³',
         description: 'Vandens suvartojimas',
         averageMonthly: 12,  // m³ per mėnesį
         maxReasonable: 30,   // maksimalus protingas suvartojimas
         minReasonable: 2     // minimalus protingas suvartojimas
       },
-      gas: { 
-        name: 'Dujų skaitliukas', 
-        icon: '🔥', 
-        color: 'orange', 
+      gas: {
+        name: 'Dujų skaitliukas',
+        icon: '🔥',
+        color: 'orange',
         unit: 'm³',
         description: 'Dujų suvartojimas',
         averageMonthly: 45,  // m³ per mėnesį
         maxReasonable: 120,  // maksimalus protingas suvartojimas
         minReasonable: 10    // minimalus protingas suvartojimas
       },
-      heating: { 
-        name: 'Šildymo skaitliukas', 
-        icon: '🌡️', 
-        color: 'red', 
+      heating: {
+        name: 'Šildymo skaitliukas',
+        icon: '🌡️',
+        color: 'red',
         unit: 'kWh',
         description: 'Šildymo energijos suvartojimas',
         averageMonthly: 500, // kWh per mėnesį
@@ -256,7 +256,7 @@ const TenantMeters: React.FC = () => {
 
     // Calculate consumption
     const consumption = reading.currentReading - reading.previousReading;
-    
+
     // Check for negative consumption (impossible)
     if (consumption < 0) {
       errors.push('Sunaudojimas negali būti neigiamas');
@@ -285,7 +285,7 @@ const TenantMeters: React.FC = () => {
     // Check deadline
     const deadline = new Date(reading.submissionDeadline);
     const daysUntilDeadline = Math.ceil((deadline.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysUntilDeadline < 0) {
       errors.push('Pateikimo terminas praėjo');
     } else if (daysUntilDeadline <= 3) {
@@ -295,7 +295,7 @@ const TenantMeters: React.FC = () => {
     // Check for suspicious patterns
     if (consumption > 0) {
       const dailyAverage = consumption / 30;
-      
+
       // Check for extremely high daily consumption
       if (dailyAverage > meterInfo.maxReasonable / 30) {
         warnings.push(`${meterInfo.name}: Vidutinis dienos suvartojimas atrodo neįprastai didelis`);
@@ -311,9 +311,9 @@ const TenantMeters: React.FC = () => {
 
   const handleReadingChange = (meterId: string, value: string) => {
     const newValue = parseFloat(value) || 0;
-    
-    setReadings(prev => prev.map(meter => 
-      meter.id === meterId 
+
+    setReadings(prev => prev.map(meter =>
+      meter.id === meterId
         ? { ...meter, currentReading: newValue }
         : meter
     ));
@@ -334,8 +334,8 @@ const TenantMeters: React.FC = () => {
     });
 
     Promise.all(uploadPromises).then((imageUrls) => {
-      setReadings(prev => prev.map(meter => 
-        meter.id === meterId 
+      setReadings(prev => prev.map(meter =>
+        meter.id === meterId
           ? { ...meter, photos: [...meter.photos, ...imageUrls] }
           : meter
       ));
@@ -343,8 +343,8 @@ const TenantMeters: React.FC = () => {
   };
 
   const removePhoto = (meterId: string, photoIndex: number) => {
-    setReadings(prev => prev.map(meter => 
-      meter.id === meterId 
+    setReadings(prev => prev.map(meter =>
+      meter.id === meterId
         ? { ...meter, photos: meter.photos.filter((_, index) => index !== photoIndex) }
         : meter
     ));
@@ -352,30 +352,30 @@ const TenantMeters: React.FC = () => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    
+
     // Validate all readings
     const validations = readings.map(reading => validateMeterReading(reading));
     const hasErrors = validations.some(v => !v.isValid);
-    
+
     if (hasErrors) {
       alert('Prašome ištaisyti klaidas prieš pateikiant rodmenis');
       setIsSubmitting(false);
       return;
     }
-    
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     // Update status to approved
-    setReadings(prev => prev.map(meter => ({ 
-      ...meter, 
+    setReadings(prev => prev.map(meter => ({
+      ...meter,
       status: 'approved' as const,
       lastSubmissionDate: new Date().toISOString()
     })));
-    
+
     setIsSubmitting(false);
     setShowSuccess(true);
-    
+
     setTimeout(() => setShowSuccess(false), 5000);
   };
 
@@ -400,7 +400,7 @@ const TenantMeters: React.FC = () => {
   const getConsumptionColor = (consumption: number, meterType: string) => {
     const meterInfo = getMeterTypeInfo(meterType);
     const ratio = consumption / meterInfo.averageMonthly;
-    
+
     if (ratio < 0.5) return 'text-blue-600';
     if (ratio > 1.5) return 'text-orange-600';
     if (ratio > 2) return 'text-red-600';
@@ -459,7 +459,7 @@ const TenantMeters: React.FC = () => {
                     Skaitliukai
                   </h3>
                   <p className="text-sm text-blue-700">
-                    Pateikite tik tuos skaitliukus, kuriems reikia rodmenų nuotraukų. 
+                    Pateikite tik tuos skaitliukus, kuriems reikia rodmenų nuotraukų.
                     Bendri skaitliukai (internetas, šiukšlės) skaičiuojami automatiškai.
                   </p>
                 </div>
@@ -472,8 +472,8 @@ const TenantMeters: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <CheckCircleIcon className="w-5 h-5 text-green-600" />
                   <div>
-                            <h3 className="font-medium text-green-900">Skaitliukai sėkmingai pateikti!</h3>
-        <p className="text-sm text-green-700">Jūsų skaitliukai buvo išsiųsti ir bus peržiūrėti.</p>
+                    <h3 className="font-medium text-green-900">Skaitliukai sėkmingai pateikti!</h3>
+                    <p className="text-sm text-green-700">Jūsų skaitliukai buvo išsiųsti ir bus peržiūrėti.</p>
                   </div>
                 </div>
               </div>
@@ -487,7 +487,7 @@ const TenantMeters: React.FC = () => {
                 const validation = validateMeterReading(meter);
                 const daysUntilDeadline = getDaysUntilDeadline(meter.submissionDeadline);
                 const consumptionColor = getConsumptionColor(consumption, meter.meterType);
-                
+
                 return (
                   <div key={meter.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                     {/* Header */}
@@ -574,11 +574,10 @@ const TenantMeters: React.FC = () => {
                             type="number"
                             value={meter.currentReading || ''}
                             onChange={(e) => handleReadingChange(meter.id, e.target.value)}
-                            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-2xl font-bold ${
-                              validation.errors.some(e => e.includes('rodmuo')) 
-                                ? 'border-red-300 bg-red-50' 
+                            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-2xl font-bold ${validation.errors.some(e => e.includes('rodmuo'))
+                                ? 'border-red-300 bg-red-50'
                                 : 'border-gray-300'
-                            }`}
+                              }`}
                             placeholder="0"
                             min={meter.previousReading}
                             step="0.01"
@@ -591,7 +590,7 @@ const TenantMeters: React.FC = () => {
 
                       {/* Consumption Display */}
                       {meter.currentReading > 0 && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                        <div className="bg-[#E8F5F4] rounded-xl p-4 border border-[#2F8481]/20">
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-blue-600">Sunaudota per mėnesį</p>
@@ -606,7 +605,7 @@ const TenantMeters: React.FC = () => {
                               </p>
                             </div>
                           </div>
-                          
+
                           {/* Consumption Analysis */}
                           <div className="mt-3 pt-3 border-t border-blue-200">
                             <div className="flex items-center justify-between text-xs">
@@ -625,30 +624,29 @@ const TenantMeters: React.FC = () => {
 
                       {/* Photo Upload - only show if meter requires photo */}
                       {meter.requirePhoto && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Skaitliuko nuotrauka *
-                        </label>
-                        <div 
-                          onClick={() => fileInputRef.current?.click()}
-                          className={`border-2 border-dashed rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 cursor-pointer ${
-                            validation.errors.some(e => e.includes('nuotrauka')) 
-                              ? 'border-red-300 bg-red-50' 
-                              : 'border-gray-300'
-                          }`}
-                        >
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handlePhotoUpload(meter.id, e)}
-                            className="hidden"
-                          />
-                          <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600 font-medium mb-2">Nufotografuokite skaitliuką</p>
-                          <p className="text-sm text-gray-500">Arba nuvilkite nuotrauką čia</p>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Skaitliuko nuotrauka *
+                          </label>
+                          <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className={`border-2 border-dashed rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200 cursor-pointer ${validation.errors.some(e => e.includes('nuotrauka'))
+                                ? 'border-red-300 bg-red-50'
+                                : 'border-gray-300'
+                              }`}
+                          >
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handlePhotoUpload(meter.id, e)}
+                              className="hidden"
+                            />
+                            <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-600 font-medium mb-2">Nufotografuokite skaitliuką</p>
+                            <p className="text-sm text-gray-500">Arba nuvilkite nuotrauką čia</p>
+                          </div>
                         </div>
-                      </div>
                       )}
 
                       {/* Photo Preview - only show if meter requires photo and has photos */}
@@ -712,7 +710,7 @@ const TenantMeters: React.FC = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={!canSubmit || isSubmitting}
-                  className="group relative px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="group relative px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-colors duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
                   <span className="relative flex items-center gap-2">

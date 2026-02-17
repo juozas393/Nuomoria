@@ -18,7 +18,7 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({ onClick, loading = false, d
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className="w-full h-12 flex items-center justify-center gap-2.5 rounded-[15px] bg-[#2F8481] text-white px-4 text-[15px] font-semibold shadow-md transition-all duration-[180ms] ease-out hover:bg-[#267673] hover:shadow-[0_6px_20px_rgba(47,132,129,0.3)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-sm disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F8481]/40 focus-visible:ring-offset-2"
+      className="w-full h-12 flex items-center justify-center gap-2.5 rounded-[15px] bg-[#2F8481] text-white px-4 text-[15px] font-semibold shadow-md transition-colors duration-[180ms] ease-out hover:bg-[#267673] hover:shadow-[0_6px_20px_rgba(47,132,129,0.3)] hover:-translate-y-[2px] active:translate-y-0 active:shadow-sm disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F8481]/40 focus-visible:ring-offset-2"
       type="button"
     >
       {loading ? (

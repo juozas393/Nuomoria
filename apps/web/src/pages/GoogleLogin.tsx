@@ -199,7 +199,7 @@ const GoogleLogin: React.FC = () => {
                         <button
                             onClick={handleGoogleSignIn}
                             disabled={loading}
-                            className="w-full flex items-center justify-center gap-3 bg-[#2F8481] hover:bg-[#267270] text-white py-3.5 px-6 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                            className="w-full flex items-center justify-center gap-3 bg-[#2F8481] hover:bg-[#267270] text-white py-3.5 px-6 rounded-xl font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                         >
                             {loading ? (
                                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />

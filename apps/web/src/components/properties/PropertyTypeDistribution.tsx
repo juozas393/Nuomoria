@@ -60,7 +60,7 @@ const PropertyTypeDistribution: React.FC<PropertyTypeDistributionProps> = ({
         {types.map((type, index) => (
           <div
             key={index}
-            className={`group relative overflow-hidden rounded-xl bg-white border ${type.borderColor} shadow-lg hover:shadow-xl transition-all duration-200 ${type.bgColor}`}
+            className={`group relative overflow-hidden rounded-xl bg-white border ${type.borderColor} shadow-lg hover:shadow-xl transition-colors duration-200 ${type.bgColor}`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             
@@ -88,7 +88,7 @@ const PropertyTypeDistribution: React.FC<PropertyTypeDistributionProps> = ({
                 
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div 
-                    className={`h-full rounded-full bg-gradient-to-r ${type.gradient} transition-all duration-500 group-hover:shadow-lg`}
+                    className={`h-full rounded-full bg-gradient-to-r ${type.gradient} transition-colors duration-500 group-hover:shadow-lg`}
                     style={{ width: `${type.percentage}%` }}
                   ></div>
                 </div>

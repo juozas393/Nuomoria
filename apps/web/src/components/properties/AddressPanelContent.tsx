@@ -393,7 +393,7 @@ export const AddressPanelContent: React.FC<AddressPanelContentProps> = ({
                             <div className="text-xs text-gray-500">{settings.notificationSettings.autoReminders ? 'Įjungta' : 'Išjungta'}</div>
                         </div>
                         <div className={`w-10 h-6 rounded-full ${settings.notificationSettings.autoReminders ? 'bg-[#2F8481]' : 'bg-gray-300'} relative transition-colors`}>
-                            <div className={`absolute w-4 h-4 bg-white rounded-full top-1 transition-all ${settings.notificationSettings.autoReminders ? 'right-1' : 'left-1'}`} />
+                            <div className={`absolute w-4 h-4 bg-white rounded-full top-1 transition-colors ${settings.notificationSettings.autoReminders ? 'right-1' : 'left-1'}`} />
                         </div>
                     </div>
                 </div>

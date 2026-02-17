@@ -38,14 +38,19 @@ module.exports = {
         'spin-slow': 'spin 3s linear infinite',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'bounce-slow': 'bounce 2s infinite',
-        'fade-in': 'fadeIn 0.3s ease-out',
+        'fade-in': 'fadeIn 0.2s ease-out',
         'slide-in': 'slideIn 0.3s ease-out',
         'loading': 'loading 1.5s infinite',
+        'fadeIn': 'pageFade 0.35s cubic-bezier(0, 0, 0.2, 1) both',
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        pageFade: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
         slideIn: {
           '0%': { transform: 'translateX(-100%)' },
@@ -105,7 +110,7 @@ module.exports = {
   },
   plugins: [
     // Performance-focused plugins
-    function({ addUtilities, addComponents, theme }) {
+    function ({ addUtilities, addComponents, theme }) {
       // Performance utilities
       addUtilities({
         '.will-change-transform': {

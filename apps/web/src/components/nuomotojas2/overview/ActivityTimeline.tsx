@@ -8,7 +8,7 @@ const ANIMATION = {
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };

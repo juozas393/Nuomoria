@@ -8,7 +8,7 @@ const ANIMATION = {
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };
@@ -34,7 +34,7 @@ export const KPIStatCard = memo<KPIStatCardProps>(({
             <Component
                 onClick={handleClick}
                 style={cardStyle}
-                className={`rounded-2xl border border-gray-100 p-4 text-left transition-all ${ANIMATION.hover} ${handleClick ? 'cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.98]' : ''
+                className={`rounded-2xl border border-gray-100 p-4 text-left transition-colors ${ANIMATION.hover} ${handleClick ? 'cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.98]' : ''
                     }`}
             >
                 <div className="flex items-start justify-between mb-2">
@@ -62,7 +62,7 @@ export const KPIStatCard = memo<KPIStatCardProps>(({
         <Component
             onClick={handleClick}
             style={cardStyle}
-            className={`rounded-2xl border border-gray-100 p-4 text-left transition-all ${ANIMATION.hover} ${handleClick ? 'cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.98]' : ''
+            className={`rounded-2xl border border-gray-100 p-4 text-left transition-colors ${ANIMATION.hover} ${handleClick ? 'cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.98]' : ''
                 }`}
         >
             <div className="flex items-start justify-between mb-2">

@@ -57,21 +57,21 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
     type: 'individual' as 'individual' | 'communal',
     unit: 'm3' as 'm3' | 'kWh' | 'GJ' | 'Kitas',
     price: 0,
-    distribution: 'pagal_butus' as 'pagal_suvartojima' | 'pagal_butus' | 'pagal_plota' | 'fiksuota',
+    distribution: 'pagal_suvartojima' as 'pagal_suvartojima' | 'pagal_butus' | 'pagal_plota' | 'fiksuota',
     requiresPhoto: false
   });
 
   // Filter available templates
   const availableTemplates = useMemo(() => {
-    return METER_TEMPLATES.filter(template => 
+    return METER_TEMPLATES.filter(template =>
       !existingMeterNames.includes(template.name) &&
       template.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [existingMeterNames, searchQuery]);
 
   const handleTemplateToggle = (templateId: string) => {
-    setSelectedTemplates(prev => 
-      prev.includes(templateId) 
+    setSelectedTemplates(prev =>
+      prev.includes(templateId)
         ? prev.filter(id => id !== templateId)
         : [...prev, templateId]
     );
@@ -104,14 +104,14 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
 
   const handleAddCustom = () => {
     if (!customMeter.name.trim()) return;
-    
+
     const newMeter = {
       id: `custom_${Date.now()}`,
       name: customMeter.name,
       description: customMeter.description,
       type: customMeter.type,
       unit: customMeter.unit,
-              price_per_unit: customMeter.unit === 'Kitas' ? 0 : customMeter.price,
+      price_per_unit: customMeter.unit === 'Kitas' ? 0 : customMeter.price,
       fixed_price: customMeter.unit === 'Kitas' ? customMeter.price : undefined,
       distribution_method: (() => {
         switch (customMeter.distribution) {
@@ -127,7 +127,7 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
       is_inherited: false,
       is_custom: true
     };
-    
+
     onAddMeters([newMeter]);
     setCustomMeter({
       name: '',
@@ -162,21 +162,19 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('templates')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'templates'
-                ? 'text-[#2F8481] border-b-2 border-[#2F8481]'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-6 py-3 text-sm font-medium transition-colors ${activeTab === 'templates'
+              ? 'text-[#2F8481] border-b-2 border-[#2F8481]'
+              : 'text-gray-500 hover:text-gray-700'
+              }`}
           >
             Šablonai
           </button>
           <button
             onClick={() => setActiveTab('custom')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'custom'
-                ? 'text-[#2F8481] border-b-2 border-[#2F8481]'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-6 py-3 text-sm font-medium transition-colors ${activeTab === 'custom'
+              ? 'text-[#2F8481] border-b-2 border-[#2F8481]'
+              : 'text-gray-500 hover:text-gray-700'
+              }`}
           >
             Naujas skaitiklis
           </button>
@@ -225,15 +223,15 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
                           className="w-4 h-4 text-[#2F8481] border-gray-300 rounded focus:ring-[#2F8481]"
                         />
                       </div>
-                      
+
                       <div className="px-4 py-3">
-                                                 <div className="flex items-center gap-2">
-                           <div className="w-6 h-6 bg-[#2F8481]/10 rounded flex items-center justify-center">
-                             {(() => {
-                               const IconComponent = getMeterIcon(getIconFromTemplate(template.icon));
-                               return <IconComponent className="w-4 h-4 text-[#2F8481]" />;
-                             })()}
-                           </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-[#2F8481]/10 rounded flex items-center justify-center">
+                            {(() => {
+                              const IconComponent = getMeterIcon(getIconFromTemplate(template.icon));
+                              return <IconComponent className="w-4 h-4 text-[#2F8481]" />;
+                            })()}
+                          </div>
                           <div>
                             <div className="font-medium text-gray-900 text-sm">{template.name}</div>
                             {template.description && (
@@ -244,11 +242,10 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
                       </div>
 
                       <div className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          template.type === 'individual' 
-                            ? 'bg-[#2F8481]/10 text-[#2F8481]' 
-                            : 'bg-orange-100 text-orange-700'
-                        }`}>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${template.type === 'individual'
+                          ? 'bg-[#2F8481]/10 text-[#2F8481]'
+                          : 'bg-orange-100 text-orange-700'
+                          }`}>
                           {template.type === 'individual' ? 'Individualus' : 'Bendras'}
                         </span>
                       </div>
@@ -266,11 +263,10 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
                       </div>
 
                       <div className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          template.requiresPhoto 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${template.requiresPhoto
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                          }`}>
                           {template.requiresPhoto ? 'Taip' : 'Ne'}
                         </span>
                       </div>
@@ -310,7 +306,7 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
                     value={customMeter.name}
                     onChange={(e) => setCustomMeter(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-transparent"
-                    placeholder="Pvz. Vanduo (šaltas)"
+                    placeholder="Pvz. Šaltas vanduo"
                   />
                 </div>
 
@@ -336,8 +332,8 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
                     onChange={(e) => setCustomMeter(prev => ({ ...prev, type: e.target.value as any }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-transparent"
                   >
-                                            <option value="individual">Individualus</option>
-                        <option value="communal">Bendras</option>
+                    <option value="individual">Individualus</option>
+                    <option value="communal">Bendras</option>
                   </select>
                 </div>
 
@@ -382,7 +378,7 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-transparent"
                   >
                     <option value="pagal_suvartojima">Pagal suvartojimą</option>
-                    <option value="pagal_butus">Pagal butus</option>
+                    <option value="pagal_butus">Pagal butų sk.</option>
                     <option value="pagal_plota">Pagal plotą</option>
                     <option value="fiksuota">Fiksuota</option>
                   </select>

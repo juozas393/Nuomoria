@@ -9,7 +9,7 @@ const ANIMATION = {
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };
@@ -41,7 +41,7 @@ export const TenantCard = memo<TenantCardProps>(({
                 {onAddTenant && (
                     <button
                         onClick={onAddTenant}
-                        className={`w-full py-2.5 bg-teal-50 hover:bg-teal-100 active:scale-[0.98] text-teal-700 text-[13px] font-semibold rounded-xl transition-all ${ANIMATION.hover}`}
+                        className={`w-full py-2.5 bg-teal-50 hover:bg-teal-100 active:scale-[0.98] text-teal-700 text-[13px] font-semibold rounded-xl transition-colors ${ANIMATION.hover}`}
                     >
                         + Pridėti nuomininką
                     </button>
@@ -53,7 +53,7 @@ export const TenantCard = memo<TenantCardProps>(({
     // Tenant exists
     return (
         <div
-            className={`rounded-2xl border border-gray-100 p-5 transition-all ${ANIMATION.hover} ${onViewTenant ? 'cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.99]' : ''
+            className={`rounded-2xl border border-gray-100 p-5 transition-colors ${ANIMATION.hover} ${onViewTenant ? 'cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.99]' : ''
                 }`}
             onClick={onViewTenant}
             style={cardStyle}

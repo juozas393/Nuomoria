@@ -22,8 +22,9 @@ import { type DistributionMethod } from '../../constants/meterDistribution';
 import { supabase } from '../../lib/supabase';
 import { addressApi } from '../../lib/database';
 import { sendNotificationNew } from '../../utils/notificationSystem';
-// Background image path (optimized)
-const addressBg = '/images/FormsBackground.png';
+// Background image paths
+const modalBg = '/images/ModalBackground.png';
+const cardsBg = '/images/CardsBackground.webp';
 
 // Form schema
 const addressSchema = z.object({
@@ -153,12 +154,12 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
   // Default communal meters
   const DEFAULT_METERS: Omit<CommunalMeter, 'id'>[] = [
     {
-      name: 'Vanduo (šaltas)',
+      name: 'Šaltas vanduo',
       type: 'individual',
       unit: 'm3',
-      price_per_unit: 1.2,
+      price_per_unit: 1.32,
       distribution_method: 'per_consumption',
-      description: 'Šalto vandens suvartojimas kiekvienam butui',
+      description: 'Šalto vandens tiekimas ir nuotekos',
       is_active: true,
       requires_photo: true,
       collectionMode: 'tenant_photo',
@@ -166,83 +167,56 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       tenantPhotoEnabled: true
     },
     {
-      name: 'Vanduo (karštas)',
+      name: 'Karštas vanduo',
       type: 'individual',
       unit: 'm3',
       price_per_unit: 3.5,
       distribution_method: 'per_consumption',
-      description: 'Karšto vandens suvartojimas kiekvienam butui',
+      description: 'Karšto vandens tiekimas',
       is_active: true,
       requires_photo: true,
       collectionMode: 'tenant_photo',
       landlordReadingEnabled: true,
-      tenantPhotoEnabled: false
+      tenantPhotoEnabled: true
     },
     {
-      name: 'Elektra (individuali)',
+      name: 'Elektra',
       type: 'individual',
       unit: 'kWh',
-      price_per_unit: 0.15,
+      price_per_unit: 0.23,
       distribution_method: 'per_consumption',
-      description: 'Elektros suvartojimas kiekvienam butui',
+      description: 'Buto elektros suvartojimas',
       is_active: true,
       requires_photo: true,
       collectionMode: 'tenant_photo',
       landlordReadingEnabled: true,
-      tenantPhotoEnabled: false
-    },
-    {
-      name: 'Elektra (bendra)',
-      type: 'communal',
-      unit: 'kWh',
-      price_per_unit: 0.15,
-      distribution_method: 'per_apartment',
-      description: 'Namo apsvietimas, liftas, kiemo apšvietimas',
-      is_active: true,
-      requires_photo: false,
-      collectionMode: 'landlord_only',
-      landlordReadingEnabled: false,
-      tenantPhotoEnabled: false
+      tenantPhotoEnabled: true
     },
     {
       name: 'Šildymas',
+      type: 'individual',
+      unit: 'kWh',
+      price_per_unit: 0.095,
+      distribution_method: 'per_area',
+      description: 'Centrinis šildymas pagal plotą',
+      is_active: true,
+      requires_photo: false,
+      collectionMode: 'landlord_only',
+      landlordReadingEnabled: true,
+      tenantPhotoEnabled: false
+    },
+    {
+      name: 'Techninė apžiūra',
       type: 'communal',
-      unit: 'GJ',
-      price_per_unit: 25.0,
+      unit: 'Kitas',
+      price_per_unit: 0,
+      fixed_price: 0,
       distribution_method: 'per_apartment',
-      description: 'Namo šildymo sąnaudos',
+      description: 'Namo techninė priežiūra ir apžiūra',
       is_active: true,
       requires_photo: false,
       collectionMode: 'landlord_only',
-      landlordReadingEnabled: false,
-      tenantPhotoEnabled: false
-    },
-    {
-      name: 'Internetas',
-      type: 'communal',
-      unit: 'Kitas',
-      price_per_unit: 0,
-      fixed_price: 60,
-      distribution_method: 'fixed_split',
-      description: 'Namo interneto paslaugos',
-      is_active: true,
-      requires_photo: false,
-      collectionMode: 'landlord_only',
-      landlordReadingEnabled: false,
-      tenantPhotoEnabled: false
-    },
-    {
-      name: 'Šiukšlių išvežimas',
-      type: 'communal',
-      unit: 'Kitas',
-      price_per_unit: 0,
-      fixed_price: 45,
-      distribution_method: 'fixed_split',
-      description: 'Šiukšlių išvežimo paslaugos',
-      is_active: true,
-      requires_photo: false,
-      collectionMode: 'landlord_only',
-      landlordReadingEnabled: false,
+      landlordReadingEnabled: true,
       tenantPhotoEnabled: false
     }
   ];
@@ -398,21 +372,90 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
 
 
-  // Initialize default meters when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      // Reset meters to ensure fresh defaults
-      setCommunalMeters([]);
 
+  // Initialize default meters when modal opens - smart defaults from previous address
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Reset meters to ensure fresh defaults
+    setCommunalMeters([]);
+
+    const loadSmartDefaults = async () => {
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No user');
+
+        // Find user's most recent address that has meters
+        const { data: userAddresses } = await supabase
+          .from('user_addresses')
+          .select('address_id')
+          .eq('user_id', user.id)
+          .eq('role', 'owner');
+
+        if (userAddresses && userAddresses.length > 0) {
+          const addressIds = userAddresses.map(ua => ua.address_id);
+
+          // Get the most recent meters from any of the user's addresses
+          const { data: existingMeters } = await supabase
+            .from('address_meters')
+            .select('*')
+            .in('address_id', addressIds)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+
+          if (existingMeters && existingMeters.length > 0) {
+            // Group by address_id to find which address has the most meters (most complete setup)
+            const metersByAddress: Record<string, typeof existingMeters> = {};
+            for (const m of existingMeters) {
+              if (!metersByAddress[m.address_id]) metersByAddress[m.address_id] = [];
+              metersByAddress[m.address_id].push(m);
+            }
+
+            // Pick the address with the most meters
+            const allGroups = Object.values(metersByAddress);
+            const bestAddressMeters = allGroups.sort(
+              (a, b) => b.length - a.length
+            )[0];
+
+            if (bestAddressMeters && bestAddressMeters.length > 0) {
+              console.log('📋 Using smart defaults from previous address:', bestAddressMeters.length, 'meters');
+
+              const smartMeters: CommunalMeter[] = bestAddressMeters.map((m: any, i: number) => ({
+                id: `meter-${i + 1}`,
+                name: m.name,
+                type: m.type as 'individual' | 'communal',
+                unit: m.unit as 'm3' | 'kWh' | 'GJ' | 'Kitas',
+                price_per_unit: m.price_per_unit || 0,
+                fixed_price: m.fixed_price || 0,
+                distribution_method: m.distribution_method as DistributionMethod,
+                description: m.description || '',
+                is_active: true,
+                requires_photo: m.requires_photo ?? true,
+                collectionMode: m.requires_photo ? 'tenant_photo' : 'landlord_only' as 'landlord_only' | 'tenant_photo',
+                landlordReadingEnabled: !m.requires_photo,
+                tenantPhotoEnabled: m.requires_photo ?? true
+              }));
+
+              setCommunalMeters(smartMeters);
+              return; // Skip hardcoded defaults
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch smart defaults, using hardcoded:', err);
+      }
+
+      // Fallback: hardcoded defaults for first-time users
       const defaultMeters: CommunalMeter[] = [
         {
           id: 'meter-1',
-          name: 'Vanduo (šaltas)',
+          name: 'Šaltas vanduo',
           type: 'individual',
           unit: 'm3',
-          price_per_unit: 1.2,
+          price_per_unit: 1.32,
           distribution_method: 'per_consumption',
-          description: 'Šalto vandens suvartojimas',
+          description: 'Šalto vandens tiekimas ir nuotekos',
           is_active: true,
           requires_photo: true,
           collectionMode: 'tenant_photo',
@@ -421,67 +464,70 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         },
         {
           id: 'meter-2',
-          name: 'Vanduo (karštas)',
+          name: 'Karštas vanduo',
           type: 'individual',
           unit: 'm3',
           price_per_unit: 3.5,
           distribution_method: 'per_consumption',
-          description: 'Karšto vandens suvartojimas',
-          is_active: true,
-          requires_photo: true,
-          collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: false
-        },
-        {
-          id: 'meter-3',
-          name: 'Elektra (individuali)',
-          type: 'individual',
-          unit: 'kWh',
-          price_per_unit: 0.15,
-          distribution_method: 'per_consumption',
-          description: 'Elektros suvartojimas',
-          is_active: true,
-          requires_photo: true,
-          collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: false
-        },
-        {
-          id: 'meter-4',
-          name: 'Elektra (bendra)',
-          type: 'communal',
-          unit: 'kWh',
-          price_per_unit: 0.15,
-          distribution_method: 'per_apartment',
-          description: 'Namo apsvietimas',
-          is_active: true,
-          requires_photo: false,
-          collectionMode: 'landlord_only',
-          landlordReadingEnabled: false,
-          tenantPhotoEnabled: false
-        },
-        {
-          id: 'meter-5',
-          name: 'Šildymas',
-          type: 'individual',
-          unit: 'GJ',
-          price_per_unit: 25.0,
-          distribution_method: 'per_area',
-          description: 'Namo šildymo sąnaudos',
+          description: 'Karšto vandens tiekimas',
           is_active: true,
           requires_photo: true,
           collectionMode: 'tenant_photo',
           landlordReadingEnabled: true,
           tenantPhotoEnabled: true
+        },
+        {
+          id: 'meter-3',
+          name: 'Elektra',
+          type: 'individual',
+          unit: 'kWh',
+          price_per_unit: 0.23,
+          distribution_method: 'per_consumption',
+          description: 'Buto elektros suvartojimas',
+          is_active: true,
+          requires_photo: true,
+          collectionMode: 'tenant_photo',
+          landlordReadingEnabled: true,
+          tenantPhotoEnabled: true
+        },
+        {
+          id: 'meter-4',
+          name: 'Šildymas',
+          type: 'individual',
+          unit: 'kWh',
+          price_per_unit: 0.095,
+          distribution_method: 'per_area',
+          description: 'Centrinis šildymas pagal plotą',
+          is_active: true,
+          requires_photo: false,
+          collectionMode: 'landlord_only',
+          landlordReadingEnabled: true,
+          tenantPhotoEnabled: false
+        },
+        {
+          id: 'meter-5',
+          name: 'Techninė apžiūra',
+          type: 'communal',
+          unit: 'Kitas',
+          price_per_unit: 0,
+          fixed_price: 0,
+          distribution_method: 'per_apartment',
+          description: 'Namo techninė priežiūra ir apžiūra',
+          is_active: true,
+          requires_photo: false,
+          collectionMode: 'landlord_only',
+          landlordReadingEnabled: true,
+          tenantPhotoEnabled: false
         }
       ];
 
-      // Set default meters after a small delay to ensure state is cleared
-      setTimeout(() => {
-        setCommunalMeters(defaultMeters);
-      }, 100);
-    }
+      setCommunalMeters(defaultMeters);
+    };
+
+    // Small delay to ensure state is cleared
+    setTimeout(() => {
+      loadSmartDefaults();
+    }, 100);
   }, [isOpen]);
 
   // Cleanup timeout on unmount
@@ -663,9 +709,9 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           }
 
           // Ensure distribution_method is valid
-          if (!['per_apartment', 'per_area', 'per_consumption', 'fixed_split'].includes(meter.distribution_method)) {
+          if (!['per_apartment', 'per_area', 'per_consumption', 'per_person', 'fixed_split'].includes(meter.distribution_method)) {
             console.error(`Invalid distribution method: ${meter.distribution_method} for meter: ${meter.name}`);
-            throw new Error(`Invalid distribution method: ${meter.distribution_method}. Must be 'per_apartment', 'per_area', 'per_consumption', or 'fixed_split'`);
+            throw new Error(`Invalid distribution method: ${meter.distribution_method}. Must be 'per_apartment', 'per_area', 'per_consumption', 'per_person', or 'fixed_split'`);
           }
 
           return meter;
@@ -882,6 +928,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
       if (errorCode === 403 || errorCode === 'PGRST301' || errorMsg.includes('403') || errorMsg.includes('permission denied') || errorMsg.includes('row-level security')) {
         errorMessage = 'Klaida: neturite teisių išsaugoti adreso. Prašome:\n1. Patikrinkite, ar esate prisijungę\n2. Jei problema išlieka, atsijunkite ir prisijunkite iš naujo\n3. Jei problema tęsiasi, susisiekite su administratoriumi';
+      } else if (errorCode === '23505' || errorCode === 409 || errorMsg.includes('409') || errorMsg.includes('duplicate') || errorMsg.includes('unique') || errorMsg.includes('Conflict')) {
+        errorMessage = 'Šis adresas jau egzistuoja jūsų paskyroje. Jei norite pridėti naują butą prie esamo adreso, naudokite "Pridėti butą" funkciją.';
       } else if (errorCode === 400 || errorMsg.includes('400')) {
         errorMessage = 'Klaida: neteisingi duomenys. Patikrinkite visus laukus ir bandykite dar kartą.';
       } else if (errorMsg.includes('requires_photo')) {
@@ -1019,46 +1067,46 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
       {/* Main Modal */}
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        {/* Modal Container with Background */}
-        <div className="relative rounded-2xl shadow-2xl w-full max-w-[min(100vw-32px,1100px)] max-h-[90vh] flex flex-col border border-white/20 overflow-hidden bg-[#F8FAFC]/90">
+        {/* Modal Container with Dark B/W Background */}
+        <div className="relative rounded-2xl shadow-2xl w-full max-w-[min(100vw-32px,1100px)] max-h-[90vh] flex flex-col border border-white/10 overflow-hidden bg-[#0f1215]">
 
-          {/* Background Image Layer - Dominant Presence */}
+          {/* Background Image Layer */}
           <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
-            {/* Base Image - Very high visibility */}
             <img
-              src={addressBg}
+              src={modalBg}
               alt=""
-              className="w-full h-full object-cover opacity-[0.85]"
-              style={{ objectPosition: '30% 70%' }}
+              loading="lazy"
+              className="w-full h-full object-cover opacity-70"
+              style={{ objectPosition: 'center 40%' }}
             />
-            {/* Minimal corner overlay for header/footer readability only */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-white/30" />
+            {/* Dark gradient overlay for readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/15 to-black/35" />
           </div>
 
           {/* Compact Header */}
-          <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md rounded-t-2xl border-b border-white/40 shadow-sm">
+          <div className="sticky top-0 z-20 bg-black/60 backdrop-blur-md rounded-t-2xl border-b border-white/10">
             <div className="flex items-center justify-between px-4 py-2">
               {/* Left: Title only */}
-              <h2 className="text-[15px] font-bold text-gray-900">Naujas adresas</h2>
+              <h2 className="text-[15px] font-bold text-white">Naujas adresas</h2>
 
               {/* Center: Ultra-compact Stepper */}
               <div className="flex items-center">
                 {steps.map((step, i) => (
                   <React.Fragment key={step}>
                     {i > 0 && (
-                      <div className={`w-6 h-[2px] ${i <= currentStep ? 'bg-[#2F8481]' : 'bg-gray-200'}`} />
+                      <div className={`w-6 h-[2px] ${i <= currentStep ? 'bg-[#2F8481]' : 'bg-white/30'}`} />
                     )}
                     <button
                       onClick={() => setCurrentStep(i)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all ${i === currentStep ? 'bg-[#2F8481]/10' : 'hover:bg-gray-50'
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${i === currentStep ? 'bg-[#2F8481]/20' : 'hover:bg-white/10'
                         }`}
                       title={step}
                     >
-                      <span className={`w-[18px] h-[18px] rounded-full text-[10px] flex items-center justify-center font-bold ${i <= currentStep ? 'bg-[#2F8481] text-white' : 'bg-gray-200 text-gray-500'
+                      <span className={`w-[18px] h-[18px] rounded-full text-[10px] flex items-center justify-center font-bold ${i <= currentStep ? 'bg-[#2F8481] text-white' : 'bg-white/20 text-white/80'
                         }`}>
                         {i < currentStep ? '✓' : i + 1}
                       </span>
-                      <span className={`text-[11px] font-semibold hidden md:inline ${i === currentStep ? 'text-[#2F8481]' : 'text-gray-500'
+                      <span className={`text-[11px] font-semibold hidden md:inline ${i === currentStep ? 'text-[#5bbab7]' : 'text-white/70'
                         }`}>
                         {step}
                       </span>
@@ -1070,7 +1118,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
               {/* Right: Close */}
               <button
                 onClick={handleClose}
-                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-all"
+                className="w-7 h-7 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
                 aria-label="Uždaryti"
               >
                 <XMarkIcon className="h-5 w-5" />
@@ -1079,7 +1127,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           </div>
 
           {/* Content */}
-          <div className="relative z-10 flex-1 overflow-y-auto px-5 py-4 bg-transparent">
+          <div className="relative z-10 flex-1 overflow-y-auto px-5 py-4">
             <form onSubmit={handleSubmit(handleFinalSave)} className="space-y-4">
 
               {/* Step 1: Address */}
@@ -1087,13 +1135,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 <div className="space-y-4">
                   {/* Step Header */}
                   <div className="mb-2">
-                    <h3 className="text-[16px] font-bold text-gray-900">1. Adresas</h3>
-                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                    <h3 className="text-[16px] font-bold text-white">1. Adresas</h3>
+                    <p className="text-[13px] font-medium text-white/80 mt-0.5">
                       Įveskite pilną adresą, kad galėtume nustatyti pastato vietą.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white shadow-md p-5">
+                  <div className="rounded-xl border border-white/10 bg-white/95 shadow-md p-5" style={{ backgroundImage: `url(${cardsBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                     <div className="space-y-4">
                       {/* Full Address */}
                       <div>
@@ -1120,7 +1168,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             <span>⚠</span> Įveskite gatvę ir namo numerį (pvz., „Mituvos g. 13, Kaunas")
                           </p>
                         ) : (
-                          <p className="text-gray-400 text-[11px] mt-1">Gatvė, namo numeris, miestas</p>
+                          <p className="text-gray-500 text-[11px] mt-1">Gatvė, namo numeris, miestas</p>
                         )}
                       </div>
 
@@ -1153,7 +1201,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                             <span>⚠</span> {errors.location.postalCode.message}
                           </p>
                         ) : (
-                          <p className="text-gray-400 text-[11px] mt-1">
+                          <p className="text-gray-500 text-[11px] mt-1">
                             {watchedValues.location?.coordinates?.lat
                               ? 'Neprivaloma – koordinatės rastos'
                               : 'Privaloma, jei koordinatės nerandamos automatiškai'}
@@ -1229,13 +1277,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 <div className="space-y-4">
                   {/* Step Header */}
                   <div className="mb-2">
-                    <h3 className="text-[16px] font-bold text-gray-900">2. Pastato detalės</h3>
-                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                    <h3 className="text-[16px] font-bold text-white">2. Pastato detalės</h3>
+                    <p className="text-[13px] font-medium text-white/80 mt-0.5">
                       Nurodykite pastato tipą ir butų skaičių – tai padės sukurti tinkamą struktūrą.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white shadow-md p-5">
+                  <div className="rounded-xl border border-white/10 bg-white/95 shadow-md p-5" style={{ backgroundImage: `url(${cardsBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Building Type */}
                       <div>
@@ -1251,8 +1299,10 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                               className={`w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] font-medium text-gray-900 ${errors.buildingInfo?.buildingType ? 'border-red-300' : ''
                                 }`}
                             >
-                              <option value="Butų namas">Butų namas</option>
-                              <option value="Gyvenamasis namas">Gyvenamasis namas</option>
+                              <option value="Daugiabutis">Daugiabutis</option>
+                              <option value="Namas">Namas</option>
+                              <option value="Kotedžas">Kotedžas</option>
+                              <option value="Komercinis">Komercinis pastatas</option>
                               <option value="Kita">Kita</option>
                             </select>
                           )}
@@ -1349,13 +1399,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 <div className="space-y-4">
                   {/* Step Header */}
                   <div className="mb-2">
-                    <h3 className="text-[16px] font-bold text-gray-900">3. Kontaktai</h3>
-                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                    <h3 className="text-[16px] font-bold text-white">3. Kontaktai</h3>
+                    <p className="text-[13px] font-medium text-white/80 mt-0.5">
                       Pasirinkite, kas administruoja pastatą. Jei nuomotojas – naudosime jūsų profilio duomenis.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white shadow-md p-5">
+                  <div className="rounded-xl border border-white/10 bg-white/95 shadow-md p-5" style={{ backgroundImage: `url(${cardsBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                     <div className="space-y-4">
                       {/* Management Type */}
                       <div>
@@ -1531,8 +1581,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 <div className="space-y-4 h-full flex flex-col">
                   {/* Step Header */}
                   <div className="mb-2 shrink-0">
-                    <h3 className="text-[16px] font-bold text-gray-900">4. Skaitliukai</h3>
-                    <p className="text-[13px] font-medium text-gray-600 mt-0.5">
+                    <h3 className="text-[16px] font-bold text-white">4. Skaitliukai</h3>
+                    <p className="text-[13px] font-medium text-white/80 mt-0.5">
                       Sukonfigūruokite pastato skaitliukus. Galite redaguoti kiekvieną atskirai arba naudoti šablonus.
                     </p>
                   </div>
@@ -1558,13 +1608,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           </div>
 
           {/* Compact Footer */}
-          <div className="sticky bottom-0 z-20 bg-white border-t border-gray-200 px-4 py-3 flex justify-between items-center rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+          <div className="sticky bottom-0 z-20 bg-black/60 backdrop-blur-md border-t border-white/10 px-4 py-3 flex justify-between items-center rounded-b-2xl">
             <div className="flex items-center gap-1.5">
               {currentStep > 0 && (
                 <button
                   type="button"
                   onClick={() => setCurrentStep(currentStep - 1)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 rounded-md transition-all text-[13px] font-medium"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-colors text-[13px] font-medium"
                 >
                   <ArrowLeftIcon className="h-3 w-3" />
                   Atgal
@@ -1573,14 +1623,14 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-2.5 py-1.5 text-neutral-400 hover:text-neutral-600 rounded-md transition-all text-[13px]"
+                className="px-2.5 py-1.5 text-white/70 hover:text-white rounded-md transition-colors text-[13px]"
               >
                 Atšaukti
               </button>
             </div>
 
             {/* Step indicator */}
-            <div className="text-[11px] text-neutral-400 hidden sm:block">
+            <div className="text-[11px] text-white/60 hidden sm:block">
               {currentStep + 1} / {steps.length}
             </div>
 
@@ -1614,7 +1664,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                     setCurrentStep(currentStep + 1);
                   }}
                   disabled={currentStep === 0 && !watchedValues.address.fullAddress}
-                  className="px-4 py-1.5 bg-[#2F8481] text-white hover:bg-[#297a77] disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all text-[13px] font-medium"
+                  className="px-4 py-1.5 bg-[#2F8481] text-white hover:bg-[#297a77] disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors text-[13px] font-medium"
                 >
                   {currentStep === 0 && 'Tęsti → Pastatas'}
                   {currentStep === 1 && 'Tęsti → Kontaktai'}
@@ -1625,7 +1675,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                   type="button"
                   onClick={() => handleFinalSave(watchedValues)}
                   disabled={isSubmitting}
-                  className="px-4 py-1.5 bg-[#2F8481] text-white hover:bg-[#297a77] disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all text-[13px] font-medium inline-flex items-center gap-1.5"
+                  className="px-4 py-1.5 bg-[#2F8481] text-white hover:bg-[#297a77] disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors text-[13px] font-medium inline-flex items-center gap-1.5"
                 >
                   {isSubmitting ? (
                     <>

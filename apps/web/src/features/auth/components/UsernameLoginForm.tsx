@@ -31,15 +31,9 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
 
     try {
       const result = await getLoginInfoByUsername(username.trim());
-      
+
       if (!result.success || !result.data) {
         setError(result.error || 'Klaida prisijungiant.');
-        setLoading(false);
-        return;
-      }
-
-      if (!result.data.has_password) {
-        setError('Slaptažodis dar nesukurtas. Prisijunkite su Google ir sukurkite slaptažodį nustatymuose.');
         setLoading(false);
         return;
       }
@@ -76,7 +70,7 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
 
   // Theme-based styles
   const isDark = theme === "dark";
-  
+
   return (
     <div className="relative overflow-hidden">
       {/* Premium Accordion Trigger - Theme Aware */}
@@ -85,7 +79,7 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
         onClick={() => setIsExpanded(!isExpanded)}
         aria-expanded={isExpanded}
         aria-controls="username-login-form"
-        className="relative z-10 w-full flex items-center justify-between px-4 py-3.5 text-left rounded-[14px] transition-all duration-[180ms] ease-out overflow-hidden shadow-sm"
+        className="relative z-10 w-full flex items-center justify-between px-4 py-3.5 text-left rounded-[14px] transition-colors duration-[180ms] ease-out overflow-hidden shadow-sm"
         style={{
           backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F8FAFC',
           borderWidth: '1px',
@@ -121,9 +115,9 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
 
       {isExpanded && (
         <div className="mt-3 animate-slideDown overflow-hidden">
-          <form 
+          <form
             id="username-login-form"
-            onSubmit={handleSubmit} 
+            onSubmit={handleSubmit}
             className="space-y-3.5"
           >
             {/* Username */}
@@ -140,7 +134,7 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
                 disabled={loading}
                 required
                 autoComplete="username"
-                className="w-full h-11 px-3.5 rounded-[13px] text-[14px] shadow-sm transition-all duration-[180ms] ease-out focus-visible:outline-none disabled:opacity-50"
+                className="w-full h-11 px-3.5 rounded-[13px] text-[14px] shadow-sm transition-colors duration-[180ms] ease-out focus-visible:outline-none disabled:opacity-50"
                 style={{
                   backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
                   borderWidth: '1px',
@@ -149,8 +143,8 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = '#2F8481';
-                  e.currentTarget.style.boxShadow = isDark 
-                    ? '0 0 0 3px rgba(47,132,129,0.2)' 
+                  e.currentTarget.style.boxShadow = isDark
+                    ? '0 0 0 3px rgba(47,132,129,0.2)'
                     : '0 0 0 3px rgba(47,132,129,0.1)';
                 }}
                 onBlur={(e) => {
@@ -187,7 +181,7 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
                   disabled={loading}
                   required
                   autoComplete="current-password"
-                  className="w-full h-11 px-3.5 pr-11 rounded-[13px] text-[14px] shadow-sm transition-all duration-[180ms] ease-out focus-visible:outline-none disabled:opacity-50"
+                  className="w-full h-11 px-3.5 pr-11 rounded-[13px] text-[14px] shadow-sm transition-colors duration-[180ms] ease-out focus-visible:outline-none disabled:opacity-50"
                   style={{
                     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
                     borderWidth: '1px',
@@ -196,8 +190,8 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = '#2F8481';
-                    e.currentTarget.style.boxShadow = isDark 
-                      ? '0 0 0 3px rgba(47,132,129,0.2)' 
+                    e.currentTarget.style.boxShadow = isDark
+                      ? '0 0 0 3px rgba(47,132,129,0.2)'
                       : '0 0 0 3px rgba(47,132,129,0.1)';
                   }}
                   onBlur={(e) => {
@@ -232,14 +226,14 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
 
             {/* Error */}
             {error && (
-              <div 
-                role="alert" 
-                className="rounded-[13px] px-3.5 py-2.5 text-[12px] flex items-start gap-2 shadow-sm" 
-                style={{ 
-                  backgroundColor: isDark ? 'rgba(244,63,94,0.15)' : '#FEF3F2', 
-                  borderWidth: '1px', 
-                  borderColor: isDark ? 'rgba(244,63,94,0.30)' : '#FECDCA', 
-                  color: isDark ? 'rgba(254,202,202,1)' : '#B42318' 
+              <div
+                role="alert"
+                className="rounded-[13px] px-3.5 py-2.5 text-[12px] flex items-start gap-2 shadow-sm"
+                style={{
+                  backgroundColor: isDark ? 'rgba(244,63,94,0.15)' : '#FEF3F2',
+                  borderWidth: '1px',
+                  borderColor: isDark ? 'rgba(244,63,94,0.30)' : '#FECDCA',
+                  color: isDark ? 'rgba(254,202,202,1)' : '#B42318'
                 }}
               >
                 <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -255,7 +249,7 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
             <button
               type="submit"
               disabled={loading || !username.trim() || !password}
-              className="w-full h-[48px] text-white px-4 rounded-[14px] text-[14px] font-semibold transition-all duration-[180ms] ease-out disabled:opacity-50 disabled:cursor-not-allowed shadow-sm disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F8481]/40 focus-visible:ring-offset-2"
+              className="w-full h-[48px] text-white px-4 rounded-[14px] text-[14px] font-semibold transition-colors duration-[180ms] ease-out disabled:opacity-50 disabled:cursor-not-allowed shadow-sm disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F8481]/40 focus-visible:ring-offset-2"
               style={{
                 backgroundColor: '#2F8481',
                 ...(isDark && { boxShadow: '0 2px 8px rgba(47,132,129,0.3)' })
@@ -264,16 +258,16 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
                 if (!loading && username.trim() && password) {
                   e.currentTarget.style.backgroundColor = '#267673';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = isDark 
-                    ? '0 6px 20px rgba(47,132,129,0.4)' 
+                  e.currentTarget.style.boxShadow = isDark
+                    ? '0 6px 20px rgba(47,132,129,0.4)'
                     : '0 4px 12px rgba(47,132,129,0.3)';
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = '#2F8481';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = isDark 
-                  ? '0 2px 8px rgba(47,132,129,0.3)' 
+                e.currentTarget.style.boxShadow = isDark
+                  ? '0 2px 8px rgba(47,132,129,0.3)'
                   : '0 1px 2px rgba(0,0,0,0.05)';
               }}
             >
@@ -295,8 +289,8 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
 
       {/* Modal */}
       {showForgotPasswordModal && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50" 
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50"
           onClick={() => setShowForgotPasswordModal(false)}
           role="dialog"
           aria-modal="true"
@@ -308,7 +302,7 @@ const UsernameLoginForm: React.FC<UsernameLoginFormProps> = ({ onSuccess, theme 
             </p>
             <button
               onClick={() => setShowForgotPasswordModal(false)}
-              className="w-full h-12 bg-[#2F8481] text-white rounded-xl font-semibold hover:bg-[#267673] transition-all shadow-md hover:shadow-lg text-[15px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="w-full h-12 bg-[#2F8481] text-white rounded-xl font-semibold hover:bg-[#267673] transition-colors shadow-md hover:shadow-lg text-[15px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
             >
               Supratau
             </button>

@@ -3,7 +3,7 @@ import {
     Home, Edit3, Plus, Check, Settings, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { PhotoGallerySection } from './PhotoGallerySection';
-import { UnitEditDrawer } from './UnitEditDrawer';
+import ApartmentSettingsModal from '../properties/ApartmentSettingsModal';
 import { QuickPanel } from './QuickPanel';
 
 // ============================================================================
@@ -14,7 +14,7 @@ const ANIMATION = {
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };
@@ -400,12 +400,12 @@ export const PropertyDetailsTab: React.FC<PropertyDetailsTabProps> = ({
                 )}
             </div>
 
-            {/* === UNIT EDIT DRAWER === */}
-            <UnitEditDrawer
+            {/* === APARTMENT SETTINGS MODAL === */}
+            <ApartmentSettingsModal
                 isOpen={isDrawerOpen}
                 onClose={closeDrawer}
                 property={property}
-                onSave={handleSaveProperty}
+                onSave={handleSaveProperty as any}
             />
         </div>
     );

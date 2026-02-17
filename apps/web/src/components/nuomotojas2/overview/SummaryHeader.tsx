@@ -10,7 +10,7 @@ const ANIMATION = {
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };
@@ -24,7 +24,7 @@ const ActionButton = memo<{
 }>(({ onClick, variant, icon, children }) => {
     if (!onClick) return null;
 
-    const baseClasses = `inline-flex items-center gap-2 text-[13px] font-semibold rounded-xl transition-all ${ANIMATION.hover} active:scale-[0.98]`;
+    const baseClasses = `inline-flex items-center gap-2 text-[13px] font-semibold rounded-xl transition-colors ${ANIMATION.hover} active:scale-[0.98]`;
 
     const variantClasses = {
         primary: 'px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white shadow-sm',

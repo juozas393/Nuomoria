@@ -26,7 +26,7 @@ type Ctx = {
   verifyMagicLink: (token: string) => Promise<AuthResult>;
   sendOTP: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOTP: (email: string, code: string) => Promise<AuthResult>;
-  
+
   // Legacy methods (to be removed)
   login: (identifier: string, password: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
@@ -34,7 +34,7 @@ type Ctx = {
   signInWithGoogle: (opts?: { link?: boolean }) => Promise<void>;
   hasPermission: (perm: Permission) => boolean;
   createDemoUsers: () => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<void>;
+
   resendConfirmationEmail: (email: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   checkUserStatus: (email: string) => Promise<{ exists: boolean; confirmed: boolean; message: string }>;
   refreshSession: () => Promise<void>;
@@ -79,20 +79,20 @@ async function fetchProfile(userId: string): Promise<UserWithPermissions | null>
   if (userError) throw userError;
   if (!userData) return null;
 
-  // Atsinešam permissions atskirai
-  const { data: permsData, error: permsError } = await supabase
-    .from('user_permissions')
-    .select('permission')
-    .eq('user_id', userId);
+  // Atsinešam permissions ir profilį atskirai
+  const [permsRes, profileRes] = await Promise.all([
+    supabase.from('user_permissions').select('permission').eq('user_id', userId),
+    supabase.from('profiles').select('avatar_url, username').eq('id', userId).maybeSingle(),
+  ]);
 
-  if (permsError) {
+  if (permsRes.error) {
     // Security: Don't log sensitive permission errors
     if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️ Failed to fetch permissions:', permsError);
+      console.warn('⚠️ Failed to fetch permissions:', permsRes.error);
     }
   }
 
-  const perms = permsData?.map((p) => p.permission) ?? [];
+  const perms = permsRes.data?.map((p) => p.permission) ?? [];
   const result: UserWithPermissions = {
     id: userData.id,
     email: userData.email,
@@ -102,6 +102,7 @@ async function fetchProfile(userId: string): Promise<UserWithPermissions | null>
     is_active: userData.is_active,
     created_at: userData.created_at,
     updated_at: userData.updated_at,
+    avatar_url: profileRes.data?.avatar_url || undefined,
     permissions: perms,
   };
   return result;
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [processingUser, setProcessingUser] = useState<string | null>(null);
 
   const isAuthenticated = !!user;
-  
+
   // Debug log when authentication state changes
   React.useEffect(() => {
     // Authentication state changed - logging removed for production
@@ -125,24 +126,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Įkraunam sesiją ir profilį
   const hydrateFromSession = async (retryCount = 0) => {
     // hydrateFromSession: start - logging removed for production
-    
+
     // Prevent multiple simultaneous calls for the same user
     if (processingUser) {
       // hydrateFromSession: already processing user, skipping - logging removed for production
       return;
     }
-    
+
     setLoading(true);
 
     // 1) paimame sesiją
     // Getting session from Supabase - logging removed for production
-    
+
     // Add timeout to getSession call
     const getSessionPromise = supabase.auth.getSession();
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('getSession timeout after 5 seconds')), 5000)
     );
-    
+
     let s, sErr;
     try {
       const result = await Promise.race([getSessionPromise, timeoutPromise]) as any;
@@ -152,11 +153,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // getSession timeout or error - logging removed for production
       sErr = error;
     }
-    
+
     if (sErr) {
       // getSession error - logging removed for production
       // getSession failed, checking localStorage as fallback - logging removed for production
-      
+
       // Check localStorage as fallback
       const directSession = localStorage.getItem('direct-auth-session');
       if (directSession) {
@@ -171,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: sessionData.user.email ?? '',
               first_name: sessionData.user.user_metadata?.first_name ?? 'User',
               last_name: sessionData.user.user_metadata?.last_name ?? 'Name',
-              role: sessionData.user.user_metadata?.role ?? 'tenant',
+              role: sessionData.user.user_metadata?.role ?? localStorage.getItem('signup.role') ?? 'landlord',
               is_active: true,
               created_at: sessionData.user.created_at ?? new Date().toISOString(),
               updated_at: sessionData.user.updated_at ?? new Date().toISOString(),
@@ -189,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('direct-auth-session');
         }
       }
-      
+
       // Don't immediately set user to null - let onAuthStateChange handle it
       // This prevents premature redirect to login during session initialization
       // Try one more time after a short delay for network issues
@@ -205,35 +206,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Supabase session result - logging removed for production
     const authUser = s.session?.user;
     // Auth user from Supabase - logging removed for production
-    
+
     // Check for direct login session in localStorage
     if (!authUser) {
       // no session from Supabase, checking localStorage - logging removed for production
       const directSession = localStorage.getItem('direct-auth-session');
       // Direct session found - logging removed for production
-      
+
       if (directSession) {
         try {
           const sessionData = JSON.parse(directSession);
           // Parsed session data - logging removed for production
-          
+
           if (sessionData.access_token && sessionData.user) {
             // Found direct login session, setting user - logging removed for production
             // User data - logging removed for production
-            
+
             // Create a user object from the direct session
             const fallbackUser: UserWithPermissions = {
               id: sessionData.user.id,
               email: sessionData.user.email ?? '',
               first_name: sessionData.user.user_metadata?.first_name ?? 'User',
               last_name: sessionData.user.user_metadata?.last_name ?? 'Name',
-              role: sessionData.user.user_metadata?.role ?? 'tenant',
+              role: sessionData.user.user_metadata?.role ?? localStorage.getItem('signup.role') ?? 'landlord',
               is_active: true,
               created_at: sessionData.user.created_at ?? new Date().toISOString(),
               updated_at: sessionData.user.updated_at ?? new Date().toISOString(),
               permissions: [],
             };
-            
+
             // Setting fallback user - logging removed for production
             setUser(fallbackUser);
             setLoading(false);
@@ -264,7 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: sessionData.user.email ?? '',
             first_name: sessionData.user.user_metadata?.first_name ?? 'User',
             last_name: sessionData.user.user_metadata?.last_name ?? 'Name',
-            role: sessionData.user.user_metadata?.role ?? 'tenant',
+            role: sessionData.user.user_metadata?.role ?? localStorage.getItem('signup.role') ?? 'landlord',
             is_active: true,
             created_at: sessionData.user.created_at ?? new Date().toISOString(),
             updated_at: sessionData.user.updated_at ?? new Date().toISOString(),
@@ -285,7 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fallbackRole =
       meta.role ??
       localStorage.getItem('signup.role') ??
-      'tenant';
+      'landlord';
 
     const fallbackUser: UserWithPermissions = {
       id: authUser.id,
@@ -307,15 +308,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // Set processing user to prevent duplicate calls
         setProcessingUser(authUser.id);
-        
+
         // First check if user already exists to avoid unnecessary RPC calls
         // Checking if user profile exists for ID - logging removed for production
         let prof = await fetchProfile(authUser.id);
-        
+
         if (!prof) {
           // User profile not found, calling ensure_user_row RPC - logging removed for production
           const { error: rpcErr } = await supabase.rpc('ensure_user_row', {
-            p_role: meta.role ?? 'tenant',
+            p_role: meta.role ?? localStorage.getItem('signup.role') ?? null,
             p_first_name: meta.first_name ?? 'User',
             p_last_name: meta.last_name ?? 'Name',
           });
@@ -333,14 +334,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           }
-          
+
           // Try to fetch profile again after RPC call
           // fetchProfile → SELECT users for ID - logging removed for production
           prof = await fetchProfile(authUser.id);
         } else {
           // User profile already exists, skipping ensure_user_row RPC - logging removed for production
         }
-        
+
         // fetchProfile result - logging removed for production
         if (prof) {
           // Setting user from fetchProfile - logging removed for production
@@ -385,10 +386,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (initialized) return; // Prevent double-invocation in development mode
-    
+
     // AuthProvider useEffect: starting - logging removed for production
     setInitialized(true);
-    
+
     // pirmas pakrovimas
     hydrateFromSession();
 
@@ -428,25 +429,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (identifier: string, password: string): Promise<AuthResult> => {
     // Login function started - logging removed for production
-    
+
     try {
       const email = normalizeIdentifier(identifier);
       // Normalized email - logging removed for production
-      
+
       // Add timeout to prevent hanging
       const loginPromise = supabase.auth.signInWithPassword({ email, password });
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Login timeout after 10 seconds')), 10000)
       );
-      
+
       // Calling signInWithPassword - logging removed for production
       const { data, error } = await Promise.race([loginPromise, timeoutPromise]) as any;
       // signInWithPassword completed - logging removed for production
-      
+
       if (error) {
         // Login error - logging removed for production
         // Error details - logging removed for production
-        
+
         // Handle specific error cases
         if (error.message.includes('Email not confirmed')) {
           return { success: false, error: 'El. paštas nepatvirtintas. Patikrinkite savo el. paštą ir paspauskite patvirtinimo nuorodą.' };
@@ -455,15 +456,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (error.message.includes('Too many requests')) {
           return { success: false, error: 'Per daug bandymų. Palaukite kelias minutes ir bandykite dar kartą.' };
         }
-        
+
         return { success: false, error: error.message };
       }
-      
+
       // Login successful, session - logging removed for production
-      
+
       // Simple success - let onAuthStateChange handle the rest
       return { success: true };
-      
+
     } catch (error: any) {
       // Login exception - logging removed for production
       if (error.message === 'Login timeout after 10 seconds') {
@@ -526,7 +527,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { 
+      options: {
         redirectTo: `${app.url}/auth/callback`,
         queryParams: opts?.link ? { prompt: 'select_account' } : undefined
       },
@@ -540,7 +541,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('currentUserEmail');
     localStorage.removeItem('googleAccountToLink');
     localStorage.removeItem('direct-auth-session');
-    
+    localStorage.removeItem('signup.role');
+
     await supabase.auth.signOut();
   };
 
@@ -556,7 +558,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔧 Creating demo users...');
       }
-      
+
       // Security: Demo users removed for production security
       // In production, use proper user management system
       const demoUsers = [
@@ -645,10 +647,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const requestPasswordReset = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) throw error;
-  };
+
 
   const resendConfirmationEmail = async (email: string) => {
     try {
@@ -670,7 +669,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: email,
         password: 'dummy_password_to_check_status'
       });
-      
+
       if (error) {
         if (error.message.includes('Email not confirmed')) {
           return { exists: true, confirmed: false, message: 'El. paštas nepatvirtintas' };
@@ -680,7 +679,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { exists: false, confirmed: false, message: 'Vartotojas neegzistuoja' };
         }
       }
-      
+
       return { exists: true, confirmed: true, message: 'Vartotojas patvirtintas' };
     } catch (error: any) {
       return { exists: false, confirmed: false, message: 'Klaida tikrinant vartotoją' };
@@ -699,25 +698,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('📧 Sending magic link to:', email);
       }
-      
+
       // Rate limiting check
       const rateLimitResult = recordRateLimitAttempt(magicLinkRateLimiter, email);
       if (!rateLimitResult.allowed) {
         const errorMessage = getRateLimitMessage(rateLimitResult);
-        return { 
-          success: false, 
-          message: errorMessage || 'Per daug bandymų. Bandykite dar kartą vėliau.' 
+        return {
+          success: false,
+          message: errorMessage || 'Per daug bandymų. Bandykite dar kartą vėliau.'
         };
       }
 
       // Generate magic link token
       const token = crypto.randomUUID();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-      
+
       // Security: Don't store magic link tokens in localStorage
       // In production, use secure server-side storage
       // This is a critical security vulnerability that must be fixed in production
-      
+
       // SECURITY WARNING: This is a development-only implementation
       // In production, tokens must be stored server-side with proper expiration
       if (process.env.NODE_ENV === 'development') {
@@ -736,19 +735,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // In production, send actual email here
       // For now, we'll simulate it
-      
-      return { 
-        success: true, 
-        message: `Nuoroda išsiųsta į ${email}. Patikrinkite el. paštą.` 
+
+      return {
+        success: true,
+        message: `Nuoroda išsiųsta į ${email}. Patikrinkite el. paštą.`
       };
     } catch (error: any) {
       // Security: Don't log sensitive magic link errors
       if (process.env.NODE_ENV === 'development') {
         console.error('❌ Error sending magic link:', error);
       }
-      return { 
-        success: false, 
-        message: 'Klaida siunčiant nuorodą. Bandykite dar kartą.' 
+      return {
+        success: false,
+        message: 'Klaida siunčiant nuorodą. Bandykite dar kartą.'
       };
     }
   };
@@ -759,7 +758,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔗 Verifying magic link token');
       }
-      
+
       // Get token data from localStorage
       const tokenData = localStorage.getItem(`magic_token_${token}`);
       if (!tokenData) {
@@ -767,7 +766,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { email, expiresAt, used } = JSON.parse(tokenData);
-      
+
       // Check if token is expired
       if (new Date() > new Date(expiresAt)) {
         localStorage.removeItem(`magic_token_${token}`);
@@ -791,14 +790,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set user as authenticated
       setUser(user);
       setLoading(false);
-      
+
       // Security: Don't store sensitive user data in localStorage
       // In production, use secure server-side session management
       // Only store a session indicator
       localStorage.setItem('auth-session-active', 'true');
 
       // Check if this is first login (no last_login or very old)
-      const isFirstLogin = !user.last_login || 
+      const isFirstLogin = !user.last_login ||
         (new Date().getTime() - new Date(user.last_login).getTime()) > 24 * 60 * 60 * 1000; // 24 hours
 
       if (isFirstLogin) {
@@ -831,21 +830,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('📱 Sending OTP to:', email);
       }
-      
+
       // Rate limiting check
       const rateLimitResult = recordRateLimitAttempt(otpRateLimiter, email);
       if (!rateLimitResult.allowed) {
         const errorMessage = getRateLimitMessage(rateLimitResult);
-        return { 
-          success: false, 
-          message: errorMessage || 'Per daug bandymų. Bandykite dar kartą vėliau.' 
+        return {
+          success: false,
+          message: errorMessage || 'Per daug bandymų. Bandykite dar kartą vėliau.'
         };
       }
 
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-      
+
       // Security: Don't store OTP codes in localStorage
       // In production, use secure server-side storage
       // For now, we'll simulate OTP storage without actually storing it
@@ -867,19 +866,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('📱 OTP generated for testing:', otp);
         }
       }
-      
-      return { 
-        success: true, 
-        message: `Kodas išsiųstas į ${email}. Patikrinkite el. paštą.` 
+
+      return {
+        success: true,
+        message: `Kodas išsiųstas į ${email}. Patikrinkite el. paštą.`
       };
     } catch (error: any) {
       // Security: Don't log sensitive OTP errors
       if (process.env.NODE_ENV === 'development') {
         console.error('❌ Error sending OTP:', error);
       }
-      return { 
-        success: false, 
-        message: 'Klaida siunčiant kodą. Bandykite dar kartą.' 
+      return {
+        success: false,
+        message: 'Klaida siunčiant kodą. Bandykite dar kartą.'
       };
     }
   };
@@ -890,17 +889,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔢 Verifying OTP for:', email);
       }
-      
+
       // Rate limiting check for verification attempts
       const rateLimitResult = recordRateLimitAttempt(otpVerificationRateLimiter, email);
       if (!rateLimitResult.allowed) {
         const errorMessage = getRateLimitMessage(rateLimitResult);
-        return { 
-          success: false, 
-          error: errorMessage || 'Per daug bandymų. Bandykite dar kartą vėliau.' 
+        return {
+          success: false,
+          error: errorMessage || 'Per daug bandymų. Bandykite dar kartą vėliau.'
         };
       }
-      
+
       // Get OTP data from localStorage
       const otpData = localStorage.getItem(`otp_${email}`);
       if (!otpData) {
@@ -908,7 +907,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { code: storedCode, expiresAt, attempts } = JSON.parse(otpData);
-      
+
       // Check if OTP is expired
       if (new Date() > new Date(expiresAt)) {
         localStorage.removeItem(`otp_${email}`);
@@ -941,14 +940,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set user as authenticated
       setUser(user);
       setLoading(false);
-      
+
       // Security: Don't store sensitive user data in localStorage
       // In production, use secure server-side session management
       // Only store a session indicator
       localStorage.setItem('auth-session-active', 'true');
 
       // Check if this is first login (no last_login or very old)
-      const isFirstLogin = !user.last_login || 
+      const isFirstLogin = !user.last_login ||
         (new Date().getTime() - new Date(user.last_login).getTime()) > 24 * 60 * 60 * 1000; // 24 hours
 
       if (isFirstLogin) {
@@ -981,7 +980,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('👤 Creating or getting user for:', email);
       }
-      
+
       // Check if user already exists
       const { data: existingUser, error: userError } = await supabase
         .from('users')
@@ -1058,7 +1057,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔍 Checking account conflicts for:', { email, googleEmail });
       }
-      
+
       // Check if there's a regular account with this email
       const { data: regularUser, error: regularError } = await supabase
         .from('users')
@@ -1125,7 +1124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔍 Checking if Google email exists:', email);
       }
-      
+
       // Only check if Google email is already used (Google emails must be unique)
       // Contact emails can be shared, so we don't check those
       const { data: googleUser, error: googleError } = await supabase
@@ -1185,7 +1184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle,
       hasPermission,
       createDemoUsers,
-      requestPasswordReset,
+
       resendConfirmationEmail,
       checkUserStatus,
       refreshSession,

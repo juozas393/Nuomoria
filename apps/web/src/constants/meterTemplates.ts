@@ -14,98 +14,80 @@ export type MeterTemplate = {
 };
 
 export const METER_TEMPLATES: MeterTemplate[] = [
-  { 
-    id: 'water_cold', 
-    name: 'Vanduo (šaltas)', 
-    description: 'Šalto vandens suvartojimas',
-    icon: 'droplet', 
-    type: 'individual', 
-    unit: 'm3', 
-    defaultPrice: 1.20,
-    distribution: 'per_consumption', 
-    requiresPhoto: true 
+  {
+    id: 'water_cold',
+    name: 'Šaltas vanduo',
+    description: 'Šalto vandens tiekimas ir nuotekos',
+    icon: 'droplet',
+    type: 'individual',
+    unit: 'm3',
+    defaultPrice: 1.32,
+    distribution: 'per_consumption',
+    requiresPhoto: true
   },
-  { 
-    id: 'water_hot', 
-    name: 'Vanduo (karštas)', 
-    description: 'Karšto vandens suvartojimas',
-    icon: 'droplet', 
-    type: 'individual', 
-    unit: 'm3', 
+  {
+    id: 'water_hot',
+    name: 'Karštas vanduo',
+    description: 'Karšto vandens tiekimas',
+    icon: 'droplet',
+    type: 'individual',
+    unit: 'm3',
     defaultPrice: 3.50,
-    distribution: 'per_consumption', 
-    requiresPhoto: true 
+    distribution: 'per_consumption',
+    requiresPhoto: true
   },
-  { 
-    id: 'electricity_ind', 
-    name: 'Elektra (individuali)', 
-    description: 'Elektra bute',
-    icon: 'bolt', 
-    type: 'individual', 
-    unit: 'kWh', 
-    defaultPrice: 0.15,
-    distribution: 'per_consumption', 
-    requiresPhoto: true 
+  {
+    id: 'electricity_ind',
+    name: 'Elektra',
+    description: 'Buto elektros suvartojimas',
+    icon: 'bolt',
+    type: 'individual',
+    unit: 'kWh',
+    defaultPrice: 0.23,
+    distribution: 'per_consumption',
+    requiresPhoto: true
   },
-  { 
-    id: 'electricity_shared', 
-    name: 'Elektra (bendra)', 
-    description: 'Namo apšvietimas',
-    icon: 'bolt', 
-    type: 'communal', 
-    unit: 'kWh', 
-    defaultPrice: 0.15,
-    distribution: 'per_apartment' 
+  {
+    id: 'heating',
+    name: 'Šildymas',
+    description: 'Centrinis šildymas pagal plotą',
+    icon: 'flame',
+    type: 'individual',
+    unit: 'kWh',
+    defaultPrice: 0.095,
+    distribution: 'per_area',
+    requiresPhoto: true
   },
-  { 
-    id: 'heating', 
-    name: 'Šildymas', 
-    description: 'Namo šildymo sąnaudos',
-    icon: 'flame', 
-    type: 'communal', 
-    unit: 'GJ', 
-    defaultPrice: 25.00,
-    distribution: 'per_apartment' 
+  {
+    id: 'gas',
+    name: 'Dujos',
+    description: 'Gamtinių dujų suvartojimas',
+    icon: 'flame',
+    type: 'individual',
+    unit: 'm3',
+    defaultPrice: 0.99,
+    distribution: 'per_consumption',
+    requiresPhoto: true
   },
-  { 
-    id: 'internet', 
-    name: 'Internetas', 
-    description: 'Namo interneto paslaugos',
-    icon: 'wifi', 
-    type: 'communal', 
-    unit: 'Kitas', 
-    defaultPrice: 60.00,
-    distribution: 'fixed_split' 
+  {
+    id: 'maintenance',
+    name: 'Techninė apžiūra',
+    description: 'Namo techninė priežiūra ir apžiūra',
+    icon: 'gauge',
+    type: 'communal',
+    unit: 'Kitas',
+    defaultPrice: 0,
+    distribution: 'per_apartment'
   },
-  { 
-    id: 'trash', 
-    name: 'Šiukšlių išvežimas', 
+  {
+    id: 'trash',
+    name: 'Šiukšlės',
     description: 'Komunalinių atliekų išvežimas',
-    icon: 'trash', 
-    type: 'communal', 
-    unit: 'Kitas', 
-    defaultPrice: 45.00,
-    distribution: 'fixed_split' 
-  },
-  { 
-    id: 'ventilation', 
-    name: 'Vėdinimas', 
-    description: 'Vėdinimo sistemos',
-    icon: 'fan', 
-    type: 'communal', 
-    unit: 'Kitas', 
-    defaultPrice: 30.00,
-    distribution: 'fixed_split' 
-  },
-  { 
-    id: 'elevator', 
-    name: 'Lifto priežiūra', 
-    description: 'Lifto techninė priežiūra',
-    icon: 'elevator', 
-    type: 'communal', 
-    unit: 'Kitas', 
-    defaultPrice: 25.00,
-    distribution: 'fixed_split' 
+    icon: 'trash',
+    type: 'communal',
+    unit: 'Kitas',
+    defaultPrice: 5.00,
+    distribution: 'fixed_split'
   }
 ];
 
@@ -129,7 +111,7 @@ export const getUnitLabel = (unit: string) => {
 export const getDistributionLabel = (method: string) => {
   switch (method) {
     case 'consumption': return 'Pagal suvartojimą';
-    case 'per_apartment': return 'Pagal butus';
+    case 'per_apartment': return 'Pagal butų sk.';
     case 'per_area': return 'Pagal plotą';
     case 'fixed_split': return 'Fiksuotas';
     case 'per_consumption': return 'Pagal suvartojimą';
@@ -140,4 +122,119 @@ export const getDistributionLabel = (method: string) => {
 
 export const getMeterIconName = (iconName: string) => {
   return iconName;
+};
+
+// --- Custom Template Management (localStorage) ---
+
+const CUSTOM_TEMPLATES_KEY = 'nuomoria_custom_meter_templates';
+const HIDDEN_DEFAULTS_KEY = 'nuomoria_hidden_default_templates';
+
+export type CustomMeterTemplate = Omit<MeterTemplate, 'icon'> & {
+  icon: MeterTemplate['icon'];
+  isCustom: true;
+  createdAt: string;
+};
+
+/** Get all custom templates from localStorage */
+export const getCustomTemplates = (): CustomMeterTemplate[] => {
+  try {
+    const stored = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Save a new custom template */
+export const saveCustomTemplate = (template: {
+  name: string;
+  type: 'individual' | 'communal';
+  unit: 'm3' | 'kWh' | 'GJ' | 'Kitas';
+  defaultPrice?: number;
+  distribution: DistributionMethod;
+  requiresPhoto?: boolean;
+  description?: string;
+}): CustomMeterTemplate => {
+  const customs = getCustomTemplates();
+  const newTemplate: CustomMeterTemplate = {
+    id: `custom_${Date.now()}`,
+    name: template.name,
+    description: template.description || '',
+    icon: 'gauge',
+    type: template.type,
+    unit: template.unit,
+    defaultPrice: template.defaultPrice || 0,
+    distribution: template.distribution,
+    requiresPhoto: template.requiresPhoto || false,
+    isCustom: true,
+    createdAt: new Date().toISOString(),
+  };
+  customs.push(newTemplate);
+  localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customs));
+  return newTemplate;
+};
+
+/** Remove a custom template by ID */
+export const removeCustomTemplate = (id: string): void => {
+  const customs = getCustomTemplates().filter(t => t.id !== id);
+  localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customs));
+};
+
+// --- Hidden Default Templates Management ---
+
+/** Get IDs of hidden default templates */
+export const getHiddenDefaultIds = (): string[] => {
+  try {
+    const stored = localStorage.getItem(HIDDEN_DEFAULTS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Hide a built-in default template */
+export const hideDefaultTemplate = (id: string): void => {
+  const hidden = getHiddenDefaultIds();
+  if (!hidden.includes(id)) {
+    hidden.push(id);
+    localStorage.setItem(HIDDEN_DEFAULTS_KEY, JSON.stringify(hidden));
+  }
+};
+
+/** Restore all hidden default templates */
+export const restoreDefaultTemplates = (): void => {
+  localStorage.removeItem(HIDDEN_DEFAULTS_KEY);
+};
+
+/** Check if any defaults are currently hidden */
+export const hasHiddenDefaults = (): boolean => {
+  return getHiddenDefaultIds().length > 0;
+};
+
+/** Remove a template by ID — handles both custom and default (hides default) */
+export const removeTemplate = (id: string): void => {
+  if (id.startsWith('custom_')) {
+    removeCustomTemplate(id);
+  } else {
+    hideDefaultTemplate(id);
+  }
+};
+
+/** Get ALL templates (visible built-in + custom) */
+export const getAllTemplates = (): MeterTemplate[] => {
+  const hiddenIds = getHiddenDefaultIds();
+  const visibleDefaults = METER_TEMPLATES.filter(t => !hiddenIds.includes(t.id));
+  const customs = getCustomTemplates();
+  const customAsMeterTemplate: MeterTemplate[] = customs.map(c => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    icon: c.icon,
+    type: c.type,
+    unit: c.unit,
+    defaultPrice: c.defaultPrice,
+    distribution: c.distribution,
+    requiresPhoto: c.requiresPhoto,
+  }));
+  return [...visibleDefaults, ...customAsMeterTemplate];
 };

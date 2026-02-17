@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CameraIcon, 
+import {
+  CameraIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -53,7 +53,7 @@ export function MeterReadingsForm({
       .filter(config => config.status === 'active' && config.require_photo) // Only active meters that require photos
       .map(config => {
         const existingReading = existingReadings.find(r => r.meter_config_id === config.id);
-        
+
         return {
           id: existingReading?.id || `temp_${Date.now()}_${config.id}`,
           meter_config_id: config.id,
@@ -67,7 +67,7 @@ export function MeterReadingsForm({
           status: existingReading?.status || 'pending'
         };
       });
-    
+
     setReadings(initialReadings);
   }, [meterConfigs, existingReadings]);
 
@@ -75,12 +75,12 @@ export function MeterReadingsForm({
     setReadings(prev => prev.map(reading => {
       if (reading.id === id) {
         const updated = { ...reading, [field]: value };
-        
+
         // Recalculate consumption if readings changed
         if (field === 'current_reading' || field === 'previous_reading') {
           updated.consumption = updated.current_reading - updated.previous_reading;
         }
-        
+
         return updated;
       }
       return reading;
@@ -93,7 +93,7 @@ export function MeterReadingsForm({
 
     readings.forEach(reading => {
       const config = reading.meter_config;
-      
+
       // Check if current reading is entered
       if (reading.current_reading === 0) {
         newErrors[reading.id] = 'Dabartinis rodmuo yra privalomas';
@@ -148,7 +148,7 @@ export function MeterReadingsForm({
       meter_config_id: reading.meter_config_id,
       previous_reading: reading.previous_reading,
       current_reading: reading.current_reading,
-              consumption: reading.consumption ?? reading.difference ?? 0,
+      consumption: reading.consumption ?? reading.difference ?? 0,
       reading_date: reading.reading_date,
       submission_date: new Date().toISOString(),
       photos: reading.photos,
@@ -178,11 +178,11 @@ export function MeterReadingsForm({
     if (config.meter_type === 'custom' && config.custom_name) {
       return config.custom_name;
     }
-    
+
     switch (config.meter_type) {
       case 'electricity': return 'Elektra';
-      case 'water_cold': return 'Vanduo (šaltas)';
-      case 'water_hot': return 'Vanduo (karštas)';
+      case 'water_cold': return 'Šaltas vanduo';
+      case 'water_hot': return 'Karštas vanduo';
       case 'gas': return 'Dujos';
       case 'heating': return 'Šildymas';
       case 'internet': return 'Internetas';
@@ -206,7 +206,7 @@ export function MeterReadingsForm({
     if (config.fixed_price) {
       return config.fixed_price;
     }
-          return ((reading.consumption ?? reading.difference) || 0) * (config.price_per_unit || 0);
+    return ((reading.consumption ?? reading.difference) || 0) * (config.price_per_unit || 0);
   };
 
   const handlePhotoUpload = (readingId: string, files: FileList) => {
@@ -231,7 +231,7 @@ export function MeterReadingsForm({
         <InformationCircleIcon className="w-12 h-12 mx-auto text-gray-400 mb-3" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Nėra skaitliukų, kuriems reikia rodmenų</h3>
         <p className="text-gray-600">
-          Šiame objekte nėra aktyvių skaitliukų, kuriems reikia rodmenų nuotraukų. 
+          Šiame objekte nėra aktyvių skaitliukų, kuriems reikia rodmenų nuotraukų.
           Bendri skaitliukai (internetas, šiukšlės) skaičiuojami automatiškai.
         </p>
       </div>
@@ -254,7 +254,7 @@ export function MeterReadingsForm({
           const config = reading.meter_config;
           const hasError = errors[reading.id];
           const cost = calculateCost(reading);
-          
+
           return (
             <div key={reading.id} className={`border rounded-lg p-6 ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'}`}>
               {/* Header */}

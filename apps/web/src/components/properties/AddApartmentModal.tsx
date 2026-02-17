@@ -1,6 +1,11 @@
 /* eslint-disable react/prop-types */
+/**
+ * AddApartmentModal - Premium Design
+ * Matches app-wide modal pattern: ModalBackground.png backdrop + CardsBackground.webp on cards
+ */
 import React, { useState } from 'react';
-import { 
+import { createPortal } from 'react-dom';
+import {
   XMarkIcon,
   HomeIcon,
   UserIcon,
@@ -17,6 +22,8 @@ import {
 import MeterTable from '../meters/MeterTable';
 import { MeterRow } from '../../types/meters';
 
+const cardsBg = '/images/CardsBackground.webp';
+
 interface AddApartmentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,7 +31,7 @@ interface AddApartmentModalProps {
   address?: string;
 }
 
-interface ApartmentData {
+export interface ApartmentData {
   type: 'single';
   apartmentNumber: string;
   area: number;
@@ -40,7 +47,7 @@ interface ApartmentData {
   meters: MeterRow[];
 }
 
-interface MultipleApartmentData {
+export interface MultipleApartmentData {
   type: 'multiple';
   apartments: {
     apartmentNumber: string;
@@ -54,6 +61,16 @@ interface MultipleApartmentData {
     contractStart: string;
     contractEnd: string;
   }[];
+  apartmentNumber: string;
+  area: number;
+  rooms: number;
+  monthlyRent: number;
+  deposit: number;
+  tenantName: string;
+  tenantPhone: string;
+  tenantEmail: string;
+  contractStart: string;
+  contractEnd: string;
   address: string;
   meters: MeterRow[];
 }
@@ -68,21 +85,21 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
 }) => {
   const [currentStep, setCurrentStep] = useState<ModalStep>('type-selection');
   const [apartmentType, setApartmentType] = useState<'single' | 'multiple'>('single');
-  
+
   // Default meters for new apartments
   const defaultMeters: MeterRow[] = [
     {
       id: 'meter-1',
-      key: 'cold-water',
+      key: 'cold_water',
       name: 'Šaltas vanduo',
       unit: 'm3',
-      rate: 1.2,
+      rate: 1.32,
       initialReading: 0,
       photoRequired: true
     },
     {
       id: 'meter-2',
-      key: 'hot-water',
+      key: 'hot_water',
       name: 'Karštas vanduo',
       unit: 'm3',
       rate: 3.5,
@@ -94,9 +111,27 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
       key: 'electricity',
       name: 'Elektra',
       unit: 'kWh',
-      rate: 0.15,
+      rate: 0.23,
       initialReading: 0,
       photoRequired: true
+    },
+    {
+      id: 'meter-4',
+      key: 'heating',
+      name: 'Šildymas',
+      unit: 'kWh',
+      rate: 0.095,
+      initialReading: 0,
+      photoRequired: true
+    },
+    {
+      id: 'meter-5',
+      key: 'maintenance',
+      name: 'Techninė apžiūra',
+      unit: 'Kitas',
+      rate: 0,
+      initialReading: 0,
+      photoRequired: false
     }
   ];
 
@@ -130,6 +165,16 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
       contractStart: '',
       contractEnd: ''
     }],
+    apartmentNumber: '',
+    area: 0,
+    rooms: 0,
+    monthlyRent: 0,
+    deposit: 0,
+    tenantName: '',
+    tenantPhone: '',
+    tenantEmail: '',
+    contractStart: '',
+    contractEnd: '',
     address: address,
     meters: defaultMeters
   });
@@ -142,7 +187,6 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
       ...prev,
       [field]: value
     }));
-    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => {
@@ -155,22 +199,25 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
 
   // Handle number input changes with proper empty value handling
   const handleNumberInputChange = (field: keyof Omit<ApartmentData, 'type'>, value: string) => {
-    // Allow empty string, convert to 0 only when needed for calculations
-    const numericValue = value === '' ? 0 : Number(value);
-    handleSingleInputChange(field, numericValue);
+    const numValue = value === '' ? 0 : parseFloat(value);
+    handleSingleInputChange(field, numValue);
   };
 
   // Multiple apartments input change handler
   const handleMultipleInputChange = (apartmentIndex: number, field: string, value: string | number) => {
-    setMultipleFormData(prev => ({
-      ...prev,
-      apartments: prev.apartments.map((apt, index) => 
-        index === apartmentIndex ? { ...apt, [field]: value } : apt
-      )
-    }));
-    
-    // Clear error when user starts typing
-    const errorKey = `apartment_${apartmentIndex}_${field}`;
+    setMultipleFormData(prev => {
+      const updatedApartments = [...prev.apartments];
+      updatedApartments[apartmentIndex] = {
+        ...updatedApartments[apartmentIndex],
+        [field]: value
+      };
+      return {
+        ...prev,
+        apartments: updatedApartments
+      };
+    });
+    // Clear error
+    const errorKey = `apartments.${apartmentIndex}.${field}`;
     if (errors[errorKey]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -182,38 +229,39 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
 
   // Handle number input changes for multiple apartments with proper empty value handling
   const handleMultipleNumberInputChange = (apartmentIndex: number, field: string, value: string) => {
-    // Allow empty string, convert to 0 only when needed for calculations
-    const numericValue = value === '' ? 0 : Number(value);
-    handleMultipleInputChange(apartmentIndex, field, numericValue);
+    const numValue = value === '' ? 0 : parseFloat(value);
+    handleMultipleInputChange(apartmentIndex, field, numValue);
   };
 
   // Add new apartment to multiple apartments
   const addApartment = () => {
     setMultipleFormData(prev => ({
       ...prev,
-      apartments: [...prev.apartments, {
-        apartmentNumber: '',
-        area: 0,
-        rooms: 0,
-        monthlyRent: 0,
-        deposit: 0,
-        tenantName: '',
-        tenantPhone: '',
-        tenantEmail: '',
-        contractStart: '',
-        contractEnd: ''
-      }]
+      apartments: [
+        ...prev.apartments,
+        {
+          apartmentNumber: '',
+          area: 0,
+          rooms: 0,
+          monthlyRent: 0,
+          deposit: 0,
+          tenantName: '',
+          tenantPhone: '',
+          tenantEmail: '',
+          contractStart: '',
+          contractEnd: ''
+        }
+      ]
     }));
   };
 
   // Remove apartment from multiple apartments
   const removeApartment = (index: number) => {
-    if (multipleFormData.apartments.length > 1) {
-      setMultipleFormData(prev => ({
-        ...prev,
-        apartments: prev.apartments.filter((_, i) => i !== index)
-      }));
-    }
+    if (multipleFormData.apartments.length <= 1) return;
+    setMultipleFormData(prev => ({
+      ...prev,
+      apartments: prev.apartments.filter((_, i) => i !== index)
+    }));
   };
 
   // Handle apartment type selection
@@ -224,6 +272,7 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
     } else {
       setCurrentStep('multiple-apartments');
     }
+    setErrors({});
   };
 
   // Go back to type selection
@@ -239,36 +288,20 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
     if (!singleFormData.apartmentNumber.trim()) {
       newErrors.apartmentNumber = 'Buto numeris yra privalomas';
     }
-
-    if (singleFormData.area <= 0) {
-      newErrors.area = 'Plotas turi būti didesnis už 0';
+    if (!singleFormData.area || singleFormData.area <= 0) {
+      newErrors.area = 'Plotas turi būti didesnis nei 0';
+    }
+    if (!singleFormData.rooms || singleFormData.rooms <= 0) {
+      newErrors.rooms = 'Kambarių skaičius turi būti didesnis nei 0';
+    }
+    if (!singleFormData.monthlyRent || singleFormData.monthlyRent <= 0) {
+      newErrors.monthlyRent = 'Nuomos kaina turi būti didesnė nei 0';
     }
 
-    if (singleFormData.rooms <= 0) {
-      newErrors.rooms = 'Kambarių skaičius turi būti didesnis už 0';
-    }
-
-    if (singleFormData.monthlyRent <= 0) {
-      newErrors.monthlyRent = 'Nuoma turi būti didesnė už 0';
-    }
-
-    if (!singleFormData.tenantName.trim()) {
-      newErrors.tenantName = 'Nuomininko vardas yra privalomas';
-    }
-
-    if (!singleFormData.contractStart) {
-      newErrors.contractStart = 'Sutarties pradžios data yra privaloma';
-    }
-
-    if (!singleFormData.contractEnd) {
-      newErrors.contractEnd = 'Sutarties pabaigos data yra privaloma';
-    }
-
+    // Contract dates are optional, but if both provided, end must be after start
     if (singleFormData.contractStart && singleFormData.contractEnd) {
-      const startDate = new Date(singleFormData.contractStart);
-      const endDate = new Date(singleFormData.contractEnd);
-      if (endDate <= startDate) {
-        newErrors.contractEnd = 'Sutarties pabaigos data turi būti vėlesnė už pradžios datą';
+      if (new Date(singleFormData.contractEnd) <= new Date(singleFormData.contractStart)) {
+        newErrors.contractEnd = 'Pabaigos data turi būti vėlesnė nei pradžios data';
       }
     }
 
@@ -280,40 +313,23 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
   const validateMultipleForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    multipleFormData.apartments.forEach((apartment, index) => {
-      if (!apartment.apartmentNumber.trim()) {
-        newErrors[`apartment_${index}_apartmentNumber`] = 'Buto numeris yra privalomas';
+    multipleFormData.apartments.forEach((apt, index) => {
+      if (!apt.apartmentNumber.trim()) {
+        newErrors[`apartments.${index}.apartmentNumber`] = 'Buto numeris yra privalomas';
       }
-
-      if (apartment.area <= 0) {
-        newErrors[`apartment_${index}_area`] = 'Plotas turi būti didesnis už 0';
+      if (!apt.area || apt.area <= 0) {
+        newErrors[`apartments.${index}.area`] = 'Plotas turi būti didesnis nei 0';
       }
-
-      if (apartment.rooms <= 0) {
-        newErrors[`apartment_${index}_rooms`] = 'Kambarių skaičius turi būti didesnis už 0';
+      if (!apt.rooms || apt.rooms <= 0) {
+        newErrors[`apartments.${index}.rooms`] = 'Kambarių skaičius turi būti didesnis nei 0';
       }
-
-      if (apartment.monthlyRent <= 0) {
-        newErrors[`apartment_${index}_monthlyRent`] = 'Nuoma turi būti didesnė už 0';
+      if (!apt.monthlyRent || apt.monthlyRent <= 0) {
+        newErrors[`apartments.${index}.monthlyRent`] = 'Nuomos kaina turi būti didesnė nei 0';
       }
-
-      if (!apartment.tenantName.trim()) {
-        newErrors[`apartment_${index}_tenantName`] = 'Nuomininko vardas yra privalomas';
-      }
-
-      if (!apartment.contractStart) {
-        newErrors[`apartment_${index}_contractStart`] = 'Sutarties pradžios data yra privaloma';
-      }
-
-      if (!apartment.contractEnd) {
-        newErrors[`apartment_${index}_contractEnd`] = 'Sutarties pabaigos data yra privaloma';
-      }
-
-      if (apartment.contractStart && apartment.contractEnd) {
-        const startDate = new Date(apartment.contractStart);
-        const endDate = new Date(apartment.contractEnd);
-        if (endDate <= startDate) {
-          newErrors[`apartment_${index}_contractEnd`] = 'Sutarties pabaigos data turi būti vėlesnė už pradžios datą';
+      // Contract dates optional, but if both provided, end must be after start
+      if (apt.contractStart && apt.contractEnd) {
+        if (new Date(apt.contractEnd) <= new Date(apt.contractStart)) {
+          newErrors[`apartments.${index}.contractEnd`] = 'Pabaigos data turi būti vėlesnė nei pradžios data';
         }
       }
     });
@@ -325,32 +341,26 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
   // Handle single apartment submit
   const handleSingleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (validateSingleForm()) {
-      onAdd({
-        type: 'single',
-        ...singleFormData
-      });
-      handleClose();
-    }
+    if (!validateSingleForm()) return;
+    onAdd({
+      type: 'single',
+      ...singleFormData
+    });
   };
 
   // Handle multiple apartments submit
   const handleMultipleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (validateMultipleForm()) {
-      onAdd({
-        type: 'multiple',
-        ...multipleFormData
-      });
-      handleClose();
-    }
+    if (!validateMultipleForm()) return;
+    onAdd({
+      type: 'multiple',
+      ...multipleFormData
+    });
   };
 
   const handleClose = () => {
     setCurrentStep('type-selection');
-    setApartmentType('single');
+    setErrors({});
     setSingleFormData({
       apartmentNumber: '',
       area: 0,
@@ -378,35 +388,50 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
         contractStart: '',
         contractEnd: ''
       }],
+      apartmentNumber: '',
+      area: 0,
+      rooms: 0,
+      monthlyRent: 0,
+      deposit: 0,
+      tenantName: '',
+      tenantPhone: '',
+      tenantEmail: '',
+      contractStart: '',
+      contractEnd: '',
       address: address,
       meters: defaultMeters
     });
-    setErrors({});
     onClose();
   };
 
   if (!isOpen) return null;
 
-  const renderTypeSelection = () => (
-    <div className="p-6">
-      <div className="text-center mb-6">
-        <BuildingOfficeIcon className="w-12 h-12 text-[#2F8481] mx-auto mb-3" />
-        <h2 className="text-xl font-bold text-gray-900 mb-1">Pridėti butus</h2>
-        <p className="text-sm text-gray-600">{address}</p>
-      </div>
+  // ─── Shared Styles ───────────────────────────────────────────
+  const inputCls = (hasError?: boolean) =>
+    `w-full px-4 py-2.5 text-sm bg-white border rounded-xl focus:ring-2 focus:ring-[#2F8481] focus:border-transparent transition-all ${hasError ? 'border-red-300' : 'border-gray-300'
+    }`;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  const labelCls = 'block text-[13px] font-semibold text-gray-700 mb-1.5';
+  const sectionTitleCls = 'text-sm font-bold text-gray-900 uppercase tracking-wide';
+
+  // ─── Type Selection ──────────────────────────────────────────
+  const renderTypeSelection = () => (
+    <div className="p-8 flex flex-col items-center gap-6">
+      <p className="text-sm text-gray-400">Pasirinkite, kaip norite pridėti butus</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-lg">
         {/* Single Apartment Option */}
         <button
           onClick={() => handleTypeSelection('single')}
-          className="p-4 border-2 border-gray-200 rounded-lg hover:border-[#2F8481] hover:bg-[#2F8481]/5 transition-all duration-200 group"
+          className="group p-6 bg-white/95 border-2 border-transparent rounded-2xl hover:border-[#2F8481] shadow-lg hover:shadow-xl transition-all duration-300 text-left"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         >
           <div className="text-center">
-            <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center mx-auto mb-3 group-hover:bg-[#2F8481]/20 transition-colors">
-              <HomeIcon className="w-5 h-5 text-[#2F8481]" />
+            <div className="w-14 h-14 bg-[#2F8481]/10 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-[#2F8481]/20 transition-colors">
+              <HomeIcon className="w-7 h-7 text-[#2F8481]" />
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-2">Vienas butas</h3>
-            <p className="text-xs text-gray-600">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Vienas butas</h3>
+            <p className="text-xs text-gray-500">
               Pilna informacija su skaitliukais
             </p>
           </div>
@@ -415,14 +440,15 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
         {/* Multiple Apartments Option */}
         <button
           onClick={() => handleTypeSelection('multiple')}
-          className="p-4 border-2 border-gray-200 rounded-lg hover:border-[#2F8481] hover:bg-[#2F8481]/5 transition-all duration-200 group"
+          className="group p-6 bg-white/95 border-2 border-transparent rounded-2xl hover:border-[#2F8481] shadow-lg hover:shadow-xl transition-all duration-300 text-left"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         >
           <div className="text-center">
-            <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center mx-auto mb-3 group-hover:bg-[#2F8481]/20 transition-colors">
-              <BuildingOfficeIcon className="w-5 h-5 text-[#2F8481]" />
+            <div className="w-14 h-14 bg-[#2F8481]/10 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-[#2F8481]/20 transition-colors">
+              <BuildingOfficeIcon className="w-7 h-7 text-[#2F8481]" />
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-2">Keli butai</h3>
-            <p className="text-xs text-gray-600">
+            <h3 className="text-base font-bold text-gray-900 mb-1">Keli butai</h3>
+            <p className="text-xs text-gray-500">
               Greitas kelių butų pridėjimas
             </p>
           </div>
@@ -431,519 +457,508 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
     </div>
   );
 
-  const renderHeader = (title: string, subtitle: string, showBack: boolean = false) => (
-    <div className="flex items-center justify-between p-6 border-b border-gray-200">
-      <div className="flex items-center space-x-3">
-        {showBack && (
-          <button
-            onClick={goBackToTypeSelection}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeftIcon className="w-5 h-5" />
-          </button>
-        )}
-        <div className="w-10 h-10 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
-          <HomeIcon className="w-5 h-5 text-[#2F8481]" />
-        </div>
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-600">{subtitle}</p>
-        </div>
-      </div>
-      <button
-        onClick={handleClose}
-        className="text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <XMarkIcon className="w-6 h-6" />
-      </button>
-    </div>
-  );
-
+  // ─── Single Apartment Form ───────────────────────────────────
   const renderSingleApartmentForm = () => (
-    <form onSubmit={handleSingleSubmit} className="p-6 space-y-4">
-      {/* Apartment Details */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-          <HomeIcon className="w-4 h-4 mr-2 text-[#2F8481]" />
-          Butas
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Numeris
-            </label>
-            <input
-              type="text"
-              value={singleFormData.apartmentNumber}
-              onChange={(e) => handleSingleInputChange('apartmentNumber', e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                errors.apartmentNumber ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="5"
-            />
-            {errors.apartmentNumber && (
-              <p className="mt-1 text-xs text-red-600">{errors.apartmentNumber}</p>
-            )}
+    <form onSubmit={handleSingleSubmit} className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        {/* Section 1: Butas */}
+        <div
+          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-[#2F8481]/10 flex items-center justify-center">
+              <HomeIcon className="w-4 h-4 text-[#2F8481]" />
+            </div>
+            <h3 className={sectionTitleCls}>Butas</h3>
           </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className={labelCls}>Numeris <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                value={singleFormData.apartmentNumber}
+                onChange={(e) => handleSingleInputChange('apartmentNumber', e.target.value)}
+                className={inputCls(!!errors.apartmentNumber)}
+                placeholder="pvz., 5"
+              />
+              {errors.apartmentNumber && <p className="mt-1 text-xs text-red-600">{errors.apartmentNumber}</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Plotas (m²) <span className="text-red-400">*</span></label>
+              <input
+                type="number"
+                value={singleFormData.area || ''}
+                onChange={(e) => handleNumberInputChange('area', e.target.value)}
+                className={inputCls(!!errors.area)}
+                placeholder="45"
+              />
+              {errors.area && <p className="mt-1 text-xs text-red-600">{errors.area}</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Kambariai <span className="text-red-400">*</span></label>
+              <input
+                type="number"
+                value={singleFormData.rooms || ''}
+                onChange={(e) => handleNumberInputChange('rooms', e.target.value)}
+                className={inputCls(!!errors.rooms)}
+                placeholder="2"
+              />
+              {errors.rooms && <p className="mt-1 text-xs text-red-600">{errors.rooms}</p>}
+            </div>
+          </div>
+        </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Plotas (m²)
-            </label>
-            <input
-              type="number"
-              value={singleFormData.area || ''}
-              onChange={(e) => handleNumberInputChange('area', e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                errors.area ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="45"
-            />
-            {errors.area && (
-              <p className="mt-1 text-xs text-red-600">{errors.area}</p>
-            )}
+        {/* Section 2: Finansai */}
+        <div
+          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <span className="text-emerald-600 text-sm font-bold">€</span>
+            </div>
+            <h3 className={sectionTitleCls}>Finansai</h3>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Nuoma (€/mėn) <span className="text-red-400">*</span></label>
+              <input
+                type="number"
+                step="0.01"
+                value={singleFormData.monthlyRent || ''}
+                onChange={(e) => handleNumberInputChange('monthlyRent', e.target.value)}
+                className={inputCls(!!errors.monthlyRent)}
+                placeholder="520"
+              />
+              {errors.monthlyRent && <p className="mt-1 text-xs text-red-600">{errors.monthlyRent}</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Depozitas (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={singleFormData.deposit || ''}
+                onChange={(e) => handleNumberInputChange('deposit', e.target.value)}
+                className={inputCls()}
+                placeholder="1040"
+              />
+            </div>
+          </div>
+        </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Kambariai
-            </label>
-            <input
-              type="number"
-              value={singleFormData.rooms || ''}
-              onChange={(e) => handleNumberInputChange('rooms', e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                errors.rooms ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="2"
-            />
-            {errors.rooms && (
-              <p className="mt-1 text-xs text-red-600">{errors.rooms}</p>
-            )}
+        {/* Section 3: Nuomininkas (optional) */}
+        <div
+          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <UserIcon className="w-4 h-4 text-blue-600" />
+            </div>
+            <div className="flex items-center gap-2">
+              <h3 className={sectionTitleCls}>Nuomininkas</h3>
+              <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">neprivaloma</span>
+            </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Vardas, pavardė</label>
+              <input
+                type="text"
+                value={singleFormData.tenantName}
+                onChange={(e) => handleSingleInputChange('tenantName', e.target.value)}
+                className={inputCls(!!errors.tenantName)}
+                placeholder="Jonas Jonaitis"
+              />
+              {errors.tenantName && <p className="mt-1 text-xs text-red-600">{errors.tenantName}</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Telefonas</label>
+              <input
+                type="tel"
+                value={singleFormData.tenantPhone}
+                onChange={(e) => handleSingleInputChange('tenantPhone', e.target.value)}
+                className={inputCls()}
+                placeholder="+370 600 00000"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls}>El. paštas</label>
+              <input
+                type="email"
+                value={singleFormData.tenantEmail}
+                onChange={(e) => handleSingleInputChange('tenantEmail', e.target.value)}
+                className={inputCls()}
+                placeholder="jonas@example.com"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 4: Sutartis (optional) */}
+        <div
+          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+              <CalendarIcon className="w-4 h-4 text-violet-600" />
+            </div>
+            <div className="flex items-center gap-2">
+              <h3 className={sectionTitleCls}>Sutartis</h3>
+              <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">neprivaloma</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Pradžia</label>
+              <input
+                type="date"
+                value={singleFormData.contractStart}
+                onChange={(e) => handleSingleInputChange('contractStart', e.target.value)}
+                className={inputCls(!!errors.contractStart)}
+              />
+              {errors.contractStart && <p className="mt-1 text-xs text-red-600">{errors.contractStart}</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Pabaiga</label>
+              <input
+                type="date"
+                value={singleFormData.contractEnd}
+                onChange={(e) => handleSingleInputChange('contractEnd', e.target.value)}
+                className={inputCls(!!errors.contractEnd)}
+              />
+              {errors.contractEnd && <p className="mt-1 text-xs text-red-600">{errors.contractEnd}</p>}
+            </div>
+          </div>
+        </div>
+
+        {/* Section 5: Skaitliukai */}
+        <div
+          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <CreditCardIcon className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <h3 className={sectionTitleCls}>Skaitliukai</h3>
+              <p className="text-[11px] text-gray-400">Pagrindiniai skaitliukai pridėti automatiškai</p>
+            </div>
+          </div>
+          <MeterTable
+            value={singleFormData.meters}
+            onChange={(meters) => handleSingleInputChange('meters', meters)}
+            allowDuplicatesByKey={false}
+          />
         </div>
       </div>
 
-      {/* Financial Details */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-          <CurrencyEuroIcon className="w-4 h-4 mr-2 text-[#2F8481]" />
-          Finansai
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Nuoma (€/mėn)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={singleFormData.monthlyRent || ''}
-              onChange={(e) => handleNumberInputChange('monthlyRent', e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                errors.monthlyRent ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="520"
-            />
-            {errors.monthlyRent && (
-              <p className="mt-1 text-xs text-red-600">{errors.monthlyRent}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Depozitas (€)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={singleFormData.deposit || ''}
-              onChange={(e) => handleNumberInputChange('deposit', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
-              placeholder="1040"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Tenant Information */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-          <UserIcon className="w-4 h-4 mr-2 text-[#2F8481]" />
-          Nuomininkas
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Vardas, pavardė
-            </label>
-            <input
-              type="text"
-              value={singleFormData.tenantName}
-              onChange={(e) => handleSingleInputChange('tenantName', e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                errors.tenantName ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="Jonas Jonaitis"
-            />
-            {errors.tenantName && (
-              <p className="mt-1 text-xs text-red-600">{errors.tenantName}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Telefonas
-            </label>
-            <input
-              type="tel"
-              value={singleFormData.tenantPhone}
-              onChange={(e) => handleSingleInputChange('tenantPhone', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
-              placeholder="+370 600 00000"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              El. paštas
-            </label>
-            <input
-              type="email"
-              value={singleFormData.tenantEmail}
-              onChange={(e) => handleSingleInputChange('tenantEmail', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
-              placeholder="jonas@example.com"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Contract Dates */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-          <CalendarIcon className="w-4 h-4 mr-2 text-[#2F8481]" />
-          Sutartis
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Pradžia
-            </label>
-            <input
-              type="date"
-              value={singleFormData.contractStart}
-              onChange={(e) => handleSingleInputChange('contractStart', e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                errors.contractStart ? 'border-red-300' : 'border-gray-300'
-              }`}
-            />
-            {errors.contractStart && (
-              <p className="mt-1 text-xs text-red-600">{errors.contractStart}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Pabaiga
-            </label>
-            <input
-              type="date"
-              value={singleFormData.contractEnd}
-              onChange={(e) => handleSingleInputChange('contractEnd', e.target.value)}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                errors.contractEnd ? 'border-red-300' : 'border-gray-300'
-              }`}
-            />
-            {errors.contractEnd && (
-              <p className="mt-1 text-xs text-red-600">{errors.contractEnd}</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Meters Section */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-          <CreditCardIcon className="w-4 h-4 mr-2 text-[#2F8481]" />
-          Skaitliukai
-        </h3>
-        <div className="text-xs text-gray-600 mb-3">
-          Pagrindiniai skaitliukai pridėti automatiškai
-        </div>
-        <MeterTable 
-          value={singleFormData.meters}
-          onChange={(meters) => handleSingleInputChange('meters', meters)}
-          allowDuplicatesByKey={false}
-        />
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end space-x-3 pt-4">
+      {/* Sticky Footer */}
+      <div className="border-t border-white/10 px-6 py-4 bg-neutral-900/60 backdrop-blur-sm flex justify-end gap-3">
         <button
           type="button"
           onClick={handleClose}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#2F8481]"
+          className="px-5 py-2.5 text-sm font-medium text-gray-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
         >
           Atšaukti
         </button>
         <button
           type="submit"
-          className="px-4 py-2 text-sm font-medium text-white bg-[#2F8481] border border-transparent rounded-md hover:bg-[#297a77] focus:outline-none focus:ring-2 focus:ring-[#2F8481]"
+          className="px-5 py-2.5 text-sm font-medium text-white bg-[#2F8481] rounded-xl hover:bg-[#297a77] transition-colors flex items-center gap-2"
         >
+          <PlusIcon className="w-4 h-4" />
           Pridėti butą
         </button>
       </div>
     </form>
   );
 
+  // ─── Multiple Apartments Form ────────────────────────────────
   const renderMultipleApartmentsForm = () => (
-    <form onSubmit={handleMultipleSubmit} className="p-6 space-y-6">
-      {/* Apartments List */}
-      <div className="space-y-6">
+    <form onSubmit={handleMultipleSubmit} className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        {/* Apartments List Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900">Butai</h3>
+          <h3 className="text-base font-semibold text-white">Butai ({multipleFormData.apartments.length})</h3>
           <button
             type="button"
             onClick={addApartment}
-            className="inline-flex items-center px-3 py-2 bg-[#2F8481] text-white text-sm rounded-lg hover:bg-[#297a77] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#2F8481]/80 rounded-lg hover:bg-[#2F8481] transition-colors"
           >
-            <PlusIcon className="w-4 h-4 mr-1" />
+            <PlusIcon className="w-3.5 h-3.5" />
             Pridėti butą
           </button>
         </div>
 
-        {multipleFormData.apartments.map((apartment, index) => (
-          <div key={index} className="border border-gray-200 rounded-lg p-4">
+        {multipleFormData.apartments.map((apt, index) => (
+          <div
+            key={index}
+            className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+            style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          >
+            {/* Card Header */}
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-md font-medium text-gray-900">Butas #{index + 1}</h4>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#2F8481]/10 flex items-center justify-center">
+                  <span className="text-[#2F8481] text-sm font-bold">{index + 1}</span>
+                </div>
+                <h4 className={sectionTitleCls}>
+                  Butas {apt.apartmentNumber ? `#${apt.apartmentNumber}` : `#${index + 1}`}
+                </h4>
+              </div>
               {multipleFormData.apartments.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeApartment(index)}
-                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <TrashIcon className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Buto numeris
-                </label>
-                <input
-                  type="text"
-                  value={apartment.apartmentNumber}
-                  onChange={(e) => handleMultipleInputChange(index, 'apartmentNumber', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                    errors[`apartment_${index}_apartmentNumber`] ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Pvz., 5"
-                />
-                {errors[`apartment_${index}_apartmentNumber`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`apartment_${index}_apartmentNumber`]}</p>
-                )}
+            <div className="space-y-4">
+              {/* Apartment Details Row */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>Numeris <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={apt.apartmentNumber}
+                    onChange={(e) => handleMultipleInputChange(index, 'apartmentNumber', e.target.value)}
+                    className={inputCls(!!errors[`apartments.${index}.apartmentNumber`])}
+                    placeholder="pvz., 1"
+                  />
+                  {errors[`apartments.${index}.apartmentNumber`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.apartmentNumber`]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>Plotas (m²) <span className="text-red-400">*</span></label>
+                  <input
+                    type="number"
+                    value={apt.area || ''}
+                    onChange={(e) => handleMultipleNumberInputChange(index, 'area', e.target.value)}
+                    className={inputCls(!!errors[`apartments.${index}.area`])}
+                    placeholder="45"
+                  />
+                  {errors[`apartments.${index}.area`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.area`]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>Kambariai <span className="text-red-400">*</span></label>
+                  <input
+                    type="number"
+                    value={apt.rooms || ''}
+                    onChange={(e) => handleMultipleNumberInputChange(index, 'rooms', e.target.value)}
+                    className={inputCls(!!errors[`apartments.${index}.rooms`])}
+                    placeholder="2"
+                  />
+                  {errors[`apartments.${index}.rooms`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.rooms`]}</p>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Plotas (m²)
-                </label>
-                <input
-                  type="number"
-                  value={apartment.area || ''}
-                  onChange={(e) => handleMultipleNumberInputChange(index, 'area', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                    errors[`apartment_${index}_area`] ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Pvz., 45"
-                />
-                {errors[`apartment_${index}_area`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`apartment_${index}_area`]}</p>
-                )}
+              {/* Financial Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Nuoma (€/mėn) <span className="text-red-400">*</span></label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={apt.monthlyRent || ''}
+                    onChange={(e) => handleMultipleNumberInputChange(index, 'monthlyRent', e.target.value)}
+                    className={inputCls(!!errors[`apartments.${index}.monthlyRent`])}
+                    placeholder="520"
+                  />
+                  {errors[`apartments.${index}.monthlyRent`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.monthlyRent`]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>Depozitas (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={apt.deposit || ''}
+                    onChange={(e) => handleMultipleNumberInputChange(index, 'deposit', e.target.value)}
+                    className={inputCls()}
+                    placeholder="1040"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kambariai
-                </label>
-                <input
-                  type="number"
-                  value={apartment.rooms || ''}
-                  onChange={(e) => handleMultipleNumberInputChange(index, 'rooms', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                    errors[`apartment_${index}_rooms`] ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Pvz., 2"
-                />
-                {errors[`apartment_${index}_rooms`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`apartment_${index}_rooms`]}</p>
-                )}
+              {/* Tenant Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Nuomininkas <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={apt.tenantName}
+                    onChange={(e) => handleMultipleInputChange(index, 'tenantName', e.target.value)}
+                    className={inputCls(!!errors[`apartments.${index}.tenantName`])}
+                    placeholder="Jonas Jonaitis"
+                  />
+                  {errors[`apartments.${index}.tenantName`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.tenantName`]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>Telefonas</label>
+                  <input
+                    type="tel"
+                    value={apt.tenantPhone}
+                    onChange={(e) => handleMultipleInputChange(index, 'tenantPhone', e.target.value)}
+                    className={inputCls()}
+                    placeholder="+370 600 00000"
+                  />
+                </div>
               </div>
 
+              {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mėnesinė nuoma (€)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={apartment.monthlyRent || ''}
-                  onChange={(e) => handleMultipleNumberInputChange(index, 'monthlyRent', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                    errors[`apartment_${index}_monthlyRent`] ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Pvz., 520.00"
-                />
-                {errors[`apartment_${index}_monthlyRent`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`apartment_${index}_monthlyRent`]}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Depozitas (€)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={apartment.deposit || ''}
-                  onChange={(e) => handleMultipleNumberInputChange(index, 'deposit', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
-                  placeholder="Pvz., 1040.00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nuomininko vardas
-                </label>
-                <input
-                  type="text"
-                  value={apartment.tenantName}
-                  onChange={(e) => handleMultipleInputChange(index, 'tenantName', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                    errors[`apartment_${index}_tenantName`] ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Pvz., Jonas Jonaitis"
-                />
-                {errors[`apartment_${index}_tenantName`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`apartment_${index}_tenantName`]}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Telefono numeris
-                </label>
-                <input
-                  type="tel"
-                  value={apartment.tenantPhone}
-                  onChange={(e) => handleMultipleInputChange(index, 'tenantPhone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
-                  placeholder="Pvz., +370 600 00000"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  El. paštas
-                </label>
+                <label className={labelCls}>El. paštas</label>
                 <input
                   type="email"
-                  value={apartment.tenantEmail}
+                  value={apt.tenantEmail}
                   onChange={(e) => handleMultipleInputChange(index, 'tenantEmail', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
-                  placeholder="Pvz., jonas@example.com"
+                  className={inputCls()}
+                  placeholder="jonas@example.com"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sutarties pradžia
-                </label>
-                <input
-                  type="date"
-                  value={apartment.contractStart}
-                  onChange={(e) => handleMultipleInputChange(index, 'contractStart', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                    errors[`apartment_${index}_contractStart`] ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                />
-                {errors[`apartment_${index}_contractStart`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`apartment_${index}_contractStart`]}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sutarties pabaiga
-                </label>
-                <input
-                  type="date"
-                  value={apartment.contractEnd}
-                  onChange={(e) => handleMultipleInputChange(index, 'contractEnd', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] ${
-                    errors[`apartment_${index}_contractEnd`] ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                />
-                {errors[`apartment_${index}_contractEnd`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`apartment_${index}_contractEnd`]}</p>
-                )}
+              {/* Contract Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Sutarties pradžia <span className="text-red-400">*</span></label>
+                  <input
+                    type="date"
+                    value={apt.contractStart}
+                    onChange={(e) => handleMultipleInputChange(index, 'contractStart', e.target.value)}
+                    className={inputCls(!!errors[`apartments.${index}.contractStart`])}
+                  />
+                  {errors[`apartments.${index}.contractStart`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.contractStart`]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>Sutarties pabaiga <span className="text-red-400">*</span></label>
+                  <input
+                    type="date"
+                    value={apt.contractEnd}
+                    onChange={(e) => handleMultipleInputChange(index, 'contractEnd', e.target.value)}
+                    className={inputCls(!!errors[`apartments.${index}.contractEnd`])}
+                  />
+                  {errors[`apartments.${index}.contractEnd`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.contractEnd`]}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         ))}
+
+        {/* Meters Section (shared for all apartments) */}
+        <div
+          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <CreditCardIcon className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <h3 className={sectionTitleCls}>Skaitliukai</h3>
+              <p className="text-[11px] text-gray-400">Bendri skaitliukai visiems butams</p>
+            </div>
+          </div>
+          <MeterTable
+            value={multipleFormData.meters}
+            onChange={(meters) => setMultipleFormData(prev => ({ ...prev, meters }))}
+            allowDuplicatesByKey={false}
+          />
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+      {/* Sticky Footer */}
+      <div className="border-t border-white/10 px-6 py-4 bg-neutral-900/60 backdrop-blur-sm flex justify-end gap-3">
         <button
           type="button"
           onClick={handleClose}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#2F8481]"
+          className="px-5 py-2.5 text-sm font-medium text-gray-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
         >
           Atšaukti
         </button>
         <button
           type="submit"
-          className="px-4 py-2 text-sm font-medium text-white bg-[#2F8481] border border-transparent rounded-lg hover:bg-[#297a77] focus:outline-none focus:ring-2 focus:ring-[#2F8481]"
+          className="px-5 py-2.5 text-sm font-medium text-white bg-[#2F8481] rounded-xl hover:bg-[#297a77] transition-colors flex items-center gap-2"
         >
-          Pridėti butus ({multipleFormData.apartments.length})
+          <PlusIcon className="w-4 h-4" />
+          Sukurti {multipleFormData.apartments.length} {multipleFormData.apartments.length === 1 ? 'butą' : 'butus'}
         </button>
       </div>
     </form>
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        {currentStep === 'type-selection' && (
-          <>
-            {renderHeader('Pridėti butus', 'Pasirinkite, kaip norite pridėti butus')}
-            {renderTypeSelection()}
-          </>
-        )}
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      {/* Backdrop overlay */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
 
-        {currentStep === 'single-apartment' && (
-          <>
-            {renderHeader('Pridėti butą', address, true)}
-            {renderSingleApartmentForm()}
-          </>
-        )}
+      {/* Modal card — same pattern as UniversalAddMeterModal */}
+      <div
+        className="relative rounded-2xl shadow-2xl max-w-[960px] w-full max-h-[90vh] flex flex-col overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, rgba(0, 0, 0, 0.45) 0%, rgba(20, 20, 20, 0.30) 50%, rgba(0, 0, 0, 0.45) 100%), url('/images/ModalBackground.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 border-b border-white/10 px-6 py-4 flex items-center justify-between bg-neutral-900/60 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            {currentStep !== 'type-selection' && (
+              <button
+                onClick={goBackToTypeSelection}
+                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <ArrowLeftIcon className="w-5 h-5" />
+              </button>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#2F8481]/20 flex items-center justify-center">
+                <HomeIcon className="w-5 h-5 text-[#2F8481]" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  {currentStep === 'type-selection' ? 'Pridėti butus' :
+                    currentStep === 'single-apartment' ? 'Pridėti butą' : 'Pridėti butus'}
+                </h2>
+                <p className="text-xs text-gray-400">{address}</p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={handleClose}
+            className="p-2 text-gray-400 hover:text-white transition-colors"
+            title="Uždaryti"
+          >
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
 
-        {currentStep === 'multiple-apartments' && (
-          <>
-            {renderHeader('Pridėti butus', address, true)}
-            {renderMultipleApartmentsForm()}
-          </>
-        )}
+        {/* Content */}
+        {currentStep === 'type-selection' && renderTypeSelection()}
+        {currentStep === 'single-apartment' && renderSingleApartmentForm()}
+        {currentStep === 'multiple-apartments' && renderMultipleApartmentsForm()}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 });
 

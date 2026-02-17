@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   SparklesIcon,
   ChatBubbleLeftRightIcon,
   LightBulbIcon,
@@ -228,17 +228,17 @@ const AIAssistant: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-[#f0fafa]">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-6 mb-8 shadow-lg border border-gray-100"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl">
+              <div className="p-3 bg-[#2F8481] rounded-xl">
                 <SparklesIcon className="w-8 h-8 text-white" />
               </div>
               <div>
@@ -255,11 +255,10 @@ const AIAssistant: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsActive(!isActive)}
-                className={`p-2 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                className={`p-2 rounded-lg transition-colors ${isActive
+                    ? 'bg-green-100 text-green-600 hover:bg-green-200'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 {isActive ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
               </button>
@@ -280,11 +279,10 @@ const AIAssistant: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setCurrentMode(tab.id as any)}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-indigo-600 text-white shadow-md' 
+                className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-medium transition-colors duration-200 ${isActive
+                    ? 'bg-indigo-600 text-white shadow-md'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span>{tab.label}</span>
@@ -376,8 +374,8 @@ const AIAssistant: React.FC = () => {
                       <span className="text-sm font-medium text-gray-900">{prediction.probability}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                      <div
+                        className="bg-[#2F8481] h-2 rounded-full transition-colors duration-300"
                         style={{ width: `${prediction.probability}%` }}
                       ></div>
                     </div>
@@ -422,12 +420,12 @@ const AIAssistant: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(action.status)}`}>
-                        {action.type === 'automated' ? 'Automatinis' : 
-                         action.type === 'suggested' ? 'Pasiūlymas' : 'Rankinis'}
+                        {action.type === 'automated' ? 'Automatinis' :
+                          action.type === 'suggested' ? 'Pasiūlymas' : 'Rankinis'}
                       </span>
                     </div>
                   </div>
-                  
+
                   {action.progress !== undefined && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
@@ -435,8 +433,8 @@ const AIAssistant: React.FC = () => {
                         <span className="font-medium text-gray-900">{action.progress}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                        <div
+                          className="bg-[#2F8481] h-2 rounded-full transition-colors duration-300"
                           style={{ width: `${action.progress}%` }}
                         ></div>
                       </div>

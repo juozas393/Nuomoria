@@ -100,11 +100,11 @@ const EmailLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f0fafa] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
-            <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-[#E8F5F4]">
+            <svg className="h-6 w-6 text-[#2F8481]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
@@ -130,7 +130,7 @@ const EmailLogin: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#2F8481] focus:border-[#2F8481] focus:z-10 sm:text-sm"
                 placeholder="Įveskite el. paštą"
                 disabled={loading || step === 'otp-verify'}
               />
@@ -146,7 +146,7 @@ const EmailLogin: React.FC = () => {
                       value="magic-link"
                       checked={method === 'magic-link'}
                       onChange={(e) => setMethod(e.target.value as 'magic-link' | 'otp')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      className="h-4 w-4 text-[#2F8481] focus:ring-[#2F8481] border-gray-300"
                     />
                     <span className="ml-2 text-sm text-gray-700">Nuoroda el. paštu</span>
                   </label>
@@ -159,7 +159,7 @@ const EmailLogin: React.FC = () => {
                       value="otp"
                       checked={method === 'otp'}
                       onChange={(e) => setMethod(e.target.value as 'magic-link' | 'otp')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      className="h-4 w-4 text-[#2F8481] focus:ring-[#2F8481] border-gray-300"
                     />
                     <span className="ml-2 text-sm text-gray-700">Kodas el. paštu</span>
                   </label>
@@ -179,7 +179,7 @@ const EmailLogin: React.FC = () => {
                   maxLength={6}
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm text-center text-lg tracking-widest"
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#2F8481] focus:border-[#2F8481] focus:z-10 sm:text-sm text-center text-lg tracking-widest"
                   placeholder="000000"
                   disabled={loading}
                 />
@@ -192,8 +192,8 @@ const EmailLogin: React.FC = () => {
 
           {message && (
             <div className={`rounded-md p-4 ${message.type === 'success'
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
+              ? 'bg-green-50 border border-green-200'
+              : 'bg-red-50 border border-red-200'
               }`}>
               <p className={`text-sm ${message.type === 'success' ? 'text-green-800' : 'text-red-800'
                 }`}>
@@ -207,7 +207,7 @@ const EmailLogin: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#2F8481] hover:bg-[#297a77] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2F8481] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="flex items-center">
@@ -223,7 +223,7 @@ const EmailLogin: React.FC = () => {
                 type="button"
                 onClick={handleVerifyOTP}
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#2F8481] hover:bg-[#297a77] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2F8481] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="flex items-center">
@@ -244,7 +244,7 @@ const EmailLogin: React.FC = () => {
                   setOtpCode('');
                   setMessage(null);
                 }}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2F8481]"
               >
                 Grįžti atgal
               </button>

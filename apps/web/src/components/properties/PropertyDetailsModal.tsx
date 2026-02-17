@@ -108,7 +108,7 @@ const TenantHeader = React.memo(({ apartment, calculations, contractStatus, onCa
         {apartment.tenant?.name || 'Nėra nuomininko'} • #{apartment.apartmentNumber} • {apartment.area > 0 ? `${apartment.area} m²` : '—'} • {apartment.rooms > 0 ? `${apartment.rooms}k` : '—'}
       </h2>
     </div>
-    
+
     <div className="hidden lg:flex items-center gap-3 [font-variant-numeric:tabular-nums] flex-shrink-0">
       {calculations.totalDebt > 0 ? (
         <span className="chip chip-danger text-sm">Skola {formatCurrency(calculations.totalDebt)}</span>
@@ -119,13 +119,13 @@ const TenantHeader = React.memo(({ apartment, calculations, contractStatus, onCa
         Šio mėn.: Nuoma {formatCurrency(calculations.monthlyRent)} + Mokesčiai {formatCurrency(calculations.utilitiesThisMonth)} = {formatCurrency(calculations.currentDue)}
       </span>
       <span className="chip chip-neutral text-sm">Dep. {formatCurrency(calculations.deposit)}</span>
-      <span className={clsx("chip text-sm", 
+      <span className={clsx("chip text-sm",
         contractStatus.text === 'Aktyvi' ? 'chip-ok' :
-        contractStatus.text === 'Sutartis baigėsi' ? 'chip-danger' :
-        'chip-warn'
+          contractStatus.text === 'Sutartis baigėsi' ? 'chip-danger' :
+            'chip-warn'
       )}>{contractStatus.text}</span>
     </div>
-    
+
     <div className="flex items-center gap-2 flex-shrink-0">
       <button className="icon-btn text-sm" title="Skambinti" onClick={onCall}>
         <PhoneIcon className="w-4 h-4" />
@@ -152,33 +152,33 @@ const FinanceSection = React.memo(({ calculations, onPaymentHistory }: {
   <section className="rounded-lg border bg-white h-[140px]">
     <div className="px-4 py-3 border-b text-base font-medium">Finansai</div>
     <div className="p-4 space-y-3 text-sm [font-variant-numeric:tabular-nums]">
-      <Row 
-        label="Skola (viso)" 
-        value={formatCurrency(calculations.totalDebt)} 
-        valueClass={calculations.totalDebt > 0 ? "text-rose-600 text-lg font-semibold" : ""} 
+      <Row
+        label="Skola (viso)"
+        value={formatCurrency(calculations.totalDebt)}
+        valueClass={calculations.totalDebt > 0 ? "text-rose-600 text-lg font-semibold" : ""}
       />
-      
+
       <Row
         label="Šio mėn. mokėtina"
         value={formatCurrency(calculations.currentDue)}
         sub={`Nuoma ${formatCurrency(calculations.monthlyRent)} + Mokesčiai ${formatCurrency(calculations.utilitiesThisMonth)}`}
       />
-      
+
       <Row label="Sumokėta šį mėn." value={formatCurrency(calculations.paidThisMonth)} />
       <div className="h-2 rounded-full bg-neutral-100 overflow-hidden">
-        <div className="h-full bg-[#2F8481] transform-gpu transition-all duration-300" style={{ width: `${calculations.payPct}%` }} />
+        <div className="h-full bg-[#2F8481] transform-gpu transition-colors duration-300" style={{ width: `${calculations.payPct}%` }} />
       </div>
       <div className="text-sm text-neutral-500">
         Sumokėta / Šio mėn. mokėtina ({formatCurrency(calculations.currentDue)})
       </div>
       {calculations.currentDue > calculations.paidThisMonth && (
-        <Row 
-          label="Likutis šį mėn." 
+        <Row
+          label="Likutis šį mėn."
           value={formatCurrency(calculations.currentDue - calculations.paidThisMonth)}
           valueClass="text-rose-600"
         />
       )}
-      
+
       <div className="flex gap-3 pt-3">
         <button className="btn-ghost text-sm px-4 py-2" onClick={onPaymentHistory}>
           Mokėjimų istorija
@@ -204,7 +204,7 @@ const MetersSection = React.memo(({ calculations, getMeterStatus }: {
           const status = getMeterStatus(type);
           const difference = meter.current - meter.previous;
           const cost = difference * meter.rate;
-          
+
           return (
             <div key={type} className="flex items-center justify-between py-1.5">
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -225,7 +225,7 @@ const MetersSection = React.memo(({ calculations, getMeterStatus }: {
           );
         })}
       </div>
-      
+
       <div className="flex gap-3 pt-3">
         <button className="btn-ghost text-sm px-4 py-2" onClick={() => {
           if (process.env.NODE_ENV === 'development') {
@@ -285,15 +285,15 @@ const MoveOutSection = React.memo(({ apartment, actualMoveOutDate, setActualMove
   <section className="rounded-lg border bg-white h-[200px]">
     <div className="px-4 py-3 border-b text-base font-medium">Išsikraustymas</div>
     <div className="p-4 space-y-3 text-sm">
-      <Row 
-        label="Pranešimas gautas" 
-        value={apartment.tenant?.tenant_response_date ? formatDate(apartment.tenant.tenant_response_date) : '—'} 
+      <Row
+        label="Pranešimas gautas"
+        value={apartment.tenant?.tenant_response_date ? formatDate(apartment.tenant.tenant_response_date) : '—'}
       />
-      <Row 
-        label="Planuojama data" 
-        value={apartment.tenant?.planned_move_out_date ? formatDate(apartment.tenant.planned_move_out_date) : '—'} 
+      <Row
+        label="Planuojama data"
+        value={apartment.tenant?.planned_move_out_date ? formatDate(apartment.tenant.planned_move_out_date) : '—'}
       />
-      
+
       <div className="flex items-center justify-between">
         <span className="text-neutral-600">Faktinė data:</span>
         <div className="flex items-center gap-3">
@@ -304,12 +304,11 @@ const MoveOutSection = React.memo(({ apartment, actualMoveOutDate, setActualMove
             onChange={(e) => setActualMoveOutDate(e.target.value)}
             placeholder="yyyy-MM-dd"
           />
-          <button 
-            className={`text-sm px-4 py-2 rounded ${
-              actualMoveOutDate 
-                ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90' 
+          <button
+            className={`text-sm px-4 py-2 rounded ${actualMoveOutDate
+                ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
                 : 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
-            }`}
+              }`}
             onClick={onSaveActualMoveOutDate}
             disabled={!actualMoveOutDate}
           >
@@ -317,22 +316,22 @@ const MoveOutSection = React.memo(({ apartment, actualMoveOutDate, setActualMove
           </button>
         </div>
       </div>
-      
+
       {(() => {
         const plannedDate = apartment.tenant?.planned_move_out_date;
         const actualDate = actualMoveOutDate || apartment.tenant?.actual_move_out_date;
         const today = new Date();
-        
+
         if (!plannedDate) return null;
-        
+
         const planned = new Date(plannedDate);
         const actual = actualDate ? new Date(actualDate) : null;
         const endDate = actual || today;
         const lateDays = Math.max(0, Math.ceil((endDate.getTime() - planned.getTime()) / (1000 * 60 * 60 * 24)));
-        
+
         let statusText = '';
         let statusClass = '';
-        
+
         if (actual) {
           statusText = `Išsikraustyta ${formatDate(actualDate || '')}`;
           statusClass = 'text-green-600';
@@ -343,13 +342,13 @@ const MoveOutSection = React.memo(({ apartment, actualMoveOutDate, setActualMove
           statusText = `Išsikraustys po ${Math.abs(lateDays)} d.`;
           statusClass = 'text-neutral-600';
         }
-        
+
         return (
           <>
             <Row label="Statusas" value={statusText} valueClass={statusClass} />
             {calculations.lateFee > 0 && (
-              <Row 
-                label="Vėlavimo mokestis" 
+              <Row
+                label="Vėlavimo mokestis"
                 value={`${calculations.lateDays} d. × 25 €/d = ${formatCurrency(calculations.lateFee)}`}
                 valueClass="text-orange-600"
               />
@@ -382,7 +381,7 @@ const DepositSection = React.memo(({ calculations, onAddExpense }: {
     <div className="px-4 py-3 border-b text-base font-medium">Depozito grąžinimas</div>
     <div className="p-4 space-y-3 text-sm [font-variant-numeric:tabular-nums]">
       <Row label="Depozitas" value={formatCurrency(calculations.deposit)} />
-      
+
       <div className="flex items-center justify-between">
         <span className="text-neutral-600">Leisti dengti skolas depozitu?</span>
         <div className="flex items-center gap-3">
@@ -394,14 +393,14 @@ const DepositSection = React.memo(({ calculations, onAddExpense }: {
           </button>
         </div>
       </div>
-      
+
       {calculations.cleaning > 0 && (
         <Row label="Patvirtintos išlaidos" value={`– ${formatCurrency(calculations.cleaning)}`} />
       )}
       <button className="btn-ghost text-sm px-4 py-2" onClick={onAddExpense}>
         +Pridėti išlaidą
       </button>
-      
+
       {!calculations.allowDepositForDebt && calculations.totalDebt > 0 ? (
         <div className="pt-3 border-t mt-3">
           <p className="text-sm text-orange-600">
@@ -419,13 +418,13 @@ const DepositSection = React.memo(({ calculations, onAddExpense }: {
           <span className="text-lg font-semibold text-[#2F8481]">{formatCurrency(calculations.refundable)}</span>
         </div>
       ) : null}
-      
+
       {calculations.allowDepositForDebt && (
         <p className="text-sm text-neutral-500">
           Formulė: {formatCurrency(calculations.deposit)} &minus; {formatCurrency(calculations.totalDebt)} &minus; {formatCurrency(calculations.cleaning + calculations.other)} = {formatCurrency(calculations.refundable - calculations.extraPayable)}
         </p>
       )}
-      
+
       {(!calculations.allowDepositForDebt && calculations.totalDebt > 0) || calculations.refundable === 0 ? (
         <div className="pt-3 border-t mt-3">
           <div className="text-sm text-neutral-600 space-y-2">
@@ -444,7 +443,7 @@ const DepositSection = React.memo(({ calculations, onAddExpense }: {
           </div>
         </div>
       ) : null}
-      
+
       <div className="flex gap-3 pt-3">
         {!calculations.allowDepositForDebt && calculations.totalDebt > 0 ? (
           <button className="btn-ghost text-sm px-5 py-2.5 flex-1 opacity-50 cursor-not-allowed" disabled>
@@ -532,7 +531,7 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
   const [actualMoveOutDate, setActualMoveOutDate] = useState<string>(apartment.tenant?.actual_move_out_date || '');
   const [activeTab, setActiveTab] = useState<'overview' | 'meters'>('overview');
   const unlockRef = useRef<null | (() => void)>(null);
-  
+
   const [currentUser, setCurrentUser] = useState<ChatUser>({
     id: 'landlord-1',
     name: 'Nuomotojas',
@@ -545,7 +544,7 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
     const checkCompact = () => {
       setCompact(window.innerHeight < 900);
     };
-    
+
     checkCompact();
     window.addEventListener('resize', checkCompact);
     return () => window.removeEventListener('resize', checkCompact);
@@ -656,12 +655,12 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
 
   const getDaysUntilContractEnd = (contractEnd: string) => {
     if (!contractEnd) return 'Nenurodyta';
-    
+
     const endDate = new Date(contractEnd);
     const today = new Date();
     const diffTime = endDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   };
 
@@ -669,12 +668,12 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
     if (!apartment.tenant?.contractEnd) {
       return { text: 'Nenurodyta', color: 'text-gray-500' };
     }
-    
+
     const daysLeft = getDaysUntilContractEnd(apartment.tenant.contractEnd);
     if (typeof daysLeft === 'string') {
       return { text: daysLeft, color: 'text-gray-500' };
     }
-    
+
     if (daysLeft < 0) {
       return { text: 'Sutartis baigėsi', color: 'text-red-600' };
     } else if (daysLeft === 0) {
@@ -689,33 +688,33 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
   const calculateDepositReturnForModal = () => {
     const EPS = 0.01;
     const round = (x: number) => Math.abs(x) < EPS ? 0 : Math.round(x * 100) / 100;
-    
+
     const deposit = apartment.tenant?.deposit || 0;
     const outstanding = apartment.tenant?.outstanding_amount || 0;
     const cleaning = apartment.tenant?.cleaning || 0;
     const other = apartment.tenant?.other || 0;
     const utilities = apartment.utilitiesThisMonth || 0;
-    
+
     // Calculate late fee
     const plannedDate = apartment.tenant?.planned_move_out_date;
     const actualDate = actualMoveOutDate || apartment.tenant?.actual_move_out_date;
     const today = new Date();
-    
+
     let lateDays = 0;
     let lateFee = 0;
-    
+
     if (plannedDate) {
       const planned = new Date(plannedDate);
       const endDate = actualDate ? new Date(actualDate) : today;
       lateDays = Math.max(0, Math.ceil((endDate.getTime() - planned.getTime()) / (1000 * 60 * 60 * 24)));
       lateFee = lateDays * 25; // 25€ per day
     }
-    
+
     const totalDebt = outstanding + utilities + lateFee;
     const totalExpenses = cleaning + other;
     const refundable = round(deposit - totalDebt - totalExpenses);
     const extraPayable = round(totalDebt + totalExpenses - deposit);
-    
+
     return {
       deposit,
       totalDebt,
@@ -732,10 +731,10 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
       payPct: 0, // This would be calculated from actual payments
       monthlyRent: apartment.monthlyRent,
       meterReadings: {
-        electricity: { previous: 200, current: 1325, rate: 0.12, unit: 'kWh' },
-        water: { previous: 45, current: 49, rate: 2.5, unit: 'm³' },
-        heating: { previous: 0, current: 0, rate: 0.08, unit: 'GJ' },
-        gas: { previous: 0, current: 0, rate: 0.8, unit: 'm³' }
+        electricity: { previous: 200, current: 1325, rate: 0.23, unit: 'kWh' },
+        water: { previous: 45, current: 49, rate: 1.32, unit: 'm³' },
+        heating: { previous: 0, current: 0, rate: 0.095, unit: 'kWh' },
+        gas: { previous: 0, current: 0, rate: 0.99, unit: 'm³' }
       }
     };
   };
@@ -753,13 +752,13 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
   // Memoized calculations
   const calculations = useMemo(() => calculateDepositReturnForModal(), [apartment, actualMoveOutDate]);
   const contractStatus = useMemo(() => getContractStatus(), [apartment.tenant?.contractEnd]);
-  
+
   if (!isOpen) return null;
 
   return (
     <ModalPortal isOpen={isOpen} onClose={handleClose}>
       <div className="w-[1000px] h-[720px] rounded-2xl bg-white shadow-xl border border-neutral-200 overflow-hidden">
-        
+
         <TenantHeader
           apartment={apartment}
           calculations={calculations}
@@ -775,21 +774,19 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
           <nav className="flex space-x-8">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'overview'
+              className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'overview'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Apžvalga
             </button>
             <button
               onClick={() => setActiveTab('meters')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'meters'
+              className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'meters'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Skaitliukai
             </button>
@@ -798,7 +795,7 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
 
         {activeTab === 'overview' && (
           <div className="grid grid-cols-12 gap-4 p-4 h-[calc(720px-180px)]">
-            
+
             {/* Left Column: 7/12 */}
             <section className="col-span-7 space-y-4">
               <div className="flex justify-start">
@@ -810,17 +807,17 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
                   + Mokėjimas
                 </button>
               </div>
-              
+
               <FinanceSection
                 calculations={calculations}
                 onPaymentHistory={handlePaymentHistory}
               />
-              
+
               <MetersSection
                 calculations={calculations}
                 getMeterStatus={getMeterStatus}
               />
-              
+
               <ContractDatesSection
                 apartment={apartment}
                 getDaysUntilContractEnd={getDaysUntilContractEnd}
@@ -836,7 +833,7 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
                 calculations={calculations}
                 onSaveActualMoveOutDate={handleSaveActualMoveOutDate}
               />
-              
+
               <DepositSection
                 calculations={calculations}
                 onAddExpense={handleAddExpense}
@@ -874,7 +871,7 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
 PropertyDetailsModal.displayName = 'PropertyDetailsModal';
 
 // Helper components
-function Row({label, value, sub, valueClass=""}: {
+function Row({ label, value, sub, valueClass = "" }: {
   label: string;
   value: string;
   sub?: string;
@@ -891,7 +888,7 @@ function Row({label, value, sub, valueClass=""}: {
   );
 }
 
-function Line({icon, text}: {icon: string; text: string}) {
+function Line({ icon, text }: { icon: string; text: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-neutral-500">{icon}</span>
@@ -900,7 +897,7 @@ function Line({icon, text}: {icon: string; text: string}) {
   );
 }
 
-function KV({k, v}: {k: string; v: string}) {
+function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="text-center">
       <div className="text-xs text-neutral-600">{k}</div>

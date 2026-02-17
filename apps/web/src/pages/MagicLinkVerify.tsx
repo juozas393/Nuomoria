@@ -46,7 +46,7 @@ const MagicLinkVerify: React.FC = () => {
     switch (status) {
       case 'verifying':
         return (
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2F8481] mx-auto"></div>
         );
       case 'success':
         return (
@@ -69,7 +69,7 @@ const MagicLinkVerify: React.FC = () => {
 
   const getStatusColor = () => {
     switch (status) {
-      case 'verifying': return 'text-blue-600';
+      case 'verifying': return 'text-[#2F8481]';
       case 'success': return 'text-green-600';
       case 'error': return 'text-red-600';
     }
@@ -84,7 +84,7 @@ const MagicLinkVerify: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f0fafa] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           {getStatusIcon()}
@@ -99,7 +99,7 @@ const MagicLinkVerify: React.FC = () => {
             <div className="mt-6">
               <button
                 onClick={() => navigate('/login')}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2F8481] hover:bg-[#297a77] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2F8481]"
               >
                 Grįžti į prisijungimo puslapį
               </button>

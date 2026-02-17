@@ -13,7 +13,8 @@ import {
   DocumentTextIcon,
   WrenchScrewdriverIcon,
   SparklesIcon,
-  HomeModernIcon
+  HomeModernIcon,
+  QuestionMarkCircleIcon
 } from '@heroicons/react/24/outline';
 import { smoothScrollTo } from '../utils/smoothScroll';
 import type { UserWithPermissions } from '../types/user';
@@ -143,7 +144,8 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
       title: 'SISTEMA',
       items: [
         { name: 'Nustatymai', page: 'nustatymai', icon: CogIcon },
-        { name: 'Profilis', page: 'profilis', icon: UserCircleIcon }
+        { name: 'Profilis', page: 'profilis', icon: UserCircleIcon },
+        { name: 'Pagalba', page: 'pagalba', icon: QuestionMarkCircleIcon }
       ]
     },
     // Admin-only section
@@ -169,9 +171,9 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
       data-active={isActive}
       onClick={() => handlePageChange(item.page)}
       className={`
-        w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-150 group
+        w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-150 group
         ${isActive
-          ? 'bg-[#2f8481] text-white shadow-sm'
+          ? 'bg-[#2f8481] text-white shadow-[0_1px_3px_rgba(47,132,129,0.3)]'
           : 'text-gray-700 hover:text-[#2f8481] hover:bg-gray-50'
         }
       `}
@@ -215,7 +217,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo Header */}
-          <div className="flex-shrink-0 flex items-center justify-center p-4 border-b border-gray-100 bg-white">
+          <div className="flex-shrink-0 flex items-center justify-center p-3 border-b border-gray-100 bg-white">
             <img
               src={logoImage}
               alt="Nuomoria"
@@ -237,13 +239,28 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
                   />
                 ) : (
                   <span className="text-white text-sm font-semibold">
-                    {user?.first_name?.[0]}{user?.last_name?.[0]}
+                    {(() => {
+                      if ((user as any)?.username) return (user as any).username.slice(0, 2).toUpperCase();
+                      const fn = user?.first_name && user.first_name !== 'User' ? user.first_name : null;
+                      const ln = user?.last_name && user.last_name !== 'Name' ? user.last_name : null;
+                      if (fn || ln) return ((fn?.[0] || '') + (ln?.[0] || '')).toUpperCase() || '?';
+                      if (user?.email) return user.email.split('@')[0].slice(0, 2).toUpperCase();
+                      return 'U';
+                    })()}
                   </span>
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user ? `${user.first_name} ${user.last_name}` : 'User'}
+                  {(() => {
+                    if (!user) return 'Vartotojas';
+                    if ((user as any)?.username) return (user as any).username;
+                    const fn = user.first_name && user.first_name !== 'User' ? user.first_name : null;
+                    const ln = user.last_name && user.last_name !== 'Name' ? user.last_name : null;
+                    if (fn && ln) return `${fn} ${ln}`;
+                    if (fn) return fn;
+                    return user.email || 'Vartotojas';
+                  })()}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 truncate">{user?.email}</span>
@@ -259,7 +276,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
           <nav className="flex-1 overflow-y-auto py-3">
             {navigationGroups.map((group, groupIndex) => (
               <div key={group.title} className={groupIndex > 0 ? 'mt-4 pt-4 border-t border-gray-100 mx-3' : 'px-3'}>
-                <h3 className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <h3 className="px-3 mb-2 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
                   {group.title}
                 </h3>
                 <div className="space-y-0.5">
@@ -274,13 +291,13 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
 
           {/* Footer */}
           <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-gray-50/50">
-            <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-[#2f8481] to-[#3a9b98] rounded-xl cursor-pointer hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 p-3 bg-[#2F8481] rounded-xl cursor-pointer hover:shadow-md transition-shadow">
               <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
                 <SparklesIcon className="h-4 w-4 text-white" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 flex items-center gap-2">
                 <p className="text-sm font-medium text-white">AI Asistentas</p>
-                <p className="text-xs text-white/70">Gauk pagalbą</p>
+                <span className="text-[10px] font-medium text-white/60 bg-white/10 px-1.5 py-0.5 rounded">Beta</span>
               </div>
             </div>
           </div>

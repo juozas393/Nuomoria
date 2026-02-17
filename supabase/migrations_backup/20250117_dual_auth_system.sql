@@ -36,6 +36,7 @@ DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Public username lookup for login" ON public.profiles;
 
 -- Users can view their own profile
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
   ON public.profiles
   FOR SELECT
@@ -43,6 +44,7 @@ CREATE POLICY "Users can view own profile"
   USING (auth.uid() = id);
 
 -- Users can insert their own profile (during onboarding)
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile"
   ON public.profiles
   FOR INSERT
@@ -50,6 +52,7 @@ CREATE POLICY "Users can insert own profile"
   WITH CHECK (auth.uid() = id);
 
 -- Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles
   FOR UPDATE
@@ -94,6 +97,7 @@ GRANT EXECUTE ON FUNCTION public.get_login_info_by_username(text) TO authenticat
 -- 4. FUNCTION TO CHECK USERNAME AVAILABILITY
 -- ============================================
 
+DROP FUNCTION IF EXISTS public.check_username_available(text);
 CREATE OR REPLACE FUNCTION public.check_username_available(check_username text)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -134,6 +138,7 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW

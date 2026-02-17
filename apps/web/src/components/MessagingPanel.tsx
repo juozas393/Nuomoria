@@ -149,7 +149,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
             {/* Floating Chat Button */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[#2F8481] text-white rounded-full shadow-lg hover:bg-[#267673] transition-all hover:scale-105 flex items-center justify-center"
+                className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[#2F8481] text-white rounded-full shadow-lg hover:bg-[#267673] transition-colors hover:scale-105 flex items-center justify-center"
             >
                 <ChatBubbleLeftRightIcon className="w-6 h-6" />
                 {unreadCount > 0 && (

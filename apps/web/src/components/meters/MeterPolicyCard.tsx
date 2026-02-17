@@ -21,8 +21,8 @@ const MeterPolicyCard: React.FC<MeterPolicyCardProps> = ({
 }) => {
   // Infer policy if not set
   const policy = meter.policy || {
-    collectionMode: meter.distribution === 'fixed' ? 'landlord_only' : 
-                   meter.type === 'individual' ? 'tenant_photo' : 'landlord_only',
+    collectionMode: meter.distribution === 'fixed' ? 'landlord_only' :
+      meter.type === 'individual' ? 'tenant_photo' : 'landlord_only',
     scope: inferPolicyFrom(meter)
   };
 
@@ -59,8 +59,8 @@ const MeterPolicyCard: React.FC<MeterPolicyCardProps> = ({
 
   const getKindLabel = (kind: string) => {
     switch (kind) {
-      case 'water_cold': return 'Vanduo (šaltas)';
-      case 'water_hot': return 'Vanduo (karštas)';
+      case 'water_cold': return 'Šaltas vanduo';
+      case 'water_hot': return 'Karštas vanduo';
       case 'electricity_ind': return 'Elektra (individuali)';
       case 'electricity_shared': return 'Elektra (bendra)';
       case 'heating': return 'Šildymas';
@@ -109,14 +109,13 @@ const MeterPolicyCard: React.FC<MeterPolicyCardProps> = ({
         <div className="flex items-center gap-2">
           {/* Collection mode badge */}
           {!isFixed && (
-            <span 
-              className={`px-2 py-1 rounded-full text-xs font-medium cursor-help ${
-                isTenantMode 
-                  ? 'bg-blue-100 text-blue-800' 
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-medium cursor-help ${isTenantMode
+                  ? 'bg-blue-100 text-blue-800'
                   : 'bg-gray-100 text-gray-800'
-              }`}
-              title={isTenantMode 
-                ? 'Rodmuo + nuotrauka (nuomininkas): Nuomininkas pateikia rodmenį su nuotrauka ir skaičiumi. Nuomotojas tvirtina.' 
+                }`}
+              title={isTenantMode
+                ? 'Rodmuo + nuotrauka (nuomininkas): Nuomininkas pateikia rodmenį su nuotrauka ir skaičiumi. Nuomotojas tvirtina.'
                 : 'Rodmenys (nuomotojas): Rodmenis suveda tik nuomotojas. Nuomininkui šis skaitliukas nerodomas iki sąskaitos.'
               }
             >
@@ -185,15 +184,14 @@ const MeterPolicyCard: React.FC<MeterPolicyCardProps> = ({
               </div>
               <div>
                 <span className="text-gray-600">Skirtumas:</span>
-                                        <span className="ml-2 font-medium">{reading.consumption ?? reading.difference ?? 0}</span>
+                <span className="ml-2 font-medium">{reading.consumption ?? reading.difference ?? 0}</span>
               </div>
             </div>
             {reading.photoUrl && (
               <div className="mt-2">
                 <span className="text-gray-600 text-sm">Nuotrauka:</span>
-                <img 
-                  src={reading.photoUrl} 
-                  alt="Skaitliuko nuotrauka" 
+                <img loading="lazy" decoding="async" src={reading.photoUrl}
+                  alt="Skaitliuko nuotrauka"
                   className="mt-1 w-20 h-20 object-cover rounded border"
                 />
               </div>
@@ -220,13 +218,13 @@ const MeterPolicyCard: React.FC<MeterPolicyCardProps> = ({
 
         {isLandlord && reading && reading.status === 'pending' && (
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => onReadingApprove?.(reading.id)}
               className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
             >
               Patvirtinti
             </button>
-            <button 
+            <button
               onClick={() => onReadingReject?.(reading.id)}
               className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
             >

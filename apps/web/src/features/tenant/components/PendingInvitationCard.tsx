@@ -72,7 +72,7 @@ const PendingInvitationCard: React.FC<PendingInvitationCardProps> = ({
     const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
 
     return (
-        <div className={`${cardBase} rounded-2xl p-5 border ${isDark ? 'border-white/10' : 'border-gray-200'} transition-all hover:shadow-lg`}>
+        <div className={`${cardBase} rounded-2xl p-5 border ${isDark ? 'border-white/10' : 'border-gray-200'} transition-colors hover:shadow-lg`}>
             {/* Header with Property Info */}
             <div className="flex items-start gap-4 mb-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-[#2F8481] to-[#1a5553] rounded-xl flex items-center justify-center flex-shrink-0">

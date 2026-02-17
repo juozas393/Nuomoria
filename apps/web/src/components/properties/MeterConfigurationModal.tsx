@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  PlusIcon, 
-  TrashIcon, 
+import {
+  PlusIcon,
+  TrashIcon,
   CogIcon,
   CurrencyEuroIcon,
   CameraIcon,
@@ -20,36 +20,34 @@ interface MeterConfigurationModalProps {
   onSave: (configs: PropertyMeterConfig[]) => void;
 }
 
-const METER_TYPES: Array<{value: MeterType; label: string; icon: string; unit: MeterUnit; defaultPrice: number}> = [
-  { value: 'electricity_individual', label: 'Elektra (individuali)', icon: '⚡', unit: 'kWh', defaultPrice: 0.2 },
-  { value: 'electricity_common', label: 'Elektra (bendra)', icon: '⚡', unit: 'kWh', defaultPrice: 0.2 },
-  { value: 'water_cold', label: 'Vanduo (šaltas)', icon: '🌊', unit: 'm3', defaultPrice: 2.45 },
-  { value: 'water_hot', label: 'Vanduo (karštas)', icon: '🔥', unit: 'm3', defaultPrice: 3.20 },
-  { value: 'gas', label: 'Dujos', icon: '🔥', unit: 'm3', defaultPrice: 0.78 },
-  { value: 'heating', label: 'Šildymas', icon: '🔥', unit: 'GJ', defaultPrice: 0.12 },
-  { value: 'internet', label: 'Internetas', icon: '🌐', unit: 'Kitas', defaultPrice: 15.0 },
-  { value: 'waste', label: 'Šiukšlių išvežimas', icon: '🗑️', unit: 'Kitas', defaultPrice: 8.0 }
+const METER_TYPES: Array<{ value: MeterType; label: string; icon: string; unit: MeterUnit; defaultPrice: number }> = [
+  { value: 'electricity_individual', label: 'Elektra', icon: '⚡', unit: 'kWh', defaultPrice: 0.23 },
+  { value: 'water_cold', label: 'Šaltas vanduo', icon: '🌊', unit: 'm3', defaultPrice: 1.32 },
+  { value: 'water_hot', label: 'Karštas vanduo', icon: '🔥', unit: 'm3', defaultPrice: 3.50 },
+  { value: 'heating', label: 'Šildymas', icon: '🔥', unit: 'kWh', defaultPrice: 0.095 },
+  { value: 'gas', label: 'Dujos', icon: '🔥', unit: 'm3', defaultPrice: 0.99 },
+  { value: 'waste', label: 'Šiukšlės', icon: '🗑️', unit: 'Kitas', defaultPrice: 5.0 }
 ];
 
-const TARIFF_OPTIONS: Array<{value: MeterTariff; label: string}> = [
+const TARIFF_OPTIONS: Array<{ value: MeterTariff; label: string }> = [
   { value: 'single', label: 'Vienkartinė kaina' },
   { value: 'day_night', label: 'Diena/naktis' },
   { value: 'peak_offpeak', label: 'Piko/ne piko' }
 ];
 
-const STATUS_OPTIONS: Array<{value: MeterStatus; label: string; color: string}> = [
+const STATUS_OPTIONS: Array<{ value: MeterStatus; label: string; color: string }> = [
   { value: 'active', label: 'Aktyvus', color: 'text-green-600' },
   { value: 'inactive', label: 'Neaktyvus', color: 'text-gray-600' },
   { value: 'maintenance', label: 'Priežiūra', color: 'text-orange-600' }
 ];
 
-export function MeterConfigurationModal({ 
-  isOpen, 
-  onClose, 
-  propertyId, 
-  propertyName, 
-  existingConfigs = [], 
-  onSave 
+export function MeterConfigurationModal({
+  isOpen,
+  onClose,
+  propertyId,
+  propertyName,
+  existingConfigs = [],
+  onSave
 }: MeterConfigurationModalProps) {
   const [configs, setConfigs] = useState<PropertyMeterConfig[]>(existingConfigs);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,7 +88,7 @@ export function MeterConfigurationModal({
   };
 
   const updateConfig = (id: string, field: keyof PropertyMeterConfig, value: any) => {
-    setConfigs(configs.map(config => 
+    setConfigs(configs.map(config =>
       config.id === id ? { ...config, [field]: value, updated_at: new Date().toISOString() } : config
     ));
     // Clear error for this field
@@ -184,7 +182,7 @@ export function MeterConfigurationModal({
                 <div>
                   <h3 className="font-medium text-blue-900">Kaip veikia skaitliukų konfigūracija</h3>
                   <p className="text-sm text-blue-700 mt-1">
-                    Čia galite nustatyti, kokie skaitliukai naudojami šiame objekte ir kokios yra jų kainos. 
+                    Čia galite nustatyti, kokie skaitliukai naudojami šiame objekte ir kokios yra jų kainos.
                     Kiekvienas objektas gali turėti skirtingus skaitliukus ir skirtingas kainas.
                   </p>
                 </div>
@@ -215,7 +213,7 @@ export function MeterConfigurationModal({
                   {configs.map((config, index) => {
                     const meterTypeInfo = config.meter_type ? getMeterTypeInfo(config.meter_type) : METER_TYPES[0];
                     const hasError = errors[config.id];
-                    
+
                     return (
                       <div key={config.id} className={`border rounded-lg p-4 ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'}`}>
                         <div className="flex items-start justify-between mb-4">
@@ -291,8 +289,8 @@ export function MeterConfigurationModal({
                             >
                               <option value="kWh">kWh</option>
                               <option value="m3">m³</option>
-                                                              <option value="GJ">GJ</option>
-                                <option value="Kitas">Kitas</option>
+                              <option value="GJ">GJ</option>
+                              <option value="Kitas">Kitas</option>
                             </select>
                           </div>
 

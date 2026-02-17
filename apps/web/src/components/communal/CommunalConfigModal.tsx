@@ -9,24 +9,21 @@ interface CommunalConfigModalProps {
 }
 
 const DEFAULT_METERS: CommunalMeter[] = [
-  { id: '1', type: 'water_cold', name: 'Šaltas vanduo', unit: 'm³', isRequired: true, hasIndividualMeter: true, defaultPrice: 1.2 },
+  { id: '1', type: 'water_cold', name: 'Šaltas vanduo', unit: 'm³', isRequired: true, hasIndividualMeter: true, defaultPrice: 1.32 },
   { id: '2', type: 'water_hot', name: 'Karštas vanduo', unit: 'm³', isRequired: true, hasIndividualMeter: true, defaultPrice: 3.5 },
-  { id: '3', type: 'electricity', name: 'Elektra', unit: 'kWh', isRequired: true, hasIndividualMeter: true, defaultPrice: 0.12 },
-  { id: '4', type: 'heating', name: 'Šildymas', unit: 'kWh', isRequired: true, hasIndividualMeter: false, defaultPrice: 0.08 },
-  { id: '5', type: 'gas', name: 'Dujos', unit: 'm³', isRequired: false, hasIndividualMeter: true, defaultPrice: 0.45 },
-  { id: '6', type: 'sewage', name: 'Nuotekos', unit: 'm³', isRequired: true, hasIndividualMeter: false, defaultPrice: 0.8 },
-  { id: '7', type: 'garbage', name: 'Šiukšlės', unit: 'mėn', isRequired: true, hasIndividualMeter: false, defaultPrice: 8.0 },
+  { id: '3', type: 'electricity', name: 'Elektra', unit: 'kWh', isRequired: true, hasIndividualMeter: true, defaultPrice: 0.23 },
+  { id: '4', type: 'heating', name: 'Šildymas', unit: 'kWh', isRequired: false, hasIndividualMeter: true, defaultPrice: 0.095 },
+  { id: '5', type: 'gas', name: 'Dujos', unit: 'm³', isRequired: false, hasIndividualMeter: true, defaultPrice: 0.99 },
+  { id: '6', type: 'garbage', name: 'Šiukšlės', unit: 'mėn', isRequired: false, hasIndividualMeter: false, defaultPrice: 5.0 },
 ];
 
 const DEFAULT_PRICES: CommunalPrices = {
-  waterCold: 1.2,
+  waterCold: 1.32,
   waterHot: 3.5,
-  electricity: 0.12,
-  gas: 0.45,
-  heating: 0.08,
-  sewage: 0.8,
-  garbage: 8.0,
-  maintenance: 15.0,
+  electricity: 0.23,
+  gas: 0.99,
+  heating: 0.095,
+  garbage: 5.0,
 };
 
 export const CommunalConfigModal: React.FC<CommunalConfigModalProps> = ({
@@ -39,8 +36,8 @@ export const CommunalConfigModal: React.FC<CommunalConfigModalProps> = ({
   const [prices, setPrices] = useState<CommunalPrices>(currentConfig?.prices || DEFAULT_PRICES);
 
   const handleMeterToggle = (meterId: string, field: 'isRequired' | 'hasIndividualMeter') => {
-    setMeters(prev => prev.map(meter => 
-      meter.id === meterId 
+    setMeters(prev => prev.map(meter =>
+      meter.id === meterId
         ? { ...meter, [field]: !meter[field] }
         : meter
     ));
@@ -63,7 +60,7 @@ export const CommunalConfigModal: React.FC<CommunalConfigModalProps> = ({
   };
 
   return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-200">
@@ -94,36 +91,32 @@ export const CommunalConfigModal: React.FC<CommunalConfigModalProps> = ({
                       <h4 className="font-medium">{meter.name}</h4>
                       <span className="text-sm text-neutral-500">{meter.unit}</span>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-neutral-600">Reikalingas</span>
                         <button
                           onClick={() => handleMeterToggle(meter.id, 'isRequired')}
-                          className={`w-10 h-6 rounded-full transition-colors ${
-                            meter.isRequired ? 'bg-[#2F8481]' : 'bg-neutral-300'
-                          }`}
+                          className={`w-10 h-6 rounded-full transition-colors ${meter.isRequired ? 'bg-[#2F8481]' : 'bg-neutral-300'
+                            }`}
                         >
-                          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                            meter.isRequired ? 'translate-x-5' : 'translate-x-1'
-                          }`} />
+                          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${meter.isRequired ? 'translate-x-5' : 'translate-x-1'
+                            }`} />
                         </button>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-neutral-600">Individualus skaitliukas</span>
                         <button
                           onClick={() => handleMeterToggle(meter.id, 'hasIndividualMeter')}
-                          className={`w-10 h-6 rounded-full transition-colors ${
-                            meter.hasIndividualMeter ? 'bg-[#2F8481]' : 'bg-neutral-300'
-                          }`}
+                          className={`w-10 h-6 rounded-full transition-colors ${meter.hasIndividualMeter ? 'bg-[#2F8481]' : 'bg-neutral-300'
+                            }`}
                         >
-                          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                            meter.hasIndividualMeter ? 'translate-x-5' : 'translate-x-1'
-                          }`} />
+                          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${meter.hasIndividualMeter ? 'translate-x-5' : 'translate-x-1'
+                            }`} />
                         </button>
                       </div>
-                      
+
                       {meter.hasIndividualMeter && (
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-neutral-600">Kaina už {meter.unit}</span>
@@ -132,8 +125,8 @@ export const CommunalConfigModal: React.FC<CommunalConfigModalProps> = ({
                             step="0.01"
                             value={meter.defaultPrice || 0}
                             onChange={(e) => {
-                              setMeters(prev => prev.map(m => 
-                                m.id === meter.id 
+                              setMeters(prev => prev.map(m =>
+                                m.id === meter.id
                                   ? { ...m, defaultPrice: parseFloat(e.target.value) || 0 }
                                   : m
                               ));
@@ -202,16 +195,6 @@ export const CommunalConfigModal: React.FC<CommunalConfigModalProps> = ({
                         step="0.01"
                         value={prices.heating}
                         onChange={(e) => handlePriceChange('heating', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 text-sm border border-neutral-300 rounded"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Nuotekos (€/m³)</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={prices.sewage}
-                        onChange={(e) => handlePriceChange('sewage', parseFloat(e.target.value) || 0)}
                         className="w-20 px-2 py-1 text-sm border border-neutral-300 rounded"
                       />
                     </div>

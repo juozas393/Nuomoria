@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  DocumentTextIcon, 
+import {
+  DocumentTextIcon,
   CalendarIcon,
   CurrencyEuroIcon,
   CheckCircleIcon,
@@ -97,12 +97,12 @@ const TenantInvoices: React.FC = () => {
         heating: { previous: 890, current: 945, meter: 'H-001' }
       },
       utilityRates: {
-        electricity: 0.12,
-        water: 2.50,
-        gas: 0.45,
-        heating: 0.08,
-        internet: 25.00,
-        garbage: 15.00
+        electricity: 0.23,
+        water: 1.32,
+        gas: 0.99,
+        heating: 0.095,
+        internet: 15.00,
+        garbage: 5.00
       },
       items: [
         {
@@ -110,8 +110,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Elektros energija',
           baseAmount: 0,
           consumption: 245,
-          rate: 0.12,
-          total: 29.40,
+          rate: 0.23,
+          total: 56.35,
           unit: 'kWh',
           previousReading: 1250,
           currentReading: 1495,
@@ -124,8 +124,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Vanduo',
           baseAmount: 0,
           consumption: 12.5,
-          rate: 2.50,
-          total: 31.25,
+          rate: 1.32,
+          total: 16.50,
           unit: 'm³',
           previousReading: 456,
           currentReading: 468.5,
@@ -138,8 +138,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Dujos',
           baseAmount: 0,
           consumption: 45.2,
-          rate: 0.45,
-          total: 20.34,
+          rate: 0.99,
+          total: 44.75,
           unit: 'm³',
           previousReading: 1234,
           currentReading: 1279.2,
@@ -152,8 +152,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Šildymas',
           baseAmount: 0,
           consumption: 55,
-          rate: 0.08,
-          total: 4.40,
+          rate: 0.095,
+          total: 5.23,
           unit: 'kWh',
           previousReading: 890,
           currentReading: 945,
@@ -164,10 +164,10 @@ const TenantInvoices: React.FC = () => {
         {
           id: '5',
           name: 'Internetas',
-          baseAmount: 25.00,
+          baseAmount: 15.00,
           consumption: 0,
           rate: 0,
-          total: 25.00,
+          total: 15.00,
           unit: '',
           previousReading: 0,
           currentReading: 0,
@@ -178,10 +178,10 @@ const TenantInvoices: React.FC = () => {
         {
           id: '6',
           name: 'Šiukšlių išvežimas',
-          baseAmount: 15.00,
+          baseAmount: 5.00,
           consumption: 0,
           rate: 0,
-          total: 15.00,
+          total: 5.00,
           unit: '',
           previousReading: 0,
           currentReading: 0,
@@ -213,12 +213,12 @@ const TenantInvoices: React.FC = () => {
         heating: { previous: 820, current: 890, meter: 'H-001' }
       },
       utilityRates: {
-        electricity: 0.12,
-        water: 2.50,
-        gas: 0.45,
-        heating: 0.08,
-        internet: 25.00,
-        garbage: 15.00
+        electricity: 0.23,
+        water: 1.32,
+        gas: 0.99,
+        heating: 0.095,
+        internet: 15.00,
+        garbage: 5.00
       },
       items: [
         {
@@ -226,8 +226,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Elektros energija',
           baseAmount: 0,
           consumption: 150,
-          rate: 0.12,
-          total: 18.00,
+          rate: 0.23,
+          total: 34.50,
           unit: 'kWh',
           previousReading: 1100,
           currentReading: 1250,
@@ -240,8 +240,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Vanduo',
           baseAmount: 0,
           consumption: 16,
-          rate: 2.50,
-          total: 40.00,
+          rate: 1.32,
+          total: 21.12,
           unit: 'm³',
           previousReading: 440,
           currentReading: 456,
@@ -254,8 +254,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Dujos',
           baseAmount: 0,
           consumption: 54,
-          rate: 0.45,
-          total: 24.30,
+          rate: 0.99,
+          total: 53.46,
           unit: 'm³',
           previousReading: 1180,
           currentReading: 1234,
@@ -268,8 +268,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Šildymas',
           baseAmount: 0,
           consumption: 70,
-          rate: 0.08,
-          total: 5.60,
+          rate: 0.095,
+          total: 6.65,
           unit: 'kWh',
           previousReading: 820,
           currentReading: 890,
@@ -280,10 +280,10 @@ const TenantInvoices: React.FC = () => {
         {
           id: '5',
           name: 'Internetas',
-          baseAmount: 25.00,
+          baseAmount: 15.00,
           consumption: 0,
           rate: 0,
-          total: 25.00,
+          total: 15.00,
           unit: '',
           previousReading: 0,
           currentReading: 0,
@@ -294,10 +294,10 @@ const TenantInvoices: React.FC = () => {
         {
           id: '6',
           name: 'Šiukšlių išvežimas',
-          baseAmount: 15.00,
+          baseAmount: 5.00,
           consumption: 0,
           rate: 0,
-          total: 15.00,
+          total: 5.00,
           unit: '',
           previousReading: 0,
           currentReading: 0,
@@ -329,12 +329,12 @@ const TenantInvoices: React.FC = () => {
         heating: { previous: 750, current: 820, meter: 'H-001' }
       },
       utilityRates: {
-        electricity: 0.12,
-        water: 2.50,
-        gas: 0.45,
-        heating: 0.08,
-        internet: 25.00,
-        garbage: 15.00
+        electricity: 0.23,
+        water: 1.32,
+        gas: 0.99,
+        heating: 0.095,
+        internet: 15.00,
+        garbage: 5.00
       },
       items: [
         {
@@ -342,8 +342,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Elektros energija',
           baseAmount: 0,
           consumption: 120,
-          rate: 0.12,
-          total: 14.40,
+          rate: 0.23,
+          total: 27.60,
           unit: 'kWh',
           previousReading: 980,
           currentReading: 1100,
@@ -356,8 +356,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Vanduo',
           baseAmount: 0,
           consumption: 20,
-          rate: 2.50,
-          total: 50.00,
+          rate: 1.32,
+          total: 26.40,
           unit: 'm³',
           previousReading: 420,
           currentReading: 440,
@@ -370,8 +370,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Dujos',
           baseAmount: 0,
           consumption: 60,
-          rate: 0.45,
-          total: 27.00,
+          rate: 0.99,
+          total: 59.40,
           unit: 'm³',
           previousReading: 1120,
           currentReading: 1180,
@@ -384,8 +384,8 @@ const TenantInvoices: React.FC = () => {
           name: 'Šildymas',
           baseAmount: 0,
           consumption: 70,
-          rate: 0.08,
-          total: 5.60,
+          rate: 0.095,
+          total: 6.65,
           unit: 'kWh',
           previousReading: 750,
           currentReading: 820,
@@ -396,10 +396,10 @@ const TenantInvoices: React.FC = () => {
         {
           id: '5',
           name: 'Internetas',
-          baseAmount: 25.00,
+          baseAmount: 15.00,
           consumption: 0,
           rate: 0,
-          total: 25.00,
+          total: 15.00,
           unit: '',
           previousReading: 0,
           currentReading: 0,
@@ -410,10 +410,10 @@ const TenantInvoices: React.FC = () => {
         {
           id: '6',
           name: 'Šiukšlių išvežimas',
-          baseAmount: 15.00,
+          baseAmount: 5.00,
           consumption: 0,
           rate: 0,
-          total: 15.00,
+          total: 5.00,
           unit: '',
           previousReading: 0,
           currentReading: 0,
@@ -425,8 +425,8 @@ const TenantInvoices: React.FC = () => {
     }
   ];
 
-  const filteredInvoices = selectedStatus === 'all' 
-    ? invoices 
+  const filteredInvoices = selectedStatus === 'all'
+    ? invoices
     : invoices.filter(invoice => invoice.status === selectedStatus);
 
   const getStatusIcon = (status: string) => {
@@ -484,7 +484,7 @@ const TenantInvoices: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-[#f0fafa]">
       {/* Header with logout button */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -492,11 +492,11 @@ const TenantInvoices: React.FC = () => {
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-black">Sąskaitos</h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
-              <button 
+              <button
                 onClick={logout}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                 title="Atsijungti"
               >
                 <ArrowRightOnRectangleIcon className="w-5 h-5" />
@@ -524,7 +524,7 @@ const TenantInvoices: React.FC = () => {
 
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
+              <div className="p-3 bg-[#2F8481] rounded-xl">
                 <CheckCircleIcon className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -552,7 +552,7 @@ const TenantInvoices: React.FC = () => {
 
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
+              <div className="p-3 bg-gray-600 rounded-xl">
                 <CurrencyEuroIcon className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -572,41 +572,37 @@ const TenantInvoices: React.FC = () => {
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedStatus('all')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  selectedStatus === 'all'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${selectedStatus === 'all'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 Visi
               </button>
               <button
                 onClick={() => setSelectedStatus('paid')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  selectedStatus === 'paid'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${selectedStatus === 'paid'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 Apmokėti
               </button>
               <button
                 onClick={() => setSelectedStatus('pending')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  selectedStatus === 'pending'
-                    ? 'bg-yellow-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${selectedStatus === 'pending'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 Laukiami
               </button>
               <button
                 onClick={() => setSelectedStatus('overdue')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  selectedStatus === 'overdue'
-                    ? 'bg-red-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors duration-200 ${selectedStatus === 'overdue'
+                  ? 'bg-red-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 Vėluojantys
               </button>
@@ -626,10 +622,9 @@ const TenantInvoices: React.FC = () => {
               <div key={invoice.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl ${
-                      invoice.status === 'paid' ? 'bg-green-100' : 
+                    <div className={`p-3 rounded-xl ${invoice.status === 'paid' ? 'bg-green-100' :
                       invoice.status === 'pending' ? 'bg-yellow-100' : 'bg-red-100'
-                    }`}>
+                      }`}>
                       {getStatusIcon(invoice.status)}
                     </div>
                     <div>
@@ -658,7 +653,7 @@ const TenantInvoices: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => toggleInvoiceExpansion(invoice.id)}
                         className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                       >
@@ -801,7 +796,7 @@ const TenantInvoices: React.FC = () => {
                           const consumption = item.currentReading - item.previousReading;
                           const consumptionColor = getConsumptionColor(consumption, item.unit);
                           const IconComponent = item.icon;
-                          
+
                           return (
                             <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                               <div className="flex items-center gap-4">

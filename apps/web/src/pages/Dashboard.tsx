@@ -247,7 +247,7 @@ const Dashboard: React.FC = () => {
       {/* Hero Section with B&W Background */}
       <div
         className="relative h-64 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url('/images/ProfileBackground_bw.png')` }}
+        style={{ backgroundImage: `url('/images/ProfileBackground_bw.webp')` }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-40" />
         <div className="relative h-full flex items-center justify-center">
@@ -262,7 +262,7 @@ const Dashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
         <div className="space-y-6">
           {/* Overview Section - Removed for deleted components */}
-          <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
+          <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Apžvalga</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-blue-50 rounded-lg p-4">
@@ -285,7 +285,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Quick Actions - Removed for deleted components */}
-          <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
+          <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Greiti veiksmai</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <button className="bg-blue-600 text-white rounded-lg p-4 hover:bg-blue-700 transition-colors">
@@ -305,7 +305,7 @@ const Dashboard: React.FC = () => {
 
           {/* Analytics and Tasks Grid - Removed for deleted components */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
+            <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Finansai</h2>
               <div className="space-y-4">
                 <div className="flex justify-between">
@@ -323,7 +323,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
+            <div className="bg-white rounded-lg shadow-sm p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Užduotys</h2>
               <div className="space-y-3">
                 {data?.upcomingTasks.slice(0, 3).map((task, index) => (

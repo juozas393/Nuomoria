@@ -1,0 +1,142 @@
+/* =============================================================================
+   DENSITY SYSTEM CSS VARIABLES
+   ============================================================================= */
+
+/* Default: Comfortable */
+:root,
+[data-density="comfortable"] {
+    --density-card-padding: 16px;
+    --density-card-padding-sm: 12px;
+    --density-card-header-h: 40px;
+    --density-icon-size: 36px;
+    --density-icon-size-sm: 16px;
+    --density-row-gap: 12px;
+    --density-col-gap: 12px;
+    --density-text-base: 14px;
+    --density-text-sm: 13px;
+    --density-text-xs: 11px;
+    --density-text-2xl: 24px;
+    --density-btn-h: 36px;
+    --density-btn-h-sm: 32px;
+    --density-badge-h: 24px;
+    --density-thumb-size: 64px;
+}
+
+/* Compact */
+[data-density="compact"] {
+    --density-card-padding: 12px;
+    --density-card-padding-sm: 8px;
+    --density-card-header-h: 32px;
+    --density-icon-size: 28px;
+    --density-icon-size-sm: 14px;
+    --density-row-gap: 8px;
+    --density-col-gap: 8px;
+    --density-text-base: 13px;
+    --density-text-sm: 12px;
+    --density-text-xs: 10px;
+    --density-text-2xl: 20px;
+    --density-btn-h: 32px;
+    --density-btn-h-sm: 28px;
+    --density-badge-h: 20px;
+    --density-thumb-size: 48px;
+}
+
+/* Ultra-compact */
+[data-density="ultra"] {
+    --density-card-padding: 8px;
+    --density-card-padding-sm: 6px;
+    --density-card-header-h: 28px;
+    --density-icon-size: 24px;
+    --density-icon-size-sm: 12px;
+    --density-row-gap: 6px;
+    --density-col-gap: 6px;
+    --density-text-base: 12px;
+    --density-text-sm: 11px;
+    --density-text-xs: 10px;
+    --density-text-2xl: 18px;
+    --density-btn-h: 28px;
+    --density-btn-h-sm: 24px;
+    --density-badge-h: 18px;
+    --density-thumb-size: 40px;
+}
+
+/* =============================================================================
+   UTILITY CLASSES FOR DENSITY-AWARE COMPONENTS
+   ============================================================================= */
+
+/* Card padding */
+.density-card {
+    padding: var(--density-card-padding);
+}
+
+.density-card-sm {
+    padding: var(--density-card-padding-sm);
+}
+
+/* Gaps */
+.density-gap {
+    gap: var(--density-row-gap);
+}
+
+.density-gap-row {
+    row-gap: var(--density-row-gap);
+}
+
+.density-gap-col {
+    column-gap: var(--density-col-gap);
+}
+
+/* Icon containers */
+.density-icon {
+    width: var(--density-icon-size);
+    height: var(--density-icon-size);
+}
+
+.density-icon-sm {
+    width: var(--density-icon-size-sm);
+    height: var(--density-icon-size-sm);
+}
+
+/* Text sizes */
+.density-text-base {
+    font-size: var(--density-text-base);
+}
+
+.density-text-sm {
+    font-size: var(--density-text-sm);
+}
+
+.density-text-xs {
+    font-size: var(--density-text-xs);
+}
+
+.density-text-2xl {
+    font-size: var(--density-text-2xl);
+}
+
+/* Buttons */
+.density-btn {
+    height: var(--density-btn-h);
+}
+
+.density-btn-sm {
+    height: var(--density-btn-h-sm);
+}
+
+/* Header height */
+.density-header {
+    height: var(--density-card-header-h);
+    min-height: var(--density-card-header-h);
+}
+
+/* Thumbnails */
+.density-thumb {
+    width: var(--density-thumb-size);
+    height: var(--density-thumb-size);
+}
+
+/* Badges */
+.density-badge {
+    height: var(--density-badge-h);
+    line-height: var(--density-badge-h);
+}

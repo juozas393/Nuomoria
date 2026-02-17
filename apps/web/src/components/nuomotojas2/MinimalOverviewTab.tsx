@@ -307,7 +307,7 @@ export const MinimalOverviewTab: React.FC<MinimalOverviewTabProps> = ({
                 <div
                     className="rounded-2xl border border-gray-100 p-4 space-y-2"
                     style={{
-                        backgroundImage: `url('/images/FormsBackground.png')`,
+                        backgroundImage: `url('/images/CardsBackground.webp')`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                     }}

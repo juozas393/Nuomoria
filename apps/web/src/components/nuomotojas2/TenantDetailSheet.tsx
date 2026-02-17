@@ -50,12 +50,12 @@ export function convertTenantToDetailData(tenant: any, apartment: any): TenantDe
   // Calculate days left
   const getDaysLeftLabel = (contractEnd: string) => {
     if (!contractEnd) return 'Nenurodyta';
-    
+
     const endDate = new Date(contractEnd);
     const today = new Date();
     const diffTime = endDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return 'Baigėsi';
     } else if (diffDays === 0) {
@@ -98,29 +98,29 @@ export function convertTenantToDetailData(tenant: any, apartment: any): TenantDe
     contractEnd: tenant.contractEnd,
     daysLeftLabel: getDaysLeftLabel(tenant.contractEnd),
     meters: {
-      water: { 
-        submitted: tenant.meters_submitted || false, 
-        previous: 45, 
-        current: 49, 
-        rate: 2.5 
+      water: {
+        submitted: tenant.meters_submitted || false,
+        previous: 45,
+        current: 49,
+        rate: 1.32
       },
-      power: { 
-        submitted: tenant.meters_submitted || false, 
-        previous: 200, 
-        current: 1325, 
-        rate: 0.12 
+      power: {
+        submitted: tenant.meters_submitted || false,
+        previous: 200,
+        current: 1325,
+        rate: 0.23
       },
-      gas: { 
-        submitted: tenant.meters_submitted || false, 
-        previous: 0, 
-        current: 0, 
-        rate: 0.8 
+      gas: {
+        submitted: tenant.meters_submitted || false,
+        previous: 0,
+        current: 0,
+        rate: 0.99
       },
-      heating: { 
-        submitted: tenant.meters_submitted || false, 
-        previous: 0, 
-        current: 0, 
-        rate: 0.08 
+      heating: {
+        submitted: tenant.meters_submitted || false,
+        previous: 0,
+        current: 0,
+        rate: 0.095
       }
     }
   };
@@ -150,7 +150,7 @@ function Chip({ label, tone }: { label: string; tone?: 'brand' | 'danger' | 'mut
     warn: 'bg-amber-50 text-amber-700 border-amber-200',
     muted: 'bg-neutral-50 text-neutral-700 border-neutral-200'
   } as const;
-  
+
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${map[tone ?? 'muted']}`}>
       {label}
@@ -180,18 +180,17 @@ function KeyRow({ k, v, bold, danger }: { k: string; v: string; bold?: boolean; 
 
 function Result({ label, amount, good, warn }: { label: string; amount: number; good?: boolean; warn?: boolean }) {
   return (
-    <div className={`mt-2 p-2 rounded-md border text-sm ${
-      good ? 'border-emerald-200 bg-emerald-50 text-emerald-800' :
-      warn ? 'border-amber-200 bg-amber-50 text-amber-800' :
-      'border-neutral-200 bg-neutral-50 text-neutral-800'
-    }`}>
+    <div className={`mt-2 p-2 rounded-md border text-sm ${good ? 'border-emerald-200 bg-emerald-50 text-emerald-800' :
+        warn ? 'border-amber-200 bg-amber-50 text-amber-800' :
+          'border-neutral-200 bg-neutral-50 text-neutral-800'
+      }`}>
       <b>{label}:</b> {formatCurrencyLt(amount)}
     </div>
   );
 }
 
-function MeterRow({ type, meter, icon }: { 
-  type: string; 
+function MeterRow({ type, meter, icon }: {
+  type: string;
   meter: { submitted: boolean; previous: number; current: number; rate: number };
   icon: string;
 }) {
@@ -199,7 +198,7 @@ function MeterRow({ type, meter, icon }: {
   const cost = difference * meter.rate;
   const status = meter.submitted ? '✓' : '•';
   const statusColor = meter.submitted ? 'text-[#2F8481]' : 'text-amber-600';
-  
+
   return (
     <div className="flex items-center justify-between py-1 text-sm">
       <div className="flex items-center gap-2">
@@ -241,22 +240,22 @@ export function TenantDetailSheet({
     : 0;
   const refundable = fx(refundableRaw);
   const additionalDue = refundable < 0 ? fx(Math.abs(refundable)) : 0;
-  
+
   // Late fee calculation
   const plannedDate = data.plannedMoveOut;
   const actualDate = data.actualMoveOut;
   const today = new Date();
-  
+
   let lateDays = 0;
   let lateFee = 0;
-  
+
   if (plannedDate) {
     const planned = new Date(plannedDate);
     const endDate = actualDate ? new Date(actualDate) : today;
     lateDays = Math.max(0, Math.ceil((endDate.getTime() - planned.getTime()) / (1000 * 60 * 60 * 24)));
     lateFee = lateDays * 25; // 25€ per day
   }
-  
+
   // Disabled reasons for deposit refund
   const getDisabledReasons = () => {
     const reasons = [];
@@ -271,18 +270,18 @@ export function TenantDetailSheet({
     }
     return reasons;
   };
-  
+
   const disabledReasons = getDisabledReasons();
   const canRefund = data.policyUseDeposit && refundable >= 0 && disabledReasons.length === 0;
   const canIssueInvoice = data.policyUseDeposit && refundable < 0;
-  
+
   // Keyboard handlers
   const handleEscape = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape' && open) {
       onClose();
     }
   }, [open, onClose]);
-  
+
   useEffect(() => {
     if (open) {
       document.addEventListener('keydown', handleEscape);
@@ -290,20 +289,20 @@ export function TenantDetailSheet({
     } else {
       document.body.style.overflow = '';
     }
-    
+
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
   }, [open, handleEscape]);
-  
+
   if (!open) return null;
-  
+
   return (
     <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      
+
       {/* Sheet */}
       <aside
         className="absolute right-0 top-0 h-dvh w-[920px] max-w-[94vw] bg-white shadow-2xl grid grid-rows-[auto,auto,1fr,auto]"
@@ -321,19 +320,19 @@ export function TenantDetailSheet({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={() => onAddPayment(data.id)}
               className="px-3 py-1.5 rounded-lg bg-[#2F8481] text-white text-sm hover:bg-[#2F8481]/90 transition-colors"
             >
               + Mokėjimas
             </button>
-            <button 
+            <button
               onClick={() => onEdit(data.id)}
               className="px-3 py-1.5 rounded-lg border border-neutral-300 text-sm hover:bg-neutral-50 transition-colors"
             >
               Redaguoti
             </button>
-            <button 
+            <button
               onClick={onClose}
               className="p-2 rounded-lg border border-neutral-300 hover:bg-neutral-50 transition-colors"
             >
@@ -344,17 +343,17 @@ export function TenantDetailSheet({
 
         {/* SUMMARY CHIPS */}
         <div className="px-6 py-3 flex flex-wrap gap-2 border-b border-neutral-100">
-          <Chip 
-            label={`Šio mėn.: ${formatCurrencyLt(fx(data.monthDue))}`} 
-            tone="brand" 
+          <Chip
+            label={`Šio mėn.: ${formatCurrencyLt(fx(data.monthDue))}`}
+            tone="brand"
           />
-          <Chip 
-            label={`Skola: ${formatCurrencyLt(fx(data.totalDebt))}`} 
-            tone={data.totalDebt > 0 ? 'danger' : 'muted'} 
+          <Chip
+            label={`Skola: ${formatCurrencyLt(fx(data.totalDebt))}`}
+            tone={data.totalDebt > 0 ? 'danger' : 'muted'}
           />
-          <Chip 
-            label={`Dep.: ${formatCurrencyLt(fx(data.deposit))}`} 
-            tone="muted" 
+          <Chip
+            label={`Dep.: ${formatCurrencyLt(fx(data.deposit))}`}
+            tone="muted"
           />
         </div>
 
@@ -363,26 +362,26 @@ export function TenantDetailSheet({
           <div className="grid grid-cols-2 gap-4 py-4">
             {/* FINANSAI */}
             <Card title="Finansai">
-              <KeyRow 
-                k="Skola (viso)" 
-                v={formatCurrencyLt(fx(data.totalDebt))} 
+              <KeyRow
+                k="Skola (viso)"
+                v={formatCurrencyLt(fx(data.totalDebt))}
                 danger={data.totalDebt > 0}
               />
-              <KeyRow 
-                k="Šio mėn. mokėtina" 
-                v={formatCurrencyLt(fx(data.monthDue))} 
+              <KeyRow
+                k="Šio mėn. mokėtina"
+                v={formatCurrencyLt(fx(data.monthDue))}
               />
-              <KeyRow 
-                k="Sumokėta šį mėn." 
-                v={formatCurrencyLt(fx(data.monthPaid))} 
+              <KeyRow
+                k="Sumokėta šį mėn."
+                v={formatCurrencyLt(fx(data.monthPaid))}
               />
-              <KeyRow 
-                k="Likutis šį mėn." 
-                v={formatCurrencyLt(monthLeft)} 
-                bold 
+              <KeyRow
+                k="Likutis šį mėn."
+                v={formatCurrencyLt(monthLeft)}
+                bold
               />
               <div className="mt-3 flex gap-2">
-                <button 
+                <button
                   onClick={() => onAddPayment(data.id)}
                   className="px-3 py-1.5 rounded-lg bg-[#2F8481] text-white text-sm hover:bg-[#2F8481]/90 transition-colors"
                 >
@@ -396,23 +395,23 @@ export function TenantDetailSheet({
 
             {/* IŠSIKRAUSTYMAS */}
             <Card title="Išsikraustymas">
-              <KeyRow 
-                k="Pranešimas gautas" 
-                v={data.moveOutNotice ? formatDateLt(data.moveOutNotice) : '—'} 
+              <KeyRow
+                k="Pranešimas gautas"
+                v={data.moveOutNotice ? formatDateLt(data.moveOutNotice) : '—'}
               />
-              <KeyRow 
-                k="Planuojama data" 
-                v={data.plannedMoveOut ? formatDateLt(data.plannedMoveOut) : '—'} 
+              <KeyRow
+                k="Planuojama data"
+                v={data.plannedMoveOut ? formatDateLt(data.plannedMoveOut) : '—'}
               />
-              <KeyRow 
-                k="Faktinė data" 
-                v={data.actualMoveOut ? formatDateLt(data.actualMoveOut) : '—'} 
+              <KeyRow
+                k="Faktinė data"
+                v={data.actualMoveOut ? formatDateLt(data.actualMoveOut) : '—'}
               />
-              
+
               {lateDays > 0 && (
                 <div className="mt-2 p-2 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-sm">
                   <b>Vėluoja {lateDays} d.</b> • Vėlavimo mokestis: {formatCurrencyLt(lateFee)}
-                  <button 
+                  <button
                     onClick={() => onApplyLateFee(data.id)}
                     className="ml-2 px-2 py-1 rounded bg-amber-600 text-white text-xs hover:bg-amber-700 transition-colors"
                   >
@@ -420,7 +419,7 @@ export function TenantDetailSheet({
                   </button>
                 </div>
               )}
-              
+
               <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
                 <div className="p-2 rounded-lg bg-neutral-50 border border-neutral-200">
                   <div className="text-neutral-600">Pradžia</div>
@@ -489,22 +488,20 @@ export function TenantDetailSheet({
                 <button
                   onClick={() => onRefundDeposit(data.id)}
                   disabled={!canRefund}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    canRefund
+                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${canRefund
                       ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
                       : 'bg-neutral-200 text-neutral-600 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   Grąžinti
                 </button>
                 <button
                   onClick={() => onIssueInvoice(data.id)}
                   disabled={!canIssueInvoice}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    canIssueInvoice
+                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${canIssueInvoice
                       ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
                       : 'bg-neutral-200 text-neutral-600 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   Išrašyti sąskaitą
                 </button>
@@ -519,25 +516,25 @@ export function TenantDetailSheet({
             Kontaktai ir failai – atskiruose tabu (neužkraunam kol nereikia).
           </div>
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={() => onOpenChat(data.id)}
               className="px-3 py-1.5 rounded-lg border border-neutral-300 text-sm hover:bg-neutral-50 transition-colors"
             >
               Chat
             </button>
-            <button 
+            <button
               onClick={() => onRemind(data.id)}
               className="px-3 py-1.5 rounded-lg border border-neutral-300 text-sm hover:bg-neutral-50 transition-colors"
             >
               Priminti
             </button>
-            <button 
+            <button
               onClick={() => onDelete(data.id)}
               className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700 transition-colors"
             >
               Ištrinti
             </button>
-            <button 
+            <button
               onClick={() => onIssueInvoice(data.id)}
               className="px-3 py-1.5 rounded-lg bg-[#2F8481] text-white text-sm hover:bg-[#2F8481]/90 transition-colors"
             >

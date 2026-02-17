@@ -83,7 +83,7 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
     }
 
     // ALWAYS get meters from address_meters (address settings) - this is the single source of truth
-    console.log('📊 Getting address meters for address:', addressId);
+
     const { data: addressMeters, error: addressError } = await supabase
       .from('address_meters')
       .select(`
@@ -100,7 +100,7 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
       .eq('address_id', addressId)
       .eq('is_active', true);
 
-    console.log('📊 Raw address meters from database:', addressMeters);
+
 
     if (addressError) {
       console.error('Error fetching address meters:', addressError);
@@ -112,13 +112,7 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
       // Use the type directly from address_meters (address settings)
       const meterType = addressMeter.type || 'individual';
 
-      console.log('🔍 Converting address meter from settings:', {
-        name: addressMeter.name,
-        type: addressMeter.type,
-        distribution_method: addressMeter.distribution_method,
-        price_per_unit: addressMeter.price_per_unit,
-        fixed_price: addressMeter.fixed_price
-      });
+
 
       // Determine policy based on type and distribution from address settings
       const policy = {
@@ -143,19 +137,7 @@ export const getApartmentMeters = async (propertyId: string): Promise<MeterPrice
       };
     });
 
-    console.log('📊 Converted address meters to apartment format:', convertedMeters);
 
-    // Debug: Log each meter's final configuration
-    convertedMeters.forEach(meter => {
-      console.log('🔍 Final meter configuration:', {
-        name: meter.name,
-        type: meter.type,
-        distribution_method: meter.distribution_method,
-        policy: meter.policy,
-        price_per_unit: meter.price_per_unit,
-        fixed_price: meter.fixed_price
-      });
-    });
 
     return convertedMeters;
 

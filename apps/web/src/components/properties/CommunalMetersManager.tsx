@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { UniversalAddMeterModal } from '../meters/UniversalAddMeterModal';
-import { 
-  WrenchScrewdriverIcon, 
-  CurrencyEuroIcon, 
+import {
+  WrenchScrewdriverIcon,
+  CurrencyEuroIcon,
   CalculatorIcon,
   PlusIcon,
   TrashIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
-import { 
-  getCommunalMeters, 
-  createCommunalMeter, 
-  updateCommunalMeter, 
+import {
+  getCommunalMeters,
+  createCommunalMeter,
+  updateCommunalMeter,
   deleteCommunalMeter,
   getCommunalExpenses,
   createCommunalExpense,
@@ -55,78 +55,49 @@ interface CommunalMetersManagerProps {
 
 const DEFAULT_METERS: Omit<CommunalMeter, 'id' | 'created_at' | 'updated_at'>[] = [
   {
-    name: 'Vanduo (šaltas)',
+    name: 'Šaltas vanduo',
     type: 'individual',
     unit: 'm3',
-    price_per_unit: 1.2,
+    price_per_unit: 1.32,
     distribution_method: 'per_consumption',
-    description: 'Šalto vandens suvartojimas kiekvienam butui',
+    description: 'Šalto vandens tiekimas ir nuotekos',
     is_active: true
   },
   {
-    name: 'Vanduo (karštas)',
+    name: 'Karštas vanduo',
     type: 'individual',
     unit: 'm3',
     price_per_unit: 3.5,
     distribution_method: 'per_consumption',
-    description: 'Karšto vandens suvartojimas kiekvienam butui',
+    description: 'Karšto vandens tiekimas',
     is_active: true
   },
   {
-    name: 'Elektra (individuali)',
+    name: 'Elektra',
     type: 'individual',
     unit: 'kWh',
-    price_per_unit: 0.15,
+    price_per_unit: 0.23,
     distribution_method: 'per_consumption',
-    description: 'Elektros suvartojimas kiekvienam butui',
-    is_active: true
-  },
-  {
-    name: 'Elektra (bendra)',
-    type: 'communal',
-    unit: 'kWh',
-    price_per_unit: 0.15,
-    distribution_method: 'per_apartment',
-    description: 'Namo apsvietimas, liftas, kiemo apšvietimas',
+    description: 'Buto elektros suvartojimas',
     is_active: true
   },
   {
     name: 'Šildymas',
+    type: 'individual',
+    unit: 'kWh',
+    price_per_unit: 0.095,
+    distribution_method: 'per_area',
+    description: 'Centrinis šildymas pagal plotą',
+    is_active: true
+  },
+  {
+    name: 'Techninė apžiūra',
     type: 'communal',
-    unit: 'GJ',
-    price_per_unit: 25.0,
+    unit: 'Kitas',
+    price_per_unit: 0,
+    fixed_price: 0,
     distribution_method: 'per_apartment',
-    description: 'Namo šildymo sąnaudos',
-    is_active: true
-  },
-  {
-    name: 'Internetas',
-    type: 'communal',
-    unit: 'Kitas',
-    price_per_unit: 0,
-    fixed_price: 60,
-    distribution_method: 'fixed_split',
-    description: 'Namo interneto paslaugos',
-    is_active: true
-  },
-  {
-    name: 'Šiukšlių išvežimas',
-    type: 'communal',
-    unit: 'Kitas',
-    price_per_unit: 0,
-    fixed_price: 45,
-    distribution_method: 'fixed_split',
-    description: 'Šiukšlių išvežimo paslaugos',
-    is_active: true
-  },
-  {
-    name: 'Namo valymas',
-    type: 'communal',
-    unit: 'Kitas',
-    price_per_unit: 0,
-    fixed_price: 80,
-    distribution_method: 'per_apartment',
-    description: 'Bendrų patalpų valymas',
+    description: 'Namo techninė priežiūra ir apžiūra',
     is_active: true
   }
 ];
@@ -228,22 +199,22 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
   const updateMeter = useCallback(async (id: string, updates: Partial<CommunalMeter>) => {
     try {
       const dbMeter = await updateCommunalMeter(id, updates);
-      
-      setMeters(prev => prev.map(meter => 
-        meter.id === id 
+
+      setMeters(prev => prev.map(meter =>
+        meter.id === id
           ? {
-              id: dbMeter.id,
-              name: dbMeter.name,
-              type: dbMeter.type,
-              unit: dbMeter.unit,
-              price_per_unit: dbMeter.price_per_unit,
-              fixed_price: dbMeter.fixed_price,
-              distribution_method: dbMeter.distribution_method,
-              description: dbMeter.description,
-              is_active: dbMeter.is_active,
-              created_at: dbMeter.created_at,
-              updated_at: dbMeter.updated_at
-            }
+            id: dbMeter.id,
+            name: dbMeter.name,
+            type: dbMeter.type,
+            unit: dbMeter.unit,
+            price_per_unit: dbMeter.price_per_unit,
+            fixed_price: dbMeter.fixed_price,
+            distribution_method: dbMeter.distribution_method,
+            description: dbMeter.description,
+            is_active: dbMeter.is_active,
+            created_at: dbMeter.created_at,
+            updated_at: dbMeter.updated_at
+          }
           : meter
       ));
     } catch (error) {
@@ -332,9 +303,8 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
-                  isActive ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${isActive ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
@@ -374,9 +344,8 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h5 className="font-medium text-gray-900">{meter.name}</h5>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            meter.type === 'individual' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
+                          <span className={`px-2 py-1 text-xs rounded-full ${meter.type === 'individual' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
                             {meter.type === 'individual' ? 'Individualus' : 'Bendras'}
                           </span>
                           <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
@@ -388,8 +357,8 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
                           <div>Vienetas: {meter.unit}</div>
                           <div>Kaina: {meter.fixed_price ? `${meter.fixed_price}€` : `${meter.price_per_unit}€/${meter.unit}`}</div>
                           <div>Pasiskirstymas: {
-                            meter.distribution_method === 'per_apartment' ? 'Pagal butus' :
-                            meter.distribution_method === 'per_area' ? 'Pagal plotą' : 'Fiksuotas'
+                            meter.distribution_method === 'per_apartment' ? 'Pagal butų sk.' :
+                              meter.distribution_method === 'per_area' ? 'Pagal plotą' : 'Fiksuotas'
                           }</div>
                         </div>
                       </div>
@@ -434,9 +403,8 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h5 className="font-medium text-gray-700">{meter.name}</h5>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            meter.type === 'individual' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
+                          <span className={`px-2 py-1 text-xs rounded-full ${meter.type === 'individual' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
                             {meter.type === 'individual' ? 'Individualus' : 'Bendras'}
                           </span>
                           <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
@@ -448,8 +416,8 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
                           <div>Vienetas: {meter.unit}</div>
                           <div>Kaina: {meter.fixed_price ? `${meter.fixed_price}€` : `${meter.price_per_unit}€/${meter.unit}`}</div>
                           <div>Pasiskirstymas: {
-                            meter.distribution_method === 'per_apartment' ? 'Pagal butus' :
-                            meter.distribution_method === 'per_area' ? 'Pagal plotą' : 'Fiksuotas'
+                            meter.distribution_method === 'per_apartment' ? 'Pagal butų sk.' :
+                              meter.distribution_method === 'per_area' ? 'Pagal plotą' : 'Fiksuotas'
                           }</div>
                         </div>
                       </div>
@@ -542,7 +510,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
         {activeTab === 'distribution' && (
           <div className="space-y-4">
             <h4 className="text-lg font-medium text-gray-900">Sąnaudų pasiskirstymas</h4>
-            
+
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="mb-4">
                 <h5 className="font-medium text-gray-900 mb-2">Informacija:</h5>
@@ -552,21 +520,21 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
                   <div>• Mėnesinių sąnaudų: {expenses.length}</div>
                 </div>
               </div>
-              
+
               <h5 className="font-medium text-gray-900 mb-3">Mėnesinės sąnaudos vienam butui:</h5>
               <div className="space-y-2">
                 {activeMeters.map((meter) => {
                   const lastExpense = expenses
                     .filter(exp => exp.meter_id === meter.id)
                     .sort((a, b) => b.month.localeCompare(a.month))[0];
-                  
+
                   return (
                     <div key={meter.id} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0">
                       <div>
                         <span className="text-sm text-gray-700">{meter.name}</span>
                         <div className="text-xs text-gray-500">
-                          {meter.distribution_method === 'per_apartment' ? 'Pagal butus' :
-                           meter.distribution_method === 'per_area' ? 'Pagal plotą' : 'Fiksuotas'}
+                          {meter.distribution_method === 'per_apartment' ? 'Pagal butų sk.' :
+                            meter.distribution_method === 'per_area' ? 'Pagal plotą' : 'Fiksuotas'}
                         </div>
                       </div>
                       <span className="font-medium">
@@ -576,7 +544,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
                   );
                 })}
               </div>
-              
+
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-900">Iš viso vienam butui:</span>
@@ -683,7 +651,7 @@ const AddMeterModal: React.FC<AddMeterModalProps> = ({ onClose, onAdd }) => {
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipas</label>
             <select
@@ -743,7 +711,7 @@ const AddMeterModal: React.FC<AddMeterModalProps> = ({ onClose, onAdd }) => {
               onChange={(e) => setFormData(prev => ({ ...prev, distribution_method: e.target.value as any }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
             >
-              <option value="per_apartment">Pagal butus</option>
+              <option value="per_apartment">Pagal butų sk.</option>
               <option value="per_area">Pagal plotą</option>
               <option value="per_consumption">Pagal suvartojimą</option>
               <option value="fixed_split">Fiksuotas pasiskirstymas</option>
@@ -820,7 +788,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipas</label>
             <select
@@ -880,7 +848,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
               onChange={(e) => setFormData(prev => ({ ...prev, distribution_method: e.target.value as any }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
             >
-              <option value="per_apartment">Pagal butus</option>
+              <option value="per_apartment">Pagal butų sk.</option>
               <option value="per_area">Pagal plotą</option>
               <option value="per_consumption">Pagal suvartojimą</option>
               <option value="fixed_split">Fiksuotas pasiskirstymas</option>

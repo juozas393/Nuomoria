@@ -28,44 +28,66 @@ export const MeterCostCalculator: React.FC<MeterCostCalculatorProps> = ({
 }) => {
   const calculateMeterCost = (meter: MeterData): number => {
     if (!meter) return 0;
-    
-    // Fixed meters - use fixed_price
-    if (meter.unit === 'Kitas' || meter.distribution_method === 'fixed_split') {
+
+    const distribution = meter.distribution_method || 'per_apartment';
+
+    // Fixed split - fixed price divided among apartments
+    if (distribution === 'fixed_split' || meter.unit === 'Kitas') {
       return (meter.fixed_price || 0) / apartmentCount;
     }
-    
+
     // Meters with readings - calculate consumption
     const currentReading = meter.current_reading || meter.value || 0;
     const previousReading = meter.previous_reading || 0;
     const consumption = Math.max(0, currentReading - previousReading);
-    
-    // Individual meters - pay for own consumption
-    if (meter.type === 'individual' || meter.distribution_method === 'per_consumption') {
-      return consumption * (meter.price_per_unit || 0);
-    }
-    
-    // Communal meters - divide total cost among apartments
     const totalCost = consumption * (meter.price_per_unit || 0);
-    return totalCost / apartmentCount;
+
+    switch (distribution) {
+      case 'per_consumption':
+        // Individual consumption - each apartment pays for its own usage
+        return totalCost;
+
+      case 'per_apartment':
+        // Equal split - total cost divided equally among apartments
+        return apartmentCount > 0 ? totalCost / apartmentCount : totalCost;
+
+      case 'per_person':
+        // Per person - fallback to per_apartment at this level
+        // (person count data used in server-side calculateDistribution)
+        return apartmentCount > 0 ? totalCost / apartmentCount : totalCost;
+
+      case 'per_area':
+        // Per area - fallback to per_apartment at this level
+        // (area data used in server-side calculateDistribution)
+        return apartmentCount > 0 ? totalCost / apartmentCount : totalCost;
+
+      default:
+        // Default: if individual meter, own consumption; otherwise split
+        if (meter.type === 'individual') {
+          return totalCost;
+        }
+        return apartmentCount > 0 ? totalCost / apartmentCount : totalCost;
+    }
   };
 
   const getMeterPriceDisplay = (meter: MeterData): string => {
     if (!meter) return 'Nenustatyta';
-    
+
     if (meter.unit === 'Kitas' || meter.distribution_method === 'fixed_split') {
       return `${meter.fixed_price || 0}€/mėn.`;
     }
-    
+
     return `${meter.price_per_unit || 0}€/${meter.unit}`;
   };
 
   const getDistributionLabel = (method?: string): string => {
     switch (method) {
-      case 'per_apartment': return 'Pagal butus';
+      case 'per_apartment': return 'Pagal butų sk.';
+      case 'per_person': return 'Pagal asmenis';
       case 'per_area': return 'Pagal plotą';
       case 'per_consumption': return 'Pagal suvartojimą';
       case 'fixed_split': return 'Fiksuotas';
-      default: return 'Pagal butus';
+      default: return 'Pagal butų sk.';
     }
   };
 
@@ -105,11 +127,11 @@ export const MeterCostCalculator: React.FC<MeterCostCalculatorProps> = ({
           const priceDisplay = getMeterPriceDisplay(meter);
           const distributionLabel = getDistributionLabel(meter.distribution_method);
           const meterTypeLabel = getMeterTypeLabel(meter);
-          
+
           return (
             <div key={meter.id} className="bg-white border border-neutral-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
               {/* Header */}
-              <div className="h-12 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
+              <div className="h-12 bg-[#E8F5F4] border-b border-[#2F8481]/20">
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
@@ -118,7 +140,7 @@ export const MeterCostCalculator: React.FC<MeterCostCalculatorProps> = ({
                   </div>
                 </div>
               </div>
-              
+
               {/* Content */}
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-3">

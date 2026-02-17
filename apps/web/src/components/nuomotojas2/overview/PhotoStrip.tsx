@@ -11,7 +11,7 @@ const ANIMATION = {
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };
@@ -166,7 +166,7 @@ export const PhotoStrip = memo<PhotoStripProps>(({
                     {onUpload && (
                         <button
                             onClick={onUpload}
-                            className={`inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white text-[13px] font-semibold rounded-xl transition-all ${ANIMATION.hover}`}
+                            className={`inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white text-[13px] font-semibold rounded-xl transition-colors ${ANIMATION.hover}`}
                         >
                             <Upload className="w-4 h-4" />
                             Įkelti nuotraukas
@@ -177,7 +177,7 @@ export const PhotoStrip = memo<PhotoStripProps>(({
                 {/* Empty placeholder grid */}
                 <div className="grid grid-cols-5 gap-2">
                     <div
-                        className={`col-span-2 aspect-[4/3] rounded-xl bg-white/60 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-white/80 hover:border-gray-300 transition-all ${ANIMATION.hover}`}
+                        className={`col-span-2 aspect-[4/3] rounded-xl bg-white/60 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-white/80 hover:border-gray-300 transition-colors ${ANIMATION.hover}`}
                         onClick={onUpload}
                     >
                         <Image className="w-8 h-8 text-gray-300 mb-2" />
@@ -186,7 +186,7 @@ export const PhotoStrip = memo<PhotoStripProps>(({
                     {[1, 2, 3].map((i) => (
                         <div
                             key={i}
-                            className={`aspect-[4/3] rounded-lg bg-white/60 border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:bg-white/80 hover:border-gray-300 transition-all ${ANIMATION.hover}`}
+                            className={`aspect-[4/3] rounded-lg bg-white/60 border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:bg-white/80 hover:border-gray-300 transition-colors ${ANIMATION.hover}`}
                             onClick={onUpload}
                         >
                             <ImagePlus className="w-5 h-5 text-gray-300" />
@@ -217,7 +217,7 @@ export const PhotoStrip = memo<PhotoStripProps>(({
                     {onUpload && (
                         <button
                             onClick={onUpload}
-                            className={`inline-flex items-center gap-1.5 px-3 py-2 text-gray-600 hover:text-gray-900 text-[13px] font-medium rounded-lg hover:bg-white/80 active:scale-[0.98] transition-all ${ANIMATION.hover}`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-2 text-gray-600 hover:text-gray-900 text-[13px] font-medium rounded-lg hover:bg-white/80 active:scale-[0.98] transition-colors ${ANIMATION.hover}`}
                         >
                             <Upload className="w-4 h-4" />
                             Įkelti
@@ -226,7 +226,7 @@ export const PhotoStrip = memo<PhotoStripProps>(({
                     {onViewAll && (
                         <button
                             onClick={onViewAll}
-                            className={`inline-flex items-center gap-1.5 px-3 py-2 bg-white/80 hover:bg-white text-gray-700 text-[13px] font-medium rounded-lg active:scale-[0.98] transition-all ${ANIMATION.hover}`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-2 bg-white/80 hover:bg-white text-gray-700 text-[13px] font-medium rounded-lg active:scale-[0.98] transition-colors ${ANIMATION.hover}`}
                         >
                             <Eye className="w-4 h-4" />
                             Peržiūrėti
@@ -259,14 +259,14 @@ export const PhotoStrip = memo<PhotoStripProps>(({
                 {/* Remaining count OR add placeholder */}
                 {remainingCount > 0 ? (
                     <div
-                        className={`aspect-[4/3] rounded-lg bg-white/80 flex items-center justify-center cursor-pointer hover:bg-white transition-all ${ANIMATION.hover}`}
+                        className={`aspect-[4/3] rounded-lg bg-white/80 flex items-center justify-center cursor-pointer hover:bg-white transition-colors ${ANIMATION.hover}`}
                         onClick={onViewAll}
                     >
                         <span className="text-gray-600 font-bold text-lg">+{remainingCount}</span>
                     </div>
                 ) : thumbnails.length < 3 ? (
                     <div
-                        className={`aspect-[4/3] rounded-lg bg-white/60 border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:bg-white/80 hover:border-gray-300 transition-all ${ANIMATION.hover}`}
+                        className={`aspect-[4/3] rounded-lg bg-white/60 border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:bg-white/80 hover:border-gray-300 transition-colors ${ANIMATION.hover}`}
                         onClick={onUpload}
                     >
                         <ImagePlus className="w-5 h-5 text-gray-300" />

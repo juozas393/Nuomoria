@@ -54,12 +54,14 @@ DROP TRIGGER IF EXISTS addresses_set_created_by_trigger ON public.addresses;
 -- 4. Create triggers on addresses table
 -- =====================================================
 -- Trigger to set created_by before insert
+DROP TRIGGER IF EXISTS addresses_set_created_by_trigger ON public.addresses;
 CREATE TRIGGER addresses_set_created_by_trigger
     BEFORE INSERT ON public.addresses
     FOR EACH ROW
     EXECUTE FUNCTION public.trg_fn_addresses_set_created_by();
 
 -- Trigger to auto-link address to user after insert
+DROP TRIGGER IF EXISTS addresses_autolink_trigger ON public.addresses;
 CREATE TRIGGER addresses_autolink_trigger
     AFTER INSERT ON public.addresses
     FOR EACH ROW
@@ -74,6 +76,7 @@ DROP POLICY IF EXISTS "Authenticated users can insert addresses" ON public.addre
 
 -- Create a single, clear INSERT policy
 -- Priority: Check auth.uid() first (simpler, faster check)
+DROP POLICY IF EXISTS "addresses_insert_optimized" ON public.addresses;
 CREATE POLICY "addresses_insert_optimized"
 ON public.addresses
 FOR INSERT
@@ -92,6 +95,7 @@ WITH CHECK (
 DROP POLICY IF EXISTS "user_addresses_insert_optimized" ON public.user_addresses;
 DROP POLICY IF EXISTS "Users can insert their own address links" ON public.user_addresses;
 
+DROP POLICY IF EXISTS "user_addresses_insert_optimized" ON public.user_addresses;
 CREATE POLICY "user_addresses_insert_optimized"
 ON public.user_addresses
 FOR INSERT

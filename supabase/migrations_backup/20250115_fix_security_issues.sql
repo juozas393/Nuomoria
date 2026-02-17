@@ -587,6 +587,8 @@ DROP POLICY IF EXISTS "Allow all operations on user_addresses" ON public.user_ad
 
 -- Create secure RLS policies for addresses
 -- Users can view addresses they're linked to or created
+DROP POLICY IF EXISTS "Users can view their addresses" ON public.addresses;
+DROP POLICY IF EXISTS "Users can view their addresses" ON public.addresses;
 CREATE POLICY "Users can view their addresses"
 ON public.addresses
 FOR SELECT
@@ -600,12 +602,16 @@ USING (
 );
 
 -- Users can insert addresses (will be auto-linked via trigger)
+DROP POLICY IF EXISTS "Authenticated users can insert addresses" ON public.addresses;
+DROP POLICY IF EXISTS "Authenticated users can insert addresses" ON public.addresses;
 CREATE POLICY "Authenticated users can insert addresses"
 ON public.addresses
 FOR INSERT
 WITH CHECK ((select auth.uid()) IS NOT NULL);
 
 -- Users can update addresses they own or manage
+DROP POLICY IF EXISTS "Users can update their addresses" ON public.addresses;
+DROP POLICY IF EXISTS "Users can update their addresses" ON public.addresses;
 CREATE POLICY "Users can update their addresses"
 ON public.addresses
 FOR UPDATE
@@ -629,6 +635,8 @@ WITH CHECK (
 );
 
 -- Users can delete addresses they own
+DROP POLICY IF EXISTS "Owners can delete their addresses" ON public.addresses;
+DROP POLICY IF EXISTS "Owners can delete their addresses" ON public.addresses;
 CREATE POLICY "Owners can delete their addresses"
 ON public.addresses
 FOR DELETE
@@ -647,6 +655,8 @@ USING (
 );
 
 -- Create secure RLS policies for address_meters
+DROP POLICY IF EXISTS "Users can view meters for their addresses" ON public.address_meters;
+DROP POLICY IF EXISTS "Users can view meters for their addresses" ON public.address_meters;
 CREATE POLICY "Users can view meters for their addresses"
 ON public.address_meters
 FOR SELECT
@@ -658,6 +668,8 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Managers can manage meters for their addresses" ON public.address_meters;
+DROP POLICY IF EXISTS "Managers can manage meters for their addresses" ON public.address_meters;
 CREATE POLICY "Managers can manage meters for their addresses"
 ON public.address_meters
 FOR ALL
@@ -679,6 +691,8 @@ WITH CHECK (
 );
 
 -- Create secure RLS policies for apartment_meters
+DROP POLICY IF EXISTS "Users can view apartment meters for their addresses" ON public.apartment_meters;
+DROP POLICY IF EXISTS "Users can view apartment meters for their addresses" ON public.apartment_meters;
 CREATE POLICY "Users can view apartment meters for their addresses"
 ON public.apartment_meters
 FOR SELECT
@@ -692,6 +706,8 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Managers can manage apartment meters" ON public.apartment_meters;
+DROP POLICY IF EXISTS "Managers can manage apartment meters" ON public.apartment_meters;
 CREATE POLICY "Managers can manage apartment meters"
 ON public.apartment_meters
 FOR ALL
@@ -717,6 +733,8 @@ WITH CHECK (
 );
 
 -- Create secure RLS policies for invoices
+DROP POLICY IF EXISTS "Users can view invoices for their properties" ON public.invoices;
+DROP POLICY IF EXISTS "Users can view invoices for their properties" ON public.invoices;
 CREATE POLICY "Users can view invoices for their properties"
 ON public.invoices
 FOR SELECT
@@ -730,6 +748,8 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Managers can manage invoices" ON public.invoices;
+DROP POLICY IF EXISTS "Managers can manage invoices" ON public.invoices;
 CREATE POLICY "Managers can manage invoices"
 ON public.invoices
 FOR ALL
@@ -755,6 +775,8 @@ WITH CHECK (
 );
 
 -- Create secure RLS policies for properties
+DROP POLICY IF EXISTS "Users can view properties for their addresses" ON public.properties;
+DROP POLICY IF EXISTS "Users can view properties for their addresses" ON public.properties;
 CREATE POLICY "Users can view properties for their addresses"
 ON public.properties
 FOR SELECT
@@ -767,6 +789,8 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Managers can manage properties" ON public.properties;
+DROP POLICY IF EXISTS "Managers can manage properties" ON public.properties;
 CREATE POLICY "Managers can manage properties"
 ON public.properties
 FOR ALL
@@ -790,6 +814,8 @@ WITH CHECK (
 );
 
 -- Create secure RLS policies for property_meter_configs
+DROP POLICY IF EXISTS "Users can view meter configs for their addresses" ON public.property_meter_configs;
+DROP POLICY IF EXISTS "Users can view meter configs for their addresses" ON public.property_meter_configs;
 CREATE POLICY "Users can view meter configs for their addresses"
 ON public.property_meter_configs
 FOR SELECT
@@ -802,6 +828,8 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Managers can manage meter configs" ON public.property_meter_configs;
+DROP POLICY IF EXISTS "Managers can manage meter configs" ON public.property_meter_configs;
 CREATE POLICY "Managers can manage meter configs"
 ON public.property_meter_configs
 FOR ALL
@@ -825,22 +853,30 @@ WITH CHECK (
 );
 
 -- Create secure RLS policies for user_addresses
+DROP POLICY IF EXISTS "Users can view their own address links" ON public.user_addresses;
+DROP POLICY IF EXISTS "Users can view their own address links" ON public.user_addresses;
 CREATE POLICY "Users can view their own address links"
 ON public.user_addresses
 FOR SELECT
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert their own address links" ON public.user_addresses;
+DROP POLICY IF EXISTS "Users can insert their own address links" ON public.user_addresses;
 CREATE POLICY "Users can insert their own address links"
 ON public.user_addresses
 FOR INSERT
 WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update their own address links" ON public.user_addresses;
+DROP POLICY IF EXISTS "Users can update their own address links" ON public.user_addresses;
 CREATE POLICY "Users can update their own address links"
 ON public.user_addresses
 FOR UPDATE
 USING (user_id = auth.uid())
 WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete their own address links" ON public.user_addresses;
+DROP POLICY IF EXISTS "Users can delete their own address links" ON public.user_addresses;
 CREATE POLICY "Users can delete their own address links"
 ON public.user_addresses
 FOR DELETE

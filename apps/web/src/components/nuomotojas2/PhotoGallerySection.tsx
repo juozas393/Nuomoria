@@ -5,14 +5,14 @@ import { Camera, Plus, ChevronLeft, ChevronRight, Layers, Edit3, X, Star, Trash2
 // CONSTANTS - Use specific transitions for performance
 // ============================================================================
 const ANIMATION = {
-    // Specific transitions instead of transition-all
+    // Specific transitions instead of transition-colors
     hover: 'transition-colors transition-opacity duration-150 ease-out',
     press: 'transition-transform duration-100 ease-out',
     modal: 'transition-opacity duration-200 ease-out',
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };
@@ -23,8 +23,8 @@ const MAX_VISIBLE_PHOTOS = 7; // 1 cover + 6 thumbnails in 2x3 grid
 // Layout configurations - ALL use same container size, only grid differs
 type LayoutType = 'bento' | 'grid-2x2' | 'split-1-3' | 'horizontal';
 
-// Fixed container: aspect-[4/3] with max height
-const CONTAINER_CLASS = 'aspect-[4/3] max-h-[320px]';
+// Fixed container height — fills full width
+const CONTAINER_CLASS = 'h-[280px] w-full';
 
 interface LayoutConfig {
     key: LayoutType;
@@ -32,6 +32,7 @@ interface LayoutConfig {
     icon: React.ReactNode;
     gridClass: string; // Grid layout inside the fixed container
     getItemClass: (index: number) => string;
+    maxPhotos: number; // How many photos this layout can display
 }
 
 const LAYOUTS: LayoutConfig[] = [
@@ -50,7 +51,8 @@ const LAYOUTS: LayoutConfig[] = [
             </svg>
         ),
         // Hero left (full height, 60%), 2x3 grid of thumbnails right (40%)
-        gridClass: 'grid grid-cols-[60%_1fr_1fr] grid-rows-3',
+        gridClass: 'grid grid-cols-[50%_1fr_1fr] grid-rows-3',
+        maxPhotos: 7, // 1 hero + 6 thumbnails (2×3)
         getItemClass: (index: number) => {
             if (index === 0) return 'row-span-3'; // Cover takes full height
             return ''; // Thumbnails auto-fill 2x3 grid
@@ -64,14 +66,16 @@ const LAYOUTS: LayoutConfig[] = [
                 <rect x="2" y="2" width="11" height="11" rx="1" />
                 <rect x="15" y="2" width="7" height="5" rx="1" />
                 <rect x="15" y="9" width="7" height="4" rx="1" />
-                <rect x="2" y="15" width="20" height="7" rx="1" />
+                <rect x="2" y="15" width="6" height="7" rx="1" />
+                <rect x="9.5" y="15" width="6" height="7" rx="1" />
+                <rect x="17" y="15" width="5" height="7" rx="1" />
             </svg>
         ),
-        // Hero left (2 cols, 2 rows), 2 small right, 1 full bottom
-        gridClass: 'grid grid-cols-3 grid-rows-[2fr_2fr_1.2fr]',
+        // Hero top-left (2 cols, 2 rows), 2 small right, 3 across bottom
+        gridClass: 'grid grid-cols-3 grid-rows-[1fr_1fr_0.7fr]',
+        maxPhotos: 6, // 1 hero (2×2) + 2 right + 3 bottom
         getItemClass: (index: number) => {
             if (index === 0) return 'col-span-2 row-span-2';
-            if (index === 3) return 'col-span-3';
             return '';
         },
     },
@@ -88,6 +92,7 @@ const LAYOUTS: LayoutConfig[] = [
         ),
         // 2x2 equal grid
         gridClass: 'grid grid-cols-2 grid-rows-2',
+        maxPhotos: 4, // 2×2 grid
         getItemClass: () => '',
     },
     {
@@ -101,8 +106,9 @@ const LAYOUTS: LayoutConfig[] = [
                 <rect x="20" y="4" width="2" height="16" rx="0.5" />
             </svg>
         ),
-        // 4 equal columns
-        gridClass: 'grid grid-cols-4',
+        // 4 equal columns — single row
+        gridClass: 'grid grid-cols-4 grid-rows-1',
+        maxPhotos: 4, // 4 columns × 1 row
         getItemClass: () => '',
     },
 ];
@@ -285,7 +291,7 @@ const ManageToolbar = memo<ManageToolbarProps>(({
             )}
             <button
                 onClick={onDone}
-                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-all ${ANIMATION.hover} active:scale-[0.98]`}
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors ${ANIMATION.hover} active:scale-[0.98]`}
             >
                 <Check className="w-4 h-4" />
                 Baigti
@@ -331,7 +337,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
                 return saved as LayoutType;
             }
         }
-        return 'split-1-3'; // Default to 1+3 layout
+        return 'bento'; // Default to bento layout (matches overview card)
     });
     const [layoutPickerOpen, setLayoutPickerOpen] = useState(false);
 
@@ -546,7 +552,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
                             <div className="relative">
                                 <button
                                     onClick={() => setLayoutPickerOpen(!layoutPickerOpen)}
-                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white/80 text-gray-600 hover:bg-white transition-all ${ANIMATION.hover}`}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white/80 text-gray-600 hover:bg-white transition-colors ${ANIMATION.hover}`}
                                 >
                                     <Layers className="w-3.5 h-3.5" />
                                     Išdėstymas
@@ -559,7 +565,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
                                                 <button
                                                     key={layout.key}
                                                     onClick={() => handleLayoutChange(layout.key)}
-                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-all ${ANIMATION.hover} ${selectedLayout === layout.key
+                                                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-colors ${ANIMATION.hover} ${selectedLayout === layout.key
                                                         ? 'bg-teal-50 text-teal-700 font-medium'
                                                         : 'hover:bg-gray-50 text-gray-700'
                                                         }`}
@@ -577,7 +583,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
                         {/* Upload button */}
                         <button
                             onClick={onUploadPhoto}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 text-white hover:bg-teal-700 transition-all ${ANIMATION.hover} active:scale-[0.98]`}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 text-white hover:bg-teal-700 transition-colors ${ANIMATION.hover} active:scale-[0.98]`}
                         >
                             <Plus className="w-3.5 h-3.5" />
                             Įkelti
@@ -587,7 +593,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
                         {photos.length > 0 && !editMode && (
                             <button
                                 onClick={toggleEditMode}
-                                className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-white/80 text-gray-600 hover:bg-white transition-all ${ANIMATION.hover}`}
+                                className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-white/80 text-gray-600 hover:bg-white transition-colors ${ANIMATION.hover}`}
                             >
                                 <Edit3 className="w-3.5 h-3.5" />
                                 Tvarkyti
@@ -611,30 +617,30 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
                         </p>
                         <button
                             onClick={onUploadPhoto}
-                            className={`flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all ${ANIMATION.hover} active:scale-[0.98] font-semibold`}
+                            className={`flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors ${ANIMATION.hover} active:scale-[0.98] font-semibold`}
                         >
                             <Plus className="w-5 h-5" />
                             Įkelti nuotraukas
                         </button>
                     </div>
                 ) : (() => {
-                    // Show max 4 photos with layout, +X overlay on last if more exist
-                    const visiblePhotos = editMode ? photos : photos.slice(0, MAX_VISIBLE_PHOTOS);
-                    const remainingCount = photos.length - MAX_VISIBLE_PHOTOS;
+                    const maxVisible = currentLayout.maxPhotos;
+                    const visiblePhotos = editMode ? photos : photos.slice(0, maxVisible);
+                    const remainingCount = photos.length - maxVisible;
                     const showMoreOverlay = !editMode && remainingCount > 0;
 
                     return (
                         <div className={editMode
                             ? 'grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 auto-rows-[80px]'
-                            : `${CONTAINER_CLASS} ${currentLayout.gridClass} gap-1.5`}>
+                            : `${CONTAINER_CLASS} ${currentLayout.gridClass} gap-1.5 overflow-hidden [&>*]:min-h-0`}>
                             {visiblePhotos.map((photo, idx) => {
                                 const itemClass = editMode ? '' : currentLayout.getItemClass(idx);
-                                const isLastVisible = idx === MAX_VISIBLE_PHOTOS - 1 && showMoreOverlay;
+                                const isLastVisible = idx === maxVisible - 1 && showMoreOverlay;
 
                                 return (
                                     <div
                                         key={`${photo}-${idx}`}
-                                        className={`relative ${itemClass}`}
+                                        className={`relative min-h-0 overflow-hidden ${itemClass}`}
                                     >
                                         <PhotoItem
                                             photo={photo}
@@ -668,8 +674,8 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
                             })}
 
                             {/* Fill empty slots with add photo tiles */}
-                            {!editMode && photos.length < MAX_VISIBLE_PHOTOS &&
-                                Array.from({ length: MAX_VISIBLE_PHOTOS - photos.length }).map((_, i) => (
+                            {!editMode && photos.length < maxVisible &&
+                                Array.from({ length: maxVisible - photos.length }).map((_, i) => (
                                     <button
                                         key={`add-${i}`}
                                         onClick={onUploadPhoto}

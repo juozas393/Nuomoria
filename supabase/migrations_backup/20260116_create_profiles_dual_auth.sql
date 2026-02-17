@@ -27,18 +27,21 @@ CREATE INDEX IF NOT EXISTS profiles_email_idx ON public.profiles (email);
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can read their own profile
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile"
   ON public.profiles
   FOR SELECT
   USING (auth.uid() = id);
 
 -- Policy: Users can insert their own profile (during onboarding)
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile"
   ON public.profiles
   FOR INSERT
   WITH CHECK (auth.uid() = id);
 
 -- Policy: Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles
   FOR UPDATE
@@ -47,6 +50,7 @@ CREATE POLICY "Users can update own profile"
 
 -- Policy: Allow public username lookup (needed for login)
 -- This is secure because we only expose username->email mapping, no other sensitive data
+DROP POLICY IF EXISTS "Public can lookup username for auth" ON public.profiles;
 CREATE POLICY "Public can lookup username for auth"
   ON public.profiles
   FOR SELECT
@@ -108,6 +112,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW

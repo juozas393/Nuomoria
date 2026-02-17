@@ -193,37 +193,6 @@ export function sanitizeNumber(
     return { valid: true, sanitized };
 }
 
-/**
- * Validate password strength
- */
-export function validatePassword(password: string): { valid: boolean; score: number; errors: string[] } {
-    const errors: string[] = [];
-    let score = 0;
-
-    if (!password || password.length < 8) {
-        errors.push('Slaptažodis turi būti bent 8 simbolių');
-    } else {
-        score += 1;
-    }
-
-    if (password.length >= 12) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^a-zA-Z0-9]/.test(password)) score += 1;
-
-    if (!/[A-Z]/.test(password)) {
-        errors.push('Pridėkite bent vieną didžiąją raidę');
-    }
-    if (!/[0-9]/.test(password)) {
-        errors.push('Pridėkite bent vieną skaičių');
-    }
-    if (!/[^a-zA-Z0-9]/.test(password)) {
-        errors.push('Pridėkite bent vieną specialų simbolį (!@#$%^&*)');
-    }
-
-    return { valid: errors.length === 0, score, errors };
-}
 
 /**
  * Rate limiting helper for client-side

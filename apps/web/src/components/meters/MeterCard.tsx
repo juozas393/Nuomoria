@@ -50,7 +50,7 @@ export const MeterCard: React.FC<MeterCardProps> = React.memo(({
 
   if (compact) {
     return (
-      <div className={`p-3 border rounded-lg transition-all ${
+      <div className={`p-3 border rounded-lg transition-colors ${
         meterIsActive 
           ? 'border-gray-200 bg-white' 
           : 'border-gray-100 bg-gray-50 opacity-60'
@@ -84,7 +84,7 @@ export const MeterCard: React.FC<MeterCardProps> = React.memo(({
   }
 
   return (
-    <div className={`p-4 border rounded-lg transition-all ${
+    <div className={`p-4 border rounded-lg transition-colors ${
       meterIsActive 
         ? 'border-gray-200 bg-white shadow-sm hover:shadow-md' 
         : 'border-gray-100 bg-gray-50 opacity-60'

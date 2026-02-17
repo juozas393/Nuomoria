@@ -39,10 +39,21 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    const userRole = user.role as 'landlord' | 'tenant' | 'admin';
+    const userRole = user.role as string | null | undefined;
+    const validRoles = ['landlord', 'tenant', 'admin'];
+
+    // If user has no role or unrecognized role, send to onboarding
+    // This prevents the /dashboard ↔ /tenant redirect loop
+    if (!userRole || !validRoles.includes(userRole)) {
+        if (location.pathname !== '/onboarding') {
+            return <Navigate to="/onboarding" replace />;
+        }
+        // Already on onboarding, render children to avoid loop
+        return <>{children}</>;
+    }
 
     // Check if user's role is in allowed roles
-    if (!allowedRoles.includes(userRole)) {
+    if (!allowedRoles.includes(userRole as 'landlord' | 'tenant' | 'admin')) {
         // Determine redirect based on role
         let targetRedirect = redirectTo;
 
@@ -55,7 +66,10 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
             }
         }
 
-        console.log(`[RoleGuard] Role "${userRole}" not in allowed roles [${allowedRoles.join(', ')}]. Redirecting to ${targetRedirect}`);
+        // Safety check: don't redirect to where we already are
+        if (targetRedirect === location.pathname) {
+            return <>{children}</>;
+        }
 
         return <Navigate to={targetRedirect} replace />;
     }

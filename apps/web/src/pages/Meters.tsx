@@ -16,7 +16,7 @@ const sampleMeters: Meter[] = [
       collectionMode: "landlord_only",
       scope: "apartment"
     },
-    title: "Vanduo (šaltas)",
+    title: "Šaltas vanduo",
     mode: "individual",
     price: 1.5,
     allocation: "per_apartment",
@@ -35,7 +35,7 @@ const sampleMeters: Meter[] = [
       collectionMode: "landlord_only",
       scope: "apartment"
     },
-    title: "Vanduo (karštas)",
+    title: "Karštas vanduo",
     mode: "individual",
     price: 3.0,
     allocation: "per_apartment",
@@ -150,7 +150,7 @@ export default function MetersPage() {
             Peržiūrėkite ir valdykite visus skaitliukus bei jų rodmenis
           </p>
         </div>
-        
+
         <MetersPlain
           meters={sampleMeters}
           onSaveReading={handleReadingSubmit}

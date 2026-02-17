@@ -87,7 +87,7 @@ export const AddressManager: React.FC<AddressManagerProps> = ({
               <div
                 key={address.id}
                 onClick={() => onSelectAddress(address)}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                   isSelected 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'

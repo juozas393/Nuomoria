@@ -17,7 +17,7 @@ export interface AddressMeterSettings {
 // Komunalinio skaitliuko konfigūracija
 export interface CommunalMeter {
   id: string;
-  type: 'water_cold' | 'water_hot' | 'electricity' | 'gas' | 'heating' | 'sewage' | 'garbage';
+  type: 'water_cold' | 'water_hot' | 'electricity' | 'gas' | 'heating' | 'garbage';
   name: string;
   unit: string;
   isRequired: boolean;
@@ -34,9 +34,9 @@ export interface CommunalPrices {
   electricity: number; // €/kWh
   gas: number; // €/m³
   heating: number; // €/kWh
-  sewage: number; // €/m³
+  sewage?: number; // €/m³ (legacy)
   garbage: number; // €/mėn
-  maintenance: number; // €/mėn
+  maintenance?: number; // €/mėn (legacy)
 }
 
 // Komunalinio skaitliuko rodmuo

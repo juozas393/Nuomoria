@@ -18,20 +18,20 @@ interface AddressCardProps {
   isSelected?: boolean;
 }
 
-const AddressCard: React.FC<AddressCardProps> = ({ 
-  address, 
-  tenantCount, 
-  onSelect, 
-  isSelected = false 
+const AddressCard: React.FC<AddressCardProps> = React.memo(({
+  address,
+  tenantCount,
+  onSelect,
+  isSelected = false
 }) => {
   return (
     <div
       onClick={() => onSelect(address)}
       className={`
-        bg-white border-b border-gray-200 cursor-pointer transition-all duration-200
+        bg-white border-b border-gray-200 cursor-pointer transition-colors duration-200
         hover:bg-gray-50
-        ${isSelected 
-          ? 'bg-[#2F8481]/5 border-[#2F8481]' 
+        ${isSelected
+          ? 'bg-[#2F8481]/5 border-[#2F8481]'
           : 'hover:border-gray-300'
         }
       `}
@@ -44,13 +44,13 @@ const AddressCard: React.FC<AddressCardProps> = ({
             <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center flex-shrink-0">
               <BuildingOfficeIcon className="w-4 h-4 text-[#2F8481]" />
             </div>
-            
+
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3">
                 <h3 className="text-sm font-semibold text-gray-900 truncate">{address.full_address}</h3>
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{address.building_type}</span>
               </div>
-              
+
               <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
                 <span className="flex items-center space-x-1">
                   <MapPinIcon className="w-3 h-3" />
@@ -93,6 +93,8 @@ const AddressCard: React.FC<AddressCardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+AddressCard.displayName = 'AddressCard';
 
 export default AddressCard;

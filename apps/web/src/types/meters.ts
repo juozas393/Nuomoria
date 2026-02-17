@@ -14,15 +14,15 @@ export type MeterPolicy = {
 
 export type Meter = {
   id: string;
-  kind: 'water_cold'|'water_hot'|'electricity_ind'|'electricity_shared'|'heating'|'internet'|'waste'|'ventilation'|string;
-  type: 'individual'|'shared';
+  kind: 'water_cold' | 'water_hot' | 'electricity_ind' | 'electricity_shared' | 'heating' | 'internet' | 'waste' | 'ventilation' | string;
+  type: 'individual' | 'shared';
   distribution: Distribution;
   unit: Unit;
   pricePerUnit?: number;       // jei ne fixed
   fixedAmountPerApt?: number;  // jei fixed €/butui
   currency: 'EUR';
   policy: MeterPolicy;
-  
+
   // Legacy compatibility fields
   name?: string;           // alias for title
   title?: string;          // meter display name
@@ -46,7 +46,7 @@ export type Meter = {
 export type MeterMode = 'individual' | 'communal';
 export type DistributionMethod = NewDistributionMethod;
 export type Allocation = 'per_apartment' | 'per_person' | 'per_area' | 'fixed_split' | 'per_consumption';
-export type MeterKindLegacy = 
+export type MeterKindLegacy =
   | 'water_cold' | 'water_hot' | 'electricity_ind' | 'gas_ind'
   | 'heating' | 'electricity_shared' | 'internet' | 'trash' | 'ventilation' | 'elevator'
   | 'custom';
@@ -68,7 +68,7 @@ export interface LegacyMeter {
   showPhotoRequirement?: boolean; // true if tenant needs to take photos
   needsReading?: boolean;  // true if tenant needs to submit readings
   costPerApartment?: number; // calculated cost per apartment
-  
+
   // Legacy compatibility fields
   name?: string;           // alias for title
   type?: 'individual' | 'communal'; // legacy type field
@@ -307,8 +307,8 @@ export const getMeterIcon = (kind: MeterKind): string => {
 
 export const getMeterName = (kind: MeterKind): string => {
   switch (kind) {
-    case 'water_cold': return 'Vanduo (šaltas)';
-    case 'water_hot': return 'Vanduo (karštas)';
+    case 'water_cold': return 'Šaltas vanduo';
+    case 'water_hot': return 'Karštas vanduo';
     case 'electricity': return 'Elektra';
     case 'electricity_individual': return 'Elektra (individuali)';
     case 'electricity_common': return 'Elektra (bendra)';
@@ -339,7 +339,7 @@ export const formatDate = (date: string): string => {
 
 export const getAllocationLabel = (allocation: Allocation): string => {
   switch (allocation) {
-    case 'per_apartment': return 'Pagal butus';
+    case 'per_apartment': return 'Pagal butų sk.';
     case 'per_person': return 'Pagal asmenis';
     case 'per_area': return 'Pagal plotą';
     case 'fixed_split': return 'Fiksuotas';
@@ -360,52 +360,42 @@ export const getModeLabel = (mode: MeterMode): string => {
 export const METER_TEMPLATES: MeterTemplate[] = [
   {
     kind: 'water_cold',
-    title: 'Vanduo (šaltas)',
+    title: 'Šaltas vanduo',
     mode: 'individual',
     unit: 'm3',
-    price: 1.5,
+    price: 1.32,
     allocation: 'per_consumption',
     photoRequired: true,
     active: true
   },
   {
     kind: 'water_hot',
-    title: 'Vanduo (karštas)',
+    title: 'Karštas vanduo',
     mode: 'individual',
     unit: 'm3',
-    price: 3.0,
+    price: 3.50,
     allocation: 'per_consumption',
     photoRequired: true,
     active: true
   },
   {
     kind: 'electricity_ind',
-    title: 'Elektra (individuali)',
+    title: 'Elektra',
     mode: 'individual',
     unit: 'kWh',
-    price: 0.15,
+    price: 0.23,
     allocation: 'per_consumption',
     photoRequired: true,
     active: true
   },
   {
-    kind: 'electricity_shared',
-    title: 'Elektra (bendra)',
-    mode: 'communal',
-    unit: 'kWh',
-    price: 0.15,
-    allocation: 'per_apartment',
-    photoRequired: false,
-    active: true
-  },
-  {
     kind: 'heating',
     title: 'Šildymas',
-    mode: 'communal',
-    unit: 'GJ',
-    price: 25.0,
+    mode: 'individual',
+    unit: 'kWh',
+    price: 0.095,
     allocation: 'per_area',
-    photoRequired: false,
+    photoRequired: true,
     active: true
   },
   {
@@ -413,17 +403,17 @@ export const METER_TEMPLATES: MeterTemplate[] = [
     title: 'Dujos',
     mode: 'individual',
     unit: 'm3',
-    price: 0.8,
+    price: 0.99,
     allocation: 'per_consumption',
     photoRequired: true,
     active: true
   },
   {
-    kind: 'internet',
-    title: 'Internetas',
+    kind: 'trash',
+    title: 'Techninė apžiūra',
     mode: 'communal',
-    unit: 'custom',
-    price: 15.0,
+    unit: 'Kitas',
+    price: 0,
     allocation: 'per_apartment',
     photoRequired: false,
     active: true
@@ -432,9 +422,9 @@ export const METER_TEMPLATES: MeterTemplate[] = [
     kind: 'trash',
     title: 'Šiukšlės',
     mode: 'communal',
-    unit: 'custom',
-    price: 8.0,
-    allocation: 'per_apartment',
+    unit: 'Kitas',
+    price: 5.0,
+    allocation: 'fixed_split',
     photoRequired: false,
     active: true
   }

@@ -1037,11 +1037,13 @@ export interface TenantInvitation {
   property_label?: string;
   created_at: string;
   responded_at?: string;
+  expires_at?: string;
 }
 
 // Tenant Invitation API
 export const tenantInvitationApi = {
   // Create a new invitation (landlord)
+  // Deletes any existing pending invitations for the same property first
   async create(invitation: {
     property_id: string;
     email: string;
@@ -1056,13 +1058,24 @@ export const tenantInvitationApi = {
     // Get current user info for invited_by fields
     const { data: userData } = await supabase.auth.getUser();
 
+    // Delete any existing pending invitations for this property (only one code per apartment)
+    await supabase
+      .from('tenant_invitations')
+      .delete()
+      .eq('property_id', invitation.property_id)
+      .eq('status', 'pending');
+
+    // Calculate expiry (12 hours from now)
+    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+
     const { data, error } = await supabase
       .from('tenant_invitations')
       .insert([{
         ...invitation,
         invited_by: userData?.user?.id,
         invited_by_email: userData?.user?.email,
-        status: 'pending'
+        status: 'pending',
+        expires_at: expiresAt
       }])
       .select()
       .single();
@@ -1083,7 +1096,7 @@ export const tenantInvitationApi = {
     return data || [];
   },
 
-  // Get pending invitations for current user (tenant view)
+  // Get pending invitations for current user (tenant view) — excludes expired
   async getMyPendingInvitations(): Promise<TenantInvitation[]> {
     const { data: userData } = await supabase.auth.getUser();
     const userEmail = userData?.user?.email;
@@ -1095,6 +1108,7 @@ export const tenantInvitationApi = {
       .select('*')
       .eq('status', 'pending')
       .ilike('email', userEmail)
+      .gte('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -1102,6 +1116,7 @@ export const tenantInvitationApi = {
   },
 
   // Accept invitation (tenant)
+  // Note: DB trigger `handle_invitation_accepted` auto-updates property status
   async accept(invitationId: string): Promise<TenantInvitation> {
     const { data, error } = await supabase
       .from('tenant_invitations')
@@ -1114,24 +1129,6 @@ export const tenantInvitationApi = {
       .single();
 
     if (error) throw error;
-
-    // After accepting, update the property status to 'occupied'
-    if (data) {
-      await supabase
-        .from('properties')
-        .update({
-          status: 'occupied',
-          tenant_name: data.full_name || data.email,
-          email: data.email,
-          phone: data.phone,
-          contract_start: data.contract_start,
-          contract_end: data.contract_end,
-          rent: data.rent,
-          deposit_amount: data.deposit
-        })
-        .eq('id', data.property_id);
-    }
-
     return data;
   },
 
@@ -1194,8 +1191,11 @@ export const tenantInvitationApi = {
       throw new Error('Kvietimas nerastas arba jau panaudotas');
     }
 
-    // Use the first matching invitation
+    // Check if invitation has expired
     const invitation = invitations[0];
+    if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) {
+      throw new Error('Kvietimo kodas nebegalioja. Paprašykite nuomotojo sugeneruoti naują.');
+    }
 
     // Accept the invitation and update with tenant's real email
     const { data, error } = await supabase
@@ -1212,23 +1212,7 @@ export const tenantInvitationApi = {
 
     if (error) throw error;
 
-    // Update property status to occupied with tenant info
-    if (data) {
-      await supabase
-        .from('properties')
-        .update({
-          status: 'occupied',
-          tenant_name: userName || userEmail,
-          email: userEmail,
-          phone: data.phone,
-          contract_start: data.contract_start,
-          contract_end: data.contract_end,
-          rent: data.rent,
-          deposit_amount: data.deposit
-        })
-        .eq('id', data.property_id);
-    }
-
+    // Note: DB trigger `handle_invitation_accepted` auto-updates property status
     return data;
   }
 };

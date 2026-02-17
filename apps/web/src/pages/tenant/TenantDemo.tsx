@@ -30,7 +30,7 @@ const TenantDemo: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <button 
                   onClick={logout}
-                  className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                   title="Atsijungti"
                 >
                   <ArrowRightOnRectangleIcon className="w-5 h-5" />
@@ -70,7 +70,7 @@ const TenantDemo: React.FC = () => {
             <div className="flex items-center space-x-4">
               <button 
                 onClick={logout}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                 title="Atsijungti"
               >
                 <ArrowRightOnRectangleIcon className="w-5 h-5" />
@@ -99,7 +99,7 @@ const TenantDemo: React.FC = () => {
             return (
               <div
                 key={property.id}
-                className={`bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all duration-200 ${
+                className={`bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-colors duration-200 ${
                   isSelected 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-200 hover:border-gray-300 hover:shadow-md'

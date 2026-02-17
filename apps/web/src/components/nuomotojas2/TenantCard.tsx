@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { 
+import {
   UserIcon,
   BellIcon,
   PhoneIcon,
@@ -80,7 +80,7 @@ const getDaysUntilContractEnd = (contractEnd: string): number => {
 
 const getContractStatusText = (contractEnd: string): string => {
   const daysLeft = getDaysUntilContractEnd(contractEnd);
-  
+
   if (daysLeft < 0) {
     return 'Sutartis baigėsi';
   } else if (daysLeft === 0) {
@@ -96,7 +96,7 @@ const getContractStatusText = (contractEnd: string): string => {
 
 const getContractDateColor = (contractEnd: string) => {
   const daysLeft = getDaysUntilContractEnd(contractEnd);
-  
+
   if (daysLeft < 0) return 'text-red-600';
   if (daysLeft <= 30) return 'text-orange-600';
   if (daysLeft <= 90) return 'text-yellow-600';
@@ -105,24 +105,24 @@ const getContractDateColor = (contractEnd: string) => {
 
 const getStatusBadges = (tenant: Tenant) => {
   const badges = [];
-  
+
   // Payment status
   if (tenant.payment_status === 'overdue') {
     badges.push({ text: 'Vėluoja mokėti', color: 'bg-red-100 text-red-800 border-red-200' });
   } else if (tenant.payment_status === 'unpaid') {
     badges.push({ text: 'Neapmokėta', color: 'bg-orange-100 text-orange-800 border-orange-200' });
   }
-  
+
   // Meters submission
   if (!tenant.meters_submitted) {
     badges.push({ text: 'Nepateikti skaitliukai', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' });
   }
-  
+
   // Cleaning required
   if (tenant.cleaning_required) {
     badges.push({ text: 'Reikia valymo', color: 'bg-purple-100 text-purple-800 border-purple-200' });
   }
-  
+
   // Contract status
   const daysLeft = getDaysUntilContractEnd(tenant.contractEnd);
   if (daysLeft < 0) {
@@ -130,7 +130,7 @@ const getStatusBadges = (tenant: Tenant) => {
   } else if (daysLeft <= 30) {
     badges.push({ text: 'Baigiasi greitai', color: 'bg-orange-100 text-orange-800 border-orange-200' });
   }
-  
+
   return badges;
 };
 
@@ -140,25 +140,24 @@ const TenantCard: React.FC<TenantCardProps> = memo(({ tenant, isSelected, onClic
   const contractDateColor = getContractDateColor(tenant.contractEnd);
 
   return (
-    <div 
-      className={`group p-6 border-2 rounded-2xl cursor-pointer transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2 hover:rotate-1 ${
-        isSelected 
-          ? 'border-[#2f8481] bg-gradient-to-br from-[#2f8481]/10 to-[#2f8481]/5 shadow-xl shadow-[#2f8481]/30' 
+    <div
+      className={`group p-6 border-2 rounded-2xl cursor-pointer transition-colors duration-500 ${isSelected
+          ? 'border-[#2f8481] bg-gradient-to-br from-[#2f8481]/10 to-[#2f8481]/5 shadow-xl shadow-[#2f8481]/30'
           : 'border-gray-100 bg-white hover:border-[#2f8481]/40 hover:shadow-2xl hover:shadow-[#2f8481]/20 hover:bg-gradient-to-br hover:from-white hover:to-gray-50'
-      }`}
+        }`}
       onClick={() => onClick(tenant)}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#2f8481] to-[#297a77] rounded-2xl flex items-center justify-center group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 shadow-lg group-hover:shadow-xl">
-            <UserIcon className="h-6 w-6 text-white group-hover:scale-110 transition-transform duration-500" />
+          <div className="w-12 h-12 bg-gradient-to-br from-[#2f8481] to-[#297a77] rounded-2xl flex items-center justify-center transition-colors duration-500 shadow-lg">
+            <UserIcon className="h-6 w-6 text-white transition-transform duration-500" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 text-lg group-hover:text-[#2f8481] group-hover:scale-105 transition-all duration-500 origin-left">{tenant.name}</h3>
+            <h3 className="font-bold text-gray-900 text-lg group-hover:text-[#2f8481] transition-colors duration-500 origin-left">{tenant.name}</h3>
             <p className="text-sm text-gray-500 font-medium">Butas {tenant.apartmentNumber}</p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           {tenant.notification_count && tenant.notification_count > 0 && (
             <div className="bg-red-100 rounded-full px-2 py-0.5 border border-red-200">
@@ -174,12 +173,12 @@ const TenantCard: React.FC<TenantCardProps> = memo(({ tenant, isSelected, onClic
           <MapPinIcon className="h-4 w-4 text-gray-500" />
           <span className="text-gray-700">{tenant.address}</span>
         </div>
-        
+
         <div className="flex items-center space-x-2 text-sm">
           <CurrencyEuroIcon className="h-4 w-4 text-gray-500" />
           <span className="text-gray-700">{formatCurrency(tenant.monthlyRent)}/mėn</span>
         </div>
-        
+
         <div className="flex items-center space-x-2 text-sm">
           <CalendarIcon className="h-4 w-4 text-gray-500" />
           <span className={`${contractDateColor}`}>{contractStatusText}</span>
@@ -203,22 +202,22 @@ const TenantCard: React.FC<TenantCardProps> = memo(({ tenant, isSelected, onClic
               e.stopPropagation();
               onClick(tenant);
             }}
-            className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-[#2f8481] to-[#297a77] text-white rounded-xl hover:from-[#297a77] hover:to-[#2f8481] transition-all duration-500 shadow-md hover:shadow-xl hover:scale-110 hover:-translate-y-1"
+            className="flex items-center space-x-2 px-4 py-2 text-sm bg-[#2f8481] hover:bg-[#297a77] text-white rounded-xl transition-colors duration-500 shadow-sm"
           >
-            <EyeIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-500" />
+            <EyeIcon className="h-4 w-4 transition-transform duration-500" />
             <span>Peržiūrėti</span>
           </button>
         </div>
-        
+
         {onChatClick && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onChatClick(tenant.address);
             }}
-            className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-[#2f8481] to-[#297a77] text-white rounded-xl hover:from-[#297a77] hover:to-[#2f8481] transition-all duration-500 shadow-md hover:shadow-xl hover:scale-110 hover:-translate-y-1"
+            className="flex items-center space-x-2 px-4 py-2 text-sm bg-[#2f8481] hover:bg-[#297a77] text-white rounded-xl transition-colors duration-500 shadow-sm"
           >
-            <ChatBubbleLeftRightIcon className="h-4 w-4 group-hover:scale-110 transition-transform duration-500" />
+            <ChatBubbleLeftRightIcon className="h-4 w-4 transition-transform duration-500" />
             <span>Pokalbis</span>
           </button>
         )}

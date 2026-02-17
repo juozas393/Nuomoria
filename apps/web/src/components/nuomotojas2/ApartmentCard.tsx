@@ -188,12 +188,12 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
   const apartmentMeters = useMemo(() => [
     {
       id: 'meter-1',
-      name: 'Vanduo (šaltas)',
+      name: 'Šaltas vanduo',
       type: 'individual' as const,
       unit: 'm3' as const,
-      price_per_unit: 1.2,
+      price_per_unit: 1.32,
       distribution_method: 'consumption' as DistributionMethod,
-      description: 'Šalto vandens suvartojimas',
+      description: 'Šalto vandens tiekimas ir nuotekos',
       is_active: true,
       requires_photo: true,
       is_inherited: false
@@ -203,7 +203,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
       name: 'Elektra (individuali)',
       type: 'individual' as const,
       unit: 'kWh' as const,
-      price_per_unit: 0.15,
+      price_per_unit: 0.23,
       distribution_method: 'consumption' as DistributionMethod,
       description: 'Elektros suvartojimas',
       is_active: true,
@@ -232,7 +232,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
           id: '1',
           requestId: 'req-1',
           meterId: 'meter-1',
-          meterName: 'Vanduo (šaltas)',
+          meterName: 'Šaltas vanduo',
           unitId: apartment.id,
           unitNumber: apartment.apartmentNumber,
           tenantName: apartment.tenant.name,
@@ -569,11 +569,11 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
     <>
       {/* Modern Enhanced Card */}
       <div
-        className={`group rounded-3xl shadow-lg border-2 border-transparent transition-all duration-700 overflow-hidden relative cursor-pointer hover:scale-[1.04] hover:-translate-y-3 hover:rotate-1 ${isSelected
-            ? 'bg-gradient-to-br from-primary-50 to-primary-100 border-primary-500 shadow-2xl shadow-primary-300/50'
-            : isContractExpired()
-              ? 'bg-gradient-to-br from-gray-50 to-gray-100 hover:border-gray-400 hover:shadow-2xl hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200'
-              : 'bg-white hover:border-primary-400 hover:shadow-3xl hover:shadow-primary-200/50 hover:bg-gradient-to-br hover:from-white hover:to-primary-50/30'
+        className={`group rounded-3xl shadow-lg border-2 border-transparent transition-colors duration-700 overflow-hidden relative cursor-pointer ${isSelected
+          ? 'bg-gradient-to-br from-primary-50 to-primary-100 border-primary-500 shadow-2xl shadow-primary-300/50'
+          : isContractExpired()
+            ? 'bg-gradient-to-br from-gray-50 to-gray-100 hover:border-gray-400 hover:shadow-2xl hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200'
+            : 'bg-white hover:border-primary-400 hover:shadow-3xl hover:shadow-primary-200/50 hover:bg-gradient-to-br hover:from-white hover:to-primary-50/30'
           }`}
         onClick={() => {
           onEdit(apartment);
@@ -586,8 +586,8 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
         {statusConfig.badgeText && (
           <div className="absolute top-3 right-3 z-10">
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium shadow-sm ${statusConfig.priority === 'warning'
-                ? 'bg-red-100 text-red-700 border border-red-200'
-                : 'bg-orange-100 text-orange-700 border border-orange-200'
+              ? 'bg-red-100 text-red-700 border border-red-200'
+              : 'bg-orange-100 text-orange-700 border border-orange-200'
               }`}>
               {statusConfig.badgeText}
             </span>
@@ -598,7 +598,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
         <div className="relative p-6">
           {/* Background gradient for occupied apartments */}
           {apartment.status === 'occupied' && (
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 opacity-50"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-gray-100 opacity-50"></div>
           )}
 
           <div className="relative">
@@ -621,19 +621,19 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
               {/* Quick Actions */}
               <div className={`flex items-center space-x-2 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
                 <button
-                  className="p-3 bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-md hover:shadow-xl hover:scale-125 hover:-translate-y-1 transition-all duration-500 border border-gray-100 hover:border-gray-200"
+                  className="p-3 bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-md hover:shadow-lg transition-colors duration-500 border border-gray-100 hover:border-gray-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowEnhancedModal(true);
                   }}
                 >
-                  <EyeIcon className="w-5 h-5 text-gray-700 group-hover:scale-110 transition-transform duration-500" />
+                  <EyeIcon className="w-5 h-5 text-gray-700 transition-transform duration-500" />
                 </button>
 
                 {/* Reading Request Button */}
                 {apartment.tenant && apartmentMeters.filter(m => m.requires_photo && m.is_active).length > 0 && (
                   <button
-                    className="p-2 bg-orange-100 rounded-lg shadow-sm hover:shadow-md hover:bg-orange-200 transition-all duration-200"
+                    className="p-2 bg-orange-100 rounded-lg shadow-sm hover:shadow-md hover:bg-orange-200 transition-colors duration-200"
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsReadingRequestModalOpen(true);
@@ -647,7 +647,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 {/* Readings Inbox Button */}
                 {apartment.tenant && readingSubmissions.length > 0 && (
                   <button
-                    className="p-2 bg-blue-100 rounded-lg shadow-sm hover:shadow-md hover:bg-blue-200 transition-all duration-200 relative"
+                    className="p-2 bg-blue-100 rounded-lg shadow-sm hover:shadow-md hover:bg-blue-200 transition-colors duration-200 relative"
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsReadingsInboxOpen(true);
@@ -664,7 +664,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 )}
 
                 <button
-                  className="p-2 bg-white rounded-lg shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-200"
+                  className="p-2 bg-white rounded-lg shadow-sm hover:shadow-md hover:bg-gray-50 transition-colors duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Handle camera action
@@ -736,17 +736,17 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                     <div className="flex flex-wrap gap-2">
                       {apartment.tenant.cleaning_required && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-                          🧹 Reikia valymo
+                          Reikia valymo
                         </span>
                       )}
                       {apartment.tenant.notification_count && apartment.tenant.notification_count > 0 && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                          📢 {apartment.tenant.notification_count} pranešimas
+                          {apartment.tenant.notification_count} pranešimas
                         </span>
                       )}
                       {apartment.tenant.tenant_response === 'does_not_want_to_renew' && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                          🚪 Išsikrausto
+                          Išsikrausto
                         </span>
                       )}
                       {isContractEndingSoon() && (
@@ -793,9 +793,9 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
         </div>
 
         {/* Quick Action Footer */}
-        <div className={`px-6 py-4 border-b-2 border-transparent transition-all duration-300 ${isHovered
-            ? 'bg-blue-50 border-b-blue-500'
-            : 'bg-gray-50'
+        <div className={`px-6 py-4 border-b-2 border-transparent transition-colors duration-300 ${isHovered
+          ? 'bg-blue-50 border-b-blue-500'
+          : 'bg-gray-50'
           }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">

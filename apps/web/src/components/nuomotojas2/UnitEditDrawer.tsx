@@ -85,7 +85,7 @@ const InputField = memo<InputFieldProps>(({
 
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
                 {label}
                 {required && <span className="text-red-400 ml-1">*</span>}
             </label>
@@ -102,10 +102,10 @@ const InputField = memo<InputFieldProps>(({
                     max={max}
                     aria-invalid={!!error}
                     aria-describedby={error ? `${label}-error` : helperText ? `${label}-helper` : undefined}
-                    className={`w-full px-3 py-2.5 border rounded-xl focus:outline-none focus:ring-2 transition-all ${ANIMATION.hover} ${error
-                        ? 'border-red-300 focus:ring-red-500/20 focus:border-red-500'
-                        : 'border-gray-200 focus:ring-teal-500/20 focus:border-teal-500'
-                        } ${disabled ? 'bg-gray-50 text-gray-500' : 'bg-white'
+                    className={`w-full px-3 py-2.5 border rounded-xl focus:outline-none focus:ring-2 transition-colors ${ANIMATION.hover} ${error
+                        ? 'border-red-500/50 focus:ring-red-500/20 focus:border-red-500 bg-red-900/10 text-white placeholder-red-300'
+                        : 'border-white/10 focus:ring-teal-500/20 focus:border-teal-500 bg-black/20 text-white placeholder-gray-500 hover:border-white/20'
+                        } ${disabled ? 'bg-white/5 text-gray-500' : ''
                         } ${suffix ? 'pr-12' : ''}`}
                 />
                 {suffix && (
@@ -133,19 +133,19 @@ interface SelectFieldProps {
 
 const SelectField = memo<SelectFieldProps>(({ label, value, onChange, options, placeholder }) => (
     <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+        <label className="block text-sm font-medium text-gray-300 mb-1.5">{label}</label>
         <div className="relative">
             <select
                 value={value ?? ''}
                 onChange={(e) => onChange(e.target.value)}
-                className={`w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-white appearance-none cursor-pointer transition-all ${ANIMATION.hover}`}
+                className={`w-full px-3 py-2.5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-black/20 text-white appearance-none cursor-pointer transition-colors ${ANIMATION.hover} hover:border-white/20`}
             >
-                {placeholder && <option value="">{placeholder}</option>}
+                {placeholder && <option value="" className="bg-gray-900">{placeholder}</option>}
                 {options.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    <option key={opt.value} value={opt.value} className="bg-gray-900 text-white">{opt.label}</option>
                 ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
         </div>
     </div>
 ));
@@ -161,13 +161,13 @@ interface ToggleFieldProps {
 const ToggleField = memo<ToggleFieldProps>(({ label, description, checked, onChange }) => (
     <div className="flex items-center justify-between py-2">
         <div>
-            <span className="text-sm font-medium text-gray-700">{label}</span>
+            <span className="text-sm font-medium text-gray-300">{label}</span>
             {description && <p className="text-xs text-gray-500">{description}</p>}
         </div>
         <button
             type="button"
             onClick={() => onChange(!checked)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${ANIMATION.hover} ${checked ? 'bg-teal-500' : 'bg-gray-200'
+            className={`relative w-11 h-6 rounded-full transition-colors ${ANIMATION.hover} ${checked ? 'bg-teal-600' : 'bg-white/10'
                 }`}
         >
             <span
@@ -199,12 +199,12 @@ interface SectionCardProps {
 }
 
 const SectionCard = memo<SectionCardProps>(({ title, icon, children }) => (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-3 border-b border-gray-50 flex items-center gap-2">
-            <div className="w-7 h-7 bg-gray-50 rounded-lg flex items-center justify-center text-gray-600">
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-sm backdrop-blur-sm">
+        <div className="p-3 border-b border-white/5 flex items-center gap-2">
+            <div className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center text-gray-300">
                 {icon}
             </div>
-            <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+            <h3 className="text-sm font-semibold text-white">{title}</h3>
         </div>
         <div className="p-4">{children}</div>
     </div>
@@ -434,10 +434,10 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
             {/* Drawer - matching main modal style */}
             <div
                 ref={drawerRef}
-                className={`absolute right-0 top-0 h-full w-[520px] max-w-[95vw] bg-gray-50 shadow-2xl flex flex-col will-change-transform transition-transform duration-200 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
+                className={`absolute right-0 top-0 h-full w-[520px] max-w-[95vw] bg-[#0A0A0A] shadow-2xl flex flex-col will-change-transform transition-transform duration-200 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
                     }`}
                 style={{
-                    backgroundImage: `url('/images/FormsBackground.png')`,
+                    backgroundImage: `url('/images/modal_bg_dark.svg')`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                 }}
@@ -458,20 +458,20 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                 )}
 
                 {/* Header - matching main modal style */}
-                <div className="bg-white border-b border-gray-100">
+                <div className="bg-transparent border-b border-white/10">
                     <div className="flex items-center justify-between px-5 py-3">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-sm">
                                 <Home className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <h2 className="text-base font-semibold text-gray-900">Būsto nustatymai</h2>
-                                <p className="text-xs text-gray-500">{property.address}</p>
+                                <h2 className="text-base font-semibold text-white">Būsto nustatymai</h2>
+                                <p className="text-xs text-gray-400">{property.address}</p>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -487,9 +487,9 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${ANIMATION.hover} ${isActive
-                                        ? 'bg-teal-50 text-teal-700'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${ANIMATION.hover} ${isActive
+                                        ? 'bg-teal-500/10 text-teal-400'
+                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
                                         }`}
                                 >
                                     <Icon className="w-3.5 h-3.5" />
@@ -687,7 +687,7 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                                     onChange={(e) => updateField('notes_internal', e.target.value)}
                                     placeholder="Pastabos apie šį būstą (matomos tik jums)..."
                                     rows={4}
-                                    className={`w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none transition-all ${ANIMATION.hover}`}
+                                    className={`w-full px-3 py-2.5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 bg-black/20 text-white placeholder-gray-500 resize-none transition-colors ${ANIMATION.hover} hover:border-white/20`}
                                 />
                                 <p className="text-xs text-gray-400 mt-2">Šios pastabos matomos tik jums, ne nuomininkams</p>
                             </SectionCard>
@@ -696,7 +696,7 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                 </div>
 
                 {/* Footer with save states */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50">
+                <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-[#0A0A0A]/80 backdrop-blur-sm">
                     <div className="text-xs text-gray-400">
                         {isDirty && (
                             <span className="flex items-center gap-1.5">
@@ -708,7 +708,7 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
-                            className={`px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all ${ANIMATION.hover}`}
+                            className={`px-4 py-2.5 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors ${ANIMATION.hover}`}
                         >
                             Atšaukti
                         </button>
@@ -716,7 +716,7 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                             onClick={handleSave}
                             disabled={isSaving || !isDirty || hasErrors}
                             title={hasErrors ? 'Ištaisykite klaidas prieš išsaugant' : !isDirty ? 'Nėra pakeitimų' : undefined}
-                            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${ANIMATION.hover} active:scale-[0.98] ${isSaving || !isDirty || hasErrors
+                            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors ${ANIMATION.hover} active:scale-[0.98] ${isSaving || !isDirty || hasErrors
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-teal-600 text-white hover:bg-teal-700'
                                 }`}

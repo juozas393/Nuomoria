@@ -45,7 +45,7 @@ export const mockMeters: Meter[] = [
     id: '4',
     type: 'heating',
     name: 'Šildymas - 1a',
-    unit: 'GJ',
+    unit: 'kWh',
     group: 'Individualūs',
     last: 12.5,
     lastDate: '2024-01-10',
@@ -86,7 +86,7 @@ export const metersAdapter = {
     // TODO: Replace with actual API call
     // const response = await fetch(`/api/tenants/${tenantId}/meters`);
     // return response.json();
-    
+
     console.log('Getting meters for tenant:', tenantId);
     return mockMeters;
   },
@@ -99,7 +99,7 @@ export const metersAdapter = {
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify({ reading, date: date || new Date().toISOString() })
     // });
-    
+
     console.log('Saving reading for meter:', meterId, reading);
   },
 
@@ -109,7 +109,7 @@ export const metersAdapter = {
     // await fetch(`/api/meters/${meterId}/request-photo`, {
     //   method: 'POST'
     // });
-    
+
     console.log('Requesting photo for meter:', meterId);
   },
 
@@ -118,7 +118,7 @@ export const metersAdapter = {
     // TODO: Replace with actual API call
     // const response = await fetch(`/api/meters/${meterId}/history`);
     // return response.json();
-    
+
     console.log('Getting history for meter:', meterId);
     return [];
   },
@@ -129,7 +129,7 @@ export const metersAdapter = {
     // await fetch(`/api/tenants/${tenantId}/request-readings`, {
     //   method: 'POST'
     // });
-    
+
     console.log('Requesting missing readings for tenant:', tenantId);
   },
 
@@ -141,7 +141,7 @@ export const metersAdapter = {
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify({ status })
     // });
-    
+
     console.log('Updating status for meter:', meterId, status);
   }
 };

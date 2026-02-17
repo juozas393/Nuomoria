@@ -1,24 +1,20 @@
 import { supabase } from './supabase';
-import type { 
-  User, 
-  UserWithPermissions, 
-  UserPermission, 
+import type {
+  User,
+  UserWithPermissions,
+  UserPermission,
   UserAddress,
   UserAddressRaw,
   AddressData,
-  LoginForm, 
-  RegisterForm, 
-  AuthResponse,
   Permission,
   UserRole
 } from '../types/user';
-import { hashPassword, verifyPassword, generateSessionToken, validateSessionToken } from '../utils/security';
 
 // Helper function to transform raw UserAddress data from Supabase
 function transformUserAddress(raw: UserAddressRaw): UserAddress {
   // Use role if available, fallback to role_at_address for compatibility
   const role = raw.role || (raw as any).role_at_address;
-  
+
   return {
     id: raw.id,
     user_id: raw.user_id,
@@ -29,153 +25,8 @@ function transformUserAddress(raw: UserAddressRaw): UserAddress {
   };
 }
 
-// User API
+// User API (Google OAuth only - no password-based auth)
 export const userApi = {
-  // Login user with direct database queries
-  async login(credentials: LoginForm): Promise<AuthResponse> {
-    try {
-      // Get user from database
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', credentials.email)
-        .eq('is_active', true)
-        .single();
-
-      if (userError || !user) {
-        // Security: Don't log sensitive user lookup errors
-        if (process.env.NODE_ENV === 'development') {
-          console.error('User lookup error:', userError);
-        }
-        throw new Error('Neteisingi prisijungimo duomenys');
-      }
-
-      // Security: Use proper password hashing with Web Crypto API
-      const isValidPassword = await verifyPassword(credentials.password, user.password_hash);
-
-      if (!isValidPassword) {
-        throw new Error('Neteisingas el. paštas arba slaptažodis');
-      }
-
-      // Get user permissions
-      const { data: permissions, error: permError } = await supabase
-        .from('user_permissions')
-        .select('permission')
-        .eq('user_id', user.id)
-        .eq('granted', true);
-
-      const userWithPermissions: UserWithPermissions = {
-        id: user.id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        phone: user.phone,
-        role: user.role as UserRole,
-        is_active: user.is_active,
-        last_login: user.last_login,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-        permissions: (permissions?.map(p => p.permission) || []) as Permission[]
-      };
-
-      // Update last login
-      await supabase
-        .from('users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', user.id);
-
-      return {
-        user: userWithPermissions,
-        token: generateSessionToken(user.id) // Security: Secure session token
-      };
-    } catch (error) {
-      // Security: Don't log sensitive login errors in production
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Login error:', error);
-      }
-      throw error;
-    }
-  },
-
-  // Register new user with enhanced validation
-  async register(userData: RegisterForm): Promise<UserWithPermissions> {
-    try {
-      // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', userData.email)
-        .maybeSingle();
-
-      if (existingUser) {
-        throw new Error('Vartotojas su šiuo el. paštu jau egzistuoja');
-      }
-
-      // Create new user with active status for demo
-      const { data: user, error } = await supabase
-        .from('users')
-        .insert([{
-          email: userData.email,
-          password_hash: await hashPassword(userData.password), // Security: Properly hashed password
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          phone: userData.phone,
-          role: userData.role,
-          is_active: true, // Auto-activate for demo
-          email_verified: true // Auto-verify for demo
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        // Security: Don't log sensitive user creation errors
-        if (process.env.NODE_ENV === 'development') {
-          console.error('User creation error:', error);
-        }
-        throw new Error('Klaida kuriant vartotoją');
-      }
-
-      // Add default permissions based on role
-      const defaultPermissions = getDefaultPermissions(userData.role);
-      if (defaultPermissions.length > 0) {
-        const permissionData = defaultPermissions.map(permission => ({
-          user_id: user.id,
-          permission,
-          granted: true,
-          granted_by: user.id
-        }));
-
-        const { error: permError } = await supabase
-          .from('user_permissions')
-          .insert(permissionData);
-
-        if (permError) {
-          // Security: Don't log sensitive permission errors
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Permission creation error:', permError);
-          }
-          // Don't fail registration for permission errors
-        }
-      }
-
-      // Security: Don't log sensitive user information
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Vartotojas sėkmingai sukurtas: ${userData.email}`);
-      }
-
-      return {
-        ...user,
-        permissions: defaultPermissions
-      };
-    } catch (error) {
-      // Security: Don't log sensitive registration errors
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Registration error:', error);
-      }
-      throw error;
-    }
-  },
-
   // Get current user with permissions
   async getCurrentUser(userId: string): Promise<UserWithPermissions> {
     const { data: user, error } = await supabase
@@ -279,7 +130,7 @@ export const userApi = {
 
   // Update user permissions
   async updateUserPermissions(
-    userId: string, 
+    userId: string,
     permissions: { permission: Permission; granted: boolean }[],
     grantedBy: string
   ): Promise<void> {
@@ -346,8 +197,8 @@ export const userApi = {
 
   // Add user to address
   async addUserToAddress(
-    userId: string, 
-    addressId: string, 
+    userId: string,
+    addressId: string,
     role: string
   ): Promise<UserAddress> {
     const { data: userAddress, error } = await supabase
@@ -402,62 +253,6 @@ export const userApi = {
     if (error) {
       throw new Error('Error removing user from address');
     }
-  },
-
-  // Request password reset
-  async requestPasswordReset(email: string): Promise<void> {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (error || !user) {
-      throw new Error('User not found');
-    }
-
-    const resetToken = 'mock-reset-token'; // In real app, generate secure token
-    const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour expiry
-
-    await supabase
-      .from('password_resets')
-      .insert([{
-        user_id: user.id,
-        reset_token: resetToken,
-        expires_at: expiresAt
-      }]);
-
-    // Send reset email (mocked)
-    // Security: Don't log sensitive reset tokens
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Password reset email sent to ${email} with token ${resetToken}`);
-    }
-  },
-
-  // Reset password
-  async resetPassword(resetToken: string, newPassword: string): Promise<void> {
-    const { data: resetRequest, error } = await supabase
-      .from('password_resets')
-      .select('*')
-      .eq('reset_token', resetToken)
-      .eq('used', false)
-      .single();
-
-    if (error || !resetRequest || new Date() > new Date(resetRequest.expires_at)) {
-      throw new Error('Invalid or expired reset token');
-    }
-
-    // Update user password
-    await supabase
-      .from('users')
-      .update({ password_hash: newPassword }) // In real app, hash the password
-      .eq('id', resetRequest.user_id);
-
-    // Mark reset request as used
-    await supabase
-      .from('password_resets')
-      .update({ used: true })
-      .eq('id', resetRequest.id);
   }
 };
 

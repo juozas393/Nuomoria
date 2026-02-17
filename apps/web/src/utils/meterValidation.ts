@@ -13,6 +13,7 @@
  */
 
 import { MeterForm, Unit, MeterTypeSection } from '../types/meters';
+import { getMeterKind, ALLOWED, DISTRIBUTION_LABELS, type DistributionMethod } from '../constants/meterDistribution';
 
 export interface ValidationError {
   field: string;
@@ -24,7 +25,7 @@ export interface ValidationResult {
   errors: ValidationError[];
 }
 
-// Validate individual meter
+// Validate a single meter form
 export const validateMeter = (meter: MeterForm, existingNames: string[] = []): ValidationError[] => {
   const errors: ValidationError[] = [];
 
@@ -33,27 +34,11 @@ export const validateMeter = (meter: MeterForm, existingNames: string[] = []): V
   if (!meterName.trim()) {
     errors.push({
       field: 'name',
-      message: 'Pavadinimas yra privalomas'
+      message: 'Skaitiklio pavadinimas yra privalomas'
     });
   }
 
-  // Validate unit
-  if (!meter.unit) {
-    errors.push({
-      field: 'unit',
-      message: 'Vienetas yra privalomas'
-    });
-  }
-
-  // Validate price
-  if (meter.price_per_unit < 0) {
-    errors.push({
-      field: 'price_per_unit',
-      message: 'Kaina negali būti neigiama'
-    });
-  }
-
-  // Validate name uniqueness
+  // Check for duplicate names
   if (existingNames.includes(meterName)) {
     errors.push({
       field: 'name',
@@ -61,26 +46,44 @@ export const validateMeter = (meter: MeterForm, existingNames: string[] = []): V
     });
   }
 
-  // Water meters should always require photos
-  if (meterName.toLowerCase().includes('vanduo') && !meter.require_photo) {
+  // Validate unit
+  if (!meter.unit) {
     errors.push({
-      field: 'require_photo',
-              message: 'Vandens skaitliukai paprastai reikalauja nuotraukos patvirtinimui'
+      field: 'unit',
+      message: 'Matavimo vienetas yra privalomas'
     });
   }
 
-  // Electricity meters should always require photos
-  if (meterName.toLowerCase().includes('elektra') && !meter.require_photo) {
+  // Validate price
+  const meterPrice = meter.price_per_unit || meter.price || 0;
+  if (meter.unit !== 'Kitas' && meterPrice <= 0) {
+    // Allow zero prices for certain communal meters with fixed pricing
+    if (meter.mode !== 'communal') {
+      errors.push({
+        field: 'price',
+        message: 'Kaina turi būti didesnė nei 0'
+      });
+    }
+  }
+
+  // Validate allocation method
+  if (!meter.allocation) {
     errors.push({
-      field: 'require_photo',
-              message: 'Elektros skaitliukai paprastai reikalauja nuotraukos patvirtinimui'
+      field: 'allocation',
+      message: 'Paskirstymo būdas yra privalomas'
     });
   }
 
-  // Fixed price validation
+  // Validate fixed price meters
   if (meter.allocation === 'fixed_split') {
-    const validMethods = ['per_apartment', 'fixed_split'];
-    if (!validMethods.includes(meter.allocation as any)) {
+    const fixedPrice = meter.fixed_price || meter.price_per_unit || meter.price || 0;
+    if (fixedPrice <= 0) {
+      errors.push({
+        field: 'price',
+        message: 'Fiksuota kaina turi būti didesnė nei 0'
+      });
+    }
+    if (meter.mode === 'individual') {
       errors.push({
         field: 'allocation',
         message: 'Fiksuoti mokesčiai turėtų naudoti tinkamą paskirstymo būdą'
@@ -88,24 +91,33 @@ export const validateMeter = (meter: MeterForm, existingNames: string[] = []): V
     }
   }
 
-  // Individual meters should use per_apartment distribution for consumption-based units
-  if (meter.mode === 'individual' && meter.allocation !== 'fixed_split') {
-    if (meter.allocation !== 'per_apartment') {
+  // Validate allocation against centralized ALLOWED config
+  if (meter.allocation && meter.allocation !== 'fixed_split' && meter.mode) {
+    const kind = getMeterKind(meterName, meter.mode as 'individual' | 'communal');
+    const cfg = ALLOWED[kind];
+    if (cfg && !cfg.allowed.includes(meter.allocation as DistributionMethod)) {
+      const allowedLabels = cfg.allowed.map(d => DISTRIBUTION_LABELS[d]).join(', ');
       errors.push({
         field: 'allocation',
-        message: 'Individualūs skaitliukai paprastai naudoja paskirstymą pagal butus'
+        message: `Šis paskirstymo metodas netinka. Galimi: ${allowedLabels}`
       });
     }
   }
 
-  // Communal meters should not use per_apartment for fixed units
-  if (meter.mode === 'communal' && meter.allocation !== 'fixed_split') {
-    if (meter.allocation === 'per_apartment') {
-      errors.push({
-        field: 'allocation',
-        message: 'Bendri skaitliukai neturėtų naudoti paskirstymo pagal butus'
-      });
-    }
+  // Water meters should always require photos
+  if (meterName.toLowerCase().includes('vanduo') && !meter.require_photo) {
+    errors.push({
+      field: 'require_photo',
+      message: 'Vandens skaitliukai paprastai reikalauja nuotraukos patvirtinimui'
+    });
+  }
+
+  // Electricity meters should always require photos
+  if (meterName.toLowerCase().includes('elektra') && !meter.require_photo) {
+    errors.push({
+      field: 'require_photo',
+      message: 'Elektros skaitliukai paprastai reikalauja nuotraukos patvirtinimui'
+    });
   }
 
   return errors;
@@ -118,7 +130,7 @@ export const validateMeters = (meters: MeterForm[], existingNames: string[] = []
 
   meters.forEach((meter, index) => {
     const meterErrors = validateMeter(meter, allNames);
-    
+
     // Prefix errors with meter index for better identification
     meterErrors.forEach(error => {
       errors.push({
@@ -126,7 +138,7 @@ export const validateMeters = (meters: MeterForm[], existingNames: string[] = []
         message: `Skaitiklis "${meter.label || meter.title || meter.custom_name}": ${error.message}`
       });
     });
-    
+
     // Add this meter's name to the list for subsequent validations
     const meterName = meter.label || meter.title || meter.custom_name || '';
     if (meterName) {

@@ -64,6 +64,7 @@ import {
   convertLegacyDistribution,
   checkPrecondition,
   getMeterKind,
+  ALLOWED,
   type DistributionMethod,
   type PreconditionContext,
   type PreconditionResult
@@ -99,17 +100,13 @@ interface MetersTableProps {
 }
 
 const AVAILABLE_METERS = [
-  { name: 'Vanduo (šaltas)', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 1.2, distribution_method: 'per_consumption' as const, description: 'Šalto vandens suvartojimas', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
-  { name: 'Vanduo (karštas)', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 3.5, distribution_method: 'per_consumption' as const, description: 'Karšto vandens suvartojimas', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
-  { name: 'Elektra (individuali)', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.15, distribution_method: 'per_consumption' as const, description: 'Elektros suvartojimas', icon: 'Elektra', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
-  { name: 'Elektra (bendra)', type: 'communal' as const, unit: 'kWh' as const, price_per_unit: 0.15, distribution_method: 'per_apartment' as const, description: 'Namo apsvietimas', icon: 'Elektra', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Šildymas', type: 'individual' as const, unit: 'GJ' as const, price_per_unit: 25.0, distribution_method: 'per_area' as const, description: 'Namo šildymo sąnaudos', icon: 'Šildymas', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
-  { name: 'Internetas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 60, distribution_method: 'per_apartment' as const, description: 'Namo interneto paslaugos', icon: 'Internetas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Šiukšlių išvežimas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 45, distribution_method: 'per_apartment' as const, description: 'Šiukšlių išvežimo paslaugos', icon: 'Šiukšlės', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Dujos', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 0.8, distribution_method: 'per_consumption' as const, description: 'Dujų suvartojimas', icon: 'Dujos', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
-  { name: 'Vėdinimas', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 30, distribution_method: 'per_apartment' as const, description: 'Vėdinimo sistemos', icon: 'Vėdinimas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Lifto priežiūra', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 25, distribution_method: 'per_apartment' as const, description: 'Lifto techninė priežiūra', icon: 'Liftas', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false },
-  { name: 'Kitas', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.1, distribution_method: 'per_consumption' as const, description: 'Kitas individualus skaitliukas', icon: 'BoltIcon', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true }
+  { name: 'Šaltas vanduo', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 1.32, distribution_method: 'per_consumption' as const, description: 'Šalto vandens tiekimas ir nuotekos', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
+  { name: 'Karštas vanduo', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 3.50, distribution_method: 'per_consumption' as const, description: 'Karšto vandens tiekimas', icon: 'Vanduo', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
+  { name: 'Elektra', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.23, distribution_method: 'per_consumption' as const, description: 'Buto elektros suvartojimas', icon: 'Elektra', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
+  { name: 'Šildymas', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.095, distribution_method: 'per_area' as const, description: 'Centrinis šildymas pagal plotą', icon: 'Šildymas', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
+  { name: 'Dujos', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 0.99, distribution_method: 'per_consumption' as const, description: 'Gamtinių dujų suvartojimas', icon: 'Dujos', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
+  { name: 'Techninė apžiūra', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 0, distribution_method: 'per_apartment' as const, description: 'Namo techninė priežiūra ir apžiūra', icon: 'Techninė apžiūra', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
+  { name: 'Šiukšlės', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 5, distribution_method: 'fixed_split' as const, description: 'Komunalinių atliekų išvežimas', icon: 'Šiukšlės', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false }
 ];
 
 const getMeterIcon = (name: string) => {
@@ -152,7 +149,7 @@ const getPriceSuffix = (unit: string): string => {
 
 const getDistributionLabel = (method: string) => {
   switch (method) {
-    case 'per_apartment': return 'Pagal butus';
+    case 'per_apartment': return 'Pagal butų sk.';
     case 'per_area': return 'Pagal plotą';
     case 'fixed_split': return 'Fiksuotas';
     default: return method;
@@ -163,33 +160,33 @@ const getRecommendedDistribution = (type: 'individual' | 'communal', unit: strin
   return getDefaultDistribution(name, type);
 };
 
-const isDistributionValid = (type: 'individual' | 'communal', distribution: string): boolean => {
-  if (type === 'individual') {
-    // Individualūs skaitliukai turi būti "Pagal butus"
-    return distribution === 'per_apartment';
-  }
-
-  // Bendri skaitliukai gali būti bet kokiu metodu
-  return true;
+const isDistributionValid = (type: 'individual' | 'communal', distribution: string, name: string = ''): boolean => {
+  // Use centralized ALLOWED config for proper validation
+  const kind = getMeterKind(name, type);
+  const cfg = ALLOWED[kind];
+  return cfg ? cfg.allowed.includes(distribution as DistributionMethod) : true;
 };
 
 const getDistributionWarning = (type: 'individual' | 'communal', distribution: string, name: string): string | null => {
-  if (type === 'individual' && distribution !== 'per_apartment') {
-    return 'Individualūs skaitliukai turi būti skaičiuojami pagal butus';
+  if (!isDistributionValid(type, distribution, name)) {
+    const kind = getMeterKind(name, type);
+    const cfg = ALLOWED[kind];
+    const allowedLabels = cfg?.allowed.map((d: DistributionMethod) => DISTRIBUTION_LABELS[d]).join(', ') || '';
+    return `Šis paskirstymo metodas netinka. Galimi: ${allowedLabels}`;
   }
 
   if (type === 'communal' && distribution === 'per_apartment') {
-    return 'Bendri skaitliukai gali būti skaičiuojami pagal butus';
+    return 'Bendri skaitliukai gali būti skaičiuojami pagal butų sk.';
   }
 
   // Įspėjimas dėl "Pagal plotą" pasirinkimo
   if (type === 'communal' && distribution === 'per_area') {
     if (name.includes('Internetas') || name.includes('Šiukšlės') || name.includes('Liftas') || name.includes('Vėdinimas')) {
-      return 'Šis skaitliukas dažniausiai skaičiuojamas pagal butus, ne pagal plotą';
+      return 'Šis skaitliukas dažniausiai skaičiuojamas pagal butų sk., ne pagal plotą';
     }
   }
 
-  // Įspėjimas dėl "Pagal butus" pasirinkimo šildymui
+  // Įspėjimas dėl "Pagal butų sk." pasirinkimo šildymui
   if (type === 'communal' && distribution === 'per_apartment' && name.includes('Šildymas')) {
     return 'Šildymas be daliklių dažniausiai skaičiuojamas pagal plotą';
   }
@@ -333,7 +330,7 @@ const MeterRow: React.FC<{
             : 'Nuomotojas pateikia rodmenį. Spauskite norėdami pakeisti į nuomininko režimą.'}
           aria-label={`Rodmenų režimas: ${meter.collectionMode === 'tenant_photo' ? 'Nuomininkas su nuotrauka' : 'Nuomotojas'}`}
         >
-          <span>{meter.collectionMode === 'tenant_photo' ? '📸' : '🏠'}</span>
+          <span>{meter.collectionMode === 'tenant_photo' ? <Camera className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}</span>
           <span>{meter.collectionMode === 'tenant_photo' ? 'Nuomininkas' : 'Nuomotojas'}</span>
         </button>
       </div>
@@ -431,7 +428,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Redaguoti skaitliuką</h3>
         <div className="space-y-4">
@@ -787,16 +784,19 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
     // Determine the correct type based on meter name
     let type: ModernMeter['type'] = 'electricity';
-    if (meter.name?.includes('Vanduo') && meter.name?.includes('šaltas')) {
+    const n = (meter.name || '').toLowerCase();
+    if (n.includes('šaltas') || (n.includes('vanduo') && n.includes('šaltas'))) {
       type = 'water_cold';
-    } else if (meter.name?.includes('Vanduo') && meter.name?.includes('karštas')) {
+    } else if (n.includes('karštas') || (n.includes('vanduo') && n.includes('karštas'))) {
       type = 'water_hot';
-    } else if (meter.name?.includes('Elektra') && meter.name?.includes('individuali')) {
+    } else if (n.includes('elektra') && n.includes('individuali')) {
       type = 'electricity';
-    } else if (meter.name?.includes('Elektra') && meter.name?.includes('bendra')) {
+    } else if (n.includes('elektra') && n.includes('bendra')) {
       type = 'electricity_common';
-    } else if (meter.name?.includes('Šildymas') || meter.name?.includes('Dujos')) {
+    } else if (n.includes('šildymas') || n.includes('dujos')) {
       type = 'heating';
+    } else if (n.includes('elektra')) {
+      type = 'electricity';
     } else {
       type = 'electricity_common'; // Default for other communal services
     }
@@ -820,7 +820,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   const convertFromModernMeter = (modernMeter: ModernMeter): Partial<LocalMeter> => {
     // Validate allocation before converting
-    const validDistributionMethods = ['per_apartment', 'per_area', 'per_consumption', 'fixed_split'];
+    const validDistributionMethods = ['per_apartment', 'per_area', 'per_consumption', 'per_person', 'fixed_split'];
     const allocation = modernMeter.allocation || '';
     const distributionMethod = validDistributionMethods.includes(allocation)
       ? allocation as DistributionMethod
@@ -963,22 +963,23 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     const metersToAdd = newMeters.map(meter => {
       console.log('🔍 Processing meter:', meter);
 
+      const requiresPhoto = meter.requirePhoto || meter.requiresPhoto || meter.requires_photo || meter.photoRequired || false;
       const processedMeter = {
         id: meter.id,
         name: meter.name || meter.label || meter.title || meter.custom_name || '',
         description: meter.description || meter.notes || '',
         type: meter.mode, // Use mode field directly - it should be 'individual' or 'communal'
         unit: meter.unit,
-        price_per_unit: meter.unit === 'Kitas' ? 0 : (meter.defaultPrice || meter.price_per_unit || 0),
-        fixed_price: meter.unit === 'Kitas' ? (meter.defaultPrice || meter.fixed_price || 0) : undefined,
+        price_per_unit: meter.unit === 'Kitas' ? 0 : (meter.price || meter.defaultPrice || meter.price_per_unit || 0),
+        fixed_price: meter.unit === 'Kitas' ? (meter.price || meter.defaultPrice || meter.fixed_price || 0) : undefined,
         distribution_method: meter.allocation || meter.distribution,
-        requires_photo: meter.requirePhoto || meter.requiresPhoto || meter.requires_photo || false,
+        requires_photo: requiresPhoto,
         is_active: true,
         is_inherited: false,
         is_custom: meter.is_custom || false,
-        collectionMode: 'landlord_only' as const, // Default to landlord_only for new meters
-        landlordReadingEnabled: meter.landlordReadingEnabled || false,
-        tenantPhotoEnabled: meter.tenantPhotoEnabled || false
+        collectionMode: requiresPhoto ? 'tenant_photo' as const : 'landlord_only' as const,
+        landlordReadingEnabled: meter.landlordReadingEnabled || !requiresPhoto,
+        tenantPhotoEnabled: requiresPhoto
       };
 
       console.log('🔍 Processed meter:', processedMeter);
@@ -1313,7 +1314,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   const getAllocationLabel = (method: string) => {
     switch (method) {
       case 'per_consumption': return 'Pagal suvartojimą';
-      case 'per_apartment': return 'Pagal butus';
+      case 'per_apartment': return 'Pagal butų sk.';
       case 'per_area': return 'Pagal plotą';
       case 'fixed_split': return 'Fiksuotas';
       default: return method;
@@ -1324,7 +1325,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   const getAllocationShort = (method: string) => {
     switch (method) {
       case 'per_consumption': return 'Suvartojimas';
-      case 'per_apartment': return 'Butai';
+      case 'per_apartment': return 'Butų sk.';
       case 'per_area': return 'Plotas';
       case 'fixed_split': return 'Fiksuotas';
       default: return method;
@@ -1357,10 +1358,10 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   // Quick add preset meters
   const presetMeters = [
-    { name: 'Šaltas vanduo', icon: Droplets, unit: 'm3' as const, price: 2.50 },
-    { name: 'Karštas vanduo', icon: Droplets, unit: 'm3' as const, price: 4.80 },
-    { name: 'Elektra', icon: Zap, unit: 'kWh' as const, price: 0.25 },
-    { name: 'Šildymas', icon: Flame, unit: 'GJ' as const, price: 45.00 },
+    { name: 'Šaltas vanduo', icon: Droplets, unit: 'm3' as const, price: 1.32 },
+    { name: 'Karštas vanduo', icon: Droplets, unit: 'm3' as const, price: 3.50 },
+    { name: 'Elektra', icon: Zap, unit: 'kWh' as const, price: 0.23 },
+    { name: 'Šildymas', icon: Flame, unit: 'kWh' as const, price: 0.095 },
   ];
 
   const handleAddPreset = (preset: typeof presetMeters[0]) => {
@@ -1416,7 +1417,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             strokeWidth="6"
             strokeLinecap="round"
             strokeOpacity="0.2"
-            className="transition-all duration-200"
+            className="transition-colors duration-200"
           />
 
           {/* Main connector line */}
@@ -1426,7 +1427,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             stroke="url(#connectorGradient)"
             strokeWidth="2.5"
             strokeLinecap="round"
-            className="transition-all duration-200"
+            className="transition-colors duration-200"
           />
 
           {/* Start endpoint - ring + dot */}
@@ -1437,14 +1438,14 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             fill="white"
             stroke="#14b8a6"
             strokeWidth="2"
-            className="transition-all duration-200"
+            className="transition-colors duration-200"
           />
           <circle
             cx={connectorPath.split(' ')[1]}
             cy={connectorPath.split(' ')[2]}
             r="3"
             fill="#0d9488"
-            className="transition-all duration-200"
+            className="transition-colors duration-200"
           />
 
           {/* End endpoint - extract end coordinates */}
@@ -1454,8 +1455,8 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             const endY = parts[parts.length - 1];
             return (
               <>
-                <circle cx={endX} cy={endY} r="6" fill="white" stroke="#14b8a6" strokeWidth="2" className="transition-all duration-200" />
-                <circle cx={endX} cy={endY} r="3" fill="#0d9488" className="transition-all duration-200" />
+                <circle cx={endX} cy={endY} r="6" fill="white" stroke="#14b8a6" strokeWidth="2" className="transition-colors duration-200" />
+                <circle cx={endX} cy={endY} r="3" fill="#0d9488" className="transition-colors duration-200" />
               </>
             );
           })()}
@@ -1464,15 +1465,15 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
       {/* 3-Column Split Layout: LIST | GUTTER | EDITOR */}
       <div
-        className="grid transition-all duration-200"
+        className="grid transition-colors duration-200"
         style={{
           gridTemplateColumns: selectedMeter ? '1fr 48px 1fr' : '1fr',
           gap: '0'
         }}
       >
         {/* LEFT: Meters List - Browse Zone */}
-        <div className="transition-all duration-200">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-md p-4">
+        <div className="transition-colors duration-200">
+          <div className="bg-white/95 rounded-xl border border-white/10 shadow-md p-4" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
             {/* List Header */}
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -1490,14 +1491,14 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                 <div className="flex">
                   <button
                     onClick={() => setShowAddModal(true)}
-                    className="px-3 py-1.5 bg-[#2F8481] text-white rounded-l-lg hover:bg-[#297a77] transition-all text-[12px] font-medium flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-[#2F8481] text-white rounded-l-lg hover:bg-[#297a77] transition-colors text-[12px] font-medium flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Pridėti
                   </button>
                   <button
                     onClick={() => setShowAddDropdown(!showAddDropdown)}
-                    className="px-2 py-1.5 bg-[#2F8481] text-white rounded-r-lg hover:bg-[#297a77] transition-all border-l border-white/20"
+                    className="px-2 py-1.5 bg-[#2F8481] text-white rounded-r-lg hover:bg-[#297a77] transition-colors border-l border-white/20"
                   >
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
@@ -1560,9 +1561,9 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                       tabIndex={0}
                       role="button"
                       aria-pressed={isSelected}
-                      className={`group flex items-center gap-3 px-3.5 py-3.5 rounded-xl cursor-pointer transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#2F8481]/50 ${isSelected
+                      className={`group flex items-center gap-3 px-3.5 py-3.5 rounded-xl cursor-pointer transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#2F8481]/50 ${isSelected
                         ? 'bg-teal-50/80 border-l-4 border-l-[#2F8481] border border-t-teal-200/60 border-r-teal-200/60 border-b-teal-200/60 shadow-sm'
-                        : 'bg-gray-50/60 hover:bg-gray-100/80 border border-gray-100/80 hover:border-gray-200/80'
+                        : 'bg-white/70 hover:bg-white/90 border border-gray-300 hover:border-gray-400 shadow-sm'
                         }`}
                     >
                       {/* Status dot + Icon */}
@@ -1616,7 +1617,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                             }
                           }
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
                         title="Ištrinti"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1656,7 +1657,8 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         {/* RIGHT: Editor Panel - Workspace Zone */}
         {selectedMeter ? (
           <div
-            className="bg-white rounded-xl border border-gray-200 shadow-lg transition-all duration-200 flex flex-col"
+            className="bg-white/95 rounded-xl border border-white/10 shadow-lg transition-colors duration-200 flex flex-col"
+            style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}
             ref={panelRef}
           >
             {/* Panel Header - Workspace bar */}
@@ -1714,7 +1716,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                 <div className="flex gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm">
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), mode: 'individual' })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all ${selectedMeter.type === 'individual'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors ${selectedMeter.type === 'individual'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1723,7 +1725,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                   </button>
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), mode: 'shared' })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all ${selectedMeter.type === 'communal'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors ${selectedMeter.type === 'communal'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1760,7 +1762,63 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                 </p>
               </div>
 
-              {/* Card 3: Readings */}
+              {/* Card 3: Distribution */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Paskirstymas</h4>
+                </div>
+                <p className="text-[12px] font-medium text-gray-600 mb-3">
+                  {selectedMeter.distribution_method === 'per_consumption'
+                    ? 'Pagal suvartojimą – mokestis skaičiuojamas pagal faktinį suvartojimą.'
+                    : selectedMeter.distribution_method === 'per_area'
+                      ? 'Pagal plotą – mokestis paskirstomas pagal buto plotą.'
+                      : selectedMeter.distribution_method === 'per_apartment'
+                        ? 'Pagal butų sk. – mokestis dalinamas lygiomis dalimis tarp butų.'
+                        : selectedMeter.distribution_method === 'per_person'
+                          ? 'Pagal asmenis – mokestis dalinamas pagal gyventojų skaičių.'
+                          : 'Fiksuotas – vienoda suma kiekvienam butui.'}
+                </p>
+                <div className="grid grid-cols-2 gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_consumption' })}
+                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_consumption'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    Suvartojimas
+                  </button>
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_area' })}
+                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_area'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    Pagal plotą
+                  </button>
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_apartment' })}
+                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_apartment'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    Pagal butų sk.
+                  </button>
+                  <button
+                    onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_person' })}
+                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_person'
+                      ? 'bg-[#2F8481] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                  >
+                    Pagal asmenis
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 4: Readings */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Rodmenys</h4>
@@ -1768,7 +1826,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                 <div className="flex gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm mb-3">
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), collectionMode: 'landlord_only', photoRequired: false })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'landlord_only'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'landlord_only'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1778,7 +1836,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                   </button>
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), collectionMode: 'tenant_photo', photoRequired: true })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'tenant_photo'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'tenant_photo'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1803,7 +1861,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
               <div className="pt-3 mt-3 border-t border-gray-100">
                 <button
                   onClick={() => { handleModernMeterDelete(selectedMeter.id); setSelectedMeterId(null); }}
-                  className="w-full px-4 py-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50/80 border border-dashed border-gray-200 hover:border-red-200 rounded-xl text-[12px] font-medium transition-all flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50/80 border border-dashed border-gray-200 hover:border-red-200 rounded-xl text-[12px] font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Ištrinti skaitliuką

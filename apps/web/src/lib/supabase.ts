@@ -4,9 +4,20 @@ import { supabase as supabaseConfig } from '../config/environment';
 export const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
   auth: {
     autoRefreshToken: true,
-    persistSession: true,         // <-- svarbu
+    persistSession: true,
     detectSessionInUrl: true,
-    storage: window.localStorage, // <-- laikom sesiją
+    storage: window.localStorage,
+  },
+  global: {
+    headers: { 'x-app-version': '1.0.0' },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 2,
+    },
   },
 });
 

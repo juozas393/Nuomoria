@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CreditCardIcon, 
+import {
+  CreditCardIcon,
   DocumentTextIcon,
   CalculatorIcon,
   CheckCircleIcon,
@@ -73,8 +73,8 @@ const TenantPayment: React.FC = () => {
         name: 'Elektros energija',
         baseAmount: 0,
         consumption: 245, // kWh
-        rate: 0.12, // €/kWh
-        total: 29.40,
+        rate: 0.23, // €/kWh
+        total: 56.35,
         unit: 'kWh',
         previousReading: 1250,
         currentReading: 1495,
@@ -86,8 +86,8 @@ const TenantPayment: React.FC = () => {
         name: 'Vanduo',
         baseAmount: 0,
         consumption: 12.5, // m³
-        rate: 2.50, // €/m³
-        total: 31.25,
+        rate: 1.32, // €/m³
+        total: 16.50,
         unit: 'm³',
         previousReading: 456,
         currentReading: 468.5,
@@ -99,8 +99,8 @@ const TenantPayment: React.FC = () => {
         name: 'Dujos',
         baseAmount: 0,
         consumption: 45.2, // m³
-        rate: 0.85, // €/m³
-        total: 38.42,
+        rate: 0.99, // €/m³
+        total: 44.75,
         unit: 'm³',
         previousReading: 234,
         currentReading: 279.2,
@@ -161,7 +161,7 @@ const TenantPayment: React.FC = () => {
     // Check if invoice is overdue
     const dueDate = new Date(invoice.dueDate);
     const daysOverdue = Math.ceil((currentTime.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysOverdue > 0) {
       warnings.push(`Sąskaita vėluoja ${daysOverdue} dienų`);
     }
@@ -174,23 +174,23 @@ const TenantPayment: React.FC = () => {
     // Check for estimated readings
     const estimatedItems = invoice.items.filter(item => item.isEstimated);
     if (estimatedItems.length > 0) {
-              warnings.push(`${estimatedItems.length} skaitliukai yra įvertinti`);
+      warnings.push(`${estimatedItems.length} skaitliukai yra įvertinti`);
     }
 
     // Check for unusual consumption patterns
     invoice.items.forEach(item => {
       const consumption = item.currentReading - item.previousReading;
-      
+
       // Check for negative consumption
       if (consumption < 0) {
         errors.push(`${item.name}: Neigiamas suvartojimas neįmanomas`);
       }
-      
+
       // Check for zero consumption (suspicious)
       if (consumption === 0) {
         warnings.push(`${item.name}: Suvartojimas lygus nuliui`);
       }
-      
+
       // Check for unreasonably high consumption
       if (consumption > 1000 && item.unit === 'kWh') {
         warnings.push(`${item.name}: Suvartojimas atrodo per didelis`);
@@ -206,20 +206,20 @@ const TenantPayment: React.FC = () => {
 
   const handlePayment = async () => {
     const validation = validatePayment();
-    
+
     if (!validation.isValid) {
       alert('Prašome ištaisyti klaidas prieš atliekant mokėjimą');
       return;
     }
 
     setIsProcessing(true);
-    
+
     // Simulate payment processing
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
     setIsProcessing(false);
     setShowSuccess(true);
-    
+
     setTimeout(() => setShowSuccess(false), 5000);
   };
 
@@ -265,10 +265,10 @@ const TenantPayment: React.FC = () => {
       'kWh': { low: 100, high: 500 },
       'm³': { low: 5, high: 20 }
     };
-    
+
     const range = ranges[unit as keyof typeof ranges];
     if (!range) return 'text-gray-600';
-    
+
     if (consumption < range.low) return 'text-blue-600';
     if (consumption > range.high) return 'text-orange-600';
     return 'text-green-600';
@@ -277,7 +277,7 @@ const TenantPayment: React.FC = () => {
   const validation = validatePayment();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-[#f0fafa]">
       {/* Header with logout button */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -285,11 +285,11 @@ const TenantPayment: React.FC = () => {
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-black">Mokėjimas</h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
-              <button 
+              <button
                 onClick={logout}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                 title="Atsijungti"
               >
                 <ArrowRightOnRectangleIcon className="w-5 h-5" />
@@ -370,7 +370,7 @@ const TenantPayment: React.FC = () => {
                 {invoice.items.map((item) => {
                   const consumption = item.currentReading - item.previousReading;
                   const consumptionColor = getConsumptionColor(consumption, item.unit);
-                  
+
                   return (
                     <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <div className="flex items-center gap-4">
@@ -409,9 +409,8 @@ const TenantPayment: React.FC = () => {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Mokėjimo būdas</h3>
               <div className="space-y-3">
                 {paymentMethods.map((method) => (
-                  <label key={method.id} className={`flex items-center gap-3 p-4 border rounded-xl hover:bg-gray-50 cursor-pointer transition-colors duration-200 ${
-                    method.isActive ? 'border-gray-200' : 'border-gray-100 bg-gray-50'
-                  }`}>
+                  <label key={method.id} className={`flex items-center gap-3 p-4 border rounded-xl hover:bg-gray-50 cursor-pointer transition-colors duration-200 ${method.isActive ? 'border-gray-200' : 'border-gray-100 bg-gray-50'
+                    }`}>
                     <input
                       type="radio"
                       name="paymentMethod"
@@ -422,12 +421,10 @@ const TenantPayment: React.FC = () => {
                       className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:opacity-50"
                     />
                     <div className="flex items-center gap-3 flex-1">
-                      <div className={`p-2 rounded-lg ${
-                        method.type === 'card' ? 'bg-blue-100' : 'bg-green-100'
-                      } ${!method.isActive ? 'opacity-50' : ''}`}>
-                        <CreditCardIcon className={`w-5 h-5 ${
-                          method.type === 'card' ? 'text-blue-600' : 'text-green-600'
-                        }`} />
+                      <div className={`p-2 rounded-lg ${method.type === 'card' ? 'bg-blue-100' : 'bg-green-100'
+                        } ${!method.isActive ? 'opacity-50' : ''}`}>
+                        <CreditCardIcon className={`w-5 h-5 ${method.type === 'card' ? 'text-blue-600' : 'text-green-600'
+                          }`} />
                       </div>
                       <div className="flex-1">
                         <p className={`font-medium ${method.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
@@ -468,7 +465,7 @@ const TenantPayment: React.FC = () => {
             {/* Total Amount */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Mokėjimo suma</h3>
-              
+
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Bazinis nuomos mokestis</span>
@@ -531,7 +528,7 @@ const TenantPayment: React.FC = () => {
               <button
                 onClick={handlePayment}
                 disabled={!validation.isValid || isProcessing}
-                className="w-full group relative px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full group relative px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-colors duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
                 <span className="relative flex items-center justify-center gap-2">

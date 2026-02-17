@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  CalendarIcon, 
+import {
+  CalendarIcon,
   ChartBarIcon,
   EyeIcon,
   DocumentTextIcon,
@@ -49,11 +49,11 @@ export function MeterHistoryView({
     if (config.meter_type === 'custom' && config.custom_name) {
       return config.custom_name;
     }
-    
+
     switch (config.meter_type) {
       case 'electricity': return 'Elektra';
-      case 'water_cold': return 'Vanduo (šaltas)';
-      case 'water_hot': return 'Vanduo (karštas)';
+      case 'water_cold': return 'Šaltas vanduo';
+      case 'water_hot': return 'Karštas vanduo';
       case 'gas': return 'Dujos';
       case 'heating': return 'Šildymas';
       case 'internet': return 'Internetas';
@@ -101,7 +101,7 @@ export function MeterHistoryView({
 
     // Filter by meter type
     if (selectedMeterType !== 'all') {
-      filtered = filtered.filter(reading => 
+      filtered = filtered.filter(reading =>
         reading.meter_config?.meter_type === selectedMeterType
       );
     }
@@ -111,7 +111,7 @@ export function MeterHistoryView({
     const periodMonths = parseInt(selectedPeriod);
     if (periodMonths > 0) {
       const cutoffDate = new Date(now.getFullYear(), now.getMonth() - periodMonths, now.getDate());
-      filtered = filtered.filter(reading => 
+      filtered = filtered.filter(reading =>
         reading.reading_date && new Date(reading.reading_date) >= cutoffDate
       );
     }
@@ -206,7 +206,7 @@ export function MeterHistoryView({
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Rodmenų sąrašas</h3>
         </div>
-        
+
         {filteredReadings.length === 0 ? (
           <div className="text-center py-8">
             <DocumentTextIcon className="w-12 h-12 mx-auto text-gray-400 mb-3" />
@@ -216,16 +216,16 @@ export function MeterHistoryView({
           <div className="divide-y divide-gray-200">
             {filteredReadings.map((reading) => {
               const config = reading.meter_config;
-              
+
               return (
                 <div key={reading.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <span className="text-2xl">{getMeterIconDisplay(config?.meter_type || '')}</span>
                       <div>
-                                                 <h4 className="font-medium text-gray-900">
-                           {config ? getMeterNameDisplay(config) : 'Nežinomas skaitliukas'}
-                         </h4>
+                        <h4 className="font-medium text-gray-900">
+                          {config ? getMeterNameDisplay(config) : 'Nežinomas skaitliukas'}
+                        </h4>
                         <p className="text-sm text-gray-600">
                           {reading.reading_date ? formatDate(reading.reading_date) : '—'} • {reading.consumption ?? reading.difference ?? 0} {getUnitLabelDisplay(config?.unit || '')}
                         </p>
@@ -242,7 +242,7 @@ export function MeterHistoryView({
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-semibold text-gray-900">
@@ -252,12 +252,12 @@ export function MeterHistoryView({
                           {config?.allocation === 'fixed_split' ? 'Fiksuota' : `${reading.price_per_unit || 0} €/${getUnitLabelDisplay(config?.unit || '')}`}
                         </p>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(reading.status)}`}>
                           {getStatusText(reading.status)}
                         </span>
-                        
+
                         <div className="flex items-center gap-1">
                           {onViewDetails && (
                             <button
@@ -281,7 +281,7 @@ export function MeterHistoryView({
                       </div>
                     </div>
                   </div>
-                  
+
                   {reading.notes && (
                     <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                       <p className="text-sm text-gray-700">{reading.notes}</p>
@@ -319,14 +319,13 @@ export function MeterHistoryView({
             </div>
             <div>
               <p className="text-sm text-gray-600">Tendencija</p>
-              <p className={`text-xl font-semibold ${
-                statistics.trend === 'increasing' ? 'text-red-600' :
-                statistics.trend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
-              }`}>
-                {statistics.trend === 'increasing' ? '↗' : 
-                 statistics.trend === 'decreasing' ? '↘' : '→'}
+              <p className={`text-xl font-semibold ${statistics.trend === 'increasing' ? 'text-red-600' :
+                  statistics.trend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
+                }`}>
+                {statistics.trend === 'increasing' ? '↗' :
+                  statistics.trend === 'decreasing' ? '↘' : '→'}
                 {statistics.trend === 'increasing' ? 'Didėja' :
-                 statistics.trend === 'decreasing' ? 'Mažėja' : 'Stabilu'}
+                  statistics.trend === 'decreasing' ? 'Mažėja' : 'Stabilu'}
               </p>
             </div>
           </div>

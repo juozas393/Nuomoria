@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Building2, Home, User } from 'lucide-react';
 
 // ============================================================
 // TYPES
@@ -71,17 +71,17 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({
     // Entity type icons and colors
     const entityConfig = {
         address: {
-            icon: '🏢',
+            icon: <Building2 className="w-5 h-5" />,
             color: 'bg-[#2F8481]',
             label: 'Adresas'
         },
         apartment: {
-            icon: '🏠',
+            icon: <Home className="w-5 h-5" />,
             color: 'bg-blue-600',
             label: 'Butas'
         },
         tenant: {
-            icon: '👤',
+            icon: <User className="w-5 h-5" />,
             color: 'bg-purple-600',
             label: 'Nuomininkas'
         }
@@ -105,7 +105,7 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({
           fixed lg:relative right-0 top-0 h-full z-50 lg:z-auto
           flex flex-col
           bg-white border-l border-gray-200 shadow-xl lg:shadow-none
-          transition-all duration-300 ease-in-out
+          transition-colors duration-300 ease-in-out
           ${isCollapsed ? 'w-16' : 'w-[380px]'}
         `}
                 role="complementary"
@@ -168,7 +168,7 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({
                                     onClick={() => !item.disabled && onSectionChange(item.id)}
                                     disabled={item.disabled}
                                     className={`
-                    w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors
                     ${isActive
                                             ? 'bg-[#2F8481] text-white shadow-md'
                                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'

@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { 
+import {
   ChartBarIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -73,14 +73,14 @@ const StatisticsDashboard: React.FC<StatisticsDashboardProps> = memo(({ tenants,
   // Calculate statistics
   const stats = React.useMemo(() => {
     const total = tenants.length;
-    const problems = tenants.filter(t => 
-      t.payment_status === 'overdue' || 
-      t.payment_status === 'unpaid' || 
-      !t.meters_submitted || 
+    const problems = tenants.filter(t =>
+      t.payment_status === 'overdue' ||
+      t.payment_status === 'unpaid' ||
+      !t.meters_submitted ||
       t.cleaning_required ||
       getDaysUntilContractEnd(t.contractEnd) < 0
     ).length;
-    
+
     const unpaid = tenants.filter(t => t.payment_status === 'unpaid' || t.payment_status === 'overdue').length;
     const unsubmitted = tenants.filter(t => !t.meters_submitted).length;
     const cleaning = tenants.filter(t => t.cleaning_required).length;
@@ -116,20 +116,19 @@ const StatisticsDashboard: React.FC<StatisticsDashboardProps> = memo(({ tenants,
       {filterOptions.map((option) => {
         const IconComponent = option.icon;
         const isActive = activeFilter === getFilterKeyFromLabel(option.label);
-        
+
         return (
           <button
             key={option.label}
             onClick={() => setActiveFilter(getFilterKeyFromLabel(option.label))}
-            className={`group p-5 rounded-2xl border-2 transition-all duration-500 hover:scale-110 hover:-translate-y-2 hover:rotate-1 ${
-              isActive 
-                ? 'border-[#2f8481] bg-gradient-to-br from-[#2f8481]/15 to-[#2f8481]/8 shadow-xl shadow-[#2f8481]/30' 
+            className={`group p-5 rounded-2xl border-2 transition-colors duration-500 ${isActive
+                ? 'border-[#2f8481] bg-gradient-to-br from-[#2f8481]/15 to-[#2f8481]/8 shadow-xl shadow-[#2f8481]/30'
                 : 'border-gray-100 bg-white hover:border-[#2f8481]/40 hover:shadow-2xl hover:shadow-[#2f8481]/20 hover:bg-gradient-to-br hover:from-white hover:to-[#2f8481]/5'
-            }`}
+              }`}
           >
             <div className="flex items-center space-x-3">
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${option.color} flex items-center justify-center group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 shadow-md group-hover:shadow-xl`}>
-                <IconComponent className="h-5 w-5 text-white group-hover:scale-110 transition-transform duration-500" />
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${option.color} flex items-center justify-center transition-colors duration-500 shadow-md`}>
+                <IconComponent className="h-5 w-5 text-white transition-transform duration-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{option.label}</p>

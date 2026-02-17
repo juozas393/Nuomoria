@@ -312,7 +312,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
                   onSelect(iconItem.icon);
                   onClose();
                 }}
-                                  className={`p-1.5 rounded border transition-all duration-200 hover:bg-gray-50 hover:border-[#2F8481] flex flex-col items-center justify-center gap-0.5 ${
+                                  className={`p-1.5 rounded border transition-colors duration-200 hover:bg-gray-50 hover:border-[#2F8481] flex flex-col items-center justify-center gap-0.5 ${
                     currentIcon && React.isValidElement(currentIcon) &&
                     React.isValidElement(iconItem.icon) &&
                     currentIcon.type === iconItem.icon.type

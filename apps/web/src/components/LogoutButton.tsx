@@ -23,7 +23,7 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({
   return (
     <button
       onClick={handleLogout}
-      className={`flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 ${className}`}
+      className={`flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 ${className}`}
       title="Atsijungti"
     >
       <ArrowRightOnRectangleIcon className="w-5 h-5" />

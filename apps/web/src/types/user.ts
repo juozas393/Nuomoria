@@ -144,23 +144,3 @@ export const canManageMaintenance = (user: UserWithPermissions): boolean => {
   return hasPermission(user, 'manage_maintenance');
 };
 
-// Login form types
-export interface LoginForm {
-  email: string;
-  password: string;
-}
-
-export interface RegisterForm {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  role: UserRole;
-}
-
-export interface AuthResponse {
-  user: UserWithPermissions;
-  token: string;
-}

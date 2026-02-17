@@ -6,7 +6,6 @@ import { createCollectionRequestsForAddress } from '../../utils/meterCollection'
 import {
   ChevronDownIcon,
   ChevronUpIcon,
-  ChatBubbleLeftRightIcon,
   BuildingOfficeIcon,
   PlusIcon,
   Cog6ToothIcon
@@ -27,24 +26,24 @@ const SimpleVirtualList: React.FC<{
 }> = ({ items, renderItem }) => {
   const [scrollTop, setScrollTop] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   const itemHeight = 65; // Balanced height per item
   const containerHeight = 780; // Show ~12 items (12 * 65 = 780)
   const overscan = 5;
-  
+
   const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
   const endIndex = Math.min(items.length, Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan);
-  
+
   const visibleItems = items.slice(startIndex, endIndex);
   const totalHeight = items.length * itemHeight;
   const offsetY = startIndex * itemHeight;
-  
+
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
   }, []);
-  
+
   return (
-    <div 
+    <div
       ref={containerRef}
       style={{ height: containerHeight, overflow: 'auto' }}
       onScroll={handleScroll}
@@ -91,21 +90,21 @@ const TenantRow = React.memo<{
   tenant: Tenant;
   isSelected: boolean;
   onSelect: (tenant: Tenant) => void;
-// eslint-disable-next-line react/prop-types
+  // eslint-disable-next-line react/prop-types
 }>(({ tenant, isSelected, onSelect }) => {
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Išjungti bet kokius scroll'us ar focus'us
     onSelect(tenant);
   }, [tenant, onSelect]);
 
   // Real payment progress calculation
-  const paidPct = tenant.payment_status === 'paid' ? 100 : 
-                  tenant.payment_status === 'overdue' ? 0 : 
-                  tenant.payment_status === 'unpaid' ? 0 : 60;
-  
+  const paidPct = tenant.payment_status === 'paid' ? 100 :
+    tenant.payment_status === 'overdue' ? 0 :
+      tenant.payment_status === 'unpaid' ? 0 : 60;
+
   // Real days late calculation based on last payment date
   const calculateDaysLate = () => {
     if (tenant.payment_status !== 'overdue' || !tenant.last_payment_date) return 0;
@@ -115,80 +114,75 @@ const TenantRow = React.memo<{
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
   const daysLate = calculateDaysLate();
-  
+
   // Real deposit check
   const depositLow = tenant.deposit < tenant.monthlyRent;
-  
+
   // Real meters check
   const metersMissing = !tenant.meters_submitted;
 
   return (
     <div
       data-tenant-id={tenant.id}
-      className={`tenant-row group grid grid-cols-[auto,1fr,auto] items-center gap-3 px-3 py-3
-                  border-b border-gray-100 hover:bg-gradient-to-r hover:from-[#2F8481]/8 hover:to-[#2F8481]/15
-                  transform-gpu transition-all duration-300 ease-out 
-                  hover:scale-[1.01] hover:shadow-md cursor-pointer rounded-lg mx-1 my-1
-                  ${isSelected ? 'bg-gradient-to-r from-[#2F8481]/15 to-[#2F8481]/8 border-[#2F8481]/40 shadow-md' : ''}`}
+      className={`tenant-row group flex items-center gap-3 px-3 py-2.5
+                  border-b border-gray-100/80 hover:bg-[#2F8481]/[0.04]
+                  transition-all duration-200 cursor-pointer
+                  ${isSelected ? 'bg-[#2F8481]/[0.06] border-l-2 border-l-[#2F8481]' : 'border-l-2 border-l-transparent'}`}
       onClick={handleClick}
       style={{
         contentVisibility: 'auto',
-        containIntrinsicSize: '65px'
+        containIntrinsicSize: '56px'
       }}
     >
       {/* Kairė - Avatar */}
-      <div className="size-8 rounded-xl bg-gradient-to-br from-[#2F8481] to-[#297a77] text-white grid place-items-center text-sm font-bold flex-shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-sm group-hover:shadow-md">
+      <div className="size-8 rounded-lg bg-gradient-to-br from-[#2F8481] to-[#297a77] text-white grid place-items-center text-[12px] font-bold flex-shrink-0 shadow-sm">
         {tenant.name.charAt(0).toUpperCase()}
       </div>
 
       {/* Vidurys - Info */}
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="truncate text-sm font-medium text-gray-900">{tenant.name}</div>
-          {/* mažos žymos tik jei yra */}
-          {depositLow && <span className="chip chip-warn text-xs">Dep &lt; 1 mėn.</span>}
-          {metersMissing && <span className="chip chip-warn text-xs">Skaitl. nepateikti</span>}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="truncate text-[13px] font-semibold text-gray-900">{tenant.name}</div>
+          {depositLow && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 text-amber-700 border border-amber-200">Dep &lt; 1 mėn.</span>}
+          {metersMissing && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 text-amber-700 border border-amber-200">Skaitl.</span>}
         </div>
-        <div className="truncate text-xs text-neutral-500">
+        <div className="truncate text-[11px] text-gray-500 mt-0.5">
           Butas {tenant.apartmentNumber} • {tenant.address}
-        </div>
-
-        {/* Micro-juosta – progreso indikacija šio mėn. apmokėjimui */}
-        <div className="mt-0.5 micro-progress">
-          <div className="micro-progress-fill" style={{ width: `${paidPct}%` }} />
         </div>
       </div>
 
-      {/* Dešinė - Kainos ir chip'ai */}
-      <div className="text-right tabular-nums">
-        <div className="text-sm font-semibold text-gray-900">
-          {tenant.status === 'vacant' ? '—' : formatCurrency(tenant.monthlyRent)}
+      {/* Dešinė - Statusas ir kaina */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="text-right tabular-nums">
+          <div className="text-[13px] font-bold text-gray-900">
+            {tenant.status === 'vacant' ? '—' : formatCurrency(tenant.monthlyRent)}
+          </div>
+          <div className="flex items-center gap-1 justify-end mt-0.5">
+            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold ${tenant.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+              tenant.status === 'expired' ? 'bg-red-50 text-red-700 border border-red-200' :
+                tenant.status === 'moving_out' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                  tenant.status === 'vacant' ? 'bg-gray-50 text-gray-600 border border-gray-200' :
+                    'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${tenant.status === 'active' ? 'bg-emerald-500' :
+                tenant.status === 'expired' ? 'bg-red-500' :
+                  tenant.status === 'moving_out' ? 'bg-amber-500' :
+                    tenant.status === 'vacant' ? 'bg-gray-400' :
+                      'bg-blue-500'
+                }`} />
+              {tenant.status === 'active' ? 'Aktyvus' :
+                tenant.status === 'expired' ? 'Baigėsi' :
+                  tenant.status === 'moving_out' ? 'Išsikrausto' :
+                    tenant.status === 'vacant' ? 'Laisvas' :
+                      'Laukia'}
+            </span>
+          </div>
         </div>
-        <div className="mt-0.5 flex items-center gap-0.5 justify-end flex-wrap">
-          {tenant.status !== 'vacant' && (
-            <>
-              {(tenant.outstanding_amount || 0) > 0 ? (
-                <span className="chip chip-danger text-xs">Skola {formatCurrency(tenant.outstanding_amount || 0)}</span>
-              ) : (
-                <span className="chip chip-ok text-xs">Nėra skolos</span>
-              )}
-              {daysLate > 0 && <span className="chip chip-danger text-xs">D+{daysLate}</span>}
-            </>
+        {/* Remove button */}
+        <div className="w-6 flex-shrink-0">
+          {tenant.status !== 'vacant' && (tenant.outstanding_amount || 0) > 0 && (
+            <span className="inline-flex w-5 h-5 items-center justify-center rounded-full bg-red-100 text-red-600 text-[8px] font-bold" title={`Skola: ${formatCurrency(tenant.outstanding_amount || 0)}`}>!</span>
           )}
-          <span className="chip chip-neutral text-xs">Iki {tenant.contractEnd ? formatDate(tenant.contractEnd) : 'Nenurodyta'}</span>
-          <span className={`chip text-xs ${
-            tenant.status === 'active' ? 'chip-brand' :
-            tenant.status === 'expired' ? 'chip-danger' :
-            tenant.status === 'moving_out' ? 'chip-warn' :
-            tenant.status === 'vacant' ? 'chip-neutral' :
-            'chip-warn'
-          }`}>
-            {tenant.status === 'active' ? 'Aktyvus' :
-             tenant.status === 'expired' ? 'Baigėsi' : 
-             tenant.status === 'moving_out' ? 'Išsikrausto' :
-             tenant.status === 'vacant' ? 'Laisvas' :
-             'Laukia'}
-          </span>
         </div>
       </div>
     </div>
@@ -218,7 +212,7 @@ const AddressGroup: React.FC<AddressGroupProps> = ({
     if (isExpanded && groupRef.current) {
       // Add visual feedback
       groupRef.current.style.boxShadow = '0 0 0 3px rgba(47, 132, 129, 0.3)';
-      
+
       // Išjungti scrollIntoView - neleisti Dashboard'ui "šokinėti"
       // setTimeout(() => {
       //   const element = groupRef.current;
@@ -266,7 +260,7 @@ const AddressGroup: React.FC<AddressGroupProps> = ({
 
   const renderTenantItem = useCallback((tenant: Tenant, index: number) => (
     <div data-tenant-id={tenant.id}>
-      <TenantRow 
+      <TenantRow
         tenant={tenant}
         isSelected={selectedTenant?.id === tenant.id}
         onSelect={(tenant: Tenant) => onRowClick(tenant.id)}
@@ -274,105 +268,112 @@ const AddressGroup: React.FC<AddressGroupProps> = ({
     </div>
   ), [selectedTenant, onRowClick]);
 
-      return (
-      <div ref={groupRef} data-address-group={address} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        {/* Address Header - optimizuotas */}
-        <div className="bg-white sticky top-0 z-10 border-b px-4 py-2" style={{ willChange: 'transform' }}>
-          <div className="flex items-center justify-between">
-            <div 
-              className="flex items-center space-x-3 flex-1 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors duration-200 group"
-              onClick={onToggle}
-            >
-              <BuildingOfficeIcon className="h-5 w-5 text-[#2F8481] flex-shrink-0" />
-              <h3 className="text-lg font-semibold text-gray-900 truncate">{address}</h3>
-              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full flex-shrink-0">
-                {tenants.length} butų
-              </span>
-              <div className="text-gray-400 text-sm group-hover:text-gray-600 transition-colors duration-200">
-                {isExpanded ? 'Suskleisti' : 'Išskleisti'}
+  const occupiedCount = tenants.filter(t => t.status === 'active').length;
+  const vacantCount = tenants.length - occupiedCount;
+  const occupancyPct = tenants.length > 0 ? Math.round((occupiedCount / tenants.length) * 100) : 0;
+  const totalDebt = tenants.reduce((sum, t) => sum + (t.outstanding_amount || 0), 0);
+
+  return (
+    <div
+      ref={groupRef}
+      data-address-group={address}
+      className="rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm"
+      style={{
+        backgroundImage: `url('/images/CardsBackground.webp')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Address Header */}
+      <div className="bg-white/90 backdrop-blur-sm sticky top-0 z-10 border-b border-gray-200/60" style={{ willChange: 'transform' }}>
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <div
+            className="flex items-center gap-3 flex-1 cursor-pointer group"
+            onClick={onToggle}
+          >
+            <div className="w-8 h-8 rounded-lg bg-[#2F8481]/10 flex items-center justify-center flex-shrink-0">
+              <BuildingOfficeIcon className="h-4 w-4 text-[#2F8481]" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-[13px] font-bold text-gray-900 truncate">{address}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] text-gray-500">{tenants.length} butų</span>
+                <span className="text-[10px] text-gray-300">•</span>
+                <span className="text-[10px] text-emerald-600 font-medium">{occupancyPct}% užimta</span>
               </div>
             </div>
-            <div className="flex items-center space-x-2 flex-shrink-0">
-              <button
-                onClick={onToggle}
-                className="p-2 text-gray-600 hover:text-[#2F8481] hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                {isExpanded ? (
-                  <ChevronUpIcon className="h-5 w-5" />
-                ) : (
-                  <ChevronDownIcon className="h-5 w-5" />
-                )}
-              </button>
-              <button
-                onClick={() => onChatClick(address)}
-                className="p-2 text-gray-600 hover:text-[#2F8481] hover:bg-gray-100 rounded-lg transition-colors"
-                title="Chat su nuomininkais"
-              >
-                <ChatBubbleLeftRightIcon className="h-5 w-5" />
-              </button>
-                              <button
-                  onClick={() => {
-                    // Find the address_id from the first tenant in this address group
-                    const firstTenant = tenants.find(t => t.address === address);
-                    const addressId = firstTenant?.address_id;
-                    onSettingsClick(address, addressId);
-                  }}
-                  className="p-2 text-gray-600 hover:text-[#2F8481] hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Adreso nustatymai"
-                >
-                <Cog6ToothIcon className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => onAddApartment(address)}
-                className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                title="Pridėti butą prie šio adreso"
-              >
-                <PlusIcon className="h-5 w-5" />
-              </button>
+            <div className="ml-auto mr-2">
+              {isExpanded ? (
+                <ChevronUpIcon className="h-4 w-4 text-gray-400 group-hover:text-[#2F8481] transition-colors" />
+              ) : (
+                <ChevronDownIcon className="h-4 w-4 text-gray-400 group-hover:text-[#2F8481] transition-colors" />
+              )}
             </div>
           </div>
-          
-          {/* KPI Bar - Enterprise Look */}
-          {isExpanded && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <div className="flex items-center justify-between text-xs text-gray-600">
-                <div className="flex items-center space-x-4">
-                  <span>Butų: {tenants.length}</span>
-                  <span>Užimta: {tenants.filter(t => t.status === 'active').length}</span>
-                  <span>Laisva: {tenants.filter(t => t.status === 'expired' || t.status === 'pending').length}</span>
-                  <span>Užimtumas: {Math.round((tenants.filter(t => t.status === 'active').length / tenants.length) * 100)}%</span>
-                  <span>Skolos: {formatCurrency(tenants.reduce((sum, t) => sum + (t.outstanding_amount || 0), 0))}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="chip chip-success">Užimta</button>
-                  <button className="chip chip-neutral">Laisva</button>
-                  <button className="chip chip-danger">Skolos</button>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-1 flex-shrink-0 border-l border-gray-200/60 pl-2">
+            <button
+              onClick={() => onAddApartment(address)}
+              className="p-1.5 text-gray-400 hover:text-[#2F8481] hover:bg-[#2F8481]/10 rounded-lg transition-all"
+              title="Pridėti butą"
+            >
+              <PlusIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => {
+                const firstTenant = tenants.find(t => t.address === address);
+                const addressId = firstTenant?.address_id;
+                onSettingsClick(address, addressId);
+              }}
+              className="p-1.5 text-gray-400 hover:text-[#2F8481] hover:bg-[#2F8481]/10 rounded-lg transition-all"
+              title="Nustatymai"
+            >
+              <Cog6ToothIcon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-      {/* Tenant Items with Virtualization for large lists */}
-      {isExpanded && (
-        <div>
-                      {tenants.length > 30 ? (
-            <div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-1 mb-1">
-                <p className="text-xs text-yellow-800">
-                  🔍 Virtualized: ~30 items of {tenants.length} total
-                </p>
+        {/* KPI Bar — compact stats */}
+        {isExpanded && (
+          <div className="px-4 pb-2.5">
+            <div className="flex items-center gap-3 text-[10px]">
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-gray-600">Užimta <span className="font-semibold text-gray-900">{occupiedCount}</span></span>
               </div>
-                              <SimpleVirtualList
-                    items={tenants}
-                    renderItem={renderTenantItem}
-                  />
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="text-gray-600">Laisva <span className="font-semibold text-gray-900">{vacantCount}</span></span>
+              </div>
+              {totalDebt > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  <span className="text-gray-600">Skolos <span className="font-semibold text-red-600">{formatCurrency(totalDebt)}</span></span>
+                </div>
+              )}
+              {/* Occupancy bar */}
+              <div className="flex-1 ml-auto max-w-[80px]">
+                <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${occupancyPct}%` }} />
+                </div>
+              </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tenant Items */}
+      {isExpanded && (
+        <div className="bg-white/80 backdrop-blur-sm">
+          {tenants.length > 30 ? (
+            <SimpleVirtualList
+              items={tenants}
+              renderItem={renderTenantItem}
+            />
           ) : (
-                          <div className={`${isModalOpen ? scrollClasses.auto : scrollClasses.smooth} divide-y divide-gray-100`}>
+            <div className={isModalOpen ? scrollClasses.auto : scrollClasses.smooth}>
               {tenants.map((tenant) => (
                 <div key={tenant.id} data-tenant-id={tenant.id}>
-                  <TenantRow 
+                  <TenantRow
                     tenant={tenant}
                     isSelected={selectedTenant?.id === tenant.id}
                     onSelect={onTenantClick}
@@ -405,7 +406,7 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
   const [loadingTime, setLoadingTime] = useState<number>(0);
   const [isPending, startTransition] = useTransition();
   const [isCollectingAll, setIsCollectingAll] = useState(false);
-  
+
   // Simple performance tracking without hooks
   const [renderCount, setRenderCount] = useState(0);
 
@@ -415,14 +416,14 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
     try {
       const uniqueAddresses = Array.from(new Set(tenants.map(t => t.address_id).filter(Boolean))) as string[];
       let totalRequests = 0;
-      
+
       for (const addressId of uniqueAddresses) {
         if (addressId) {
           const requests = await createCollectionRequestsForAddress(addressId);
           totalRequests += requests.length;
         }
       }
-      
+
       if (totalRequests > 0) {
         alert(`Išsiųsta ${totalRequests} prašymų pateikti skaitliukų rodmenis!`);
       } else {
@@ -445,7 +446,7 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
   // Memoized handlers
   const handleTenantClick = useCallback((tenant: Tenant) => {
     onTenantClick(tenant);
-    
+
     // Išjungti scrollIntoView - neleisti Dashboard'ui "šokinėti"
     // // Find the address group containing this tenant and scroll to it
     // setTimeout(() => {
@@ -494,14 +495,14 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
   // Filter and sort tenants
   const filteredAndSortedTenants = useMemo(() => {
     const filtered = tenants.filter(tenant => {
-      const matchesSearch = deferredSearchQuery === '' || 
+      const matchesSearch = deferredSearchQuery === '' ||
         tenant.name.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
         tenant.email.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
         tenant.phone.includes(deferredSearchQuery) ||
         tenant.address.toLowerCase().includes(deferredSearchQuery.toLowerCase());
-      
+
       const matchesStatus = !statusFilter || tenant.status === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
 
@@ -570,7 +571,7 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
               </div>
             )}
           </div>
-          
+
           <select
             value={statusFilter}
             onChange={(e) => handleStatusFilterChange(e.target.value)}
@@ -581,7 +582,7 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
             <option value="expired">Baigėsi</option>
             <option value="pending">Laukia</option>
           </select>
-          
+
           <select
             value={sortBy}
             onChange={(e) => handleSortChange(e.target.value)}
@@ -593,7 +594,7 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
             <option value="contractEnd">Pagal sutarties pabaigą</option>
           </select>
         </div>
-        
+
         {/* Collection Button */}
         <div className="flex justify-end pt-3 border-t border-gray-200 mt-4">
           <button
@@ -616,29 +617,20 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
       </div>
 
       {/* Tenant Groups */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {Object.entries(groupedTenants).map(([address, addressTenants]) => (
-          <div key={address} className="rounded-2xl border bg-white overflow-hidden">
-            {/* Virtualization indicator for each group */}
-            {addressTenants.length > 3 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-1 mb-1">
-                <p className="text-xs text-green-800">
-                  ⚡ {address} ({addressTenants.length})
-                </p>
-              </div>
-            )}
-            <AddressGroup
-              address={address}
-              tenants={addressTenants}
-              isExpanded={expandedAddresses.has(address)}
-              onToggle={() => handleAddressToggle(address)}
-              onTenantClick={handleTenantClick}
-              selectedTenant={selectedTenant}
-              onChatClick={onChatClick}
-              onAddApartment={onAddApartment}
-              onSettingsClick={onSettingsClick}
-            />
-          </div>
+          <AddressGroup
+            key={address}
+            address={address}
+            tenants={addressTenants}
+            isExpanded={expandedAddresses.has(address)}
+            onToggle={() => handleAddressToggle(address)}
+            onTenantClick={handleTenantClick}
+            selectedTenant={selectedTenant}
+            onChatClick={onChatClick}
+            onAddApartment={onAddApartment}
+            onSettingsClick={onSettingsClick}
+          />
         ))}
       </div>
     </div>

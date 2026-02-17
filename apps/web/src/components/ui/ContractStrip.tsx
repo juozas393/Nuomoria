@@ -1,6 +1,8 @@
-type Props = { 
-  start?: string; 
-  end?: string; 
+import { Calendar } from 'lucide-react';
+
+type Props = {
+  start?: string;
+  end?: string;
   daysLeftLabel?: string;
   isExpired?: boolean;
   isEnded?: boolean;
@@ -8,11 +10,11 @@ type Props = {
 
 export function ContractStrip({ start, end, daysLeftLabel, isExpired, isEnded }: Props) {
   const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('lt-LT') : '—';
-  
+
   return (
     <div className="flex items-center justify-between px-5 py-3 bg-neutral-50 border-b">
       <div className="flex items-center gap-2 text-[13px] text-neutral-600">
-        <span className="text-neutral-400">📅</span>
+        <Calendar className="w-4 h-4 text-neutral-400" />
         <span className="text-neutral-500">Sutartis:</span>
         <span className="font-medium">{fmt(start)} — {fmt(end)}</span>
       </div>

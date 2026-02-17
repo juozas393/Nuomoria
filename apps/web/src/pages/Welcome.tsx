@@ -22,7 +22,7 @@ const Welcome: React.FC = () => {
 
   if (showPasskeyEnrollment) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-[#f0fafa] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <PasskeyEnrollment
           onComplete={handlePasskeyComplete}
           onSkip={handlePasskeySkip}
@@ -32,7 +32,7 @@ const Welcome: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f0fafa] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-green-100">
@@ -63,8 +63,8 @@ const Welcome: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-sm font-medium text-blue-600">1</span>
+                  <div className="h-8 w-8 rounded-full bg-[#E8F5F4] flex items-center justify-center">
+                    <span className="text-sm font-medium text-[#2F8481]">1</span>
                   </div>
                 </div>
                 <div className="ml-3">
@@ -114,14 +114,14 @@ const Welcome: React.FC = () => {
           <div className="space-y-3">
             <button
               onClick={() => setShowPasskeyEnrollment(true)}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2F8481] hover:bg-[#297a77] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2F8481]"
             >
               Sukurti passkey (rekomenduojama)
             </button>
 
             <button
               onClick={handleContinue}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2F8481]"
             >
               Praleisti ir tęsti
             </button>

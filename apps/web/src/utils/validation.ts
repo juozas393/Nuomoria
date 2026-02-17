@@ -3,21 +3,7 @@ import { z } from 'zod';
 // Common validation schemas
 export const emailSchema = z.string().email('Neteisingas el. pašto formatas');
 export const phoneSchema = z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Neteisingas telefono numeris');
-export const passwordSchema = z.string().min(8, 'Slaptažodis turi būti bent 8 simbolių');
 
-// User validation schemas
-export const userRegistrationSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
-  firstName: z.string().min(2, 'Vardas turi būti bent 2 simbolių'),
-  lastName: z.string().min(2, 'Pavardė turi būti bent 2 simbolių'),
-  phone: phoneSchema.optional(),
-});
-
-export const userLoginSchema = z.object({
-  email: emailSchema,
-  password: z.string().min(1, 'Slaptažodis yra privalomas'),
-});
 
 // Property validation schemas
 export const propertySchema = z.object({

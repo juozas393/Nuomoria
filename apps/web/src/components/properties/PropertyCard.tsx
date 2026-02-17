@@ -1,8 +1,8 @@
 import React from 'react';
-import { 
-  HomeIcon, 
-  UserIcon, 
-  CurrencyEuroIcon, 
+import {
+  HomeIcon,
+  UserIcon,
+  CurrencyEuroIcon,
   MapPinIcon,
   PhoneIcon,
   EnvelopeIcon,
@@ -39,9 +39,9 @@ interface PropertyCardProps {
   onClick: (property: Property) => void;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ 
-  property, 
-  onClick 
+const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
+  property,
+  onClick
 }) => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Nenurodyta';
@@ -70,7 +70,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   const contractStatus = getContractStatus();
 
   return (
-    <div 
+    <div
       className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
       onClick={() => onClick(property)}
     >
@@ -90,7 +90,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               </p>
             </div>
           </div>
-          
+
           {/* Status Badge */}
           <div className={`px-3 py-1 rounded-full ${contractStatus.bgColor} border`}>
             <div className="flex items-center space-x-1">
@@ -112,12 +112,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               <UserIcon className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-medium text-gray-900">{property.tenant.name}</span>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <PhoneIcon className="w-4 h-4 text-gray-400" />
               <span className="text-sm text-gray-600">{property.tenant.phone}</span>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <EnvelopeIcon className="w-4 h-4 text-gray-400" />
               <span className="text-sm text-gray-600">{property.tenant.email}</span>
@@ -138,7 +138,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               €{property.monthlyRent}
             </span>
           </div>
-          
+
           {property.tenant && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Depozitas:</span>
@@ -183,6 +183,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+PropertyCard.displayName = 'PropertyCard';
 
 export default PropertyCard; 

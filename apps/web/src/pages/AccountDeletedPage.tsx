@@ -144,7 +144,7 @@ const AccountDeletedPage: React.FC = () => {
                                 <button
                                     onClick={handleRestore}
                                     disabled={loading}
-                                    className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                                    className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                                 >
                                     {loading ? (
                                         <span className="flex items-center justify-center gap-2">
@@ -167,7 +167,7 @@ const AccountDeletedPage: React.FC = () => {
 
                             <button
                                 onClick={handleSignOut}
-                                className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl font-medium transition-all duration-200"
+                                className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl font-medium transition-colors duration-200"
                             >
                                 Atsijungti ir bandyti kitu el. paštu
                             </button>

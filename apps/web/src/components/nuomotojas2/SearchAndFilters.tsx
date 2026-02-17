@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { 
-  MagnifyingGlassIcon, 
+import {
+  MagnifyingGlassIcon,
   FunnelIcon,
   AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
@@ -45,15 +45,15 @@ interface SearchAndFiltersProps {
   stats: any;
 }
 
-const SearchAndFilters: React.FC<SearchAndFiltersProps> = memo(({ 
-  searchTerm, 
-  setSearchTerm, 
-  sortBy, 
-  setSortBy, 
-  activeFilter, 
-  setActiveFilter, 
-  tenants, 
-  stats 
+const SearchAndFilters: React.FC<SearchAndFiltersProps> = memo(({
+  searchTerm,
+  setSearchTerm,
+  sortBy,
+  setSortBy,
+  activeFilter,
+  setActiveFilter,
+  tenants,
+  stats
 }) => {
   const [showAdvancedFilters, setShowAdvancedFilters] = React.useState(false);
 
@@ -121,13 +121,12 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = memo(({
           {/* Advanced Filters Button */}
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`group flex items-center space-x-2 px-4 py-3 rounded-xl border transition-all duration-500 hover:scale-105 hover:-translate-y-1 ${
-              showAdvancedFilters
+            className={`group flex items-center space-x-2 px-4 py-3 rounded-xl border transition-colors duration-500 ${showAdvancedFilters
                 ? 'bg-gradient-to-r from-[#2f8481] to-[#297a77] text-white border-[#2f8481] shadow-lg'
                 : 'bg-white text-gray-700 border-gray-300 hover:border-[#2f8481] hover:text-[#2f8481] hover:shadow-md hover:bg-gradient-to-r hover:from-white hover:to-gray-50'
-            }`}
+              }`}
           >
-            <AdjustmentsHorizontalIcon className="h-5 w-5 group-hover:scale-110 transition-transform duration-500" />
+            <AdjustmentsHorizontalIcon className="h-5 w-5 transition-transform duration-500" />
             <span className="hidden sm:inline">Filtrai</span>
           </button>
         </div>

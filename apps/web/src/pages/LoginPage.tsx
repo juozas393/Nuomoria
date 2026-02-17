@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-start md:gap-10 lg:gap-14">
           <div className="flex-1 max-w-xl">
             <div className="flex flex-col items-center md:items-start text-center md:text-left gap-6 lg:gap-7">
-              <img src={logoImage} alt="Nuomoria Logo" className="h-28 lg:h-36 w-auto drop-shadow-sm" />
+              <img loading="lazy" decoding="async" src={logoImage} alt="Nuomoria Logo" className="h-28 lg:h-36 w-auto drop-shadow-sm" />
               <div className="space-y-4 w-full">
                 <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1 text-sm font-medium text-primary">
                   Nuomoria platforma – prisijunkite ir tęskite
@@ -108,7 +108,7 @@ const LoginPage: React.FC = () => {
                   <button
                     onClick={handleGoogleLogin}
                     disabled={googleSubmitting || loading}
-                    className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-4 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/35 hover:bg-gray-50 hover:text-primary active:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/35 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                    className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-4 text-sm font-medium text-gray-700 shadow-sm transition-colors duration-200 hover:shadow-md hover:border-primary/35 hover:bg-gray-50 hover:text-primary active:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/35 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                   >
                     {googleSubmitting ? (
                       <>

@@ -42,12 +42,12 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
       setLoading(true);
       try {
         const readings: Record<string, { current: number; previous: number; consumption: number }> = {};
-        
+
         for (const meter of meters) {
           const reading = await getMeterReadings(meter.id, 'apartment');
           readings[meter.id] = reading;
         }
-        
+
         setMeterReadings(readings);
       } catch (error) {
         console.error('Error loading meter readings:', error);
@@ -64,13 +64,13 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
   // Determine meter type based on name and distribution method
   const getMeterType = useCallback((meter: MeterPriceData): 'individual' | 'communal' => {
     console.log('🔍 getMeterType called for:', meter.name, 'with type:', meter.type, 'distribution:', meter.distribution_method);
-    
+
     // Always use the type from database (address settings) - this is the single source of truth
     if (meter.type && (meter.type === 'individual' || meter.type === 'communal')) {
       console.log('🔍 Using meter type from database (address settings):', meter.name, '->', meter.type);
       return meter.type;
     }
-    
+
     // Fallback only if type is not set in database
     console.log('🔍 Type not in database, using fallback for:', meter.name);
     return 'individual'; // Default fallback
@@ -79,12 +79,12 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
   // Calculate cost per apartment for each meter
   const calculateMeterCost = useCallback((meter: MeterPriceData): number => {
     if (!meter) return 0;
-    
+
     // Fixed meters - use fixed_price (this is already per apartment)
     if (meter.unit === 'Kitas' || meter.distribution_method === 'fixed_split') {
       return meter.fixed_price || 0;
     }
-    
+
     // For communal meters, calculate based on total consumption and divide by apartment count
     if (getMeterType(meter) === 'communal') {
       const reading = meterReadings[meter.id];
@@ -92,7 +92,7 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
       const totalCost = totalConsumption * (meter.price_per_unit || 0);
       return totalCost / apartmentCount;
     }
-    
+
     // Individual meters - cost is per consumption (already per apartment)
     const reading = meterReadings[meter.id];
     const consumption = reading?.consumption || 0;
@@ -104,24 +104,24 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
     if (meter.unit === 'Kitas' || meter.distribution_method === 'fixed_split') {
       return `${meter.fixed_price || 0}€/mėn.`;
     }
-    
+
     // For communal meters, show the per-apartment cost
     if (getMeterType(meter) === 'communal') {
       const costPerApartment = calculateMeterCost(meter);
       return `${costPerApartment.toFixed(2)}€/butui`;
     }
-    
+
     return `${meter.price_per_unit || 0}€/${meter.unit}`;
   }, [getMeterType, calculateMeterCost]);
 
   // Get distribution label
   const getDistributionLabel = useCallback((method: string): string => {
     switch (method) {
-      case 'per_apartment': return 'Pagal butus';
+      case 'per_apartment': return 'Pagal butų sk.';
       case 'per_area': return 'Pagal plotą';
       case 'per_consumption': return 'Pagal suvartojimą';
       case 'fixed_split': return 'Fiksuotas';
-      default: return 'Pagal butus';
+      default: return 'Pagal butų sk.';
     }
   }, []);
 
@@ -129,12 +129,12 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
   const canEditMeter = useCallback((meter: MeterPriceData): boolean => {
     // Individual meters can always be edited
     if (getMeterType(meter) === 'individual') return true;
-    
+
     // Communal meters can be edited if they're custom or if global update is available
     if (getMeterType(meter) === 'communal') {
       return meter.is_custom || !!onGlobalMeterUpdate;
     }
-    
+
     return false;
   }, [onGlobalMeterUpdate, getMeterType]);
 
@@ -160,7 +160,7 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
         await updateApartmentMeter(meter.id, editValues);
         await onMeterUpdate(meter.id, editValues);
       }
-      
+
       setEditingMeterId(null);
       setEditValues({});
     } catch (error) {
@@ -185,14 +185,14 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900">Skaitliukų kainos</h3>
-      
+
       {loading && (
         <div className="text-center py-4">
           <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
           <p className="mt-2 text-sm text-gray-600">Kraunama...</p>
         </div>
       )}
-      
+
       <div className="grid gap-4">
         {meterCosts.map((meter) => (
           <div key={meter.id} className="bg-white rounded-lg border border-gray-200 p-4">
@@ -200,18 +200,17 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h4 className="font-medium text-gray-900">{meter.name}</h4>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    getMeterType(meter) === 'individual' 
-                      ? 'bg-blue-100 text-blue-800' 
+                  <span className={`px-2 py-1 text-xs rounded-full ${getMeterType(meter) === 'individual'
+                      ? 'bg-blue-100 text-blue-800'
                       : 'bg-green-100 text-green-800'
-                  }`}>
+                    }`}>
                     {getMeterType(meter) === 'individual' ? 'Individualus' : 'Bendras'}
                   </span>
                   <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
                     {getDistributionLabel(meter.distribution_method)}
                   </span>
                 </div>
-                
+
                 <div className="mt-2 text-sm text-gray-600">
                   <div className="flex items-center gap-4">
                     <span>Kaina: {getPriceDisplay(meter)}</span>
@@ -221,7 +220,7 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
                   </div>
                 </div>
               </div>
-              
+
               {canEditMeter(meter) && (
                 <div className="flex items-center gap-2">
                   {editingMeterId === meter.id ? (
@@ -250,7 +249,7 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
                 </div>
               )}
             </div>
-            
+
             {editingMeterId === meter.id && (
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -289,7 +288,7 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
                       />
                     </div>
                   )}
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Pasiskirstymo metodas
@@ -302,14 +301,14 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="per_apartment">Pagal butus</option>
+                      <option value="per_apartment">Pagal butų sk.</option>
                       <option value="per_area">Pagal plotą</option>
                       <option value="per_consumption">Pagal suvartojimą</option>
                       <option value="fixed_split">Fiksuotas</option>
                     </select>
                   </div>
                 </div>
-                
+
                 {getMeterType(meter) === 'communal' && !meter.is_custom && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <p className="text-sm text-yellow-800">

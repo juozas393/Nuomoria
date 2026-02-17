@@ -2,7 +2,6 @@ import { supabase } from '../../../lib/supabase';
 
 export interface LoginInfo {
   email: string | null;
-  has_password: boolean;
   user_id: string;
 }
 
@@ -19,7 +18,7 @@ export async function getLoginInfoByUsername(username: string): Promise<LoginRes
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('email, has_password, id')
+      .select('email, id')
       .eq('username', username)
       .single();
 
@@ -48,8 +47,7 @@ export async function getLoginInfoByUsername(username: string): Promise<LoginRes
       success: true,
       data: {
         email: data.email,
-        has_password: data.has_password || false,
-        user_id: data.id  // Map 'id' from DB to 'user_id' in interface
+        user_id: data.id
       }
     };
   } catch (err) {
@@ -59,4 +57,3 @@ export async function getLoginInfoByUsername(username: string): Promise<LoginRes
     };
   }
 }
-

@@ -51,7 +51,7 @@ const AmenityChip = memo<AmenityChipProps>(({ amenity, isSelected, onToggle, get
         onClick={onToggle}
         aria-pressed={isSelected}
         aria-label={`${amenity.name} - ${isSelected ? 'pasirinkta' : 'nepasirinkta'}`}
-        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all ${ANIMATION.hover} ${isSelected
+        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors ${ANIMATION.hover} ${isSelected
             ? 'bg-teal-50 border-teal-200 text-teal-700 shadow-sm'
             : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
             }`}
@@ -254,7 +254,7 @@ export const AmenitiesSection: React.FC<AmenitiesSectionProps> = ({
                     aria-label="Ieškoti patogumų"
                     className={`w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm 
                         focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 
-                        transition-all ${ANIMATION.hover}`}
+                        transition-colors ${ANIMATION.hover}`}
                 />
                 {searchQuery && (
                     <button
@@ -300,7 +300,7 @@ export const AmenitiesSection: React.FC<AmenitiesSectionProps> = ({
                                     disabled={isCreating}
                                     className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium 
                                         text-teal-700 bg-teal-50 rounded-lg border border-teal-200 
-                                        hover:bg-teal-100 transition-all ${ANIMATION.hover}
+                                        hover:bg-teal-100 transition-colors ${ANIMATION.hover}
                                         disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                     {isCreating ? (
@@ -322,7 +322,7 @@ export const AmenitiesSection: React.FC<AmenitiesSectionProps> = ({
                             disabled={isCreating}
                             className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm 
                                 font-medium text-teal-700 bg-teal-50 rounded-xl border border-teal-200 
-                                hover:bg-teal-100 transition-all ${ANIMATION.hover}
+                                hover:bg-teal-100 transition-colors ${ANIMATION.hover}
                                 disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             {isCreating ? (

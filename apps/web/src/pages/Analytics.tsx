@@ -272,7 +272,7 @@ const Analytics: React.FC = () => {
       </div>
 
       {/* Top Performing Properties */}
-      <div className="card p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/FormsBackground.png')" }}>
+      <div className="card p-6 gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Geriausiai veikiantys objektai
         </h3>

@@ -40,28 +40,14 @@ const OnboardingWrapper: React.FC = () => {
         if (profile.role === 'landlord') {
           navigate('/');
         } else {
-          navigate('/tenant/dashboard');
+          navigate('/tenant');
         }
         return;
       }
 
-      // ALSO check users table - if user already has a role there, skip onboarding
-      const { data: existingUser, error: userError } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (!userError && existingUser?.role) {
-        // User already has a role in users table - skip onboarding
-        console.log('User already has role in users table:', existingUser.role);
-        if (existingUser.role === 'landlord') {
-          navigate('/');
-        } else {
-          navigate('/tenant/dashboard');
-        }
-        return;
-      }
+      // Note: We do NOT skip onboarding just because users table has a role.
+      // The default 'tenant' role from ensure_user_row doesn't mean the user chose it.
+      // Only a profiles record confirms completed onboarding.
 
       // Set user data for onboarding
       setUserEmail(session.user.email || '');
@@ -74,10 +60,12 @@ const OnboardingWrapper: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F6FAF9] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2F8481] mx-auto mb-4"></div>
-          <p className="text-gray-600 text-sm">Kraunama...</p>
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/images/LoginBackground.webp')", transform: 'scale(1.08)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(3,6,8,0.90) 0%, rgba(3,6,8,0.93) 50%, rgba(3,6,8,0.88) 100%)' }} />
+        <div className="relative z-10 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4DB6AC] mx-auto mb-4"></div>
+          <p className="text-white/40 text-sm">Kraunama...</p>
         </div>
       </div>
     );

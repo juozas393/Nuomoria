@@ -133,7 +133,7 @@ export const QuickLink: React.FC<QuickLinkProps> = ({
     return (
         <button
             onClick={onClick}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 transition-all text-left group"
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/50 transition-colors text-left group"
         >
             <div className="flex items-center gap-3">
                 <div className={`${ICON_STYLES.container} ${ICON_STYLES.neutral} group-hover:bg-gray-100 transition-colors`}>
@@ -215,7 +215,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ value, className = '' 
     return (
         <div className={`h-1.5 bg-gray-100 rounded-full overflow-hidden ${className}`}>
             <div
-                className={`h-full rounded-full transition-all duration-500 ${clampedValue === 100 ? 'bg-teal-500' : 'bg-gradient-to-r from-gray-300 to-teal-400'
+                className={`h-full rounded-full transition-colors duration-500 ${clampedValue === 100 ? 'bg-teal-500' : 'bg-gradient-to-r from-gray-300 to-teal-400'
                     }`}
                 style={{ width: `${clampedValue}%` }}
             />

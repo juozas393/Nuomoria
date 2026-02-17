@@ -26,7 +26,7 @@ const heading = 'text-[12px] font-bold text-gray-900';
 const subtext = 'text-[10px] text-gray-500';
 const tiny = 'text-[9px] text-gray-400';
 const cta = 'text-[10px] font-bold text-teal-600 hover:text-teal-700 cursor-pointer transition-colors';
-const ctaBtn = 'px-2.5 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-all active:scale-[0.98]';
+const ctaBtn = 'px-2.5 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-colors active:scale-[0.98]';
 
 // =============================================================================
 // TYPES
@@ -182,7 +182,7 @@ const NextStepsHero = memo<NextStepsHeroProps>(({ tasks, onViewAll }) => {
                 <div className="flex items-center gap-2">
                     <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-gradient-to-r from-teal-400 to-teal-600 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-teal-400 to-teal-600 rounded-full transition-colors duration-500"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -200,7 +200,7 @@ const NextStepsHero = memo<NextStepsHeroProps>(({ tasks, onViewAll }) => {
                         </div>
                         <button
                             onClick={task.onClick}
-                            className="px-2.5 py-1 bg-teal-500 text-white text-[9px] font-bold rounded-md hover:bg-teal-600 transition-all opacity-80 group-hover:opacity-100"
+                            className="px-2.5 py-1 bg-teal-500 text-white text-[9px] font-bold rounded-md hover:bg-teal-600 transition-colors opacity-80 group-hover:opacity-100"
                         >
                             {task.cta}
                         </button>
@@ -301,77 +301,113 @@ interface PhotoGalleryHeroProps {
 
 const PhotoGalleryHero = memo<PhotoGalleryHeroProps>(({ photos, onUpload, onManage, onLayout }) => {
     const count = photos.length;
-    const overflow = Math.max(0, count - 3);
+    const visibleThumbs = photos.slice(1, 5); // Show up to 4 thumbnails
+    const overflow = Math.max(0, count - 5);
 
     return (
         <div className={surface2}>
             {/* Header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <Camera className="w-3.5 h-3.5 text-purple-600" />
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Camera className="w-4 h-4 text-purple-600" />
                     </div>
-                    <span className={heading}>Nuotraukos</span>
-                    <span className={`${tiny} ml-1`}>{count} <span className="text-teal-600 font-medium">(rek: 8+)</span></span>
+                    <span className="text-sm font-semibold text-gray-900">Nuotraukos</span>
+                    <span className="text-xs text-gray-400 ml-1">{count} <span className="text-teal-600 font-medium">(rek: 8+)</span></span>
                 </div>
-                <div className="flex items-center gap-1">
-                    <button onClick={onLayout} className="px-2 py-1 text-[9px] text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
-                        Išdėst.
-                    </button>
-                    <button onClick={onUpload} className="px-2.5 py-1 bg-teal-500 text-white text-[9px] font-bold rounded-md hover:bg-teal-600 transition-all">
+                <div className="flex items-center gap-2">
+                    {count > 0 && (
+                        <button onClick={onLayout} className="px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium">
+                            Išdėstymas
+                        </button>
+                    )}
+                    <button onClick={onUpload} className="px-3 py-1.5 bg-teal-500 text-white text-xs font-semibold rounded-lg hover:bg-teal-600 transition-colors flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5" />
                         Įkelti
                     </button>
-                    <button onClick={onManage} className="px-2 py-1 text-[9px] text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
-                        Tvarkyti
-                    </button>
+                    {count > 0 && (
+                        <button onClick={onManage} className="px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium">
+                            Peržiūrėti
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Body */}
             <div className="p-3">
                 {count > 0 ? (
-                    /* Filled: Cover + thumbs */
-                    <div className="flex gap-2 h-[80px]">
-                        <div className="relative w-[80px] h-full rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 group cursor-pointer">
-                            <img src={photos[0]} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-teal-500 text-white text-[7px] font-bold uppercase rounded shadow-sm">
+                    /* Bento-style gallery with photos */
+                    <div className="flex gap-2 h-[120px]">
+                        {/* Cover photo - larger */}
+                        <div
+                            className="relative w-[140px] h-full rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 group cursor-pointer"
+                            onClick={onManage}
+                        >
+                            <img
+                                src={photos[0]}
+                                alt="Viršelis"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-teal-500 text-white text-[10px] font-bold uppercase rounded shadow-sm">
                                 Viršelis
                             </span>
                         </div>
-                        <div className="flex-1 grid grid-cols-3 gap-1.5">
-                            {[1, 2].map(idx => (
-                                <div key={idx} className="rounded-md overflow-hidden bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity">
-                                    {photos[idx] ? <img src={photos[idx]} className="w-full h-full object-cover" /> : null}
-                                </div>
-                            ))}
-                            <div
-                                onClick={onManage}
-                                className="rounded-md bg-gray-800 cursor-pointer hover:bg-gray-700 transition-colors flex items-center justify-center"
-                            >
-                                <span className="text-white text-sm font-bold">+{overflow > 0 ? overflow : count}</span>
-                            </div>
+
+                        {/* Thumbnails grid - 2x2 */}
+                        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-1.5">
+                            {[0, 1, 2, 3].map(idx => {
+                                const photo = visibleThumbs[idx];
+                                const isLast = idx === 3 && overflow > 0;
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`relative rounded-lg overflow-hidden cursor-pointer group ${photo ? 'bg-gray-100' : 'bg-gray-50 border-2 border-dashed border-gray-200'
+                                            }`}
+                                        onClick={photo ? onManage : onUpload}
+                                    >
+                                        {photo ? (
+                                            <>
+                                                <img
+                                                    src={photo}
+                                                    alt={`Nuotrauka ${idx + 2}`}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                />
+                                                {isLast && (
+                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[1px]">
+                                                        <span className="text-white text-lg font-bold">+{overflow}</span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <Plus className="w-5 h-5 text-gray-300 group-hover:text-teal-400 transition-colors" />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 ) : (
-                    /* Empty: Skeleton gallery + CTA */
-                    <div className="flex gap-3">
-                        {/* Skeleton gallery frame */}
-                        <div className="flex gap-1.5">
-                            {/* Cover skeleton */}
-                            <div className="w-[56px] h-[56px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg" />
-                            {/* Thumb skeletons */}
-                            <div className="grid grid-cols-2 gap-1">
-                                {[0, 1, 2, 3].map(i => (
-                                    <div key={i} className="w-[26px] h-[26px] bg-gray-100 rounded" />
-                                ))}
-                            </div>
+                    /* Empty state - clean CTA */
+                    <div className="flex items-center gap-4 py-3">
+                        {/* Empty skeleton gallery */}
+                        <div className="grid grid-cols-3 gap-1.5 w-[100px] flex-shrink-0">
+                            <div className="col-span-2 row-span-2 aspect-square bg-gradient-to-br from-gray-100 to-gray-150 rounded-lg" />
+                            <div className="aspect-square bg-gray-100 rounded" />
+                            <div className="aspect-square bg-gray-100 rounded" />
                         </div>
-                        {/* CTA side */}
-                        <div className="flex-1 flex flex-col justify-center">
-                            <p className="text-[11px] font-semibold text-gray-800">Pridėkite nuotraukas</p>
-                            <p className={`${tiny} mb-2`}>Nuotraukos padidina susidomėjimą 40%</p>
-                            <button onClick={onUpload} className="w-fit px-3 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-all flex items-center gap-1.5">
-                                <Upload className="w-3 h-3" />
+                        {/* CTA */}
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-gray-800 mb-1">Pridėkite nuotraukas</p>
+                            <p className="text-xs text-gray-500 mb-3">Nuotraukos padidina susidomėjimą 40%</p>
+                            <button
+                                onClick={onUpload}
+                                className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors flex items-center gap-2"
+                            >
+                                <Upload className="w-4 h-4" />
                                 Įkelti nuotraukas
                             </button>
                         </div>
@@ -452,7 +488,7 @@ interface MiniCardProps {
 
 const MiniCard = memo<MiniCardProps>(({ icon, title, value, status, cta, onAction }) => (
     <div
-        className={`${surface1} p-2.5 cursor-pointer hover:bg-white/90 transition-all`}
+        className={`${surface1} p-2.5 cursor-pointer hover:bg-white/90 transition-colors`}
         onClick={onAction}
     >
         <div className="flex items-center justify-between mb-1.5">
@@ -532,7 +568,7 @@ const StickyBar = memo<StickyBarProps>(({ address, isVacant, onPrimary }) => (
                 <span className={`px-2 py-0.5 text-[9px] font-bold rounded ${isVacant ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>
                     {isVacant ? 'Laisvas' : 'Išnuom.'}
                 </span>
-                <button onClick={onPrimary} className="px-3 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-all">
+                <button onClick={onPrimary} className="px-3 py-1.5 bg-teal-500 text-white text-[10px] font-bold rounded-lg hover:bg-teal-600 transition-colors">
                     {isVacant ? '+ Nuomininkas' : 'Nuoma'}
                 </button>
                 <button className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">

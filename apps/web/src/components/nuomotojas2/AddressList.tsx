@@ -20,24 +20,24 @@ interface AddressListProps {
   onBackToTenants: () => void;
 }
 
-const AddressList: React.FC<AddressListProps> = ({ 
-  addresses, 
-  tenants, 
-  onAddressSelect, 
-  onBackToTenants 
+const AddressList: React.FC<AddressListProps> = ({
+  addresses,
+  tenants,
+  onAddressSelect,
+  onBackToTenants
 }) => {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   // Calculate tenant count for each address
   const addressTenantCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
-    
+
     addresses.forEach(address => {
-      counts[address.id] = tenants.filter(tenant => 
+      counts[address.id] = tenants.filter(tenant =>
         tenant.address_id === address.id || tenant.address === address.full_address
       ).length;
     });
-    
+
     return counts;
   }, [addresses, tenants]);
 
@@ -75,22 +75,22 @@ const AddressList: React.FC<AddressListProps> = ({
             />
           ))}
         </div>
-             ) : (
-         <div className="text-center py-12">
-           <div className="text-gray-500 text-lg mb-4">Nėra adresų</div>
-           <p className="text-gray-400 mb-6">Pridėkite pirmąjį adresą, kad pradėtumėte valdyti nuomininkus</p>
-           <button
-             onClick={() => {
-               // This will trigger the parent's add address modal
-               window.dispatchEvent(new CustomEvent('openAddAddressModal'));
-             }}
-             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#2F8481] to-[#297a77] text-white rounded-lg hover:from-[#297a77] hover:to-[#2F8481] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-           >
-             <PlusIcon className="w-5 h-5 mr-2" />
-             Pridėti pirmąjį adresą
-           </button>
-         </div>
-       )}
+      ) : (
+        <div className="text-center py-12">
+          <div className="text-gray-500 text-lg mb-4">Nėra adresų</div>
+          <p className="text-gray-400 mb-6">Pridėkite pirmąjį adresą, kad pradėtumėte valdyti nuomininkus</p>
+          <button
+            onClick={() => {
+              // This will trigger the parent's add address modal
+              window.dispatchEvent(new CustomEvent('openAddAddressModal'));
+            }}
+            className="inline-flex items-center px-6 py-3 bg-[#2F8481] hover:bg-[#297a77] text-white rounded-xl font-semibold transition-colors shadow-sm"
+          >
+            <PlusIcon className="w-5 h-5 mr-2" />
+            Pridėti pirmąjį adresą
+          </button>
+        </div>
+      )}
 
       {/* Summary Stats */}
       {addresses.length > 0 && (

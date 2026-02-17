@@ -9,7 +9,7 @@ const ANIMATION = {
 } as const;
 
 const cardStyle = {
-    backgroundImage: `url('/images/FormsBackground.png')`,
+    backgroundImage: `url('/images/CardsBackground.webp')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
 };
@@ -60,9 +60,9 @@ export const RentReadyChecklist = memo<RentReadyChecklistProps>(({
                         key={task.id}
                         onClick={task.action}
                         disabled={task.complete}
-                        className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${ANIMATION.hover} ${task.complete
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-white/80 text-gray-700 hover:bg-white active:scale-[0.99]'
+                        className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${ANIMATION.hover} ${task.complete
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-white/80 text-gray-700 hover:bg-white active:scale-[0.99]'
                             }`}
                     >
                         <div className="flex items-center gap-3">

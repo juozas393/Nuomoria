@@ -65,7 +65,7 @@ const StatusCard = memo<{ status?: string; onEdit: () => void; completeness?: nu
             </div>
             <div className="h-1 bg-gray-100 rounded-full overflow-hidden mb-3">
                 <div
-                    className={`h-full rounded-full transition-all duration-300 ${completeness >= 80 ? 'bg-emerald-500' : completeness >= 50 ? 'bg-amber-400' : 'bg-gray-300'
+                    className={`h-full rounded-full transition-colors duration-300 ${completeness >= 80 ? 'bg-emerald-500' : completeness >= 50 ? 'bg-amber-400' : 'bg-gray-300'
                         }`}
                     style={{ width: `${completeness}%` }}
                 />
@@ -117,7 +117,7 @@ const PhotoHintCard = memo<{ count: number; recommended: number; hasCover?: bool
             {/* Progress bar */}
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
                 <div
-                    className={`h-full rounded-full transition-all duration-300 ${needsMore ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                    className={`h-full rounded-full transition-colors duration-300 ${needsMore ? 'bg-amber-400' : 'bg-emerald-500'}`}
                     style={{ width: `${progress}%` }}
                 />
             </div>

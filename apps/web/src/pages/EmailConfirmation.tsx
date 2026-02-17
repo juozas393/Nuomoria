@@ -89,7 +89,7 @@ const EmailConfirmation: React.FC = () => {
           console.log('⚠️ Google account already linked to another user:', existingGoogleUser.email);
           setStatus('error');
           setMessage(`Ši Google paskyra jau prijungta prie kito vartotojo (${existingGoogleUser.email}). Naudokite kitą Google paskyrą arba atjunkite ją iš kito vartotojo.`);
-          setTimeout(() => navigate('/profile'), 5000);
+          setTimeout(() => navigate('/profilis'), 5000);
           return;
         }
 
@@ -109,7 +109,7 @@ const EmailConfirmation: React.FC = () => {
           console.log('⚠️ Current user already has a different Google account linked');
           setStatus('error');
           setMessage(`Jūs jau turite prijungtą Google paskyrą (${currentUser.google_email}). Naudokite kitą Google paskyrą arba atjunkite esamą.`);
-          setTimeout(() => navigate('/profile'), 5000);
+          setTimeout(() => navigate('/profilis'), 5000);
           return;
         }
 
@@ -120,7 +120,7 @@ const EmailConfirmation: React.FC = () => {
         console.error('❌ Error in Google linking:', error);
         setStatus('error');
         setMessage('Klaida prijungiant Google paskyrą. Bandykite dar kartą.');
-        setTimeout(() => navigate('/profile'), 3000);
+        setTimeout(() => navigate('/profilis'), 3000);
       }
     };
 
@@ -216,7 +216,7 @@ const EmailConfirmation: React.FC = () => {
           localStorage.removeItem('currentUserId');
           localStorage.removeItem('currentUserEmail');
 
-          setTimeout(() => navigate('/profile'), 2000);
+          setTimeout(() => navigate('/profilis'), 2000);
           return;
         } else {
           console.log('⚠️ Direct API call failed, trying Supabase client...');
@@ -252,7 +252,7 @@ const EmailConfirmation: React.FC = () => {
           localStorage.removeItem('currentUserId');
           localStorage.removeItem('currentUserEmail');
 
-          setTimeout(() => navigate('/profile'), 2000);
+          setTimeout(() => navigate('/profilis'), 2000);
           return;
         }
       } catch (error) {
@@ -270,7 +270,7 @@ const EmailConfirmation: React.FC = () => {
 
         setStatus('success');
         setMessage('Google paskyra prijungta! (Laikinas sprendimas)');
-        setTimeout(() => navigate('/profile'), 2000);
+        setTimeout(() => navigate('/profilis'), 2000);
       }
     };
 
