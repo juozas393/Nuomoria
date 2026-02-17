@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { app, supabase as supabaseConfig } from '../config/environment';
 
 interface AuthState {
   user: User | null;
@@ -14,23 +13,23 @@ interface AuthMethods {
   sendMagicLink: (email: string) => Promise<{ success: boolean; message: string }>;
   sendOTP: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOTP: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
-  
+
   // Passkey authentication
   registerPasskey: () => Promise<{ success: boolean; error?: string }>;
   authenticateWithPasskey: () => Promise<{ success: boolean; error?: string }>;
-  
+
   // OAuth
   signInWithGoogle: () => Promise<void>;
-  
+
   // Account management
   linkAccount: (provider: 'google' | 'apple') => Promise<{ success: boolean; error?: string }>;
   unlinkAccount: (provider: 'google' | 'apple') => Promise<{ success: boolean; error?: string }>;
-  
+
   // Organization management
   createOrganization: (name: string) => Promise<{ success: boolean; orgId?: string; error?: string }>;
   inviteToOrganization: (email: string, role: string) => Promise<{ success: boolean; error?: string }>;
   acceptInvite: (token: string) => Promise<{ success: boolean; error?: string }>;
-  
+
   // Session management
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -65,13 +64,13 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
         // Auth state changed - logging removed for production
         setUser(session?.user ?? null);
         setLoading(false);
-        
+
         // Handle different auth events
         if (event === 'SIGNED_IN' && session?.user) {
           // Check if this is first login
-          const isFirstLogin = !session.user.last_sign_in_at || 
+          const isFirstLogin = !session.user.last_sign_in_at ||
             (new Date().getTime() - new Date(session.user.last_sign_in_at).getTime()) > 24 * 60 * 60 * 1000;
-          
+
           if (isFirstLogin) {
             // Redirect to welcome page
             window.location.href = '/welcome';
@@ -91,11 +90,11 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
     try {
       // Sending magic link - logging removed for production
       // Redirect URL - logging removed for production
-      
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: process.env.REACT_APP_AUTH_REDIRECT_URL || `${app.url}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           shouldCreateUser: true,
         }
       });
@@ -105,9 +104,9 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
         return { success: false, message: error.message };
       }
 
-      return { 
-        success: true, 
-        message: `Nuoroda išsiųsta į ${email}. Patikrinkite el. paštą.` 
+      return {
+        success: true,
+        message: `Nuoroda išsiųsta į ${email}. Patikrinkite el. paštą.`
       };
     } catch (error: any) {
       return { success: false, message: 'Klaida siunčiant nuorodą' };
@@ -127,9 +126,9 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
         return { success: false, message: error.message };
       }
 
-      return { 
-        success: true, 
-        message: `Kodas išsiųstas į ${email}. Patikrinkite el. paštą.` 
+      return {
+        success: true,
+        message: `Kodas išsiųstas į ${email}. Patikrinkite el. paštą.`
       };
     } catch (error: any) {
       return { success: false, message: 'Klaida siunčiant kodą' };
@@ -160,12 +159,12 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
       // This would integrate with WebAuthn API
       // For now, we'll simulate it
       // Registering passkey - logging removed for production
-      
+
       // In production, you would:
       // 1. Generate registration options
       // 2. Use WebAuthn API to create credential
       // 3. Store credential in Supabase
-      
+
       // Simulate successful registration
       const result = { success: true };
       return result;
@@ -178,12 +177,12 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
     try {
       // This would integrate with WebAuthn API
       // Authenticating with passkey - logging removed for production
-      
+
       // In production, you would:
       // 1. Generate authentication options
       // 2. Use WebAuthn API to authenticate
       // 3. Verify with Supabase
-      
+
       // Simulate successful authentication
       const result = { success: true };
       return result;
@@ -197,7 +196,7 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: process.env.REACT_APP_AUTH_REDIRECT_URL || `${app.url}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -217,7 +216,7 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
       const { error } = await supabase.auth.linkIdentity({
         provider,
         options: {
-          redirectTo: `${app.url}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         }
       });
 
@@ -281,7 +280,7 @@ export const useSupabaseAuth = (): AuthState & AuthMethods => {
       // This would create an invite record and send email
       // For now, we'll simulate it
       // Inviting user - logging removed for production
-      
+
       // Simulate successful invitation
       const result = { success: true };
       return result;

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { app } from '../config/environment';
 
 /**
  * Google-Only Login Page
@@ -57,7 +56,7 @@ const GoogleLogin: React.FC = () => {
             const { error: signInError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${app.url}/auth/callback`,
+                    redirectTo: `${window.location.origin}/auth/callback`,
                 },
             });
 
