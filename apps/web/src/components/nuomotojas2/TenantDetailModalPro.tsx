@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 
 import { Tenant } from "../../types/tenant";
 import { type Meter } from "../komunaliniai";
-import { X, User, Home, FileText, Droplets, Phone, Calendar, Euro, MapPin, Camera, Clock, MessageSquare, Save, DoorOpen, Maximize2, Building2, Activity, Settings, Pencil, TrendingUp, Info } from 'lucide-react';
+import { X, User, Home, FileText, Droplets, Phone, Calendar, Euro, MapPin, Camera, Clock, MessageSquare, Save, DoorOpen, Maximize2, Building2, Activity, Settings, Pencil, TrendingUp, Info, Trash2, UserX, Loader2 } from 'lucide-react';
 import { getMeterTypeLabel } from '../../constants/meterDistribution';
 import { PremiumOverviewTab } from './PremiumOverviewTab';
 import { OverviewWithLayoutEditor } from './OverviewWithLayoutEditor';
@@ -3366,6 +3366,73 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     }
   }, []);
 
+  // Force remove tenant — direct escape hatch
+  const [isForceRemoving, setIsForceRemoving] = useState(false);
+  const handleForceRemoveTenant = useCallback(async () => {
+    if (!property?.id || tenant.status === 'vacant') return;
+    const confirmed = window.confirm(
+      'Ar tikrai norite PAŠALINTI nuomininką? Butas bus pažymėtas kaip laisvas. Šis veiksmas negrįžtamas.'
+    );
+    if (!confirmed) return;
+
+    setIsForceRemoving(true);
+    try {
+      // 1. Set all accepted invitations for this property to 'terminated'
+      const { error: invError } = await supabase
+        .from('tenant_invitations')
+        .update({
+          status: 'terminated',
+          termination_status: 'terminated',
+          termination_confirmed_at: new Date().toISOString(),
+        })
+        .eq('property_id', property.id)
+        .eq('status', 'accepted');
+
+      if (invError) {
+        console.error('Force remove — invitation update error:', invError);
+      }
+
+      // 2. Clear property tenant data and set to vacant
+      const today = new Date().toISOString().split('T')[0];
+      const { error: propError } = await supabase
+        .from('properties')
+        .update({
+          status: 'vacant',
+          payment_status: null,
+          tenant_name: '',
+          email: null,
+          phone: null,
+          contract_start: today,
+          contract_end: today,
+          deposit_paid: false,
+          deposit_returned: false,
+          deposit_paid_amount: 0,
+        })
+        .eq('id', property.id);
+
+      if (propError) {
+        console.error('Force remove — property update error:', propError);
+        alert('Klaida atnaujinant butą. Bandykite dar kartą.');
+        return;
+      }
+
+      // 3. Delete tenants records for this property
+      await supabase
+        .from('tenants')
+        .delete()
+        .eq('property_id', property.id);
+
+      alert('Nuomininkas pašalintas — butas laisvas.');
+      onPropertyUpdated?.();
+      onClose();
+    } catch (err) {
+      console.error('Force remove error:', err);
+      alert('Klaida — bandykite dar kartą.');
+    } finally {
+      setIsForceRemoving(false);
+    }
+  }, [property?.id, tenant.status, onPropertyUpdated, onClose]);
+
   const tabs = [
     { id: 'overview', label: 'Apžvalga', icon: User },
     { id: 'property', label: 'Būstas', icon: Home },
@@ -3407,6 +3474,21 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {tenant.status !== 'vacant' && (
+                <button
+                  onClick={handleForceRemoveTenant}
+                  disabled={isForceRemoving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/20 hover:text-red-300 transition-all disabled:opacity-50"
+                  title="Pašalinti nuomininką"
+                >
+                  {isForceRemoving ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <UserX className="w-3.5 h-3.5" />
+                  )}
+                  Pašalinti
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="p-2 text-gray-400 hover:text-white transition-colors"
