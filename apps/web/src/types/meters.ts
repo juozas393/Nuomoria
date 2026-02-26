@@ -330,11 +330,8 @@ export const formatCurrency = (amount: number): string => {
 };
 
 export const formatDate = (date: string): string => {
-  return new Date(date).toLocaleDateString('lt-LT', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 export const getAllocationLabel = (allocation: Allocation): string => {
@@ -406,16 +403,6 @@ export const METER_TEMPLATES: MeterTemplate[] = [
     price: 0.99,
     allocation: 'per_consumption',
     photoRequired: true,
-    active: true
-  },
-  {
-    kind: 'trash',
-    title: 'Techninė apžiūra',
-    mode: 'communal',
-    unit: 'Kitas',
-    price: 0,
-    allocation: 'per_apartment',
-    photoRequired: false,
     active: true
   },
   {

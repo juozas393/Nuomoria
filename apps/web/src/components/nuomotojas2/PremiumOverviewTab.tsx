@@ -259,7 +259,7 @@ const MoneySnapshot = memo<MoneySnapshotProps>(({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Euro className="w-4 h-4 text-gray-400" />
-                    <span className={subtext}>Užstatas</span>
+                    <span className={subtext}>Depozitas</span>
                 </div>
                 {deposit ? (
                     <span className="text-[13px] font-bold text-gray-900">€{deposit}</span>

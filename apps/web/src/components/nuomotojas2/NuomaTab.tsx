@@ -54,7 +54,7 @@ const hasMeaningfulValue = (value: any): boolean => {
 
 const formatDate = (dateStr?: string): string => {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('lt-LT');
+    return new Date(dateStr).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
 // =============================================================================

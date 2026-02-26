@@ -1,0 +1,88 @@
+﻿supabase : Resetting local database...
+At line:1 char:1
++ supabase db reset 2>&1 | Out-File 
+-FilePath "c:\Users\juoza\Desktop\T 
+...
++ ~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpec 
+   ified: (Resetting local database.  
+  ..:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeC 
+   ommandError
+ 
+Recreating database...
+Initialising schema...
+v1.37.7: Pulling from 
+supabase/storage-api
+73668a5f2e01: Pulling fs layer
+8d660e9b10b3: Pulling fs layer
+89cc94c08c86: Pulling fs layer
+975746ba26f3: Pulling fs layer
+fa25d43bc0e8: Pulling fs layer
+14b92b0c10a5: Pulling fs layer
+ff3a2099413c: Pulling fs layer
+4ef00bbbc751: Pulling fs layer
+f58d9dd18114: Pulling fs layer
+589002ba0eae: Pulling fs layer
+73668a5f2e01: Download complete
+8d660e9b10b3: Download complete
+f58d9dd18114: Download complete
+89cc94c08c86: Download complete
+fa25d43bc0e8: Download complete
+14b92b0c10a5: Download complete
+589002ba0eae: Download complete
+589002ba0eae: Pull complete
+975746ba26f3: Download complete
+4ef00bbbc751: Download complete
+ff3a2099413c: Download complete
+4ef00bbbc751: Pull complete
+8d660e9b10b3: Pull complete
+14b92b0c10a5: Pull complete
+ff3a2099413c: Pull complete
+f58d9dd18114: Pull complete
+89cc94c08c86: Pull complete
+73668a5f2e01: Pull complete
+975746ba26f3: Pull complete
+fa25d43bc0e8: Pull complete
+Digest: sha256:ece212c30ff11aac9b16165
+a7c3aedb1c5870c9201fb8fdf447ba47be91b6
+40a
+Status: Downloaded newer image for pub
+lic.ecr.aws/supabase/storage-api:v1.37
+.7
+v2.186.0: Pulling from supabase/gotrue
+e154a232d62c: Pulling fs layer
+313d56f9a67e: Pulling fs layer
+dbdd85d92ed9: Pulling fs layer
+e04b88aaecea: Pulling fs layer
+a6d41d3f7e67: Pulling fs layer
+a6d41d3f7e67: Download complete
+a6d41d3f7e67: Pull complete
+313d56f9a67e: Download complete
+e154a232d62c: Download complete
+e04b88aaecea: Download complete
+e04b88aaecea: Pull complete
+dbdd85d92ed9: Download complete
+313d56f9a67e: Pull complete
+dbdd85d92ed9: Pull complete
+e154a232d62c: Pull complete
+Digest: sha256:f2112b9289422f205df4ea1
+5b8b550d425ae42528ea54521faa32cc7b6249
+0de
+Status: Downloaded newer image for pub
+lic.ecr.aws/supabase/gotrue:v2.186.0
+Seeding globals from roles.sql...
+Applying migration 
+00000000000000_baseline.sql...
+WARN: no files matched pattern: 
+supabase/seed.sql
+Restarting containers...
+Finished supabase db reset on branch 
+develop.
+A new version of Supabase CLI is 
+available: v2.75.0 (currently 
+installed v2.72.7)
+We recommend updating regularly for 
+new features and bug fixes: https://su
+pabase.com/docs/guides/cli/getting-sta
+rted#updating-the-supabase-cli

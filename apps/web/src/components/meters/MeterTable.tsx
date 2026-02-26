@@ -133,104 +133,105 @@ const MeterTable = React.memo<Props>(({ value, onChange, allowDuplicatesByKey = 
 
   return (
     <div className="space-y-3">
-      {/* Greitas pridėjimas iš defaultų */}
-      <div className="flex flex-wrap gap-2">
+      {/* Quick-add template buttons */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mr-1">Pridėti:</span>
         {METER_TEMPLATES.map(tpl => (
           <button
             type="button"
             key={tpl.kind}
             onClick={() => addFromTemplate(tpl)}
-            className="px-2.5 py-1.5 text-sm rounded border bg-white hover:bg-gray-50 transition-colors duration-150"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-[#2F8481]/20 bg-[#2F8481]/5 text-[#2F8481] hover:bg-[#2F8481]/15 hover:border-[#2F8481]/40 transition-all duration-150 active:scale-[0.97]"
           >
-            + {tpl.title}
+            <span className="text-[13px] leading-none">+</span> {tpl.title}
           </button>
         ))}
         <button
           type="button"
           onClick={addCustom}
-          className="px-2.5 py-1.5 text-sm rounded border bg-white hover:bg-gray-50 transition-colors duration-150"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-dashed border-gray-300 bg-white/40 text-gray-500 hover:bg-white/80 hover:border-gray-400 hover:text-gray-700 transition-all duration-150 active:scale-[0.97]"
         >
-          + Custom
+          <span className="text-[13px] leading-none">+</span> Kitas...
         </button>
       </div>
 
       {/* Lentelė */}
-      <div className="overflow-x-auto border rounded-md gaming-form-bg" style={{ backgroundImage: "url('/images/CardsBackground.webp')" }}>
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr className="text-gray-600">
-              <th className="px-3 py-2 text-left w-40">Pavadinimas</th>
-              <th className="px-3 py-2 text-left w-24">Vienetas</th>
-              <th className="px-3 py-2 text-left w-28">Tarifas (€/unit)</th>
-              <th className="px-3 py-2 text-left w-32">Pradinis rodmuo</th>
-              <th className="px-3 py-2 text-left">Pastaba</th>
-              <th className="px-3 py-2"></th>
+      <div className="overflow-x-auto rounded-xl border border-gray-200/50 bg-white/40 backdrop-blur-sm">
+        <table className="min-w-full text-[11px]">
+          <thead>
+            <tr className="border-b border-gray-200/60">
+              <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider w-36">Pavadinimas</th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider w-20">Vienetas</th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider w-24">Tarifas €</th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider w-28">Pradinis</th>
+              <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Pastaba</th>
+              <th className="px-2 py-2 w-8"></th>
             </tr>
           </thead>
           <tbody>
             {value.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-3 text-gray-500 text-center">
+                <td colSpan={6} className="px-3 py-4 text-gray-400 text-center text-xs">
                   Nėra skaitliukų. Pridėk iš sąrašo viršuje arba &quot;Custom&quot;.
                 </td>
               </tr>
             )}
 
             {value.map(row => (
-              <tr key={row.id} className="border-t hover:bg-gray-50 transition-colors duration-150">
-                <td className="px-3 py-2">
+              <tr key={row.id} className="border-t border-gray-200/40 hover:bg-white/30 transition-colors duration-150">
+                <td className="px-2 py-1.5">
                   <input
-                    className="w-full rounded border px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-200/70 bg-white/70 px-2 py-1 text-[11px] text-gray-800 caret-gray-900 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-400 transition-all placeholder-gray-400"
                     value={row.name}
                     onChange={e => update(row.id, { name: e.target.value })}
-                    placeholder={row.key === 'custom' ? 'Custom skaitliuko pavadinimas' : 'Skaitliuko pavadinimas'}
+                    placeholder={row.key === 'custom' ? 'Pavadinimas' : 'Skaitliuko pavadinimas'}
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-2 py-1.5">
                   <input
-                    className="w-full rounded border px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-200/70 bg-white/70 px-2 py-1 text-[11px] text-gray-800 caret-gray-900 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-400 transition-all placeholder-gray-400"
                     value={row.unit}
-                    placeholder="kWh / m³ / MWh"
+                    placeholder="m³"
                     onChange={e => update(row.id, { unit: e.target.value })}
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-2 py-1.5">
                   <input
                     type="number"
                     min={0}
                     step={0.01}
-                    className="w-full rounded border px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-200/70 bg-white/70 px-2 py-1 text-[11px] text-gray-800 caret-gray-900 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-400 transition-all placeholder-gray-400 tabular-nums"
                     value={row.rate}
                     onChange={e => update(row.id, { rate: number(e.target.value) })}
                     placeholder="0.00"
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-2 py-1.5">
                   <input
                     type="number"
                     min={0}
                     step={0.01}
-                    className="w-full rounded border px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-200/70 bg-white/70 px-2 py-1 text-[11px] text-gray-800 caret-gray-900 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-400 transition-all placeholder-gray-400 tabular-nums"
                     value={row.initialReading}
                     onChange={e => update(row.id, { initialReading: number(e.target.value) })}
-                    placeholder="0.00"
+                    placeholder="0"
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-2 py-1.5">
                   <input
-                    className="w-full rounded border px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-200/70 bg-white/70 px-2 py-1 text-[11px] text-gray-800 caret-gray-900 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-400 transition-all placeholder-gray-400"
                     value={row.note || ''}
                     onChange={e => update(row.id, { note: e.target.value })}
-                    placeholder="Pastaba (nebūtina)"
+                    placeholder="Nebūtina"
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-2 py-1.5">
                   <button
                     type="button"
                     onClick={() => remove(row.id)}
-                    className="text-red-600 hover:text-red-800 transition-colors duration-150"
+                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-150"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>

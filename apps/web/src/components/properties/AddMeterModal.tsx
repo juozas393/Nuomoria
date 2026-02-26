@@ -148,7 +148,7 @@ export const AddMeterModal: React.FC<AddMeterModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl max-w-[900px] w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Pridėti skaitiklį</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Pridėti skaitliuką</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"

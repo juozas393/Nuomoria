@@ -332,7 +332,7 @@ const Dashboard: React.FC = () => {
                       <div className="font-medium text-sm">{task.title}</div>
                       <div className="text-xs text-gray-600">{task.property}</div>
                     </div>
-                    <div className="text-xs text-gray-500">{task.dueDate.toLocaleDateString('lt-LT')}</div>
+                    <div className="text-xs text-gray-500">{`${task.dueDate.getFullYear()}-${String(task.dueDate.getMonth() + 1).padStart(2, '0')}-${String(task.dueDate.getDate()).padStart(2, '0')}`}</div>
                   </div>
                 ))}
               </div>

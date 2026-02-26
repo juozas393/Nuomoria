@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { checkStripeEnabled } from '../../../lib/stripe';
 
 /**
  * Real data hook for Tenant Dashboard
@@ -25,6 +26,9 @@ export interface TenantRental {
     paymentDay: number;
     area?: number;
     rooms?: number;
+    floor?: number;
+    propertyType?: string;
+    apartmentNumber?: string;
 }
 
 export interface TenantInvoice {
@@ -41,7 +45,7 @@ export interface TenantInvoice {
 
 export interface TenantNotification {
     id: string;
-    type: 'payment_due' | 'payment_received' | 'document_uploaded' | 'maintenance_update' | 'meter_reminder';
+    type: 'payment_due' | 'payment_received' | 'document_uploaded' | 'maintenance_update' | 'meter_reminder' | 'meter_reading_request';
     title: string;
     message: string;
     timestamp: string;
@@ -89,6 +93,51 @@ export interface ContractDetails {
     hasContractDocument: boolean;
 }
 
+export interface CustomContact {
+    id: string;
+    title: string;
+    content: string;
+    comment?: string;
+}
+
+export interface ContactsInfo {
+    landlord: {
+        name?: string;
+        phone?: string;
+        email?: string;
+    } | null;
+    chairman: {
+        name?: string;
+        phone?: string;
+        email?: string;
+    } | null;
+    managementCompany: {
+        companyName?: string;
+        contactPerson?: string;
+        phone?: string;
+        email?: string;
+    } | null;
+    customContacts: CustomContact[];
+}
+
+export interface PropertyInfo {
+    propertyType?: string;
+    apartmentNumber?: string;
+    rooms?: number;
+    area?: number;
+    floor?: number;
+    totalFloors?: number;
+    heatingType?: string;
+    buildingType?: string;
+}
+
+export interface PaymentInfo {
+    bankAccount?: string;
+    recipientName?: string;
+    paymentPurpose?: string;
+    paymentDay?: number;
+}
+
 export interface TenantDashboardData {
     // Core data
     rentals: TenantRental[];
@@ -101,6 +150,10 @@ export interface TenantDashboardData {
     upcomingInvoices: TenantInvoice[];
     notifications: TenantNotification[];
     contractDetails: ContractDetails | null;
+    contacts: ContactsInfo;
+    propertyInfo: PropertyInfo | null;
+    paymentInfo: PaymentInfo | null;
+    stripeEnabled: boolean;
 
     // State
     loading: boolean;
@@ -150,6 +203,8 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
     const [invoices, setInvoices] = useState<TenantInvoice[]>([]);
     const [maintenanceCount, setMaintenanceCount] = useState({ open: 0, inProgress: 0 });
     const [documentsCount, setDocumentsCount] = useState(0);
+    const [dbNotifications, setDbNotifications] = useState<TenantNotification[]>([]);
+    const [addressSettingsMap, setAddressSettingsMap] = useState<Record<string, { contact_info: any; building_info: any; financial_settings: any }>>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -166,94 +221,99 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
         setError(null);
 
         try {
-            // 1. Fetch rentals (properties where tenant is assigned by email or user_id)
-            // First get user's email
+            // 1. Get user email (needed for invitation filtering)
             const { data: userData } = await supabase.auth.getUser();
             const userEmail = userData?.user?.email;
 
-            // Fetch properties where tenant matches
-            // Note: In current schema, Property has tenant_name, but no tenant_user_id
-            // We need to match by email or through tenant_invitations
-
-            // Try to find properties via accepted tenant invitations
             let rentalData: TenantRental[] = [];
 
             if (userEmail) {
-                console.log('🔍 Searching for accepted invitations for email:', userEmail);
-
+                // 2. Fetch accepted invitations
                 const { data: invitations, error: invError } = await supabase
                     .from('tenant_invitations')
                     .select(`
-            id,
-            property_id,
-            contract_start,
-            contract_end,
-            rent,
-            deposit,
-            status,
-            property_label,
-            invited_by_email,
-            email
-          `)
+                        id, property_id, contract_start, contract_end,
+                        rent, deposit, status, property_label,
+                        invited_by, invited_by_email, email
+                    `)
                     .eq('status', 'accepted');
-                // Note: We fetch ALL accepted and filter locally due to RLS complexity
 
-                console.log('📋 All accepted invitations:', invitations);
-                console.log('❌ Error:', invError);
+                if (invError) {
+                    console.error('Error fetching invitations:', invError);
+                }
 
-                // Filter locally by email (case-insensitive)
                 const myInvitations = invitations?.filter(inv =>
                     inv.email?.toLowerCase() === userEmail.toLowerCase()
                 ) || [];
 
-                console.log('✅ My invitations:', myInvitations);
-
                 if (myInvitations.length > 0) {
-                    // Fetch property details for each invitation
                     const propertyIds = myInvitations.map(inv => inv.property_id);
-                    console.log('🏠 Fetching properties:', propertyIds);
+                    const landlordIds = [...new Set(myInvitations.map(inv => inv.invited_by).filter(Boolean))];
 
-                    const { data: properties, error: propError } = await supabase
-                        .from('properties')
-                        .select(`
-              id,
-              address_id,
-              apartment_number,
-              rent,
-              deposit,
-              deposit_paid,
-              contract_start,
-              contract_end,
-              payment_due_day,
-              area,
-              rooms,
-              status,
-              addresses:address_id (
-                id,
-                full_address
-              )
-            `)
-                        .in('id', propertyIds);
+                    // 3. Parallel: properties + landlords
+                    const [propertiesResult, landlordsResult] = await Promise.all([
+                        supabase
+                            .from('properties')
+                            .select(`
+                                id, address_id, apartment_number, rent,
+                                deposit_amount, deposit_paid, deposit_paid_amount,
+                                contract_start, contract_end, area, rooms, floor,
+                                property_type, status, owner_id,
+                                addresses:address_id ( id, full_address )
+                            `)
+                            .in('id', propertyIds),
+                        landlordIds.length > 0
+                            ? supabase.from('users').select('id, first_name, last_name, email, phone').in('id', landlordIds)
+                            : Promise.resolve({ data: null, error: null }),
+                    ]);
 
-                    console.log('🏠 Properties found:', properties);
-                    console.log('❌ Properties error:', propError);
+                    const properties = propertiesResult.data;
+                    if (propertiesResult.error) console.error('Error fetching properties:', propertiesResult.error);
+
+                    // Build landlord lookup map
+                    let landlordMap: Record<string, { name: string; email: string; phone: string }> = {};
+                    if (landlordsResult.data) {
+                        landlordMap = Object.fromEntries(
+                            landlordsResult.data.map((l: any) => [
+                                l.id,
+                                {
+                                    name: [l.first_name, l.last_name].filter(Boolean).join(' ') || l.email?.split('@')[0] || '',
+                                    email: l.email || '',
+                                    phone: l.phone || '',
+                                },
+                            ])
+                        );
+                    }
 
                     if (properties) {
-                        rentalData = properties.map((prop: any) => ({
-                            id: prop.id,
-                            addressId: prop.address_id,
-                            address: prop.addresses?.full_address || 'Nežinomas adresas',
-                            unitLabel: `Butas ${prop.apartment_number}`,
-                            status: prop.status === 'occupied' ? 'active' : 'ended',
-                            contractStart: prop.contract_start,
-                            contractEnd: prop.contract_end,
-                            rentAmount: prop.rent || 0,
-                            depositAmount: prop.deposit || 0,
-                            depositPaid: prop.deposit_paid || false,
-                            paymentDay: prop.payment_due_day || 1,
-                            area: prop.area,
-                            rooms: prop.rooms,
-                        }));
+                        rentalData = properties.map((prop: any) => {
+                            const invitation = myInvitations.find(inv => inv.property_id === prop.id);
+                            const landlordId = invitation?.invited_by;
+                            const landlord = landlordId ? landlordMap[landlordId] : null;
+
+                            return {
+                                id: prop.id,
+                                addressId: prop.address_id,
+                                address: prop.addresses?.full_address || 'Nežinomas adresas',
+                                unitLabel: `Butas ${prop.apartment_number}`,
+                                status: prop.status === 'occupied' ? 'active' : 'ended',
+                                landlordId: landlordId || undefined,
+                                landlordName: landlord?.name || undefined,
+                                landlordEmail: landlord?.email || invitation?.invited_by_email || undefined,
+                                landlordPhone: landlord?.phone || undefined,
+                                contractStart: prop.contract_start,
+                                contractEnd: prop.contract_end,
+                                rentAmount: prop.rent || 0,
+                                depositAmount: prop.deposit_amount || 0,
+                                depositPaid: prop.deposit_paid || false,
+                                paymentDay: 1,
+                                area: prop.area,
+                                rooms: prop.rooms,
+                                floor: prop.floor,
+                                propertyType: prop.property_type,
+                                apartmentNumber: prop.apartment_number,
+                            };
+                        });
                     }
                 }
             }
@@ -266,19 +326,39 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                 localStorage.setItem(STORAGE_KEY, rentalData[0].id);
             }
 
-            // 2. Fetch invoices for tenant's properties
+            // 4. Parallel: address_settings + invoices + notifications (all independent)
             if (rentalData.length > 0) {
                 const propertyIds = rentalData.map(r => r.id);
-                const { data: invoiceData } = await supabase
-                    .from('invoices')
-                    .select('*')
-                    .in('property_id', propertyIds)
-                    .order('due_date', { ascending: false })
-                    .limit(10);
+                const uniqueAddressIds = [...new Set(rentalData.map(r => r.addressId).filter(Boolean))];
 
-                if (invoiceData) {
+                const [settingsResult, invoiceResult, notifResult] = await Promise.all([
+                    // Address settings
+                    uniqueAddressIds.length > 0
+                        ? supabase.from('address_settings').select('address_id, contact_info, building_info, financial_settings').in('address_id', uniqueAddressIds)
+                        : Promise.resolve({ data: null, error: null }),
+                    // Invoices
+                    supabase.from('invoices').select('*').in('property_id', propertyIds).order('due_date', { ascending: false }).limit(10),
+                    // Notifications
+                    supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }).limit(10),
+                ]);
+
+                // Process address settings
+                if (settingsResult.data) {
+                    const map: Record<string, { contact_info: any; building_info: any; financial_settings: any }> = {};
+                    settingsResult.data.forEach((s: any) => {
+                        map[s.address_id] = {
+                            contact_info: s.contact_info || {},
+                            building_info: s.building_info || {},
+                            financial_settings: s.financial_settings || {},
+                        };
+                    });
+                    setAddressSettingsMap(map);
+                }
+
+                // Process invoices
+                if (invoiceResult.data) {
                     const now = new Date();
-                    const mapped: TenantInvoice[] = invoiceData.map((inv: any) => {
+                    const mapped: TenantInvoice[] = invoiceResult.data.map((inv: any) => {
                         const dueDate = new Date(inv.due_date);
                         let status: 'paid' | 'pending' | 'overdue' = 'pending';
                         if (inv.status === 'paid') status = 'paid';
@@ -302,36 +382,48 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                     setInvoices(mapped);
                 }
 
-                // 3. Count maintenance requests (open + in_progress)
-                // Note: maintenance_requests table might not exist yet
-                try {
-                    const { count: openCount } = await supabase
-                        .from('maintenance_requests')
-                        .select('*', { count: 'exact', head: true })
-                        .in('property_id', propertyIds)
-                        .in('status', ['open', 'pending']);
+                // Maintenance & documents — tables don't exist yet
+                setMaintenanceCount({ open: 0, inProgress: 0 });
+                setDocumentsCount(0);
 
-                    const { count: progressCount } = await supabase
-                        .from('maintenance_requests')
-                        .select('*', { count: 'exact', head: true })
-                        .in('property_id', propertyIds)
-                        .eq('status', 'in_progress');
-
-                    setMaintenanceCount({ open: openCount || 0, inProgress: progressCount || 0 });
-                } catch {
-                    // Table might not exist
-                    setMaintenanceCount({ open: 0, inProgress: 0 });
+                // Process notifications
+                if (notifResult.data && notifResult.data.length > 0) {
+                    const mapped: TenantNotification[] = notifResult.data.map((n: any) => ({
+                        id: n.id,
+                        type: n.kind as TenantNotification['type'],
+                        title: n.title,
+                        message: n.body || '',
+                        timestamp: n.created_at,
+                        relativeTime: getRelativeTime(new Date(n.created_at)),
+                        link: n.kind === 'meter_reading_request' ? '/tenant/meters' : undefined,
+                    }));
+                    setDbNotifications(mapped);
                 }
-
-                // 4. Count documents
+            } else {
+                // No rentals — fetch just notifications
                 try {
-                    const { count } = await supabase
-                        .from('documents')
-                        .select('*', { count: 'exact', head: true })
-                        .in('property_id', propertyIds);
-                    setDocumentsCount(count || 0);
+                    const { data: notifData } = await supabase
+                        .from('notifications')
+                        .select('*')
+                        .eq('user_id', userId)
+                        .eq('is_read', false)
+                        .order('created_at', { ascending: false })
+                        .limit(10);
+
+                    if (notifData && notifData.length > 0) {
+                        const mapped: TenantNotification[] = notifData.map((n: any) => ({
+                            id: n.id,
+                            type: n.kind as TenantNotification['type'],
+                            title: n.title,
+                            message: n.body || '',
+                            timestamp: n.created_at,
+                            relativeTime: getRelativeTime(new Date(n.created_at)),
+                            link: n.kind === 'meter_reading_request' ? '/tenant/meters' : undefined,
+                        }));
+                        setDbNotifications(mapped);
+                    }
                 } catch {
-                    setDocumentsCount(0);
+                    // notifications table may not exist yet
                 }
             }
 
@@ -433,7 +525,7 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                 id: `payment-due-${upcoming.id}`,
                 type: 'payment_due',
                 title: 'Artėja mokėjimo terminas',
-                message: `${upcoming.periodLabel} nuoma turi būti apmokėta iki ${new Date(upcoming.dueDate).toLocaleDateString('lt-LT')}.`,
+                message: `${upcoming.periodLabel} nuoma turi būti apmokėta iki ${(() => { const d = new Date(upcoming.dueDate); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}.`,
                 timestamp: new Date().toISOString(),
                 relativeTime: `Liko ${daysUntil(upcoming.dueDate)} d.`,
                 rentalId: upcoming.rentalId,
@@ -468,8 +560,8 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
             });
         }
 
-        return items.slice(0, 5);
-    }, [filteredInvoices]);
+        return [...dbNotifications, ...items].slice(0, 5);
+    }, [filteredInvoices, dbNotifications]);
 
     // Computed: Contract details
     const contractDetails = useMemo((): ContractDetails | null => {
@@ -488,6 +580,97 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
         };
     }, [selectedRental, rentals, documentsCount]);
 
+    // Computed: Contacts (from address_settings + landlord)
+    const contacts = useMemo((): ContactsInfo => {
+        const rental = selectedRental || rentals[0];
+        const settings = rental ? addressSettingsMap[rental.addressId] : null;
+        const ci = settings?.contact_info || {};
+
+        // Landlord from rental data
+        const landlord = rental?.landlordName ? {
+            name: rental.landlordName,
+            phone: rental.landlordPhone,
+            email: rental.landlordEmail,
+        } : null;
+
+        // Chairman (bendrija)
+        const chairmanHasData = (ci.chairmanName || '').trim() || (ci.chairmanPhone || '').trim() || (ci.chairmanEmail || '').trim();
+        const chairman = chairmanHasData ? {
+            name: ci.chairmanName || undefined,
+            phone: ci.chairmanPhone || undefined,
+            email: ci.chairmanEmail || undefined,
+        } : null;
+
+        // Management company
+        const companyHasData = (ci.companyName || '').trim() || (ci.companyPhone || '').trim() || (ci.companyEmail || '').trim() || (ci.contactPerson || '').trim();
+        const managementCompany = companyHasData ? {
+            companyName: ci.companyName || undefined,
+            contactPerson: ci.contactPerson || undefined,
+            phone: ci.companyPhone || undefined,
+            email: ci.companyEmail || undefined,
+        } : null;
+
+        // Custom contacts — filter out empty ones
+        const customContacts: CustomContact[] = (ci.customContacts || [])
+            .filter((c: any) => (c.title || '').trim() || (c.content || '').trim())
+            .map((c: any) => ({
+                id: c.id || Math.random().toString(36).slice(2),
+                title: c.title || '',
+                content: c.content || '',
+                comment: c.comment || undefined,
+            }));
+
+        return { landlord, chairman, managementCompany, customContacts };
+    }, [selectedRental, rentals, addressSettingsMap]);
+
+    // Computed: Property info
+    const propertyInfo = useMemo((): PropertyInfo | null => {
+        const rental = selectedRental || rentals[0];
+        if (!rental) return null;
+        const settings = addressSettingsMap[rental.addressId];
+        const bi = settings?.building_info || {};
+
+        return {
+            propertyType: rental.propertyType,
+            apartmentNumber: rental.apartmentNumber,
+            rooms: rental.rooms,
+            area: rental.area,
+            floor: rental.floor,
+            totalFloors: bi.totalFloors || undefined,
+            heatingType: bi.heatingType || undefined,
+            buildingType: bi.buildingType || undefined,
+        };
+    }, [selectedRental, rentals, addressSettingsMap]);
+
+    // Computed: Payment info (from address_settings.financial_settings)
+    const paymentInfo = useMemo((): PaymentInfo | null => {
+        const rental = selectedRental || rentals[0];
+        if (!rental) return null;
+        const settings = addressSettingsMap[rental.addressId];
+        const fs = settings?.financial_settings || {};
+
+        const hasData = (fs.bankAccount || '').trim() || (fs.recipientName || '').trim() || (fs.paymentPurposeTemplate || '').trim() || fs.paymentDay;
+        if (!hasData) return null;
+
+        return {
+            bankAccount: (fs.bankAccount || '').trim() || undefined,
+            recipientName: (fs.recipientName || '').trim() || undefined,
+            paymentPurpose: (fs.paymentPurposeTemplate || '').trim() || undefined,
+            paymentDay: fs.paymentDay || undefined,
+        };
+    }, [selectedRental, rentals, addressSettingsMap]);
+
+    // Computed: Stripe enabled for the landlord
+    const [stripeEnabled, setStripeEnabled] = useState(false);
+    useEffect(() => {
+        const rental = selectedRental || rentals[0];
+        if (!rental?.landlordId) {
+            setStripeEnabled(false);
+            return;
+        }
+        checkStripeEnabled(rental.landlordId).then(setStripeEnabled);
+    }, [selectedRental, rentals]);
+
     return {
         rentals,
         selectedRentalId,
@@ -497,6 +680,10 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
         upcomingInvoices,
         notifications,
         contractDetails,
+        contacts,
+        propertyInfo,
+        paymentInfo,
+        stripeEnabled,
         loading,
         error,
         selectRental,

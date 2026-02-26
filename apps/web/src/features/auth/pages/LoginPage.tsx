@@ -5,7 +5,7 @@ import GoogleButton from '../components/GoogleButton';
 import logoImage from '../../../assets/logocanvaTransparent.png';
 import smallLogoWhite from '../../../assets/SmallLogoWHITEWithoutBG.png';
 // Background image path (optimized - modern cityscape)
-const heroBgImage = '/images/LoginBackground.webp';
+const heroBgImage = '/images/ImageIntroduction.jpg';
 
 /**
  * Premium Image-Led Login Page
@@ -46,6 +46,26 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      {/* Back to landing — floating glass pill */}
+      <Link
+        to="/"
+        className="fixed top-5 left-5 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium text-white/90 hover:text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderWidth: '1px',
+          borderColor: 'rgba(255,255,255,0.18)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.20)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)'; }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Grįžti į pagrindinį
+      </Link>
       {/* Hero Background Image with scale */}
       <div
         className="absolute inset-0 bg-cover bg-center"
@@ -300,7 +320,7 @@ const LoginPage: React.FC = () => {
                         </div>
 
                         {/* Pagalba link */}
-                        <div className="mt-4 text-center">
+                        <div className="mt-4 text-center space-y-2">
                           <Link
                             to="/pagalba"
                             className="inline-flex items-center gap-1.5 text-[13px] font-medium text-teal-600 hover:text-teal-700 transition-colors duration-150"
@@ -310,6 +330,7 @@ const LoginPage: React.FC = () => {
                             </svg>
                             Kaip naudotis Nuomoria?
                           </Link>
+
                         </div>
                       </div>
                     </div>
@@ -509,7 +530,7 @@ const LoginPage: React.FC = () => {
                     </div>
 
                     {/* Pagalba link - Mobile */}
-                    <div className="mt-3 text-center">
+                    <div className="mt-3 text-center space-y-2">
                       <Link
                         to="/pagalba"
                         className="inline-flex items-center gap-1.5 text-[12px] font-medium text-teal-600 hover:text-teal-700 transition-colors duration-150"
@@ -519,6 +540,7 @@ const LoginPage: React.FC = () => {
                         </svg>
                         Kaip naudotis?
                       </Link>
+
                     </div>
                   </div>
                 </div>

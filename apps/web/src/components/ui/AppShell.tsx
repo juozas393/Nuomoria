@@ -15,6 +15,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   MagnifyingGlassIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import Sidebar from '../Sidebar';
 import { useAuth } from '../../context/AuthContext';
@@ -38,7 +39,11 @@ const PAGE_META: Record<string, PageMeta> = {
   'nustatymai': { label: 'Nustatymai', icon: Cog6ToothIcon },
   'profilis': { label: 'Profilis', icon: UserCircleIcon },
   'vartotojai': { label: 'Vartotojai', icon: UsersIcon },
-  'tenant': { label: 'Nuomininko sritis', icon: HomeIcon },
+  'admin': { label: 'Administravimas', icon: ShieldCheckIcon },
+  'tenant': { label: 'Skydelis', icon: HomeIcon },
+  'tenant/meters': { label: 'Skaitikliai', icon: HomeIcon },
+  'tenant/invoices': { label: 'Sąskaitos', icon: DocumentTextIcon },
+  'tenant/settings': { label: 'Nustatymai', icon: Cog6ToothIcon },
   'pagalba': { label: 'Pagalba', icon: QuestionMarkCircleIcon },
   'deposit-tests': { label: 'Depozito testai', icon: DocumentTextIcon },
 };
@@ -80,20 +85,32 @@ export const AppShell: React.FC = React.memo(() => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentPage, setCurrentPage] = useState('');
+  // Derive currentPage from URL for active sidebar item detection
+  const currentPage = useMemo(() => {
+    const path = location.pathname.replace(/^\/+/, '');
+    // Check for multi-segment tenant paths first (e.g. 'tenant/meters')
+    if (PAGE_META[path]) return path;
+    return path.split('/')[0] || '';
+  }, [location.pathname]);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   /* Derive page meta from route */
   const pageMeta = useMemo(() => {
-    const slug = location.pathname.replace(/^\/+/, '').split('/')[0] || '';
-    const meta = PAGE_META[slug];
+    const path = location.pathname.replace(/^\/+/, '');
+    // Try full path first (e.g. 'tenant/meters'), then first segment
+    const meta = PAGE_META[path] || PAGE_META[path.split('/')[0]] || null;
     if (meta) return meta;
+    const slug = path.split('/')[0] || '';
     return { label: slug.charAt(0).toUpperCase() + slug.slice(1), icon: DEFAULT_META.icon };
   }, [location.pathname]);
 
   const handlePageChange = useCallback((page: string) => {
-    setCurrentPage(page);
     navigate(`/${page}`);
+    // Track page view (fire-and-forget)
+    if (page) {
+      const label = PAGE_META[page]?.label || page;
+      import('../../lib/activityTracker').then(({ trackPageView }) => trackPageView(label));
+    }
   }, [navigate]);
 
   const handleLogout = useCallback(() => {
@@ -263,8 +280,8 @@ export const AppShell: React.FC = React.memo(() => {
                     <div className="py-1.5">
                       {[
                         { label: 'Profilis', icon: UserCircleIcon, action: () => { setUserMenuOpen(false); navigate('/profilis'); } },
-                        { label: 'Nustatymai', icon: Cog6ToothIcon, action: () => { setUserMenuOpen(false); navigate('/nustatymai'); } },
-                        { label: 'Pagalba', icon: QuestionMarkCircleIcon, action: () => { setUserMenuOpen(false); navigate('/pagalba'); } },
+                        { label: 'Nustatymai', icon: Cog6ToothIcon, action: () => { setUserMenuOpen(false); navigate(user?.role === 'tenant' ? '/tenant/settings' : '/nustatymai'); } },
+                        ...(user?.role !== 'tenant' ? [{ label: 'Pagalba', icon: QuestionMarkCircleIcon, action: () => { setUserMenuOpen(false); navigate('/pagalba'); } }] : []),
                       ].map(item => (
                         <button
                           key={item.label}

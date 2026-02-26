@@ -15,8 +15,8 @@ const formatFileSize = (bytes: number): string => {
 };
 
 const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('lt-LT', { year: 'numeric', month: 'short', day: 'numeric' });
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const getCategoryIcon = (category: DocumentItem['category']) => {

@@ -13,9 +13,12 @@ import { OverviewWithLayoutEditor } from './OverviewWithLayoutEditor';
 import { getApartmentMeters } from '../../lib/meterPriceApi';
 import InviteTenantModal from './InviteTenantModal';
 import { KomunaliniaiTab, adaptLegacyMeters } from './komunaliniai';
+import ContractTerminationSection from './ContractTerminationSection';
+import { UniversalAddMeterModal } from '../meters/UniversalAddMeterModal';
 import ApartmentSettingsModal from '../properties/ApartmentSettingsModal';
 import PhotoGallerySection from './PhotoGallerySection';
-import { ChevronDown, ChevronUp, ChevronRight, Check, Thermometer, Car, Sofa, Zap, Flame, Gauge, Fence, Warehouse, PawPrint, CigaretteOff, Wallet, Lock, UserPlus } from 'lucide-react';
+import LtDateInput from '../ui/LtDateInput';
+import { ChevronDown, ChevronUp, ChevronRight, Check, Thermometer, Car, Sofa, Zap, Flame, Gauge, Fence, Warehouse, PawPrint, CigaretteOff, Wallet, Lock, UserPlus, AlertTriangle } from 'lucide-react';
 
 // Type definitions for missing interfaces
 interface PropertyInfo {
@@ -27,6 +30,11 @@ interface PropertyInfo {
   floor?: number;
   type?: string;
   status?: string;
+  under_maintenance?: boolean;
+  rent?: number;
+  deposit_amount?: number;
+  extended_details?: Record<string, any>;
+  property_type?: string;
 }
 
 interface MoveOut {
@@ -47,7 +55,7 @@ interface MeterItem {
 }
 
 // Helper functions
-const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'ï¿½';
+const formatDate = (d?: string) => { if (!d) return '—'; const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; };
 
 // Translation dictionaries for Lithuanian UI
 const translatePropertyType = (type?: string): string => {
@@ -68,6 +76,7 @@ const translateStatus = (status?: string): string => {
     'vacant': 'Laisvas',
     'occupied': 'Gyvenamas',
     'reserved': 'Rezervuotas',
+    'maintenance': 'Remontas',
     'notice': 'Išsikraustymas suplanuotas',
     'notice_given': 'Išsikraustymas suplanuotas',
     'moved_out_pending': 'Laukia uždarymo',
@@ -464,7 +473,7 @@ const OverviewTab: React.FC<{
             <div className="flex items-center gap-3">
               <Euro className="w-4 h-4 text-neutral-400" />
               <span className="text-sm text-neutral-600">Depozitas:</span>
-              <span className="text-sm font-medium text-neutral-900">ï¿½ï¿½{tenant.deposit}</span>
+              <span className="text-sm font-medium text-neutral-900">{tenant.deposit != null ? `€${tenant.deposit}` : '—'}</span>
             </div>
             <div className="flex items-center gap-3">
               <Calendar className="w-4 h-4 text-neutral-400" />
@@ -612,6 +621,7 @@ const PropertyTab: React.FC<{
     area: property.area?.toString() || '',
     floor: property.floor?.toString() || '',
     status: property.status || 'vacant',
+    under_maintenance: (property as any).under_maintenance ?? false,
     type: property.type || 'apartment',
     bedrooms: ext.bedrooms?.toString() || '',
     bathrooms: ext.bathrooms?.toString() || '',
@@ -622,9 +632,13 @@ const PropertyTab: React.FC<{
     furnished: ext.furnished || '',
     pets_allowed: ext.pets_allowed ?? false,
     smoking_allowed: ext.smoking_allowed ?? false,
-    payment_due_day: ext.payment_due_day?.toString() || '',
-    min_term_months: ext.min_term_months?.toString() || '',
+    payment_due_day: ext.payment_due_day?.toString() || '1',
+    min_term_months: ext.min_term_months?.toString() || '12',
+    late_fee_grace_days: ext.late_fee_grace_days?.toString() || '5',
+    late_fee_amount: ext.late_fee_amount?.toString() || '0',
     notes_internal: ext.notes_internal || '',
+    rent: (property as any).rent?.toString() || '',
+    deposit_amount: (property as any).deposit_amount?.toString() || '',
   });
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
@@ -633,12 +647,15 @@ const PropertyTab: React.FC<{
     const i = initialFormRef.current;
     const f = formData;
     return f.rooms !== i.rooms || f.area !== i.area || f.floor !== i.floor ||
-      f.status !== i.status || f.type !== i.type || f.bedrooms !== i.bedrooms ||
+      f.status !== i.status || f.under_maintenance !== i.under_maintenance ||
+      f.type !== i.type || f.bedrooms !== i.bedrooms ||
       f.bathrooms !== i.bathrooms || f.balcony !== i.balcony || f.storage !== i.storage ||
       f.parking_type !== i.parking_type || f.heating_type !== i.heating_type ||
       f.furnished !== i.furnished || f.pets_allowed !== i.pets_allowed ||
       f.smoking_allowed !== i.smoking_allowed || f.payment_due_day !== i.payment_due_day ||
-      f.min_term_months !== i.min_term_months || f.notes_internal !== i.notes_internal;
+      f.min_term_months !== i.min_term_months || f.late_fee_grace_days !== i.late_fee_grace_days ||
+      f.late_fee_amount !== i.late_fee_amount || f.notes_internal !== i.notes_internal ||
+      f.rent !== i.rent || f.deposit_amount !== i.deposit_amount;
   }, [formData]);
 
   // Reset form when property changes
@@ -649,6 +666,7 @@ const PropertyTab: React.FC<{
       area: property.area?.toString() || '',
       floor: property.floor?.toString() || '',
       status: property.status || 'vacant',
+      under_maintenance: (property as any).under_maintenance ?? false,
       type: property.type || 'apartment',
       bedrooms: newExt.bedrooms?.toString() || '',
       bathrooms: newExt.bathrooms?.toString() || '',
@@ -659,9 +677,13 @@ const PropertyTab: React.FC<{
       furnished: newExt.furnished || '',
       pets_allowed: newExt.pets_allowed ?? false,
       smoking_allowed: newExt.smoking_allowed ?? false,
-      payment_due_day: newExt.payment_due_day?.toString() || '',
-      min_term_months: newExt.min_term_months?.toString() || '',
+      payment_due_day: newExt.payment_due_day?.toString() || '1',
+      min_term_months: newExt.min_term_months?.toString() || '12',
+      late_fee_grace_days: newExt.late_fee_grace_days?.toString() || '5',
+      late_fee_amount: newExt.late_fee_amount?.toString() || '0',
       notes_internal: newExt.notes_internal || '',
+      rent: (property as any).rent?.toString() || '',
+      deposit_amount: (property as any).deposit_amount?.toString() || '',
     });
     // Reset dirty tracking
     initialFormRef.current = {
@@ -669,6 +691,7 @@ const PropertyTab: React.FC<{
       area: property.area?.toString() || '',
       floor: property.floor?.toString() || '',
       status: property.status || 'vacant',
+      under_maintenance: (property as any).under_maintenance ?? false,
       type: property.type || 'apartment',
       bedrooms: newExt.bedrooms?.toString() || '',
       bathrooms: newExt.bathrooms?.toString() || '',
@@ -679,17 +702,22 @@ const PropertyTab: React.FC<{
       furnished: newExt.furnished || '',
       pets_allowed: newExt.pets_allowed ?? false,
       smoking_allowed: newExt.smoking_allowed ?? false,
-      payment_due_day: newExt.payment_due_day?.toString() || '',
-      min_term_months: newExt.min_term_months?.toString() || '',
+      payment_due_day: newExt.payment_due_day?.toString() || '1',
+      min_term_months: newExt.min_term_months?.toString() || '12',
+      late_fee_grace_days: newExt.late_fee_grace_days?.toString() || '5',
+      late_fee_amount: newExt.late_fee_amount?.toString() || '0',
       notes_internal: newExt.notes_internal || '',
+      rent: (property as any).rent?.toString() || '',
+      deposit_amount: (property as any).deposit_amount?.toString() || '',
     };
-  }, [property]);
+  }, [property.id]);
 
   const updateField = <K extends keyof typeof formData>(field: K, value: typeof formData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSave = React.useCallback(async () => {
+    console.log('[PropertyTab] handleSave called', { isDirty, hasOnSave: !!onSaveProperty });
     if (!onSaveProperty || !isDirty) return;
     setIsSaving(true);
     try {
@@ -697,8 +725,10 @@ const PropertyTab: React.FC<{
         rooms: formData.rooms ? parseInt(formData.rooms) : null,
         area: formData.area ? parseFloat(formData.area) : null,
         floor: formData.floor ? parseInt(formData.floor) : null,
-        status: formData.status,
-        type: formData.type,
+        rent: formData.rent ? parseFloat(formData.rent) : null,
+        deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : null,
+        under_maintenance: formData.under_maintenance,
+        property_type: formData.type,
         extended_details: {
           ...ext,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
@@ -712,9 +742,14 @@ const PropertyTab: React.FC<{
           smoking_allowed: formData.smoking_allowed,
           payment_due_day: formData.payment_due_day ? parseInt(formData.payment_due_day) : undefined,
           min_term_months: formData.min_term_months ? parseInt(formData.min_term_months) : undefined,
+          late_fee_grace_days: formData.late_fee_grace_days ? parseInt(formData.late_fee_grace_days) : undefined,
+          late_fee_amount: formData.late_fee_amount ? parseFloat(formData.late_fee_amount) : undefined,
           notes_internal: formData.notes_internal || undefined,
         },
       });
+      console.log('[PropertyTab] Save payload sent successfully');
+      // Update initialFormRef so isDirty resets correctly
+      initialFormRef.current = { ...formData };
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (error) {
@@ -730,11 +765,11 @@ const PropertyTab: React.FC<{
   const daysUntilEnd = contractEnd ? Math.ceil((contractEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
   const contractExpired = daysUntilEnd !== null && daysUntilEnd < 0;
   const contractEndingSoon = daysUntilEnd !== null && daysUntilEnd >= 0 && daysUntilEnd <= 30;
-  const formatDate = (d: Date) => d.toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   // Financial calculations
   const monthlyRent = tenant?.monthlyRent ? Number(tenant.monthlyRent) : (property as any).rent ? Number((property as any).rent) : 0;
-  const depositAmount = tenant?.deposit ? Number(tenant.deposit) : (property as any).deposit_amount ? Number((property as any).deposit_amount) : 0;
+  const depositAmount = tenant?.deposit != null ? Number(tenant.deposit) : (property as any).deposit_amount != null ? Number((property as any).deposit_amount) : 0;
   const depositPaid = (property as any).deposit_paid_amount ? Number((property as any).deposit_paid_amount) : ((property as any).deposit_paid ? depositAmount : 0);
   const depositReturned = (property as any).deposit_returned ?? false;
 
@@ -821,15 +856,27 @@ const PropertyTab: React.FC<{
               </div>
               <div>
                 <label className={ltLabel}>Būsena</label>
-                <div className="relative group">
-                  <select value={formData.status} onChange={e => updateField('status', e.target.value)} className={ltSelectCompact}>
-                    <option value="vacant">Laisvas</option>
-                    <option value="occupied">Išnuomotas</option>
-                    <option value="reserved">Rezervuotas</option>
-                    <option value="maintenance">Remontas</option>
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold ${property.status === 'occupied'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-gray-50 text-gray-600 border border-gray-200'
+                  }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${property.status === 'occupied' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                  {property.status === 'occupied' ? 'Išnuomotas' : 'Laisvas'}
                 </div>
+                <p className="text-[9px] text-gray-400 mt-0.5">Nustatoma automatiškai pagal nuomininką</p>
+              </div>
+              {/* Under maintenance toggle */}
+              <div className="flex items-center gap-2 col-span-full mt-1">
+                <button
+                  type="button"
+                  onClick={() => updateField('under_maintenance', !formData.under_maintenance)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${formData.under_maintenance ? 'bg-amber-500' : 'bg-gray-200'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.under_maintenance ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </button>
+                <span className={`${ltTiny} ${formData.under_maintenance ? 'text-amber-600 font-semibold' : ''}`}>
+                  Vyksta remontas
+                </span>
               </div>
               <div>
                 <label className={ltLabel}>Kambariai</label>
@@ -931,7 +978,7 @@ const PropertyTab: React.FC<{
 
         {/* ── SECTION C: Nuomos sąlygos ── */}
         <div className="px-4 py-3 border-b border-gray-200/80">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center">
                 <FileText className="w-3.5 h-3.5 text-teal-600" />
@@ -956,22 +1003,73 @@ const PropertyTab: React.FC<{
               </span>
             )}
           </div>
+          <p className="text-[10px] text-gray-400 mb-3 ml-[38px]">Nustatykite mokėjimo tvarką šiam būstui</p>
 
           {/* Settings row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label className={ltLabel}>Mokėjimo diena</label>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Euro className="w-3 h-3 text-gray-400" />
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Nuoma</label>
+              </div>
+              <div className="relative">
+                <input type="number" inputMode="numeric" value={formData.rent} onChange={e => updateField('rent', e.target.value)} placeholder="0" min={0} className={`${ltInputCompact} pr-12`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">€/mėn.</span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Euro className="w-3 h-3 text-gray-400" />
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Depozitas</label>
+              </div>
+              <div className="relative">
+                <input type="number" inputMode="numeric" value={formData.deposit_amount} onChange={e => updateField('deposit_amount', e.target.value)} placeholder="0" min={0} className={`${ltInputCompact} pr-6`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">€</span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Calendar className="w-3 h-3 text-gray-400" />
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Mokėjimo diena</label>
+              </div>
               <div className="relative">
                 <input type="number" inputMode="numeric" value={formData.payment_due_day} onChange={e => updateField('payment_due_day', e.target.value)} placeholder="1" min={1} max={28} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">d.</span>
               </div>
+              <p className="text-[9px] text-gray-400 mt-1 leading-tight">Kiekvieną mėnesį iki šios dienos nuomininkas turi sumokėti nuomą</p>
             </div>
             <div>
-              <label className={ltLabel}>Min. terminas</label>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Clock className="w-3 h-3 text-gray-400" />
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Min. terminas</label>
+              </div>
               <div className="relative">
                 <input type="number" inputMode="numeric" value={formData.min_term_months} onChange={e => updateField('min_term_months', e.target.value)} placeholder="12" min={1} className={`${ltInputCompact} pr-10`} onWheel={e => (e.target as HTMLInputElement).blur()} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">mėn.</span>
               </div>
+              <p className="text-[9px] text-gray-400 mt-1 leading-tight">Trumpiausias galimas nuomos laikotarpis</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <AlertTriangle className="w-3 h-3 text-gray-400" />
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Baudos pradžia</label>
+              </div>
+              <div className="relative">
+                <input type="number" inputMode="numeric" value={formData.late_fee_grace_days} onChange={e => updateField('late_fee_grace_days', e.target.value)} placeholder="5" min={0} max={30} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">d.</span>
+              </div>
+              <p className="text-[9px] text-gray-400 mt-1 leading-tight">Po kiek dienų nuo mokėjimo termino pradedama skaičiuoti bauda</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Euro className="w-3 h-3 text-gray-400" />
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Vėlavimo bauda</label>
+              </div>
+              <div className="relative">
+                <input type="number" inputMode="numeric" value={formData.late_fee_amount} onChange={e => updateField('late_fee_amount', e.target.value)} placeholder="10" min={0} step="0.5" className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">€</span>
+              </div>
+              <p className="text-[9px] text-gray-400 mt-1 leading-tight">Suma eurais, kuri pridedama už kiekvieną pavėluotą dieną</p>
             </div>
           </div>
 
@@ -985,9 +1083,9 @@ const PropertyTab: React.FC<{
                 </p>
               </div>
               <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
-                <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider">Užstatas</p>
-                <p className={tenant?.deposit ? 'text-[16px] font-extrabold text-gray-800 tabular-nums' : 'text-[16px] font-extrabold text-gray-300 tabular-nums'}>
-                  {tenant?.deposit ? `${Number(tenant.deposit).toFixed(0)} €` : '—'}
+                <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider">Depozitas</p>
+                <p className={tenant?.deposit != null ? 'text-[16px] font-extrabold text-gray-800 tabular-nums' : 'text-[16px] font-extrabold text-gray-300 tabular-nums'}>
+                  {tenant?.deposit != null ? `${Number(tenant.deposit).toFixed(0)} €` : '—'}
                 </p>
               </div>
               {contractStart && (
@@ -1046,9 +1144,12 @@ const PropertyTab: React.FC<{
 
           {/* Vacant hint */}
           {!isOccupied && (
-            <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-              <UserPlus className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-              <p className="text-[10px] text-gray-400">Priskirtas nuomininkas matys šias sąlygas</p>
+            <div className="mt-3 flex items-start gap-2.5 px-3 py-2.5 bg-teal-50/40 rounded-lg border border-teal-100/50">
+              <Info className="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] font-medium text-teal-700">Šios sąlygos bus matomos nuomininkui</p>
+                <p className="text-[9px] text-teal-600/70 mt-0.5">Kai priskirsite nuomininką, jis matys mokėjimo dieną ir minimalų terminą savo paskyroje</p>
+              </div>
             </div>
           )}
         </div>
@@ -1934,9 +2035,9 @@ const SectionHeader: React.FC<{
       </div>
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-[13px] font-bold text-white">{title}</span>
-        <span className="text-[11px] text-gray-500 bg-white/[0.06] px-1.5 py-0.5 rounded-md">{count}</span>
+        <span className="text-[11px] text-gray-300 bg-black/30 px-1.5 py-0.5 rounded-md font-semibold">{count}</span>
       </div>
-      <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
     </button>
     {action && <div className="flex-shrink-0 ml-2">{action}</div>}
   </div>
@@ -2104,275 +2205,288 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
     <div className="space-y-5 pb-4">
 
       {/* ─── SECTION 1: Tenant History ─── */}
-      <div className="bg-white/[0.05] border border-white/[0.10] rounded-xl p-4">
-        <SectionHeader
-          icon={<User className="w-4 h-4 text-teal-400" />}
-          title="Nuomininkų istorija"
-          count={tenantCount}
-          isOpen={tenantsOpen}
-          onToggle={() => setTenantsOpen(!tenantsOpen)}
-        />
+      <div className="bg-white/[0.04] border border-white/[0.10] rounded-xl p-4">
 
-        {tenantsOpen && (
-          <div className="mt-3 space-y-2">
-            {/* Current tenant */}
-            {!isVacant && currentTenant && (
-              <div className="flex items-center justify-between p-3 bg-teal-500/[0.08] border border-teal-500/20 rounded-lg">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-8 h-8 bg-teal-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-teal-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-medium text-white truncate">{currentTenant.name}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-medium">Dabartinis</span>
+        <div>
+          <SectionHeader
+            icon={<User className="w-4 h-4 text-teal-400" />}
+            title="Nuomininkų istorija"
+            count={tenantCount}
+            isOpen={tenantsOpen}
+            onToggle={() => setTenantsOpen(!tenantsOpen)}
+          />
+
+          {tenantsOpen && (
+            <div className="mt-3 space-y-2">
+              {/* Current tenant */}
+              {!isVacant && currentTenant && (
+                <div className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+
+                  <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 text-teal-600" />
                     </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
-                      {currentTenant.contractStart && (
-                        <span>Nuo {new Date(currentTenant.contractStart).toLocaleDateString('lt-LT')}</span>
-                      )}
-                      {currentTenant.contractEnd && (
-                        <><span>•</span><span>Iki {new Date(currentTenant.contractEnd).toLocaleDateString('lt-LT')}</span></>
-                      )}
-                      {currentTenant.monthlyRent && (
-                        <><span>•</span><span>{fmtCurrency(Number(currentTenant.monthlyRent))}/mėn.</span></>
-                      )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-semibold text-gray-800 truncate">{currentTenant.name}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-medium">Dabartinis</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                        {currentTenant.contractStart && (
+                          <span>Nuo {(() => { const d = new Date(currentTenant.contractStart); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                        )}
+                        {currentTenant.contractEnd && (
+                          <><span>•</span><span>Iki {(() => { const d = new Date(currentTenant.contractEnd); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span></>
+                        )}
+                        {currentTenant.monthlyRent && (
+                          <><span>•</span><span>{fmtCurrency(Number(currentTenant.monthlyRent))}/mėn.</span></>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Past tenants */}
-            {pastTenants.map(t => (
-              <div key={t.id} className="flex items-center justify-between p-3 bg-white/[0.06] border border-white/[0.08] rounded-lg">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-8 h-8 bg-gray-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-medium text-white truncate">{t.tenant_name}</span>
-                      {t.end_reason && (
-                        <span className="text-[9px] px-1.5 py-0.5 bg-white/[0.06] text-gray-500 rounded-full">
-                          {END_REASON_MAP[t.end_reason] || t.end_reason}
-                        </span>
-                      )}
+              {/* Past tenants */}
+              {pastTenants.map(t => (
+                <div key={t.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+
+                  <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 text-gray-500" />
                     </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
-                      {t.contract_start && (
-                        <span>{new Date(t.contract_start).toLocaleDateString('lt-LT')}</span>
-                      )}
-                      {t.contract_end && (
-                        <><span>→</span><span>{new Date(t.contract_end).toLocaleDateString('lt-LT')}</span></>
-                      )}
-                      {t.rent && (
-                        <><span>•</span><span>{fmtCurrency(Number(t.rent))}/mėn.</span></>
-                      )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-semibold text-gray-800 truncate">{t.tenant_name}</span>
+                        {t.end_reason && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded-full">
+                            {END_REASON_MAP[t.end_reason] || t.end_reason}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                        {t.contract_start && (
+                          <span>{(() => { const d = new Date(t.contract_start); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                        )}
+                        {t.contract_end && (
+                          <><span>→</span><span>{(() => { const d = new Date(t.contract_end); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span></>
+                        )}
+                        {t.rent && (
+                          <><span>•</span><span>{fmtCurrency(Number(t.rent))}/mėn.</span></>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {/* Empty state */}
-            {tenantCount === 0 && (
-              <div className="flex flex-col items-center py-6 text-center">
-                <User className="w-8 h-8 text-white/20 mb-2" />
-                <p className="text-[11px] text-gray-500">Nuomininkų istorijos dar nėra</p>
-                <p className="text-[10px] text-gray-600 mt-1">Buvę nuomininkai bus rodomi čia</p>
-              </div>
-            )}
-          </div>
-        )}
+              {/* Empty state */}
+              {tenantCount === 0 && (
+                <div className="flex flex-col items-center py-6 text-center">
+                  <User className="w-8 h-8 text-white/30 mb-2" />
+                  <p className="text-[11px] text-white/60">Nuomininkų istorijos dar nėra</p>
+                  <p className="text-[10px] text-white/40 mt-1">Buvę nuomininkai bus rodomi čia</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── SECTION 2: Invoice Archive ─── */}
-      <div className="bg-white/[0.05] border border-white/[0.10] rounded-xl p-4">
-        <SectionHeader
-          icon={<Euro className="w-4 h-4 text-amber-400" />}
-          title="Sąskaitų archyvas"
-          count={invoices.length}
-          isOpen={invoicesOpen}
-          onToggle={() => setInvoicesOpen(!invoicesOpen)}
-          iconBg="bg-amber-500/15"
-        />
+      <div className="bg-white/[0.04] border border-white/[0.10] rounded-xl p-4">
 
-        {invoicesOpen && (
-          <div className="mt-3 space-y-2">
-            {invoices.length === 0 ? (
-              <div className="flex flex-col items-center py-6 text-center">
-                <Euro className="w-8 h-8 text-white/20 mb-2" />
-                <p className="text-[11px] text-gray-500">Sąskaitų dar nėra</p>
-                <p className="text-[10px] text-gray-600 mt-1">Sukurtos sąskaitos bus rodomos čia</p>
-              </div>
-            ) : (
-              invoices.map(inv => {
-                const st = INVOICE_STATUS_MAP[inv.status] || INVOICE_STATUS_MAP.unpaid;
-                const isExpanded = expandedInvoice === inv.id;
-                return (
-                  <div key={inv.id} className="bg-white/[0.06] border border-white/[0.08] rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => setExpandedInvoice(isExpanded ? null : inv.id)}
-                      className="w-full flex items-center justify-between p-3 hover:bg-white/[0.04] transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-8 h-8 bg-amber-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Euro className="w-4 h-4 text-amber-400" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[12px] font-medium text-white truncate">
-                            {inv.invoice_number ? `Sąskaita ${inv.invoice_number}` : 'Sąskaita'}
-                            {inv.period_start && inv.period_end && (
-                              <span className="text-gray-500 font-normal ml-1.5">
-                                ({new Date(inv.period_start).toLocaleDateString('lt-LT', { month: 'short' })} – {new Date(inv.period_end).toLocaleDateString('lt-LT', { month: 'short', year: 'numeric' })})
+        <div>
+          <SectionHeader
+            icon={<Euro className="w-4 h-4 text-amber-400" />}
+            title="Sąskaitų archyvas"
+            count={invoices.length}
+            isOpen={invoicesOpen}
+            onToggle={() => setInvoicesOpen(!invoicesOpen)}
+            iconBg="bg-amber-500/20"
+          />
+
+          {invoicesOpen && (
+            <div className="mt-3 space-y-2">
+              {invoices.length === 0 ? (
+                <div className="flex flex-col items-center py-6 text-center">
+                  <Euro className="w-8 h-8 text-white/30 mb-2" />
+                  <p className="text-[11px] text-white/60">Sąskaitų dar nėra</p>
+                  <p className="text-[10px] text-white/40 mt-1">Sukurtos sąskaitos bus rodomos čia</p>
+                </div>
+              ) : (
+                invoices.map(inv => {
+                  const st = INVOICE_STATUS_MAP[inv.status] || INVOICE_STATUS_MAP.unpaid;
+                  const isExpanded = expandedInvoice === inv.id;
+                  return (
+                    <div key={inv.id} className="relative rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+
+                      <button
+                        onClick={() => setExpandedInvoice(isExpanded ? null : inv.id)}
+                        className="relative z-10 w-full flex items-center justify-between p-3 hover:bg-gray-50/50 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Euro className="w-4 h-4 text-amber-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[12px] font-medium text-gray-800 truncate">
+                              {inv.invoice_number ? `Sąskaita ${inv.invoice_number}` : 'Sąskaita'}
+                              {inv.period_start && inv.period_end && (
+                                <span className="text-gray-500 font-normal ml-1.5">
+                                  ({(() => { const d = new Date(inv.period_start); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })()} – {(() => { const d = new Date(inv.period_end); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })()})
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                                <span className={st.text}>{st.label}</span>
                               </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] mt-0.5">
-                            <span className="flex items-center gap-1">
-                              <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                              <span className={st.text}>{st.label}</span>
-                            </span>
-                            {inv.invoice_date && (
-                              <span className="text-gray-600">{new Date(inv.invoice_date).toLocaleDateString('lt-LT')}</span>
-                            )}
+                              {inv.invoice_date && (
+                                <span className="text-gray-500">{(() => { const d = new Date(inv.invoice_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                        <span className="text-[13px] font-bold text-white tabular-nums">{fmtCurrency(Number(inv.amount || 0))}</span>
-                        <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                      </div>
-                    </button>
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                          <span className="text-[13px] font-bold text-gray-800 tabular-nums">{fmtCurrency(Number(inv.amount || 0))}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
 
-                    {isExpanded && (
-                      <div className="px-3 pb-3 border-t border-white/[0.06]">
-                        <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
-                          {inv.rent_amount != null && Number(inv.rent_amount) > 0 && (
-                            <div>
-                              <span className="text-[10px] text-gray-500 block">Nuoma</span>
-                              <span className="text-[12px] font-semibold text-white">{fmtCurrency(Number(inv.rent_amount))}</span>
-                            </div>
-                          )}
-                          {inv.utilities_amount != null && Number(inv.utilities_amount) > 0 && (
-                            <div>
-                              <span className="text-[10px] text-gray-500 block">Komunaliniai</span>
-                              <span className="text-[12px] font-semibold text-white">{fmtCurrency(Number(inv.utilities_amount))}</span>
-                            </div>
-                          )}
-                          {inv.due_date && (
-                            <div>
-                              <span className="text-[10px] text-gray-500 block">Mokėti iki</span>
-                              <span className="text-[12px] text-white">{new Date(inv.due_date).toLocaleDateString('lt-LT')}</span>
-                            </div>
-                          )}
-                          {inv.paid_date && (
-                            <div>
-                              <span className="text-[10px] text-gray-500 block">Apmokėta</span>
-                              <span className="text-[12px] text-emerald-400">{new Date(inv.paid_date).toLocaleDateString('lt-LT')}</span>
+                      {isExpanded && (
+                        <div className="relative z-10 px-3 pb-3 border-t border-gray-200/60">
+                          <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
+                            {inv.rent_amount != null && Number(inv.rent_amount) > 0 && (
+                              <div>
+                                <span className="text-[10px] text-gray-500 block">Nuoma</span>
+                                <span className="text-[12px] font-semibold text-gray-800">{fmtCurrency(Number(inv.rent_amount))}</span>
+                              </div>
+                            )}
+                            {inv.utilities_amount != null && Number(inv.utilities_amount) > 0 && (
+                              <div>
+                                <span className="text-[10px] text-gray-500 block">Komunaliniai</span>
+                                <span className="text-[12px] font-semibold text-gray-800">{fmtCurrency(Number(inv.utilities_amount))}</span>
+                              </div>
+                            )}
+                            {inv.due_date && (
+                              <div>
+                                <span className="text-[10px] text-gray-500 block">Mokėti iki</span>
+                                <span className="text-[12px] text-gray-800">{(() => { const d = new Date(inv.due_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                              </div>
+                            )}
+                            {inv.paid_date && (
+                              <div>
+                                <span className="text-[10px] text-gray-500 block">Apmokėta</span>
+                                <span className="text-[12px] text-emerald-600">{(() => { const d = new Date(inv.paid_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                              </div>
+                            )}
+                          </div>
+                          {inv.line_items && inv.line_items.length > 0 && (
+                            <div className="mt-2">
+                              <span className="text-[10px] text-gray-500 block mb-1.5">Eilutės</span>
+                              <div className="space-y-1">
+                                {inv.line_items.map((item: any, idx: number) => (
+                                  <div key={idx} className="flex items-center justify-between py-1 px-2 bg-gray-100/60 rounded-md">
+                                    <span className="text-[11px] text-gray-600 truncate flex-1">{item.description || 'Paslauga'}</span>
+                                    <span className="text-[11px] font-medium text-gray-800 ml-2 tabular-nums">{fmtCurrency(Number(item.amount || 0))}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
-                        {inv.line_items && inv.line_items.length > 0 && (
-                          <div className="mt-2">
-                            <span className="text-[10px] text-gray-500 block mb-1.5">Eilutės</span>
-                            <div className="space-y-1">
-                              {inv.line_items.map((item: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between py-1 px-2 bg-white/[0.04] rounded-md">
-                                  <span className="text-[11px] text-gray-300 truncate flex-1">{item.description || 'Paslauga'}</span>
-                                  <span className="text-[11px] font-medium text-white ml-2 tabular-nums">{fmtCurrency(Number(item.amount || 0))}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── SECTION 3: Uploaded Documents ─── */}
-      <div className="bg-white/[0.05] border border-white/[0.10] rounded-xl p-4">
-        <SectionHeader
-          icon={<FileText className="w-4 h-4 text-cyan-400" />}
-          title="Įkelti dokumentai"
-          count={docs.length}
-          isOpen={docsOpen}
-          onToggle={() => setDocsOpen(!docsOpen)}
-          iconBg="bg-cyan-500/15"
-          action={
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedType}
-                onChange={e => setSelectedType(e.target.value)}
-                className="px-2 py-1 bg-white/[0.06] border border-white/[0.10] rounded-lg text-[10px] text-white appearance-none cursor-pointer"
-              >
-                {DOCUMENT_TYPES.map(t => (
-                  <option key={t.value} value={t.value} className="bg-neutral-800 text-white">{t.label}</option>
-                ))}
-              </select>
-              <input ref={fileInputRef} type="file" className="hidden"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" onChange={handleUpload} />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-[11px] font-medium disabled:opacity-50"
-              >
-                {isUploading ? (
-                  <><div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Įkeliama...</>
-                ) : (
-                  <><FileText className="w-3.5 h-3.5" /> Įkelti</>
-                )}
-              </button>
-            </div>
-          }
-        />
+      <div className="bg-white/[0.04] border border-white/[0.10] rounded-xl p-4">
 
-        {uploadError && <p className="text-red-400 text-[11px] mt-2 px-1">{uploadError}</p>}
-
-        {docsOpen && (
-          <div className="mt-3 space-y-2">
-            {docs.length === 0 ? (
-              <div className="flex flex-col items-center py-6 text-center">
-                <FileText className="w-8 h-8 text-white/20 mb-2" />
-                <p className="text-[11px] text-gray-500">Nėra įkeltų dokumentų</p>
-                <p className="text-[10px] text-gray-600 mt-1">Spauskite „Įkelti" norėdami pridėti sutartis, aktus ar kitus failus</p>
+        <div>
+          <SectionHeader
+            icon={<FileText className="w-4 h-4 text-cyan-400" />}
+            title="Įkelti dokumentai"
+            count={docs.length}
+            isOpen={docsOpen}
+            onToggle={() => setDocsOpen(!docsOpen)}
+            iconBg="bg-cyan-500/20"
+            action={
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedType}
+                  onChange={e => setSelectedType(e.target.value)}
+                  className="px-2 py-1 bg-black/30 border border-white/[0.15] rounded-lg text-[10px] text-white appearance-none cursor-pointer"
+                >
+                  {DOCUMENT_TYPES.map(t => (
+                    <option key={t.value} value={t.value} className="bg-neutral-800 text-white">{t.label}</option>
+                  ))}
+                </select>
+                <input ref={fileInputRef} type="file" className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" onChange={handleUpload} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-[11px] font-medium disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <><div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" /> Įkeliama...</>
+                  ) : (
+                    <><FileText className="w-3.5 h-3.5" /> Įkelti</>
+                  )}
+                </button>
               </div>
-            ) : (
-              docs.map(doc => (
-                <div key={doc.id} className="flex items-center justify-between p-3 bg-white/[0.06] border border-white/[0.08] rounded-lg hover:bg-white/[0.10] transition-colors">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-8 h-8 bg-cyan-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-4 h-4 text-cyan-400" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[12px] font-medium text-white truncate">{doc.name}</div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <span>{getDocTypeLabel(doc.type)}</span>
-                        {doc.file_size && <><span>•</span><span>{formatFileSize(doc.file_size)}</span></>}
+            }
+          />
+
+          {uploadError && <p className="text-red-400 text-[11px] mt-2 px-1">{uploadError}</p>}
+
+          {docsOpen && (
+            <div className="mt-3 space-y-2">
+              {docs.length === 0 ? (
+                <div className="flex flex-col items-center py-6 text-center">
+                  <FileText className="w-8 h-8 text-white/30 mb-2" />
+                  <p className="text-[11px] text-white/60">Nėra įkeltų dokumentų</p>
+                  <p className="text-[10px] text-white/40 mt-1">Spauskite „Įkelti" norėdami pridėti sutartis, aktus ar kitus failus</p>
+                </div>
+              ) : (
+                docs.map(doc => (
+                  <div key={doc.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+
+                    <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-4 h-4 text-cyan-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12px] font-medium text-gray-800 truncate">{doc.name}</div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                          <span>{getDocTypeLabel(doc.type)}</span>
+                          {doc.file_size && <><span>•</span><span>{formatFileSize(doc.file_size)}</span></>}
+                        </div>
                       </div>
                     </div>
+                    <div className="relative z-10 flex items-center gap-2 flex-shrink-0 ml-2">
+                      <span className="text-[10px] text-gray-500">{(() => { const d = new Date(doc.created_at); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                      <button onClick={() => handleDownload(doc)}
+                        className="text-[11px] text-teal-600 hover:text-teal-700 font-medium transition-colors">Atsisiųsti</button>
+                      <button onClick={() => handleDeleteDoc(doc)}
+                        className="text-red-400/60 hover:text-red-400 transition-colors" title="Ištrinti">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <span className="text-[10px] text-gray-600">{new Date(doc.created_at).toLocaleDateString('lt-LT')}</span>
-                    <button onClick={() => handleDownload(doc)}
-                      className="text-[11px] text-teal-400 hover:text-teal-300 font-medium transition-colors">Atsisiųsti</button>
-                    <button onClick={() => handleDeleteDoc(doc)}
-                      className="text-red-400/60 hover:text-red-400 transition-colors" title="Ištrinti">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -2415,6 +2529,7 @@ interface TenantDetailModalProProps {
   moveOut: MoveOut;
   addressInfo?: any;
   meters: MeterItem[];
+  onPropertyUpdated?: () => void;
 }
 
 const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
@@ -2424,7 +2539,8 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   property,
   moveOut,
   addressInfo,
-  meters
+  meters,
+  onPropertyUpdated
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -2434,12 +2550,94 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [propertyNotes, setPropertyNotes] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
+  const [showAddMeter, setShowAddMeter] = useState(false);
+
+  // Track tab views and property open
+  useEffect(() => {
+    if (!isOpen || !property?.id) return;
+    const tabLabels: Record<string, string> = {
+      overview: 'Apžvalga',
+      property: 'Būstas',
+      komunaliniai: 'Komunaliniai',
+      documents: 'Dokumentai',
+      financials: 'Finansai',
+    };
+    const label = tabLabels[activeTab] || activeTab;
+    import('../../lib/activityTracker').then(({ trackActivity }) => {
+      trackActivity('VIEW', {
+        tableName: activeTab === 'komunaliniai' ? 'meters' : activeTab === 'documents' ? 'property_documents' : 'properties',
+        recordId: property.id,
+        description: `Peržiūrėjo skiltį: ${label}`,
+      });
+    });
+  }, [activeTab, isOpen, property?.id]);
 
 
+
+  // Tenant last login
+  const [tenantLastLogin, setTenantLastLogin] = useState<string | null>(null);
+
+  // Fetch tenant's last sign-in via secure RPC (reads auth.users.last_sign_in_at)
+  useEffect(() => {
+    const fetchLastLogin = async () => {
+      if (!isOpen || !tenant?.email) return;
+      try {
+        const { data, error } = await supabase
+          .rpc('get_tenant_last_sign_in', { tenant_email: tenant.email });
+        if (!error && data) {
+          setTenantLastLogin(data);
+        }
+      } catch (e) {
+        // Non-critical — silently fail
+      }
+    };
+    fetchLastLogin();
+  }, [isOpen, tenant?.email]);
+
+  // Tenant avatar URL
+  const [tenantAvatarUrl, setTenantAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (!isOpen || !tenant?.email) return;
+      try {
+        // Get user_id from users table, then avatar from profiles
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', tenant.email)
+          .maybeSingle();
+        if (!userData?.id) return;
+
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', userData.id)
+          .maybeSingle();
+        if (profileData?.avatar_url) {
+          setTenantAvatarUrl(profileData.avatar_url);
+        }
+      } catch {
+        // Non-critical
+      }
+    };
+    fetchAvatar();
+  }, [isOpen, tenant?.email]);
 
   // Photo upload state
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [propertyPhotos, setPropertyPhotos] = useState<string[]>(tenant.photos || []);
+
+  // Document count for overview KPI tile
+  const [documentCount, setDocumentCount] = useState(0);
+  useEffect(() => {
+    if (!property.id) return;
+    supabase
+      .from('property_documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('property_id', property.id)
+      .then(({ count }) => setDocumentCount(count ?? 0));
+  }, [property.id]);
 
   // Modal states for actions
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
@@ -2668,19 +2866,28 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
   // Save handler for ApartmentSettingsModal
   const handleDrawerSaveProperty = useCallback(async (updates: any) => {
+    console.log('[handleDrawerSaveProperty] called with', { propertyId: property.id, updates });
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('properties')
         .update(updates)
-        .eq('id', property.id);
+        .eq('id', property.id)
+        .select('id')
+        .then(res => ({ error: res.error, count: res.data?.length ?? 0 }));
 
       if (error) throw error;
-      console.log('Property updated via apartment settings modal');
+      if (count === 0) {
+        console.error('[handleDrawerSaveProperty] No rows updated — likely RLS policy blocking');
+        throw new Error('Nepavyko išsaugoti — nėra prieigos teisių');
+      }
+      console.log('[handleDrawerSaveProperty] Property updated in DB, calling onPropertyUpdated');
+      // Refresh parent data so UI reflects saved values
+      onPropertyUpdated?.();
     } catch (error) {
       console.error('Error saving property:', error);
       throw error;
     }
-  }, [property.id]);
+  }, [property.id, onPropertyUpdated]);
 
   const handleSaveProperty = useCallback(async () => {
     try {
@@ -2838,6 +3045,77 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     // Default fallback - you might want to get this from a different source
     return 1;
   };
+
+  // Handle adding new meters from UniversalAddMeterModal
+  const handleAddMeters = useCallback(async (metersFormData: any[]) => {
+    if (!property?.address_id) return;
+    try {
+      for (const meterForm of metersFormData) {
+        const meterName = meterForm.label || meterForm.title || meterForm.custom_name || '';
+        const meterType = meterForm.mode === 'individual' ? 'individual' : 'communal';
+        const unit = (meterForm.unit === 'custom' ? 'Kitas' : meterForm.unit) || 'm3';
+
+        const { error } = await supabase
+          .from('address_meters')
+          .insert({
+            address_id: property.address_id,
+            name: meterName,
+            type: meterType,
+            unit,
+            price_per_unit: meterForm.price_per_unit || 0,
+            fixed_price: meterForm.fixed_price || null,
+            distribution_method: meterForm.allocation || 'per_apartment',
+            description: meterForm.notes || '',
+            requires_photo: meterForm.requires_photo || false,
+            is_active: true,
+          });
+
+        if (error) {
+          console.error('Error adding meter:', error);
+        }
+      }
+
+      // Refresh meter data from address_meters
+      const addressMeters = await getApartmentMeters(property.id);
+      if (addressMeters && addressMeters.length > 0) {
+        const convertedMeters: ExtendedMeter[] = addressMeters.map((meter: any) => ({
+          id: meter.id,
+          kind: meter.type as any,
+          name: meter.name,
+          mode: meter.type === 'communal' ? 'Bendri' : 'Individualūs',
+          unit: meter.unit || 'm³',
+          value: undefined,
+          lastUpdatedAt: undefined,
+          needsPhoto: false,
+          needsReading: true,
+          status: 'waiting' as const,
+          photoPresent: false,
+          photoUrl: undefined,
+          tenantSubmittedValue: undefined,
+          tenantSubmittedAt: undefined,
+          isApproved: false,
+          hasWarning: false,
+          isFixedMeter: meter.distribution_method === 'fixed_split',
+          isCommunalMeter: meter.type === 'communal',
+          showPhotoRequirement: false,
+          costPerApartment: 0,
+          price_per_unit: meter.price_per_unit || 0,
+          fixed_price: meter.fixed_price || 0,
+          distribution_method: meter.distribution_method || 'per_apartment',
+          description: '',
+          type: meter.type || 'individual',
+          previousReading: 0,
+          currentReading: undefined,
+          tenantPhotoEnabled: false
+        }));
+        setMeterData(convertedMeters);
+      }
+
+      setShowAddMeter(false);
+    } catch (err) {
+      console.error('Error in handleAddMeters:', err);
+    }
+  }, [property?.address_id, property?.id]);
 
   // Handler functions
   const handleSaveReading = useCallback(async (meterId: string, reading: number) => {
@@ -3164,10 +3442,14 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           </div>
 
           {/* Content */}
-          <div className="overflow-y-auto p-6">
+          <div className="overflow-y-auto p-6" style={{ willChange: 'scroll-position', transform: 'translateZ(0)' }}>
             {activeTab === 'overview' && (
               <OverviewWithLayoutEditor
-                property={property}
+                property={{
+                  ...property,
+                  rent: property.rent,
+                  deposit_amount: property.deposit_amount,
+                }}
                 tenant={{
                   name: tenant?.name,
                   phone: tenant?.phone,
@@ -3176,16 +3458,19 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                   contractStart: tenant?.contractStart,
                   contractEnd: tenant?.contractEnd,
                   monthlyRent: tenant?.monthlyRent,
-                  deposit: tenant?.deposit,
-                  paymentDay: 1, // Default to 1st of month
+                  deposit: tenant?.deposit ?? undefined,
+                  paymentDay: 1,
                   overdue: tenant?.outstanding_amount || 0,
+                  lastSignIn: tenantLastLogin || undefined,
+                  avatarUrl: tenantAvatarUrl || undefined,
                 }}
                 photos={propertyPhotos}
                 meters={meterData}
+                documents={new Array(documentCount)}
 
                 canEditLayout={true}
                 onAddTenant={handleAddTenant}
-                onViewTenant={() => setActiveTab('meters')}
+                onViewTenant={() => setActiveTab('documents')}
                 onSetPrice={() => setActiveTab('property')}
                 onSetDeposit={() => setActiveTab('property')}
                 onUploadPhoto={handleUploadPhoto}
@@ -3195,6 +3480,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                 onDeletePhoto={handleDeletePhoto}
                 onReorderPhotos={handleReorderPhotos}
                 onSetCover={handleSetCover}
+                onPropertyUpdated={onPropertyUpdated}
               />
             )}
             {activeTab === 'property' && <PropertyTab property={property} photos={propertyPhotos} tenant={tenant ? { name: tenant.name, monthlyRent: tenant.monthlyRent ? parseFloat(String(tenant.monthlyRent)) : undefined, deposit: tenant.deposit ? parseFloat(String(tenant.deposit)) : undefined, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, phone: tenant.phone, email: tenant.email } : undefined} onEditProperty={handleEditProperty} onSaveProperty={handleDrawerSaveProperty} onUploadPhoto={handleUploadPhoto} onDeletePhoto={handleDeletePhoto} onReorderPhotos={handleReorderPhotos} onSetCover={handleSetCover} />}
@@ -3204,7 +3490,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                 propertyId={property.id}
                 addressId={property.address_id}
                 meters={adaptLegacyMeters(meterData)}
-                onAddMeter={() => { }}
+                onAddMeter={() => setShowAddMeter(true)}
                 onCollectReadings={() => handleRequestMissing(meterData.filter(m => m.needsPhoto || m.needsReading).map(m => m.id))}
                 onSaveReadings={async (readings) => {
                   for (const r of readings) {
@@ -3256,7 +3542,35 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                           }
                         }
                       } else {
-                        console.warn(`No readings found for meter ${u.meterId}, skipping previous reading update`);
+                        // No readings exist yet — create initial reading entry to seed history
+                        const meterConfig = meterData.find(m => m.id === u.meterId);
+                        const { error: insertErr } = await supabase
+                          .from('meter_readings')
+                          .insert({
+                            property_id: property.id,
+                            meter_id: u.meterId,
+                            meter_type: meterConfig?.isCommunalMeter ? 'address' : 'apartment',
+                            type: mapMeterTypeToDatabase(meterConfig?.type || 'electricity'),
+                            reading_date: new Date().toISOString().split('T')[0],
+                            current_reading: 0,
+                            previous_reading: u.previousReading,
+                            difference: 0,
+                            price_per_unit: meterConfig?.price_per_unit || 0,
+                            total_sum: 0,
+                            amount: 0,
+                            notes: 'Pradinis rodmuo — nuomotojo įvestas',
+                          });
+                        if (insertErr) {
+                          console.error(`Error creating initial reading for ${u.meterId}:`, insertErr);
+                        } else {
+                          console.log(`✅ Created initial reading for meter ${u.meterId}: ${u.previousReading}`);
+                          const idx = meterData.findIndex(m => m.id === u.meterId);
+                          if (idx !== -1) {
+                            const updated = [...meterData];
+                            (updated[idx] as any).previousReading = u.previousReading;
+                            setMeterData(updated);
+                          }
+                        }
                       }
                     } catch (err) {
                       console.error('Error saving previous reading:', err);
@@ -3265,7 +3579,20 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                 }}
               />
             )}
-            {activeTab === 'documents' && <HistoryTab propertyId={property.id} currentTenant={{ name: tenant.name, email: tenant.email, phone: tenant.phone, monthlyRent: tenant.monthlyRent, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, status: tenant.status }} />}
+            {activeTab === 'documents' && (
+              <>
+                <HistoryTab propertyId={property.id} currentTenant={{ name: tenant.name, email: tenant.email, phone: tenant.phone, monthlyRent: tenant.monthlyRent, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, status: tenant.status }} />
+                {/* Contract termination section */}
+                {tenant && (
+                  <div className="mt-4">
+                    <ContractTerminationSection
+                      propertyId={property.id}
+                      onTerminationChange={onPropertyUpdated}
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 
@@ -3337,6 +3664,16 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           propertyLabel={property.address || `Butas ${property.id}`}
         />
 
+        {/* Add Meter Modal */}
+        <UniversalAddMeterModal
+          isOpen={showAddMeter}
+          onClose={() => setShowAddMeter(false)}
+          onAddMeters={handleAddMeters}
+          existingMeterNames={meterData.map(m => m.name)}
+          title="Pridėti skaitliuką"
+          allowMultiple={true}
+        />
+
         {/* Create Lease Modal */}
         {isLeaseModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -3364,8 +3701,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-1">Pradžios data *</label>
-                    <input
-                      type="date"
+                    <LtDateInput
                       value={leaseForm.startDate}
                       onChange={(e) => setLeaseForm(prev => ({ ...prev, startDate: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F8481]/20 focus:border-[#2F8481]"
@@ -3373,8 +3709,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-1">Pabaigos data</label>
-                    <input
-                      type="date"
+                    <LtDateInput
                       value={leaseForm.endDate}
                       onChange={(e) => setLeaseForm(prev => ({ ...prev, endDate: e.target.value }))}
                       className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F8481]/20 focus:border-[#2F8481]"

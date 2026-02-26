@@ -127,15 +127,14 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                     }
                 }
 
-                // Check if there's already a pending invitation for this email
+                // Check if there's already a pending invitation for this email — delete it so we can resend
                 const existingInvitations = await tenantInvitationApi.getByPropertyId(propertyId);
                 const pendingForEmail = existingInvitations.find(
                     inv => inv.email.toLowerCase() === invitationEmail.toLowerCase() && inv.status === 'pending'
                 );
                 if (pendingForEmail) {
-                    setError('Šiam el. paštui jau išsiųstas kvietimas. Palaukite kol bus priimtas arba atmestas.');
-                    setIsSubmitting(false);
-                    return;
+                    // Old invitation exists — backend create() will delete it automatically
+                    console.log('Replacing existing pending invitation for:', invitationEmail);
                 }
             }
 
@@ -159,6 +158,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                         inviteCode: inviteCode,
                         propertyLabel: propertyLabel,
                         landlordName: landlordName,
+                        appUrl: window.location.origin,
                     }
                 });
 

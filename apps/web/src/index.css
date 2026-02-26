@@ -4,6 +4,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* App-like behavior: default cursor via inheritance (no expensive wildcard) */
+body {
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Restore proper cursors for interactive & content elements */
+a,
+button,
+[role="button"],
+label,
+select,
+summary,
+[type="checkbox"],
+[type="radio"],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"],
+[role="textbox"],
+.cursor-text {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='20' viewBox='0 0 16 20'%3E%3Cpath d='M5 1h6M8 1v18M5 19h6' stroke='%23000000' stroke-width='1' stroke-linecap='round'/%3E%3C/svg%3E") 8 10, text;
+  caret-color: #111827;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Allow selection inside code blocks */
+pre,
+code,
+.select-text {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Shopify-level Performance Optimizations */
 :root {
   /* Performance variables */
@@ -183,6 +223,16 @@ html {
 }
 
 @keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInContent {
   from {
     opacity: 0;
   }

@@ -2,7 +2,7 @@
 export const formatDate = (dateString: string | null): string => {
   if (!dateString) return 'Nenurodyta';
   const date = new Date(dateString);
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 export const formatCurrency = (amount: number): string => {
@@ -22,7 +22,7 @@ export const getDaysUntilContractEnd = (contractEnd: string): number => {
 
 export const getContractStatusText = (contractEnd: string): string => {
   const daysLeft = getDaysUntilContractEnd(contractEnd);
-  
+
   if (daysLeft < 0) {
     return 'Sutartis baigėsi';
   } else if (daysLeft === 0) {
@@ -38,7 +38,7 @@ export const getContractStatusText = (contractEnd: string): string => {
 
 export const getContractDateColor = (contractEnd: string): string => {
   const daysLeft = getDaysUntilContractEnd(contractEnd);
-  
+
   if (daysLeft < 0) return 'text-red-600';
   if (daysLeft <= 30) return 'text-orange-600';
   if (daysLeft <= 90) return 'text-yellow-600';
@@ -47,14 +47,14 @@ export const getContractDateColor = (contractEnd: string): string => {
 
 export const calculateTenantStatistics = (tenants: any[]) => {
   const total = tenants.length;
-  const problems = tenants.filter(t => 
-    t.payment_status === 'overdue' || 
-    t.payment_status === 'unpaid' || 
-    !t.meters_submitted || 
+  const problems = tenants.filter(t =>
+    t.payment_status === 'overdue' ||
+    t.payment_status === 'unpaid' ||
+    !t.meters_submitted ||
     t.cleaning_required ||
     getDaysUntilContractEnd(t.contractEnd) < 0
   ).length;
-  
+
   const unpaid = tenants.filter(t => t.payment_status === 'unpaid' || t.payment_status === 'overdue').length;
   const unsubmitted = tenants.filter(t => !t.meters_submitted).length;
   const cleaning = tenants.filter(t => t.cleaning_required).length;
@@ -75,24 +75,24 @@ export const calculateTenantStatistics = (tenants: any[]) => {
 };
 
 export const filterTenants = (
-  tenants: any[], 
-  searchTerm: string, 
+  tenants: any[],
+  searchTerm: string,
   activeFilter: string
 ) => {
   return tenants.filter(tenant => {
     const matchesSearch = tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tenant.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tenant.address.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      tenant.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tenant.address.toLowerCase().includes(searchTerm.toLowerCase());
+
     if (!matchesSearch) return false;
-    
+
     switch (activeFilter) {
       case 'problems':
-        return tenant.payment_status === 'overdue' || 
-               tenant.payment_status === 'unpaid' || 
-               !tenant.meters_submitted || 
-               tenant.cleaning_required ||
-               getDaysUntilContractEnd(tenant.contractEnd) < 0;
+        return tenant.payment_status === 'overdue' ||
+          tenant.payment_status === 'unpaid' ||
+          !tenant.meters_submitted ||
+          tenant.cleaning_required ||
+          getDaysUntilContractEnd(tenant.contractEnd) < 0;
       case 'unpaid':
         return tenant.payment_status === 'unpaid' || tenant.payment_status === 'overdue';
       case 'unsubmitted':
@@ -113,7 +113,7 @@ export const filterTenants = (
 
 export const sortTenants = (tenants: any[], sortBy: string) => {
   const sorted = [...tenants];
-  
+
   sorted.sort((a, b) => {
     switch (sortBy) {
       case 'name':
@@ -132,7 +132,7 @@ export const sortTenants = (tenants: any[], sortBy: string) => {
         return 0;
     }
   });
-  
+
   return sorted;
 };
 

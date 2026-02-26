@@ -137,7 +137,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
 
         if (date.toDateString() === today.toDateString()) return 'Šiandien';
         if (date.toDateString() === yesterday.toDateString()) return 'Vakar';
-        return date.toLocaleDateString('lt-LT', { month: 'short', day: 'numeric' });
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
 
     const getOtherParticipantId = (conv: Conversation) => {
@@ -224,10 +224,10 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
                                                 )}
                                                 <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                                     <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.message_type === 'invitation_code'
-                                                            ? 'bg-gradient-to-br from-[#2F8481] to-[#1a6b68] text-white'
-                                                            : isOwn
-                                                                ? 'bg-[#2F8481] text-white'
-                                                                : 'bg-white border border-gray-200 text-gray-800'
+                                                        ? 'bg-gradient-to-br from-[#2F8481] to-[#1a6b68] text-white'
+                                                        : isOwn
+                                                            ? 'bg-[#2F8481] text-white'
+                                                            : 'bg-white border border-gray-200 text-gray-800'
                                                         }`}>
                                                         {msg.message_type === 'invitation_code' && (
                                                             <div className="flex items-center gap-2 mb-1">
@@ -241,8 +241,8 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
                                                                 : msg.content}
                                                         </p>
                                                         <div className={`text-xs mt-1 ${isOwn || msg.message_type === 'invitation_code'
-                                                                ? 'text-white/60'
-                                                                : 'text-gray-400'
+                                                            ? 'text-white/60'
+                                                            : 'text-gray-400'
                                                             }`}>
                                                             {formatTime(msg.created_at)}
                                                         </div>

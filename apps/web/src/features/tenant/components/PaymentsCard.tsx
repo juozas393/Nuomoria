@@ -9,13 +9,13 @@ interface PaymentsCardProps {
 }
 
 const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('lt-LT', { year: 'numeric', month: 'long', day: 'numeric' });
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const formatShortDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('lt-LT', { month: 'short', day: 'numeric' });
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const StatusIcon: React.FC<{ status: 'paid' | 'pending' | 'overdue' }> = ({ status }) => {
@@ -58,10 +58,10 @@ export const PaymentsCard: React.FC<PaymentsCardProps> = ({
             {/* Current Invoice */}
             {currentInvoice ? (
                 <div className={`rounded-xl p-4 mb-4 ${currentInvoice.status === 'overdue'
-                        ? 'bg-red-50 border border-red-100'
-                        : currentInvoice.status === 'pending'
-                            ? 'bg-amber-50 border border-amber-100'
-                            : 'bg-emerald-50 border border-emerald-100'
+                    ? 'bg-red-50 border border-red-100'
+                    : currentInvoice.status === 'pending'
+                        ? 'bg-amber-50 border border-amber-100'
+                        : 'bg-emerald-50 border border-emerald-100'
                     }`}>
                     <div className="flex items-start justify-between mb-3">
                         <div>
@@ -71,10 +71,10 @@ export const PaymentsCard: React.FC<PaymentsCardProps> = ({
                             </div>
                         </div>
                         <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${currentInvoice.status === 'paid'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : currentInvoice.status === 'overdue'
-                                    ? 'bg-red-100 text-red-700'
-                                    : 'bg-amber-100 text-amber-700'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : currentInvoice.status === 'overdue'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-amber-100 text-amber-700'
                             }`}>
                             {STATUS_LABELS.rent[currentInvoice.status]}
                         </span>

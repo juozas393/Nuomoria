@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import LtDateInput from '../ui/LtDateInput';
 import { XMarkIcon, CameraIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { type DistributionMethod } from '../../constants/meterDistribution';
 
@@ -52,8 +53,8 @@ export const ReadingRequestModal: React.FC<ReadingRequestModalProps> = ({
   }, [isOpen, photoRequiredMeters]);
 
   const handleMeterToggle = (meterId: string) => {
-    setSelectedMeterIds(prev => 
-      prev.includes(meterId) 
+    setSelectedMeterIds(prev =>
+      prev.includes(meterId)
         ? prev.filter(id => id !== meterId)
         : [...prev, meterId]
     );
@@ -61,14 +62,14 @@ export const ReadingRequestModal: React.FC<ReadingRequestModalProps> = ({
 
   const handleSendRequest = () => {
     if (selectedMeterIds.length === 0) {
-      alert('Pasirinkite bent vieną skaitiklį');
+      alert('Pasirinkite bent vieną skaitliuką');
       return;
     }
     if (!period || !dueDate) {
       alert('Užpildykite laikotarpį ir terminą');
       return;
     }
-    
+
     onSendRequest(selectedMeterIds, period, dueDate);
     onClose();
   };
@@ -113,8 +114,7 @@ export const ReadingRequestModal: React.FC<ReadingRequestModalProps> = ({
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Terminas (iki kada)
               </label>
-              <input
-                type="date"
+              <LtDateInput
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
@@ -151,11 +151,10 @@ export const ReadingRequestModal: React.FC<ReadingRequestModalProps> = ({
               {photoRequiredMeters.map((meter) => (
                 <div
                   key={meter.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                    selectedMeterIds.includes(meter.id)
-                      ? 'border-[#2F8481] bg-[#2F8481]/5'
-                      : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
+                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${selectedMeterIds.includes(meter.id)
+                    ? 'border-[#2F8481] bg-[#2F8481]/5'
+                    : 'border-neutral-200 hover:border-neutral-300'
+                    }`}
                   onClick={() => handleMeterToggle(meter.id)}
                 >
                   <input
@@ -188,8 +187,8 @@ export const ReadingRequestModal: React.FC<ReadingRequestModalProps> = ({
             {photoRequiredMeters.length === 0 && (
               <div className="text-center py-8 text-neutral-500">
                 <CameraIcon className="w-12 h-12 mx-auto mb-3 text-neutral-300" />
-                        <p>Nėra skaitliukų, kuriems reikėtų nuotraukų</p>
-        <p className="text-sm">Pridėkite skaitliukus su nuotraukų reikalavimu</p>
+                <p>Nėra skaitliukų, kuriems reikėtų nuotraukų</p>
+                <p className="text-sm">Pridėkite skaitliukus su nuotraukų reikalavimu</p>
               </div>
             )}
           </div>

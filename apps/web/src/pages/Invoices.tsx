@@ -1,17 +1,20 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import {
   FileText, Plus, Search, Filter, Eye, Trash2, Check,
   Clock, AlertCircle, Building2, User, Euro, Calendar,
   ChevronDown, ChevronUp, X, Save, Loader2, Receipt,
-  ArrowUpRight, CreditCard, Banknote, MapPin, Hash
+  ArrowUpRight, CreditCard, Banknote, MapPin, Hash, Download
 } from 'lucide-react';
+import LtDateInput from '../components/ui/LtDateInput';
 import {
   getInvoices, getInvoiceStats, createInvoice, deleteInvoice,
   recordPayment, generateInvoiceNumber, getInvoiceGenerationData,
   buildLineItems, updateInvoiceStatus, getPaymentHistory,
+  generateBulkInvoiceData, createBulkInvoices,
   type Invoice, type InvoiceFilters, type InvoiceLineItem, type InvoicePayment,
-  type CreateInvoiceData
+  type CreateInvoiceData, type BulkInvoicePreview
 } from '../lib/invoicesApi';
+import { exportSingleProperty, exportByAddress, exportAll, type ExportFormat } from '../lib/invoiceExport';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -38,8 +41,10 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(amount);
 
-const formatDate = (date: string) =>
-  new Date(date).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' });
+const formatDate = (date: string) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const getDaysUntilDue = (dueDate: string) => {
   const diff = new Date(dueDate).getTime() - Date.now();
@@ -234,57 +239,94 @@ const InvoiceRow = memo<{
 InvoiceRow.displayName = 'InvoiceRow';
 
 // ============================================================
-// CREATE INVOICE MODAL
+// CREATE INVOICE MODAL — 3 Generation Modes
 // ============================================================
+type GenerationMode = 'single' | 'address' | 'all';
+type ModalStep = 'configure' | 'preview';
+
+const modeTabs: { key: GenerationMode; label: string; icon: React.ReactNode; desc: string }[] = [
+  { key: 'single', label: 'Vienam butui', icon: <User className="w-3.5 h-3.5" />, desc: 'Pasirinkite konkretų butą' },
+  { key: 'address', label: 'Adresui', icon: <MapPin className="w-3.5 h-3.5" />, desc: 'Visi butai adrese' },
+  { key: 'all', label: 'Visiems', icon: <Building2 className="w-3.5 h-3.5" />, desc: 'Visi adresai ir butai' },
+];
+
 const CreateInvoiceModal = memo<{
   isOpen: boolean;
   onClose: () => void;
   onCreated: () => void;
 }>(({ isOpen, onClose, onCreated }) => {
+  // --- State ---
+  const [mode, setMode] = useState<GenerationMode>('single');
+  const [step, setStep] = useState<ModalStep>('configure');
+
+  // Config state
   const [properties, setProperties] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
+  const [selectedAddressId, setSelectedAddressId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
+  const [notes, setNotes] = useState('');
+  const [sendToTenant, setSendToTenant] = useState(true);
+
+  // Single-mode state
   const [rentAmount, setRentAmount] = useState(0);
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [genData, setGenData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Load properties
+  // Bulk-mode state
+  const [bulkPreviews, setBulkPreviews] = useState<BulkInvoicePreview[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Save state
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<{ created: number; errors: string[] } | null>(null);
+
+  // Load properties & addresses on open
   useEffect(() => {
     if (!isOpen) return;
     const load = async () => {
-      const { data } = await supabase
-        .from('properties')
-        .select('id, apartment_number, rent, address_id, addresses!address_id (id, street, city)')
-        .order('apartment_number');
-      setProperties(data || []);
+      const [{ data: props }, { data: addrs }] = await Promise.all([
+        supabase.from('properties').select('id, apartment_number, rent, address_id, addresses!address_id (id, street, city)').order('apartment_number'),
+        supabase.from('addresses').select('id, street, city').order('street'),
+      ]);
+      setProperties(props || []);
+      setAddresses(addrs || []);
 
       const num = await generateInvoiceNumber();
       setInvoiceNumber(num);
 
-      // Default due date = 15th of next month
       const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
-      setDueDate(nextMonth.toISOString().split('T')[0]);
-
-      // Default period = current month
-      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      setPeriodStart(firstOfMonth.toISOString().split('T')[0]);
-      setPeriodEnd(lastOfMonth.toISOString().split('T')[0]);
+      setDueDate(new Date(now.getFullYear(), now.getMonth() + 1, 15).toISOString().split('T')[0]);
+      setPeriodStart(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
+      setPeriodEnd(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
     };
     load();
   }, [isOpen]);
 
-  // When property selected, load generation data
+  // Reset when modal closes or mode changes
   useEffect(() => {
-    if (!selectedPropertyId) {
+    if (!isOpen) {
+      setStep('configure');
+      setMode('single');
+      setSelectedPropertyId('');
+      setSelectedAddressId('');
+      setGenData(null);
+      setLineItems([]);
+      setBulkPreviews([]);
+      setResult(null);
+      setNotes('');
+      setSendToTenant(true);
+    }
+  }, [isOpen]);
+
+  // Single mode: load property data
+  useEffect(() => {
+    if (mode !== 'single' || !selectedPropertyId) {
       setGenData(null);
       setRentAmount(0);
       setLineItems([]);
@@ -300,42 +342,98 @@ const CreateInvoiceModal = memo<{
       setLoading(false);
     };
     load();
-  }, [selectedPropertyId]);
+  }, [selectedPropertyId, mode]);
 
+  // Computed
   const utilitiesTotal = useMemo(
     () => lineItems.filter(i => i.type !== 'rent').reduce((s, i) => s + i.amount, 0),
     [lineItems]
   );
   const totalAmount = useMemo(() => rentAmount + utilitiesTotal, [rentAmount, utilitiesTotal]);
 
+  const bulkTotal = useMemo(
+    () => bulkPreviews.filter(p => p.selected).reduce((s, p) => s + p.totalAmount, 0),
+    [bulkPreviews]
+  );
+  const bulkSelectedCount = useMemo(
+    () => bulkPreviews.filter(p => p.selected).length,
+    [bulkPreviews]
+  );
+
+  // --- Handlers ---
+  const handleGeneratePreview = async () => {
+    if (mode === 'single') {
+      setStep('preview');
+      return;
+    }
+    setBulkLoading(true);
+    const addressId = mode === 'address' ? selectedAddressId : undefined;
+    const { previews, error } = await generateBulkInvoiceData(addressId);
+    if (!error) {
+      setBulkPreviews(previews);
+      setStep('preview');
+    }
+    setBulkLoading(false);
+  };
+
+  const toggleBulkItem = useCallback((idx: number) => {
+    setBulkPreviews(prev => prev.map((p, i) => i === idx ? { ...p, selected: !p.selected } : p));
+  }, []);
+
+  const toggleAllBulk = useCallback(() => {
+    const allSelected = bulkPreviews.every(p => p.selected);
+    setBulkPreviews(prev => prev.map(p => ({ ...p, selected: !allSelected })));
+  }, [bulkPreviews]);
+
   const handleSave = async () => {
-    if (!selectedPropertyId || !invoiceNumber) return;
     setSaving(true);
 
-    const prop = properties.find(p => p.id === selectedPropertyId);
-    const data: CreateInvoiceData = {
-      property_id: selectedPropertyId,
-      tenant_id: genData?.tenant?.id || null,
-      address_id: prop?.address_id || null,
-      invoice_number: invoiceNumber,
-      invoice_date: invoiceDate,
-      due_date: dueDate,
-      period_start: periodStart,
-      period_end: periodEnd,
-      rent_amount: rentAmount,
-      utilities_amount: utilitiesTotal,
-      line_items: lineItems,
-      notes: notes || undefined,
-    };
-
-    const { error } = await createInvoice(data);
-    setSaving(false);
-
-    if (!error) {
-      onCreated();
-      onClose();
+    if (mode === 'single') {
+      // Single invoice creation (existing flow)
+      const prop = properties.find(p => p.id === selectedPropertyId);
+      const data: CreateInvoiceData = {
+        property_id: selectedPropertyId,
+        tenant_id: sendToTenant && genData?.tenant ? genData.tenant.id : null,
+        address_id: prop?.address_id || null,
+        invoice_number: invoiceNumber,
+        invoice_date: invoiceDate,
+        due_date: dueDate,
+        period_start: periodStart,
+        period_end: periodEnd,
+        rent_amount: rentAmount,
+        utilities_amount: utilitiesTotal,
+        line_items: lineItems,
+        notes: notes || undefined,
+      };
+      const { error } = await createInvoice(data);
+      setSaving(false);
+      if (!error) {
+        setResult({ created: 1, errors: [] });
+        onCreated();
+      } else {
+        setResult({ created: 0, errors: [error.message] });
+      }
+    } else {
+      // Bulk creation
+      const res = await createBulkInvoices(bulkPreviews, {
+        invoiceDate,
+        dueDate,
+        periodStart,
+        periodEnd,
+        sendToTenant,
+        notes: notes || undefined,
+      });
+      setSaving(false);
+      setResult(res);
+      if (res.created > 0) onCreated();
     }
   };
+
+  const canProceed = mode === 'single'
+    ? !!selectedPropertyId
+    : mode === 'address'
+      ? !!selectedAddressId
+      : true;
 
   if (!isOpen) return null;
 
@@ -349,8 +447,16 @@ const CreateInvoiceModal = memo<{
               <Receipt className="w-4 h-4 text-teal-600" />
             </div>
             <div>
-              <h3 className="text-[15px] font-bold text-gray-900">Nauja sąskaita</h3>
-              <p className="text-[11px] text-gray-400">Sukurkite sąskaitą nuomininkui</p>
+              <h3 className="text-[15px] font-bold text-gray-900">
+                {result ? 'Rezultatas' : step === 'preview' ? 'Peržiūra' : 'Nauja sąskaita'}
+              </h3>
+              <p className="text-[11px] text-gray-400">
+                {result
+                  ? `Sukurta: ${result.created}`
+                  : step === 'preview'
+                    ? 'Peržiūrėkite prieš kuriant'
+                    : 'Pasirinkite generavimo režimą'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all">
@@ -360,122 +466,365 @@ const CreateInvoiceModal = memo<{
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Property selector */}
-          <div>
-            <label className={labelStyle}>Būstas</label>
-            <select
-              value={selectedPropertyId}
-              onChange={e => setSelectedPropertyId(e.target.value)}
-              className={inputStyle + ' appearance-none cursor-pointer'}
-            >
-              <option value="">Pasirinkite būstą...</option>
-              {properties.map(p => (
-                <option key={p.id} value={p.id}>
-                  {(p.addresses as any)?.street || '—'}{p.apartment_number ? `, ${p.apartment_number}` : ''} — {formatCurrency(p.rent || 0)}/mėn.
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Invoice details row */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className={labelStyle}>Sąskaitos Nr.</label>
-              <input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className={inputStyle} />
-            </div>
-            <div>
-              <label className={labelStyle}>Sąskaitos data</label>
-              <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className={inputStyle} />
-            </div>
-            <div>
-              <label className={labelStyle}>Mokėjimo terminas</label>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className={inputStyle} />
-            </div>
-          </div>
-
-          {/* Period */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelStyle}>Laikotarpio pradžia</label>
-              <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className={inputStyle} />
-            </div>
-            <div>
-              <label className={labelStyle}>Laikotarpio pabaiga</label>
-              <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className={inputStyle} />
-            </div>
-          </div>
-
-          {/* Tenant info */}
-          {genData?.tenant && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-teal-50/50 rounded-xl border border-teal-100/60">
-              <User className="w-4 h-4 text-teal-600 flex-shrink-0" />
+          {result ? (
+            /* ──── RESULT STATE ──── */
+            <div className="text-center py-8 space-y-4">
+              <div className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center ${result.created > 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                {result.created > 0
+                  ? <Check className="w-7 h-7 text-emerald-600" />
+                  : <AlertCircle className="w-7 h-7 text-red-500" />
+                }
+              </div>
               <div>
-                <div className="text-[12px] font-semibold text-gray-900">{genData.tenant.first_name} {genData.tenant.last_name}</div>
-                <div className="text-[11px] text-gray-400">{genData.tenant.email}</div>
+                <p className="text-[15px] font-bold text-gray-900">
+                  {result.created > 0 ? `Sukurta ${result.created} sąskait${result.created === 1 ? 'a' : 'os'}` : 'Nepavyko sukurti'}
+                </p>
+                {result.errors.length > 0 && (
+                  <div className="mt-3 text-left max-w-sm mx-auto">
+                    <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wider mb-1">Klaidos</p>
+                    {result.errors.map((e, i) => (
+                      <p key={i} className="text-[11px] text-red-600 py-0.5">{e}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-          )}
-
-          {/* Line items */}
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 text-teal-500 animate-spin" />
-            </div>
-          ) : lineItems.length > 0 && (
-            <div>
-              <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Sąskaitos eilutės</div>
-              <div className={`${surface} overflow-hidden`}>
-                {lineItems.map((item, i) => (
-                  <div key={i} className={`flex items-center justify-between px-4 py-2.5 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${item.type === 'rent' ? 'bg-teal-500' : 'bg-blue-400'}`} />
-                      <span className="text-[12px] font-medium text-gray-700">{item.description}</span>
-                      {item.consumption != null && (
-                        <span className="text-[10px] text-gray-400">
-                          {item.consumption} {item.unit} × {formatCurrency(item.rate || 0)}
-                        </span>
-                      )}
+          ) : step === 'configure' ? (
+            /* ──── CONFIGURE STEP ──── */
+            <>
+              {/* Mode tabs */}
+              <div className="flex gap-2">
+                {modeTabs.map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => { setMode(tab.key); setSelectedPropertyId(''); setSelectedAddressId(''); }}
+                    className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all ${mode === tab.key
+                      ? 'bg-teal-50/80 border-teal-200/60 shadow-sm'
+                      : 'bg-gray-50/50 border-gray-100 hover:bg-gray-50'
+                      }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${mode === tab.key ? 'bg-teal-500/10 text-teal-600' : 'bg-gray-100 text-gray-400'
+                      }`}>
+                      {tab.icon}
                     </div>
-                    <span className="text-[12px] font-bold text-gray-900 tabular-nums">{formatCurrency(item.amount)}</span>
-                  </div>
+                    <div>
+                      <div className={`text-[11px] font-semibold ${mode === tab.key ? 'text-teal-700' : 'text-gray-600'}`}>{tab.label}</div>
+                      <div className="text-[9px] text-gray-400">{tab.desc}</div>
+                    </div>
+                  </button>
                 ))}
-                {/* Total row */}
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 border-t border-gray-100">
-                  <span className="text-[12px] font-bold text-gray-700">Viso</span>
-                  <span className="text-[14px] font-bold text-teal-700 tabular-nums">{formatCurrency(totalAmount)}</span>
+              </div>
+
+              {/* Selector based on mode */}
+              {mode === 'single' && (
+                <div>
+                  <label className={labelStyle}>Būstas</label>
+                  <select
+                    value={selectedPropertyId}
+                    onChange={e => setSelectedPropertyId(e.target.value)}
+                    className={inputStyle + ' appearance-none cursor-pointer'}
+                  >
+                    <option value="">Pasirinkite būstą...</option>
+                    {properties.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {(p.addresses as any)?.street || '—'}{p.apartment_number ? `, ${p.apartment_number}` : ''} — {formatCurrency(p.rent || 0)}/mėn.
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {mode === 'address' && (
+                <div>
+                  <label className={labelStyle}>Adresas</label>
+                  <select
+                    value={selectedAddressId}
+                    onChange={e => setSelectedAddressId(e.target.value)}
+                    className={inputStyle + ' appearance-none cursor-pointer'}
+                  >
+                    <option value="">Pasirinkite adresą...</option>
+                    {addresses.map(a => (
+                      <option key={a.id} value={a.id}>{a.street}, {a.city}</option>
+                    ))}
+                  </select>
+                  {selectedAddressId && (
+                    <p className="text-[10px] text-gray-400 mt-1.5">
+                      Bus sugeneruotos sąskaitos {properties.filter(p => p.address_id === selectedAddressId).length} butams
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {mode === 'all' && (
+                <div className="px-4 py-3 bg-teal-50/50 rounded-xl border border-teal-100/60">
+                  <p className="text-[11px] text-teal-700 font-medium">
+                    Bus sugeneruotos sąskaitos visiems {properties.length} butams visuose adresuose
+                  </p>
+                </div>
+              )}
+
+              {/* Invoice details */}
+              <div className="grid grid-cols-3 gap-4">
+                {mode === 'single' && (
+                  <div>
+                    <label className={labelStyle}>Sąskaitos Nr.</label>
+                    <input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className={inputStyle} />
+                  </div>
+                )}
+                <div>
+                  <label className={labelStyle}>Sąskaitos data</label>
+                  <LtDateInput value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className={inputStyle} />
+                </div>
+                <div>
+                  <label className={labelStyle}>Mokėjimo terminas</label>
+                  <LtDateInput value={dueDate} onChange={e => setDueDate(e.target.value)} className={inputStyle} />
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Notes */}
-          <div>
-            <label className={labelStyle}>Pastabos (neprivaloma)</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Papildoma informacija..."
-              className={inputStyle + ' resize-none'}
-            />
-          </div>
+              {/* Period */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelStyle}>Laikotarpio pradžia</label>
+                  <LtDateInput value={periodStart} onChange={e => setPeriodStart(e.target.value)} className={inputStyle} />
+                </div>
+                <div>
+                  <label className={labelStyle}>Laikotarpio pabaiga</label>
+                  <LtDateInput value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className={inputStyle} />
+                </div>
+              </div>
+
+              {/* Send toggle */}
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-700">Siųsti nuomininkui</div>
+                    <div className="text-[9px] text-gray-400">Nuomininkas matys sąskaitą savo paskyroje</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSendToTenant(!sendToTenant)}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${sendToTenant ? 'bg-teal-500' : 'bg-gray-200'}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${sendToTenant ? 'left-[18px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+
+              {/* Single-mode: tenant & line items preview */}
+              {mode === 'single' && genData?.tenant && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-teal-50/50 rounded-xl border border-teal-100/60">
+                  <User className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                  <div>
+                    <div className="text-[12px] font-semibold text-gray-900">{genData.tenant.first_name} {genData.tenant.last_name}</div>
+                    <div className="text-[11px] text-gray-400">{genData.tenant.email}</div>
+                  </div>
+                </div>
+              )}
+
+              {mode === 'single' && loading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-teal-500 animate-spin" />
+                </div>
+              )}
+
+              {mode === 'single' && !loading && lineItems.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Sąskaitos eilutės</div>
+                  <div className={`${surface} overflow-hidden`}>
+                    {lineItems.map((item, i) => (
+                      <div key={i} className={`flex items-center justify-between px-4 py-2.5 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-1.5 h-1.5 rounded-full ${item.type === 'rent' ? 'bg-teal-500' : 'bg-blue-400'}`} />
+                          <span className="text-[12px] font-medium text-gray-700">{item.description}</span>
+                          {item.consumption != null && (
+                            <span className="text-[10px] text-gray-400">
+                              {item.consumption} {item.unit} × {formatCurrency(item.rate || 0)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[12px] font-bold text-gray-900 tabular-nums">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 border-t border-gray-100">
+                      <span className="text-[12px] font-bold text-gray-700">Viso</span>
+                      <span className="text-[14px] font-bold text-teal-700 tabular-nums">{formatCurrency(totalAmount)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className={labelStyle}>Pastabos (neprivaloma)</label>
+                <textarea
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Papildoma informacija..."
+                  className={inputStyle + ' resize-none'}
+                />
+              </div>
+            </>
+          ) : (
+            /* ──── PREVIEW STEP (bulk) ──── */
+            <>
+              {mode !== 'single' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                      {bulkSelectedCount} iš {bulkPreviews.length} pasirinkta
+                    </div>
+                    <button onClick={toggleAllBulk} className="text-[10px] font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+                      {bulkPreviews.every(p => p.selected) ? 'Atžymėti visus' : 'Pasirinkti visus'}
+                    </button>
+                  </div>
+
+                  {bulkPreviews.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                        <FileText className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-[13px] font-semibold text-gray-700">Nėra butų</p>
+                      <p className="text-[11px] text-gray-400 mt-1">Nerasta butų su skaitikliais ar nuoma</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[380px] overflow-y-auto">
+                      {bulkPreviews.map((preview, idx) => (
+                        <div
+                          key={preview.propertyId}
+                          className={`${surface} p-3.5 cursor-pointer transition-all ${preview.selected ? 'ring-1 ring-teal-500/30' : 'opacity-50'
+                            }`}
+                          onClick={() => toggleBulkItem(idx)}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              {/* Checkbox */}
+                              <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${preview.selected ? 'bg-teal-500 border-teal-500' : 'border-gray-300 bg-white'
+                                }`}>
+                                {preview.selected && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[12px] font-bold text-gray-900">{preview.apartment}</span>
+                                  <span className="text-[10px] text-gray-400 truncate">{preview.address}</span>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1">
+                                  {preview.tenant ? (
+                                    <span className="text-[10px] text-gray-500">
+                                      {preview.tenant.first_name} {preview.tenant.last_name}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-300 italic">Be nuomininko</span>
+                                  )}
+                                  <span className="text-[9px] text-gray-300">•</span>
+                                  <span className="text-[10px] text-gray-400">
+                                    {preview.lineItems.length} eilut{preview.lineItems.length === 1 ? 'ė' : 'ės'}
+                                  </span>
+                                </div>
+                                {/* Mini line items */}
+                                {preview.selected && preview.lineItems.length > 0 && (
+                                  <div className="mt-2 space-y-0.5">
+                                    {preview.lineItems.map((item, li) => (
+                                      <div key={li} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <div className={`w-1 h-1 rounded-full ${item.type === 'rent' ? 'bg-teal-400' : 'bg-blue-400'}`} />
+                                          <span className="text-[10px] text-gray-500">{item.description}</span>
+                                        </div>
+                                        <span className="text-[10px] font-semibold text-gray-600 tabular-nums">{formatCurrency(item.amount)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <span className="text-[13px] font-bold text-gray-900 tabular-nums">{formatCurrency(preview.totalAmount)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bulk total */}
+                  {bulkPreviews.length > 0 && (
+                    <div className="flex items-center justify-between px-4 py-3 bg-teal-50/60 rounded-xl border border-teal-100/60">
+                      <span className="text-[12px] font-bold text-teal-800">Bendra suma</span>
+                      <span className="text-[15px] font-bold text-teal-700 tabular-nums">{formatCurrency(bulkTotal)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Single mode preview — just show summary */}
+              {mode === 'single' && lineItems.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Sąskaitos eilutės</div>
+                  <div className={`${surface} overflow-hidden`}>
+                    {lineItems.map((item, i) => (
+                      <div key={i} className={`flex items-center justify-between px-4 py-2.5 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-1.5 h-1.5 rounded-full ${item.type === 'rent' ? 'bg-teal-500' : 'bg-blue-400'}`} />
+                          <span className="text-[12px] font-medium text-gray-700">{item.description}</span>
+                          {item.consumption != null && (
+                            <span className="text-[10px] text-gray-400">
+                              {item.consumption} {item.unit} × {formatCurrency(item.rate || 0)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[12px] font-bold text-gray-900 tabular-nums">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 border-t border-gray-100">
+                      <span className="text-[12px] font-bold text-gray-700">Viso</span>
+                      <span className="text-[14px] font-bold text-teal-700 tabular-nums">{formatCurrency(totalAmount)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-white">
           <div className="text-[11px] text-gray-400">
-            {totalAmount > 0 && `Suma: ${formatCurrency(totalAmount)}`}
+            {step === 'preview' && mode !== 'single' && bulkSelectedCount > 0 && (
+              <>{bulkSelectedCount} sąskait{bulkSelectedCount === 1 ? 'a' : 'os'} • {formatCurrency(bulkTotal)}</>
+            )}
+            {step === 'configure' && mode === 'single' && totalAmount > 0 && `Suma: ${formatCurrency(totalAmount)}`}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className={btnSecondary}>Atšaukti</button>
-            <button
-              onClick={handleSave}
-              disabled={!selectedPropertyId || saving}
-              className={`${btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}
-            >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              {saving ? 'Kuriama...' : 'Sukurti sąskaitą'}
-            </button>
+            {result ? (
+              <button onClick={onClose} className={btnPrimary}>Uždaryti</button>
+            ) : step === 'preview' ? (
+              <>
+                <button onClick={() => setStep('configure')} className={btnSecondary}>
+                  <ChevronUp className="w-3.5 h-3.5" />
+                  Atgal
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || (mode !== 'single' && bulkSelectedCount === 0)}
+                  className={`${btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  {saving ? 'Kuriama...' : mode === 'single' ? 'Sukurti sąskaitą' : `Sukurti ${bulkSelectedCount} sąskait${bulkSelectedCount === 1 ? 'ą' : 'as'}`}
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={onClose} className={btnSecondary}>Atšaukti</button>
+                <button
+                  onClick={handleGeneratePreview}
+                  disabled={!canProceed || bulkLoading}
+                  className={`${btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  {bulkLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                  {bulkLoading ? 'Generuojama...' : 'Peržiūrėti'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -495,6 +844,8 @@ const Invoices: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [stats, setStats] = useState({ totalUnpaid: 0, totalOverdue: 0, paidThisMonth: 0, totalPendingAmount: 0 });
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   // Addresses for filter dropdown
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -540,6 +891,33 @@ const Invoices: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  // Close export menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    if (showExportMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
+
+  const handleExport = useCallback((scope: 'property' | 'address' | 'all', format: ExportFormat) => {
+    setShowExportMenu(false);
+    if (scope === 'all') {
+      exportAll(invoices, format);
+    } else if (scope === 'address' && addressFilter) {
+      exportByAddress(invoices, addressFilter, format);
+    }
+    // Note: property-level export would be triggered from individual invoice rows if needed
+  }, [invoices, addressFilter]);
+
+  const selectedAddressName = useMemo(() => {
+    if (!addressFilter) return '';
+    const a = addresses.find((a: any) => a.id === addressFilter);
+    return a ? `${a.street}, ${a.city}` : '';
+  }, [addressFilter, addresses]);
+
   return (
     <div className="p-6 space-y-5 max-w-[1200px] mx-auto">
       {/* Header */}
@@ -548,10 +926,71 @@ const Invoices: React.FC = () => {
           <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">Sąskaitos</h1>
           <p className="text-[12px] text-gray-400 mt-0.5">Valdykite nuomos sąskaitas ir mokėjimus</p>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className={btnPrimary}>
-          <Plus className="w-3.5 h-3.5" />
-          Nauja sąskaita
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Export dropdown */}
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className={`${btnSecondary} border border-gray-200/80`}
+              disabled={invoices.length === 0}
+            >
+              <Download className="w-3.5 h-3.5" />
+              Eksportuoti
+              <ChevronDown className="w-3 h-3 ml-0.5" />
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-[260px] bg-white rounded-xl border border-gray-200/80 shadow-lg shadow-gray-200/50 z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="px-3 py-1.5">
+                  <div className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.1em]">Duomenų lentelė</div>
+                </div>
+                {addressFilter && (
+                  <button
+                    onClick={() => handleExport('address', 'flat')}
+                    className="w-full px-3 py-2 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <span className="truncate">{selectedAddressName}</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleExport('all', 'flat')}
+                  className="w-full px-3 py-2 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                  Visi adresai
+                </button>
+
+                <div className="my-1.5 border-t border-gray-100" />
+
+                <div className="px-3 py-1.5">
+                  <div className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.1em]">Graži ataskaita</div>
+                </div>
+                {addressFilter && (
+                  <button
+                    onClick={() => handleExport('address', 'report')}
+                    className="w-full px-3 py-2 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                    <span className="truncate">{selectedAddressName}</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleExport('all', 'report')}
+                  className="w-full px-3 py-2 text-left text-[12px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                  Visi adresai
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button onClick={() => setShowCreateModal(true)} className={btnPrimary}>
+            <Plus className="w-3.5 h-3.5" />
+            Nauja sąskaita
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

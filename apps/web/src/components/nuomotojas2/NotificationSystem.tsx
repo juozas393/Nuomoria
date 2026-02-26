@@ -51,12 +51,12 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
   // Skolos pranešimų logika
   const debtNotifications = () => {
     const notifications = [];
-    
+
     // Patikrinti ar yra neapmokėtų sąskaitų
     if (tenant.payment_status === 'unpaid' || tenant.payment_status === 'overdue') {
       const status = tenant.payment_status === 'overdue' ? 'Vėluoja mokėti' : 'Nesumokėta';
       const color = tenant.payment_status === 'overdue' ? 'text-red-600 bg-red-50 border-red-200' : 'text-orange-600 bg-orange-50 border-orange-200';
-      
+
       notifications.push({
         type: 'payment_issue',
         status: tenant.payment_status,
@@ -65,7 +65,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
         priority: tenant.payment_status === 'overdue' ? 1 : 2
       });
     }
-    
+
     // Patikrinti ar yra konkreti skolos suma (tik jei payment_status nėra 'paid')
     if (tenant.outstanding_amount && tenant.outstanding_amount > 0 && tenant.payment_status !== 'paid') {
       notifications.push({
@@ -76,7 +76,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
         priority: 1
       });
     }
-    
+
     return notifications;
   };
 
@@ -84,64 +84,64 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
   const notificationSchedule = () => {
     const contractEnd = new Date(tenant.contractEnd);
     const now = new Date();
-    
-               // Patikrinti ar sutartis jau pratęsta
-      const isAutoRenewed = () => {
-        const autoRenewalDate = new Date(contractEnd);
-        autoRenewalDate.setMonth(autoRenewalDate.getMonth() + 6);
-        return contractEnd < now && autoRenewalDate > now && !tenant.tenant_response;
+
+    // Patikrinti ar sutartis jau pratęsta
+    const isAutoRenewed = () => {
+      const autoRenewalDate = new Date(contractEnd);
+      autoRenewalDate.setMonth(autoRenewalDate.getMonth() + 6);
+      return contractEnd < now && autoRenewalDate > now && !tenant.tenant_response;
+    };
+
+    // Patikrinti ar nuomininkas atsisakė pratėsimo
+    if (tenant.tenant_response === 'does_not_want_to_renew') {
+      return {
+        status: 'rejected',
+        message: 'Nuomininkas atsisakė pratėsimo - pranešimai sustabdyti',
+        notifications: []
       };
-      
-      // Patikrinti ar nuomininkas atsisakė pratėsimo
-      if (tenant.tenant_response === 'does_not_want_to_renew') {
-        return {
-          status: 'rejected',
-          message: 'Nuomininkas atsisakė pratėsimo - pranešimai sustabdyti',
-          notifications: []
-        };
-      }
-      
-      // Patikrinti ar nuomininkas nori pratęsti
-      if (tenant.tenant_response === 'wants_to_renew') {
-        return {
-          status: 'wants_renewal',
-          message: 'Nuomininkas nori pratęsti - laukiama nuomotojo patvirtinimo',
-          notifications: []
-        };
-      }
-      
-      // Jei sutartis jau pratęsta ir dar veikia
-      if (isAutoRenewed()) {
-        return {
-          status: 'auto_renewed',
-          message: 'Sutartis automatiškai pratęsta - nuomininkas gali bet kada pateikti išsikraustymo pranešimą',
-          notifications: []
-        };
-      }
-      
-      // Jei pratęsta sutartis baigėsi - vėl pratėsiama automatiškai
-      if (contractEnd < now && isAutoRenewed()) {
-        return {
-          status: 'auto_renew_again',
-          message: 'Pratęsta sutartis baigėsi - automatiškai pratėsiama dar kartą',
-          notifications: []
-        };
-      }
-    
+    }
+
+    // Patikrinti ar nuomininkas nori pratęsti
+    if (tenant.tenant_response === 'wants_to_renew') {
+      return {
+        status: 'wants_renewal',
+        message: 'Nuomininkas nori pratęsti - laukiama nuomotojo patvirtinimo',
+        notifications: []
+      };
+    }
+
+    // Jei sutartis jau pratęsta ir dar veikia
+    if (isAutoRenewed()) {
+      return {
+        status: 'auto_renewed',
+        message: 'Sutartis automatiškai pratęsta - nuomininkas gali bet kada pateikti išsikraustymo pranešimą',
+        notifications: []
+      };
+    }
+
+    // Jei pratęsta sutartis baigėsi - vėl pratėsiama automatiškai
+    if (contractEnd < now && isAutoRenewed()) {
+      return {
+        status: 'auto_renew_again',
+        message: 'Pratęsta sutartis baigėsi - automatiškai pratėsiama dar kartą',
+        notifications: []
+      };
+    }
+
     // Pirmas pranešimas - 2 mėnesiai prieš
     const firstReminderDate = new Date(contractEnd);
     firstReminderDate.setMonth(firstReminderDate.getMonth() - 2);
-    
+
     // Antras pranešimas - po 15 dienų
     const secondReminderDate = new Date(firstReminderDate);
     secondReminderDate.setDate(secondReminderDate.getDate() + 15);
-    
+
     // Trečias pranešimas - po 29 dienų
     const thirdReminderDate = new Date(firstReminderDate);
     thirdReminderDate.setDate(thirdReminderDate.getDate() + 29);
-    
+
     const notifications = [];
-    
+
     if (firstReminderDate > now) {
       notifications.push({
         type: 'first_reminder',
@@ -171,7 +171,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
         status: 'pending'
       });
     }
-    
+
     return {
       status: 'active',
       message: 'Pranešimai planuojami pagal grafiką',
@@ -214,7 +214,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('lt-LT');
+    return date.toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' });
   };
 
   const getDaysUntilContractEnd = () => {
@@ -279,16 +279,15 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
               <span className="font-medium text-gray-900">Mokėjimo statusas:</span>
             </div>
             <div className="text-right">
-              <span className={`px-2 py-1 rounded text-sm font-medium ${
-                tenant.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
-                tenant.payment_status === 'unpaid' ? 'bg-orange-100 text-orange-800' :
-                tenant.payment_status === 'overdue' ? 'bg-red-100 text-red-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
+              <span className={`px-2 py-1 rounded text-sm font-medium ${tenant.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                  tenant.payment_status === 'unpaid' ? 'bg-orange-100 text-orange-800' :
+                    tenant.payment_status === 'overdue' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                }`}>
                 {tenant.payment_status === 'paid' ? 'Sumokėta' :
-                 tenant.payment_status === 'unpaid' ? 'Nesumokėta' :
-                 tenant.payment_status === 'overdue' ? 'Vėluoja' :
-                 'Nenurodyta'}
+                  tenant.payment_status === 'unpaid' ? 'Nesumokėta' :
+                    tenant.payment_status === 'overdue' ? 'Vėluoja' :
+                      'Nenurodyta'}
               </span>
             </div>
           </div>
@@ -311,7 +310,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
           <div>
             <p className="font-medium">{notificationSchedule().message}</p>
             <p className="text-sm mt-1">
-              Sutarties pabaiga: {formatDate(new Date(tenant.contractEnd))} 
+              Sutarties pabaiga: {formatDate(new Date(tenant.contractEnd))}
               ({getDaysUntilContractEnd()} dienų)
             </p>
           </div>
@@ -332,7 +331,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
       {showDetails && (
         <div className="space-y-4">
           <h4 className="font-medium text-gray-900">Pranešimų grafikas:</h4>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Pirmas pranešimas */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -377,18 +376,18 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ tenant }) => {
             </div>
           </div>
 
-                     {/* Automatinio pratėsimo informacija */}
-           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-             <div className="flex items-center mb-2">
-               <CheckCircleIcon className="w-5 h-5 text-green-500 mr-2" />
-               <span className="font-medium text-green-900">Automatinis pratėsimas</span>
-             </div>
-                           <p className="text-sm text-green-700">
-                Jei nuomininkas neatsako iki sutarties pabaigos, sutartis automatiškai pratėsiama 6 mėnesiams. 
-                Jei pratęsta sutartis baigėsi, ji vėl automatiškai pratėsiama be jokio klausimo. 
-                Po pratėsimo nuomininkas pats pateikia pranešimą kada nori išsikraustyti. Nuomotojas turi patvirtinti pratėsimą.
-              </p>
-           </div>
+          {/* Automatinio pratėsimo informacija */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center mb-2">
+              <CheckCircleIcon className="w-5 h-5 text-green-500 mr-2" />
+              <span className="font-medium text-green-900">Automatinis pratėsimas</span>
+            </div>
+            <p className="text-sm text-green-700">
+              Jei nuomininkas neatsako iki sutarties pabaigos, sutartis automatiškai pratėsiama 6 mėnesiams.
+              Jei pratęsta sutartis baigėsi, ji vėl automatiškai pratėsiama be jokio klausimo.
+              Po pratėsimo nuomininkas pats pateikia pranešimą kada nori išsikraustyti. Nuomotojas turi patvirtinti pratėsimą.
+            </p>
+          </div>
 
           {/* Aktyvūs pranešimai */}
           {notificationSchedule().notifications.length > 0 && (

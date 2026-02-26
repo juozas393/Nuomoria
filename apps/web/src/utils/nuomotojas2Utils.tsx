@@ -1,5 +1,5 @@
 import React from 'react';
-import { 
+import {
   UserGroupIcon,
   HomeIcon,
   ExclamationTriangleIcon
@@ -77,7 +77,8 @@ export const formatCurrency = (amount: number) => {
 };
 
 export const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('lt-LT');
+  const d = new Date(dateString);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 export const getPropertiesForAddress = (addressId: string, properties: any[], addresses: any[]) => {

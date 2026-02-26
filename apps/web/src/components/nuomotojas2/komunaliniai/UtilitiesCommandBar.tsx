@@ -69,7 +69,7 @@ export const UtilitiesCommandBar: React.FC<UtilitiesCommandBarProps> = ({
             };
         }
         return {
-            label: 'Pridėti skaitiklį',
+            label: 'Pridėti skaitliuką',
             icon: Plus,
             onClick: onAddMeter,
             variant: 'secondary' as const,
@@ -129,8 +129,8 @@ export const UtilitiesCommandBar: React.FC<UtilitiesCommandBarProps> = ({
                                         key={idx}
                                         onClick={() => handleMonthChange(idx)}
                                         className={`px-2 py-1.5 text-xs rounded transition-colors ${idx === selectedMonth
-                                                ? 'bg-teal-600 text-white'
-                                                : 'hover:bg-gray-100 text-gray-700'
+                                            ? 'bg-teal-600 text-white'
+                                            : 'hover:bg-gray-100 text-gray-700'
                                             }`}
                                     >
                                         {month}
@@ -164,10 +164,10 @@ export const UtilitiesCommandBar: React.FC<UtilitiesCommandBarProps> = ({
                 <button
                     onClick={primaryCTA.onClick}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${primaryCTA.variant === 'primary'
-                            ? 'bg-teal-600 text-white hover:bg-teal-700'
-                            : primaryCTA.variant === 'warning'
-                                ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-teal-600 text-white hover:bg-teal-700'
+                        : primaryCTA.variant === 'warning'
+                            ? 'bg-amber-500 text-white hover:bg-amber-600'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                 >
                     <primaryCTA.icon className="w-4 h-4" />

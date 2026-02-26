@@ -18,11 +18,8 @@ export function MetersList({ meters, onOpenPhotos }: Props) {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('lt-LT', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
+    const d = new Date(dateString);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
   const getMeterIcon = (type: string) => {
@@ -54,10 +51,10 @@ export function MetersList({ meters, onOpenPhotos }: Props) {
 
   return (
     <Card>
-             <div className="flex items-center justify-between mb-3">
-         <h3 className="text-[13px] font-semibold">Skaitliukai</h3>
-       </div>
-      
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[13px] font-semibold">Skaitliukai</h3>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         {meters?.map((meter, index) => (
           <div key={index} className="space-y-2">
@@ -68,13 +65,13 @@ export function MetersList({ meters, onOpenPhotos }: Props) {
               </div>
               {getStatusChip(meter.status)}
             </div>
-            
+
             <div className="text-sm">
               <div className="text-neutral-600">Paskutinis rodmuo:</div>
               <div className="font-medium">{meter.value} {meter.unit}</div>
               <div className="text-xs text-neutral-500">{formatDate(meter.submittedAt)}</div>
             </div>
-            
+
             <div className="text-sm font-medium">{fx(meter.amountEur)} €</div>
           </div>
         ))}
@@ -83,14 +80,14 @@ export function MetersList({ meters, onOpenPhotos }: Props) {
   );
 }
 
-const Card = ({className, ...p}: React.HTMLProps<HTMLDivElement>) => 
+const Card = ({ className, ...p }: React.HTMLProps<HTMLDivElement>) =>
   <section className={["rounded-xl border border-neutral-200 bg-white p-4 shadow-sm", className].join(' ')} {...p} />;
 
-const Chip = ({label, tone="muted"}:{label:string; tone?:"brand"|"warn"|"muted"|"ok"}) => 
+const Chip = ({ label, tone = "muted" }: { label: string; tone?: "brand" | "warn" | "muted" | "ok" }) =>
   <span className={[
     "inline-flex items-center rounded-lg px-2.5 py-1 text-[12px] font-medium",
-    tone==="brand" ? "bg-teal-50 text-teal-700" : 
-    tone==="ok" ? "bg-emerald-50 text-emerald-700" : 
-    tone==="warn" ? "bg-amber-50 text-amber-700" : 
-    "bg-neutral-100 text-neutral-700"
+    tone === "brand" ? "bg-teal-50 text-teal-700" :
+      tone === "ok" ? "bg-emerald-50 text-emerald-700" :
+        tone === "warn" ? "bg-amber-50 text-amber-700" :
+          "bg-neutral-100 text-neutral-700"
   ].join(' ')}>{label}</span>;

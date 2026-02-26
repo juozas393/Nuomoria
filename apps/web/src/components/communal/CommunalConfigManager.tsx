@@ -22,10 +22,10 @@ export const CommunalConfigManager: React.FC<CommunalConfigManagerProps> = ({
 
   const getMeterStatus = () => {
     if (!currentConfig) return { required: 0, individual: 0, total: 0 };
-    
+
     const required = currentConfig.meters.filter(m => m.isRequired).length;
     const individual = currentConfig.meters.filter(m => m.hasIndividualMeter).length;
-    
+
     return { required, individual, total: currentConfig.meters.length };
   };
 
@@ -70,7 +70,7 @@ export const CommunalConfigManager: React.FC<CommunalConfigManagerProps> = ({
               <div className="bg-neutral-50 rounded-lg p-3">
                 <div className="text-sm text-neutral-600 mb-1">Atnaujinta</div>
                 <div className="text-sm font-medium">
-                  {new Date(currentConfig.updatedAt).toLocaleDateString('lt-LT')}
+                  {new Date(currentConfig.updatedAt).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                 </div>
                 <div className="text-xs text-neutral-500">
                   {new Date(currentConfig.updatedAt).toLocaleTimeString('lt-LT')}

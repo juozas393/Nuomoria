@@ -9,7 +9,11 @@ type Props = {
 };
 
 export function ContractStrip({ start, end, daysLeftLabel, isExpired, isEnded }: Props) {
-  const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('lt-LT') : '—';
+  const fmt = (d?: string) => {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  };
 
   return (
     <div className="flex items-center justify-between px-5 py-3 bg-neutral-50 border-b">

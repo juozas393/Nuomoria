@@ -1,14 +1,13 @@
 // Supabase Edge Function: Send Tenant Invitation Email via Resend
 // Mobile-responsive, dark mode compatible email template
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-app-version, x-supabase-api-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -24,7 +23,9 @@ serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { to, inviteCode, propertyLabel, landlordName } = body;
+    const { to, inviteCode, propertyLabel, landlordName, appUrl } = body;
+
+    const loginUrl = appUrl ? `${appUrl}/login` : 'https://nuomoria.lt/login';
 
     if (!to || !inviteCode || !propertyLabel) {
       return new Response(
@@ -128,7 +129,7 @@ serve(async (req: Request) => {
               
               <!-- CTA Button -->
               <div style="text-align: center; margin-bottom: 28px;">
-                <a href="https://nuomoria.lt/login" style="display: inline-block; background-color: #2F8481; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+                <a href="${loginUrl}" style="display: inline-block; background-color: #2F8481; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">
                   Prisijungti prie Nuomoria
                 </a>
               </div>

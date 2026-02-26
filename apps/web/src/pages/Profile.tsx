@@ -390,7 +390,7 @@ const Profile: React.FC = () => {
                     <span className="font-medium text-gray-200">Google</span>
                   </div>
                 </div>
-                {profile.created_at && <div className="flex justify-between"><span className="text-gray-400">Registracija</span><span className="font-medium text-gray-200">{new Date(profile.created_at).toLocaleDateString('lt-LT')}</span></div>}
+                {profile.created_at && <div className="flex justify-between"><span className="text-gray-400">Registracija</span><span className="font-medium text-gray-200">{(() => { const d = new Date(profile.created_at); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span></div>}
               </div>
 
               {/* Profile completion progress */}

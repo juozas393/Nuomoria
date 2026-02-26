@@ -19,7 +19,7 @@ const formatDate = (dateStr: string): string => {
     if (diffHours < 24) return `Prieš ${diffHours} val.`;
     if (diffDays === 1) return 'Vakar';
     if (diffDays < 7) return `Prieš ${diffDays} d.`;
-    return date.toLocaleDateString('lt-LT', { month: 'short', day: 'numeric' });
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 const StatusIcon: React.FC<{ status: MaintenanceRequest['status'] }> = ({ status }) => {

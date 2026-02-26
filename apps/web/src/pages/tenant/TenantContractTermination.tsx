@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { 
-  ExclamationTriangleIcon, 
-  ClockIcon, 
+import LtDateInput from '../../components/ui/LtDateInput';
+import {
+  ExclamationTriangleIcon,
+  ClockIcon,
   CalendarIcon,
   UserIcon,
   HomeIcon,
@@ -50,18 +51,18 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
     }
 
     const validation = validateMoveOutDate(date, property.contract_end);
-    
+
     if (!validation.isValid) {
       setDateError(validation.error || '');
       return false;
     }
-    
+
     setDateError('');
     return true;
   };
 
   // Handle date change with validation
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDateChange = (e: { target: { value: string } }) => {
     const newDate = e.target.value;
     setTerminationDate(newDate);
     validateTerminationDate(newDate);
@@ -70,12 +71,12 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
   // Calculate deposit return based on termination date
   const calculateDepositReturn = (terminationDate: string) => {
     if (!terminationDate) return 0;
-    
+
     const termination = new Date(terminationDate);
     const contractStart = new Date(property.contract_start);
     const contractEnd = new Date(property.contract_end);
     const daysUntilTermination = Math.ceil((termination.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     // Calculate how many months have passed since contract start
     // If contract is auto-renewed, calculate from the renewal date (contract_end of original contract)
     // If not auto-renewed, calculate from contract_start
@@ -89,10 +90,10 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
       // For regular contracts, calculate from contract_start
       monthsSinceStart = Math.ceil((termination.getTime() - contractStart.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
     }
-    
+
     // Check if tenant gave proper notice (30+ days before termination)
     const daysNoticeGiven = noticeGiven ? daysUntilTermination : 0;
-    
+
     // 3. Pratęsta sutartis (automatinis arba susitarimu pagrįstas pratęsimas)
     if (property.auto_renewal_enabled && property.tenant_response === 'does_not_want_to_renew') {
       if (daysNoticeGiven >= 30) {
@@ -101,7 +102,7 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
         return Math.max(0, property.deposit_paid_amount - property.rent); // Nepranešus prieš 30 dienų: 1 mėnesio nuomos suma lieka nuomotojui
       }
     }
-    
+
     // 1. Nutraukimas per pirmus 12 mėnesių
     if (daysUntilTermination > 0 && property.tenant_response === 'does_not_want_to_renew' && monthsSinceStart < 12) {
       if (daysNoticeGiven >= 30) {
@@ -112,7 +113,7 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
         return 0;
       }
     }
-    
+
     // 2. Išsikėlimas pasibaigus pradinės sutarties laikotarpiui (po 12 mėnesių)
     if (daysUntilTermination > 0 && property.tenant_response === 'does_not_want_to_renew' && monthsSinceStart >= 12) {
       if (daysNoticeGiven >= 30) {
@@ -123,7 +124,7 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
         return Math.max(0, property.deposit_paid_amount - property.rent);
       }
     }
-    
+
     // B. Sutarties pabaigoje (išsikrausto laiku)
     if (daysUntilTermination <= 0) {
       // Check if tenant gave proper notice (30+ days before contract end)
@@ -134,7 +135,7 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
         return Math.max(0, property.deposit_paid_amount - property.rent);
       }
     }
-    
+
     // If tenant responds to notification (1 month before end) and wants to leave
     if (daysUntilTermination > 0 && daysUntilTermination <= 30) {
       // Check if tenant gave proper notice (30+ days before contract end)
@@ -145,7 +146,7 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
         return Math.max(0, property.deposit_paid_amount - property.rent);
       }
     }
-    
+
     return 0;
   };
 
@@ -162,9 +163,9 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-black">Sutarties nutraukimas</h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
-              <button 
+              <button
                 onClick={logout}
                 className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                 title="Atsijungti"
@@ -234,17 +235,15 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Išsikėlimo data
                   </label>
-                  <input
-                    type="date"
+                  <LtDateInput
                     value={terminationDate}
                     onChange={handleDateChange}
                     min={new Date().toISOString().split('T')[0]}
                     max={property.contract_end}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      dateError 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${dateError
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                      }`}
                   />
                   {dateError && (
                     <div className="mt-2 flex items-center space-x-2 text-red-600 text-sm">
@@ -287,7 +286,7 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
             {showCalculation && terminationDate && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Depozito grąžinimo skaičiavimas</h2>
-                
+
                 <div className="space-y-4">
                   {/* Termination Date */}
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
@@ -306,20 +305,20 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
                   {/* Deposit Return Calculation */}
                   <div className="border-t pt-4">
                     <h3 className="text-md font-semibold text-gray-900 mb-3">Skaičiavimas:</h3>
-                    
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600">Sumokėtas depozitas:</span>
                         <span className="font-medium">€{property.deposit_paid_amount}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600">Grąžinama:</span>
                         <span className={`font-medium ${depositReturn > 0 ? 'text-primary-600' : 'text-red-600'}`}>
                           {depositReturn > 0 ? `€${depositReturn}` : 'Nėra grąžinamos sumos'}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600">Nuostolis:</span>
                         <span className={`font-medium ${depositLoss > 0 ? 'text-red-600' : 'text-primary-600'}`}>
@@ -330,13 +329,12 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
                   </div>
 
                   {/* Result Message */}
-                  <div className={`p-4 rounded-md ${
-                    depositReturn === property.deposit_paid_amount 
-                      ? 'bg-primary-50 border border-primary-200' 
-                      : depositReturn > 0 
+                  <div className={`p-4 rounded-md ${depositReturn === property.deposit_paid_amount
+                    ? 'bg-primary-50 border border-primary-200'
+                    : depositReturn > 0
                       ? 'bg-yellow-50 border border-yellow-200'
                       : 'bg-red-50 border border-red-200'
-                  }`}>
+                    }`}>
                     <div className="flex items-center space-x-2">
                       {depositReturn === property.deposit_paid_amount ? (
                         <CheckCircleIcon className="w-5 h-5 text-primary-600" />
@@ -345,18 +343,17 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
                       ) : (
                         <XCircleIcon className="w-5 h-5 text-red-600" />
                       )}
-                      <span className={`font-medium ${
-                        depositReturn === property.deposit_paid_amount 
-                          ? 'text-primary-800' 
-                          : depositReturn > 0 
+                      <span className={`font-medium ${depositReturn === property.deposit_paid_amount
+                        ? 'text-primary-800'
+                        : depositReturn > 0
                           ? 'text-yellow-800'
                           : 'text-red-800'
-                      }`}>
-                        {depositReturn === property.deposit_paid_amount 
+                        }`}>
+                        {depositReturn === property.deposit_paid_amount
                           ? 'Visas depozitas grąžinamas'
-                          : depositReturn > 0 
-                          ? `Grąžinama €${depositReturn} (nuostolis €${depositLoss})`
-                          : 'Depozitas negrąžinamas'
+                          : depositReturn > 0
+                            ? `Grąžinama €${depositReturn} (nuostolis €${depositLoss})`
+                            : 'Depozitas negrąžinamas'
                         }
                       </span>
                     </div>
@@ -365,51 +362,51 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
               </div>
             )}
 
-                         {/* Rules Information */}
-             <div className="bg-white rounded-lg shadow-sm p-6">
-               <h2 className="text-lg font-semibold text-gray-900 mb-4">Depozito grąžinimo taisyklės</h2>
-               <div className="space-y-3 text-sm">
-                 <div className="flex items-start space-x-2">
-                   <CheckCircleIcon className="w-4 h-4 text-primary-600 mt-0.5" />
-                   <div>
-                     <span className="font-medium text-primary-800">Sutarties pabaigoje:</span>
-                     <p className="text-gray-600">Visas depozitas grąžinamas (minus valymo/žalos išlaidos)</p>
-                   </div>
-                 </div>
-                 
-                 <div className="flex items-start space-x-2">
-                   <XCircleIcon className="w-4 h-4 text-red-600 mt-0.5" />
-                   <div>
-                     <span className="font-medium text-red-800">Per pirmus 6 mėn.:</span>
-                     <p className="text-gray-600">Depozitas pilnai negrąžinamas</p>
-                   </div>
-                 </div>
-                 
-                 <div className="flex items-start space-x-2">
-                   <XCircleIcon className="w-4 h-4 text-red-600 mt-0.5" />
-                   <div>
-                     <span className="font-medium text-red-800">6-12 mėn. laikotarpiu:</span>
-                     <p className="text-gray-600">Depozitas negrąžinamas (net jei pranešė laiku)</p>
-                   </div>
-                 </div>
-                 
-                 <div className="flex items-start space-x-2">
-                   <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600 mt-0.5" />
-                   <div>
-                     <span className="font-medium text-yellow-800">Po 12 mėn., praneša 30 d.:</span>
-                     <p className="text-gray-600">Nuomotojui 1 mėnuo, likusį nuomininkui</p>
-                   </div>
-                 </div>
-                 
-                 <div className="flex items-start space-x-2">
-                   <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600 mt-0.5" />
-                   <div>
-                     <span className="font-medium text-yellow-800">Pratęsta sutartis:</span>
-                     <p className="text-gray-600">30 d. prieš - visas depozitas, be pranešimo - nuostolis 1 mėnuo</p>
-                   </div>
-                 </div>
-               </div>
-             </div>
+            {/* Rules Information */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Depozito grąžinimo taisyklės</h2>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start space-x-2">
+                  <CheckCircleIcon className="w-4 h-4 text-primary-600 mt-0.5" />
+                  <div>
+                    <span className="font-medium text-primary-800">Sutarties pabaigoje:</span>
+                    <p className="text-gray-600">Visas depozitas grąžinamas (minus valymo/žalos išlaidos)</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2">
+                  <XCircleIcon className="w-4 h-4 text-red-600 mt-0.5" />
+                  <div>
+                    <span className="font-medium text-red-800">Per pirmus 6 mėn.:</span>
+                    <p className="text-gray-600">Depozitas pilnai negrąžinamas</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2">
+                  <XCircleIcon className="w-4 h-4 text-red-600 mt-0.5" />
+                  <div>
+                    <span className="font-medium text-red-800">6-12 mėn. laikotarpiu:</span>
+                    <p className="text-gray-600">Depozitas negrąžinamas (net jei pranešė laiku)</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2">
+                  <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600 mt-0.5" />
+                  <div>
+                    <span className="font-medium text-yellow-800">Po 12 mėn., praneša 30 d.:</span>
+                    <p className="text-gray-600">Nuomotojui 1 mėnuo, likusį nuomininkui</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2">
+                  <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600 mt-0.5" />
+                  <div>
+                    <span className="font-medium text-yellow-800">Pratęsta sutartis:</span>
+                    <p className="text-gray-600">30 d. prieš - visas depozitas, be pranešimo - nuostolis 1 mėnuo</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -418,7 +415,7 @@ const TenantContractTermination: React.FC<TenantContractTerminationProps> = ({ p
           <button className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700">
             Atšaukti
           </button>
-          <button 
+          <button
             className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700"
             disabled={!terminationDate || !showCalculation}
           >

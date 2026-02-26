@@ -538,9 +538,178 @@ export function buildLineItems(
     return items;
 }
 
+
 // ============================================================
-// SUMMARY STATS
+// BULK INVOICE GENERATION
 // ============================================================
+
+export interface BulkInvoicePreview {
+    propertyId: string;
+    apartment: string;
+    address: string;
+    addressId: string;
+    tenant: { id: string; first_name: string; last_name: string; email: string } | null;
+    rent: number;
+    lineItems: InvoiceLineItem[];
+    utilitiesTotal: number;
+    totalAmount: number;
+    selected: boolean; // user can deselect before creating
+}
+
+/**
+ * Generate preview data for bulk invoice creation.
+ * If addressId is provided, only properties at that address.
+ * If not, ALL properties across all addresses.
+ */
+export async function generateBulkInvoiceData(
+    addressId?: string
+): Promise<{ previews: BulkInvoicePreview[]; error: any }> {
+    // Get all properties (optionally filtered by address)
+    let query = supabase
+        .from('properties')
+        .select(`
+      id, apartment_number, rent, address_id, status,
+      addresses!address_id ( id, street, city )
+    `)
+        .order('apartment_number');
+
+    if (addressId) {
+        query = query.eq('address_id', addressId);
+    }
+
+    const { data: properties, error: propError } = await query;
+    if (propError || !properties || properties.length === 0) {
+        return { previews: [], error: propError };
+    }
+
+    const previews: BulkInvoicePreview[] = [];
+
+    for (const prop of properties) {
+        // Get active tenant
+        const { data: tenantRecord } = await supabase
+            .from('tenants')
+            .select('id, user_id, users!user_id ( id, first_name, last_name, email )')
+            .eq('property_id', prop.id)
+            .maybeSingle();
+
+        const tenantUser = tenantRecord
+            ? {
+                id: (tenantRecord as any).users?.id || tenantRecord.user_id,
+                first_name: (tenantRecord as any).users?.first_name || '',
+                last_name: (tenantRecord as any).users?.last_name || '',
+                email: (tenantRecord as any).users?.email || ''
+            }
+            : null;
+
+        // Get apartment meters
+        const { data: meters } = await supabase
+            .from('apartment_meters')
+            .select('*')
+            .eq('property_id', prop.id)
+            .eq('is_active', true);
+
+        // Get latest readings
+        const meterIds = (meters || []).map(m => m.id);
+        let latestReadings: any[] = [];
+        if (meterIds.length > 0) {
+            const { data: readings } = await supabase
+                .from('meter_readings')
+                .select('*')
+                .in('meter_id', meterIds)
+                .order('reading_date', { ascending: false })
+                .limit(meterIds.length * 2);
+            latestReadings = readings || [];
+        }
+
+        const rent = prop.rent || 0;
+        const lineItems = buildLineItems(rent, meters || [], latestReadings);
+        const utilitiesTotal = lineItems.filter(i => i.type !== 'rent').reduce((s, i) => s + i.amount, 0);
+
+        const addr = prop.addresses as any;
+        const address = [addr?.street, addr?.city].filter(Boolean).join(', ');
+
+        previews.push({
+            propertyId: prop.id,
+            apartment: prop.apartment_number || '—',
+            address,
+            addressId: prop.address_id,
+            tenant: tenantUser,
+            rent,
+            lineItems,
+            utilitiesTotal,
+            totalAmount: rent + utilitiesTotal,
+            selected: true,
+        });
+    }
+
+    return { previews, error: null };
+}
+
+/**
+ * Create multiple invoices in batch
+ */
+export async function createBulkInvoices(
+    previews: BulkInvoicePreview[],
+    options: {
+        invoiceDate: string;
+        dueDate: string;
+        periodStart: string;
+        periodEnd: string;
+        sendToTenant: boolean;
+        notes?: string;
+    }
+): Promise<{ created: number; errors: string[] }> {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+
+    const selected = previews.filter(p => p.selected);
+    const errors: string[] = [];
+    let created = 0;
+
+    // Generate sequential invoice numbers
+    const baseNumber = await generateInvoiceNumber();
+    const baseParts = baseNumber.match(/^(INV-\d{6}-)(\d+)$/);
+    const prefix = baseParts ? baseParts[1] : 'INV-000000-';
+    let counter = baseParts ? parseInt(baseParts[2]) : 1;
+
+    for (const preview of selected) {
+        const invoiceNumber = `${prefix}${String(counter).padStart(3, '0')}`;
+        counter++;
+
+        const totalAmount = preview.totalAmount;
+        const { error } = await supabase
+            .from('invoices')
+            .insert({
+                property_id: preview.propertyId,
+                tenant_id: options.sendToTenant && preview.tenant ? preview.tenant.id : null,
+                address_id: preview.addressId,
+                invoice_number: invoiceNumber,
+                invoice_date: options.invoiceDate,
+                due_date: options.dueDate,
+                period_start: options.periodStart || null,
+                period_end: options.periodEnd || null,
+                amount: totalAmount,
+                rent_amount: preview.rent,
+                utilities_amount: preview.utilitiesTotal,
+                other_amount: 0,
+                late_fee: 0,
+                status: 'unpaid',
+                line_items: preview.lineItems,
+                notes: options.notes || null,
+                created_by: userId,
+            });
+
+        if (error) {
+            errors.push(`${preview.apartment}: ${error.message}`);
+        } else {
+            created++;
+        }
+    }
+
+    return { created, errors };
+}
+
+
 
 /**
  * Get invoice summary stats for dashboard

@@ -1,5 +1,5 @@
 import React from 'react';
-import { 
+import {
   Cog6ToothIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
@@ -24,8 +24,8 @@ export const AddressSettingsSummary: React.FC<AddressSettingsSummaryProps> = ({
   onOpenSettings
 }) => {
   const hasSettings = !!settings;
-  const lastUpdated = settings?.updatedAt 
-    ? new Date(settings.updatedAt).toLocaleDateString('lt-LT')
+  const lastUpdated = settings?.updatedAt
+    ? new Date(settings.updatedAt).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })
     : null;
 
   return (
@@ -151,7 +151,7 @@ export const AddressSettingsSummary: React.FC<AddressSettingsSummaryProps> = ({
               Nėra nustatymų
             </h4>
             <p className="text-sm text-gray-500 mb-4">
-              Sukurkite adreso nustatymus, kad galėtumėte valdyti pastato informaciją, 
+              Sukurkite adreso nustatymus, kad galėtumėte valdyti pastato informaciją,
               kontaktus, finansus ir komunalinius visiems butams.
             </p>
             <button

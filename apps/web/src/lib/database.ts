@@ -36,7 +36,8 @@ export interface Property {
   rent: number;
   area?: number;
   rooms?: number;
-  status: 'occupied' | 'vacant' | 'maintenance';
+  status: 'occupied' | 'vacant' | 'maintenance' | 'reserved';
+  under_maintenance: boolean;
   contract_start: string;
   contract_end: string;
   tenant_response?: 'wants_to_renew' | 'does_not_want_to_renew' | 'no_response';
@@ -891,7 +892,8 @@ export const databaseUtils = {
 
   // Format date
   formatDate(date: string): string {
-    return new Date(date).toLocaleDateString('lt-LT');
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 };
 
@@ -1065,8 +1067,8 @@ export const tenantInvitationApi = {
       .eq('property_id', invitation.property_id)
       .eq('status', 'pending');
 
-    // Calculate expiry (12 hours from now)
-    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+    // Calculate expiry (7 days from now — matches email text "Kodas galioja 7 dienas")
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase
       .from('tenant_invitations')

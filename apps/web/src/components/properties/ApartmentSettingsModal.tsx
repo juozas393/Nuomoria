@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
+import LtDateInput from '../ui/LtDateInput';
 import {
     X, Home, Save,
     ChevronDown, Calendar, Euro, Shield,
@@ -64,6 +65,8 @@ interface PropertyData {
         utilities_paid_by?: string;
         payment_due_day?: number;
         notes_internal?: string;
+        late_fee_amount?: number;
+        late_fee_grace_days?: number;
     };
 }
 
@@ -96,20 +99,31 @@ const InputField = memo<{
         <label className="block text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1.5">{label}</label>
         <div className="relative">
             {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">{prefix}</span>}
-            <input
-                type={type}
-                inputMode={type === 'number' ? 'numeric' : undefined}
-                value={value ?? ''}
-                onChange={(e) => onChange(e.target.value)}
-                onWheel={(e) => type === 'number' && (e.target as HTMLInputElement).blur()}
-                placeholder={placeholder}
-                disabled={disabled}
-                min={min}
-                max={max}
-                className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors duration-150 ${error ? 'border-red-400/50 focus:ring-red-500/20 focus:border-red-400'
-                    : 'border-white/10 focus:ring-teal-500/30 focus:border-teal-500/50'
-                    } ${disabled ? 'bg-white/5 text-white/30' : 'bg-white/5 text-white'} ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-12' : ''}`}
-            />
+            {type === 'date' ? (
+                <LtDateInput
+                    value={String(value ?? '')}
+                    onChange={(e) => onChange(e.target.value)}
+                    disabled={disabled}
+                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors duration-150 ${error ? 'border-red-400/50 focus:ring-red-500/20 focus:border-red-400'
+                        : 'border-white/10 focus:ring-teal-500/30 focus:border-teal-500/50'
+                        } ${disabled ? 'bg-white/5 text-white/30' : 'bg-white/5 text-white'}`}
+                />
+            ) : (
+                <input
+                    type={type}
+                    inputMode={type === 'number' ? 'numeric' : undefined}
+                    value={value ?? ''}
+                    onChange={(e) => onChange(e.target.value)}
+                    onWheel={(e) => type === 'number' && (e.target as HTMLInputElement).blur()}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    min={min}
+                    max={max}
+                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-colors duration-150 ${error ? 'border-red-400/50 focus:ring-red-500/20 focus:border-red-400'
+                        : 'border-white/10 focus:ring-teal-500/30 focus:border-teal-500/50'
+                        } ${disabled ? 'bg-white/5 text-white/30' : 'bg-white/5 text-white'} ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-12' : ''}`}
+                />
+            )}
             {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/40">{suffix}</span>}
         </div>
         {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
@@ -224,8 +238,8 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
         duration_months: property.original_contract_duration_months?.toString() || '12',
         rent: property.rent?.toString() || '',
         payment_day: property.extended_details?.payment_due_day?.toString() || '15',
-        late_fee: '10',
-        late_fee_starts: '5',
+        late_fee: property.extended_details?.late_fee_amount?.toString() || '10',
+        late_fee_starts: property.extended_details?.late_fee_grace_days?.toString() || '5',
         deposit_amount: property.deposit_amount?.toString() || '',
         deposit_paid_amount: property.deposit_paid_amount?.toString() || '0',
         deposit_paid: property.deposit_paid ?? false,
@@ -260,6 +274,8 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                             auto_renewal: data.auto_renewal_enabled ?? prev.auto_renewal,
                             duration_months: data.original_contract_duration_months ? String(data.original_contract_duration_months) : prev.duration_months,
                             payment_day: (data.extended_details as any)?.payment_due_day ? String((data.extended_details as any).payment_due_day) : prev.payment_day,
+                            late_fee: (data.extended_details as any)?.late_fee_amount ? String((data.extended_details as any).late_fee_amount) : prev.late_fee,
+                            late_fee_starts: (data.extended_details as any)?.late_fee_grace_days ? String((data.extended_details as any).late_fee_grace_days) : prev.late_fee_starts,
                         }));
                     }
                 } catch (err) {
@@ -281,8 +297,8 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                 duration_months: property.original_contract_duration_months?.toString() || '12',
                 rent: property.rent?.toString() || '',
                 payment_day: property.extended_details?.payment_due_day?.toString() || '15',
-                late_fee: '10',
-                late_fee_starts: '5',
+                late_fee: property.extended_details?.late_fee_amount?.toString() || '10',
+                late_fee_starts: property.extended_details?.late_fee_grace_days?.toString() || '5',
                 deposit_amount: property.deposit_amount?.toString() || '',
                 deposit_paid_amount: property.deposit_paid_amount?.toString() || '0',
                 deposit_paid: property.deposit_paid ?? false,
@@ -347,7 +363,10 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                 deposit_deductions: form.deposit_deductions ? parseFloat(form.deposit_deductions) : 0,
                 deposit_status: form.deposit_status,
                 extended_details: {
+                    ...property.extended_details,
                     payment_due_day: form.payment_day ? parseInt(form.payment_day) : undefined,
+                    late_fee_amount: form.late_fee ? parseFloat(form.late_fee) : undefined,
+                    late_fee_grace_days: form.late_fee_starts ? parseInt(form.late_fee_starts) : undefined,
                 },
             };
 
@@ -475,7 +494,7 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                                 type="number"
                                 min={1}
                                 max={28}
-                                helperText="Kiekvieno mėnesio"
+                                helperText="Kiekvieną mėnesį iki šios dienos nuomininkas turi sumokėti nuomą"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -485,6 +504,7 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                                 onChange={(v) => updateField('late_fee', v)}
                                 type="number"
                                 prefix="€"
+                                helperText="Suma eurais, kuri pridedama už kiekvieną pavėluotą dieną"
                             />
                             <InputField
                                 label="Baudos pradžia"
@@ -492,7 +512,7 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                                 onChange={(v) => updateField('late_fee_starts', v)}
                                 type="number"
                                 suffix="d."
-                                helperText="Po kiek dienų"
+                                helperText="Po kiek dienų nuo mokėjimo termino pradedama skaičiuoti bauda"
                             />
                         </div>
                     </div>

@@ -13,7 +13,7 @@ interface OnboardingPageProps {
 const STEPS = ['welcome', 'username', 'role', 'complete'] as const;
 type Step = typeof STEPS[number];
 
-const heroBgImage = '/images/LoginBackground.webp';
+const heroBgImage = '/images/ImageIntroduction.jpg';
 
 /* ─────────────────────────── tiny SVG icons ──────────────────────────── */
 

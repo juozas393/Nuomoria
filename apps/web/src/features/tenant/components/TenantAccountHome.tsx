@@ -131,7 +131,8 @@ const TenantAccountHome: React.FC<TenantAccountHomeProps> = ({
     };
 
     const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('lt-LT', { year: 'numeric', month: 'long', day: 'numeric' });
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
     const getActivityIcon = (type: string) => {

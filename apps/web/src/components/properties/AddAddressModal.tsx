@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useState, useEffect, useCallback, useRef, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useContext, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,11 +17,96 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { MetersTable } from './MetersTable';
-import { geocodeAddressWithRateLimit, parseAddressComponents } from '../../utils/geocoding';
+import { geocodeAddress, parseAddressComponents, searchAddressSuggestions, reverseGeocode, type AddressSuggestion } from '../../utils/geocoding';
 import { type DistributionMethod } from '../../constants/meterDistribution';
 import { supabase } from '../../lib/supabase';
 import { addressApi } from '../../lib/database';
 import { sendNotificationNew } from '../../utils/notificationSystem';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet default icon issue with bundlers
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Draggable map component using vanilla Leaflet (avoids react-leaflet context issues)
+const DraggableMap: React.FC<{
+  lat: number;
+  lng: number;
+  onPositionChange: (lat: number, lng: number) => void;
+}> = React.memo(({ lat, lng, onPositionChange }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const onPositionChangeRef = useRef(onPositionChange);
+  onPositionChangeRef.current = onPositionChange;
+
+  // Initialize map once
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Cleanup any stale Leaflet instance (HMR / re-mount)
+    if (mapRef.current) {
+      try { mapRef.current.remove(); } catch { /* ignore */ }
+      mapRef.current = null;
+      markerRef.current = null;
+    }
+    // Clear Leaflet's internal reference on the DOM container
+    if ((container as any)._leaflet_id) {
+      delete (container as any)._leaflet_id;
+      container.innerHTML = '';
+    }
+
+    const map = L.map(container, {
+      scrollWheelZoom: false,
+    }).setView([lat, lng], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      onPositionChangeRef.current(pos.lat, pos.lng);
+    });
+
+    mapRef.current = map;
+    markerRef.current = marker;
+
+    // Fix tile rendering in hidden containers
+    setTimeout(() => map.invalidateSize(), 100);
+
+    return () => {
+      try { map.remove(); } catch { /* ignore */ }
+      mapRef.current = null;
+      markerRef.current = null;
+      if (container) {
+        delete (container as any)._leaflet_id;
+        container.innerHTML = '';
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update marker + center when lat/lng change from outside (e.g. new suggestion)
+  useEffect(() => {
+    if (mapRef.current && markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+      mapRef.current.setView([lat, lng], mapRef.current.getZoom());
+    }
+  }, [lat, lng]);
+
+  return <div ref={containerRef} style={{ height: '200px', width: '100%' }} />;
+});
+DraggableMap.displayName = 'DraggableMap';
+
 // Background image paths
 const modalBg = '/images/ModalBackground.png';
 const cardsBg = '/images/CardsBackground.webp';
@@ -98,8 +183,9 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
   const [isAddressVerified, setIsAddressVerified] = useState(false);
   const [geocodingError, setGeocodingError] = useState<string | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
@@ -108,6 +194,11 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const geocodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionGenRef = useRef(0); // Generation counter to prevent stale results
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const steps = ['Adresas', 'Detalės', 'Kontaktai', 'Skaitliukai'];
 
@@ -204,20 +295,6 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       collectionMode: 'landlord_only',
       landlordReadingEnabled: true,
       tenantPhotoEnabled: false
-    },
-    {
-      name: 'Techninė apžiūra',
-      type: 'communal',
-      unit: 'Kitas',
-      price_per_unit: 0,
-      fixed_price: 0,
-      distribution_method: 'per_apartment',
-      description: 'Namo techninė priežiūra ir apžiūra',
-      is_active: true,
-      requires_photo: false,
-      collectionMode: 'landlord_only',
-      landlordReadingEnabled: true,
-      tenantPhotoEnabled: false
     }
   ];
 
@@ -276,6 +353,47 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
     }
   };
 
+  // Address suggestions — fires on every keystroke (≥3 chars)
+  // Generation counter ensures only the latest request updates state
+  const handleAddressInput = useCallback(async (value: string) => {
+    // Cancel pending geocoding while typing
+    if (geocodeTimeoutRef.current) clearTimeout(geocodeTimeoutRef.current);
+    setIsAddressVerified(false);
+    if (!value || value.length < 3) {
+      suggestionGenRef.current++;
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      setIsSuggestionsLoading(false);
+      return;
+    }
+    // Increment generation — only this request’s results will be applied
+    const gen = ++suggestionGenRef.current;
+    setIsSuggestionsLoading(true);
+    setShowSuggestions(true);
+    // Keep previous results visible while fetching new ones
+    const results = await searchAddressSuggestions(value);
+    // Stale request? Another keystroke already fired — ignore
+    if (gen !== suggestionGenRef.current) return;
+    setAddressSuggestions(results);
+    setShowSuggestions(results.length > 0);
+    setIsSuggestionsLoading(false);
+  }, []);
+
+  const handleSelectSuggestion = useCallback((suggestion: AddressSuggestion) => {
+    // Cancel any pending geocoding — we already have coords from suggestion
+    if (geocodeTimeoutRef.current) clearTimeout(geocodeTimeoutRef.current);
+    setIsGeocoding(false);
+    setValue('address.fullAddress', suggestion.short_name, { shouldValidate: true });
+    if (suggestion.city) setValue('address.city', suggestion.city);
+    if (suggestion.postcode) setValue('location.postalCode', suggestion.postcode);
+    setValue('location.coordinates', { lat: suggestion.lat, lng: suggestion.lng });
+    setShowSuggestions(false);
+    setAddressSuggestions([]);
+    setShowMap(true);
+    setIsAddressVerified(true);
+    setGeocodingError(null);
+  }, [setValue]);
+
 
 
   // Address verification with geocoding
@@ -286,75 +404,56 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       return;
     }
 
-    setIsGeocoding(true);
-    setGeocodingError(null);
-
     if (geocodeTimeoutRef.current) {
       clearTimeout(geocodeTimeoutRef.current);
     }
 
-    geocodeTimeoutRef.current = setTimeout(async () => {
-      try {
-        // Parse address components first
-        const addressParts = parseAddressComponents(fullAddress);
+    setIsGeocoding(true);
+    setGeocodingError(null);
 
-        // Try geocoding with the full address
-        const result = await geocodeAddressWithRateLimit(fullAddress, 'Lithuania');
+    try {
+      const addressParts = parseAddressComponents(fullAddress);
+      const result = await geocodeAddress(fullAddress, 'Lithuania');
 
-        if (result) {
-          // Set coordinates
-          setValue('location.coordinates', {
-            lat: result.lat,
-            lng: result.lng
-          });
+      if (result) {
+        setValue('location.coordinates', { lat: result.lat, lng: result.lng });
 
-          // Set extracted postal code if available
-          if (addressParts.postalCode) {
-            setValue('location.postalCode', addressParts.postalCode);
-          } else if (result.postcode) {
-            setValue('location.postalCode', result.postcode);
-          }
-
-          // Set city if available
-          if (result.city) {
-            setValue('address.city', result.city);
-          } else if (addressParts.city) {
-            setValue('address.city', addressParts.city);
-          }
-
-          setShowMap(true);
-          setIsAddressVerified(true);
-          setGeocodingError(null);
-
-          console.log('Geocoding successful:', result);
-        } else {
-          setGeocodingError('Nepavyko rasti adreso koordinačių. Jei norite tęsti, privalote įvesti pašto kodą.');
-          setIsAddressVerified(false);
-
-          // Still parse address components even if geocoding fails
-          if (addressParts.city) {
-            setValue('address.city', addressParts.city);
-          }
-          if (addressParts.postalCode) {
-            setValue('location.postalCode', addressParts.postalCode);
-          }
+        if (addressParts.postalCode) {
+          setValue('location.postalCode', addressParts.postalCode);
+        } else if (result.postcode) {
+          setValue('location.postalCode', result.postcode);
         }
-      } catch (error) {
-        console.error('Geocoding error:', error);
-        setGeocodingError('Klaida geokodavimo metu. Patikrinkite internetinę prieigą arba pabandykite vėliau.');
+
+        if (result.city) {
+          setValue('address.city', result.city);
+        } else if (addressParts.city) {
+          setValue('address.city', addressParts.city);
+        }
+
+        setShowMap(true);
+        setIsAddressVerified(true);
+        setGeocodingError(null);
+      } else {
+        setGeocodingError('Nepavyko rasti adreso koordinačių. Jei norite tęsti, privalote įvesti pašto kodą.');
         setIsAddressVerified(false);
-      } finally {
-        setIsGeocoding(false);
+
+        if (addressParts.city) {
+          setValue('address.city', addressParts.city);
+        }
+        if (addressParts.postalCode) {
+          setValue('location.postalCode', addressParts.postalCode);
+        }
       }
-    }, 1500); // Increased delay to respect rate limits
+    } catch (error) {
+      setGeocodingError('Klaida geokodavimo metu. Patikrinkite internetinę prieigą arba pabandykite vėliau.');
+      setIsAddressVerified(false);
+    } finally {
+      setIsGeocoding(false);
+    }
   }, [watchedValues.address?.fullAddress, setValue]);
 
-  // Debounced geocoding
-  useEffect(() => {
-    if (watchedValues.address?.fullAddress) {
-      handleAddressVerification();
-    }
-  }, [watchedValues.address?.fullAddress, handleAddressVerification]);
+  // No auto-geocoding — verification only triggers when user selects a suggestion
+  // (handleSelectSuggestion sets coordinates + isAddressVerified = true)
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -363,10 +462,14 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       setCurrentStep(0);
       setIsAddressVerified(false);
       setGeocodingError(null);
-      setShowMap(false);
+      setShowMap(true);
       setShowDuplicateModal(false);
       setSimilarAddresses([]);
       setCommunalMeters([]);
+      // Set default coordinates after reset so map shows immediately
+      queueMicrotask(() => {
+        setValue('location.coordinates', { lat: 54.9, lng: 23.9 });
+      });
     }
   }, [isOpen, reset]);
 
@@ -503,21 +606,6 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           collectionMode: 'landlord_only',
           landlordReadingEnabled: true,
           tenantPhotoEnabled: false
-        },
-        {
-          id: 'meter-5',
-          name: 'Techninė apžiūra',
-          type: 'communal',
-          unit: 'Kitas',
-          price_per_unit: 0,
-          fixed_price: 0,
-          distribution_method: 'per_apartment',
-          description: 'Namo techninė priežiūra ir apžiūra',
-          is_active: true,
-          requires_photo: false,
-          collectionMode: 'landlord_only',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: false
         }
       ];
 
@@ -638,6 +726,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
             rentReminderDays: 3,
             contractExpiryReminderDays: 30,
             meterReminderDays: 5,
+            meterReadingStartDay: 20,
+            meterReadingEndDay: 29,
             maintenanceNotifications: true
           },
           communal_config: {
@@ -738,8 +828,10 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         console.log('✅ Address meters inserted successfully:', insertedMeters);
       }
 
-      // 3. Create apartments
-      const apartmentsData = Array.from({ length: formData.buildingInfo.totalApartments }, (_, index) => ({
+      // 3. Create apartments (batched to avoid PostgREST payload limits)
+      const BATCH_SIZE = 100;
+      const totalApartments = Math.min(formData.buildingInfo.totalApartments, 10000); // Safety cap
+      const apartmentsData = Array.from({ length: totalApartments }, (_, index) => ({
         address_id: address.id,
         apartment_number: (index + 1).toString(),
         tenant_name: 'Laisvas',
@@ -748,8 +840,8 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         rent: 0,
         area: 0,
         rooms: 1,
-        contract_start: new Date().toISOString().split('T')[0], // Today's date as default
-        contract_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year from now
+        contract_start: new Date().toISOString().split('T')[0],
+        contract_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         deposit_amount: 0,
         deposit_paid_amount: 0,
         deposit_paid: false,
@@ -761,20 +853,24 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         original_contract_duration_months: 12
       }));
 
-      const { data: apartments, error: apartmentsError } = await supabase
-        .from('properties')
-        .insert(apartmentsData)
-        .select();
+      // Insert apartments in batches
+      const apartments: any[] = [];
+      for (let i = 0; i < apartmentsData.length; i += BATCH_SIZE) {
+        const batch = apartmentsData.slice(i, i + BATCH_SIZE);
+        const { data: batchResult, error: batchError } = await supabase
+          .from('properties')
+          .insert(batch)
+          .select();
 
-      if (apartmentsError) throw apartmentsError;
+        if (batchError) throw batchError;
+        if (batchResult) apartments.push(...batchResult);
+      }
 
-      console.log('✅ Created apartments:', apartments);
-      console.log('✅ Apartments count:', apartments?.length || 0);
+      console.log('✅ Created apartments:', apartments.length);
 
-      // 4. Create apartment meters for each apartment (efficient bulk insert)
-      if (apartments && apartments.length > 0 && communalMeters.length > 0) {
+      // 4. Create apartment meters for each apartment (batched bulk insert)
+      if (apartments.length > 0 && communalMeters.length > 0) {
         try {
-          // Create all apartment meter records in memory using flatMap
           const apartmentMetersData = apartments.flatMap(apartment =>
             communalMeters.map(meter => ({
               property_id: apartment.id,
@@ -783,7 +879,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
               unit: meter.unit,
               price_per_unit: meter.price_per_unit || 0,
               fixed_price: meter.fixed_price || 0,
-              distribution_method: meter.distribution_method || 'per_apartment',  // Required field
+              distribution_method: meter.distribution_method || 'per_apartment',
               serial_number: null,
               is_active: meter.is_active ?? true,
               requires_photo: meter.requires_photo ?? true
@@ -792,27 +888,21 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
           console.log(`📊 Creating ${apartmentMetersData.length} apartment meters (${apartments.length} apartments × ${communalMeters.length} meters)`);
 
-          // Single bulk insert for all apartment meters
-          const { error: apartmentMetersError } = await supabase
-            .from('apartment_meters')
-            .insert(apartmentMetersData);
+          // Insert apartment meters in batches
+          for (let i = 0; i < apartmentMetersData.length; i += BATCH_SIZE) {
+            const batch = apartmentMetersData.slice(i, i + BATCH_SIZE);
+            const { error: batchMeterError } = await supabase
+              .from('apartment_meters')
+              .insert(batch);
 
-          if (apartmentMetersError) {
-            console.error('⚠️ Error creating apartment meters (non-fatal):');
-            console.error('  Message:', apartmentMetersError.message);
-            console.error('  Details:', apartmentMetersError.details);
-            console.error('  Hint:', apartmentMetersError.hint);
-            console.error('  Code:', apartmentMetersError.code);
-            console.error('  Full error:', JSON.stringify(apartmentMetersError, null, 2));
-            // Non-fatal: address is still created successfully
-          } else {
-            console.log('✅ Successfully created apartment meters:', apartmentMetersData.length);
+            if (batchMeterError) {
+              console.error(`⚠️ Error creating apartment meters batch ${Math.floor(i / BATCH_SIZE) + 1} (non-fatal):`, batchMeterError.message);
+            }
           }
+
+          console.log('✅ Successfully created apartment meters:', apartmentMetersData.length);
         } catch (meterCopyError: any) {
-          console.error('⚠️ Exception in apartment meter creation (non-fatal):');
-          console.error('  Message:', meterCopyError?.message);
-          console.error('  Full error:', meterCopyError);
-          // Non-fatal: continue with address creation
+          console.error('⚠️ Exception in apartment meter creation (non-fatal):', meterCopyError?.message);
         }
       }
 
@@ -1152,15 +1242,65 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                           name="address.fullAddress"
                           control={control}
                           render={({ field }) => (
-                            <input
-                              {...field}
-                              type="text"
-                              placeholder="pvz., Mituvos g. 13, Kaunas"
-                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] transition-colors ${errors.address?.fullAddress
-                                ? 'border-red-300 bg-red-50/30'
-                                : 'border-neutral-300'
-                                }`}
-                            />
+                            <div className="relative" ref={suggestionsRef}>
+                              <input
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  handleAddressInput(e.target.value);
+                                }}
+                                onFocus={() => { if (addressSuggestions.length > 0) setShowSuggestions(true); }}
+                                onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); }}
+                                type="text"
+                                autoComplete="off"
+                                placeholder="pvz., Mituvos g. 13, Kaunas"
+                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481] text-[13px] transition-colors ${errors.address?.fullAddress
+                                  ? 'border-red-300 bg-red-50/30'
+                                  : 'border-neutral-300'
+                                  }`}
+                              />
+                              {/* Suggestion Dropdown */}
+                              {(showSuggestions || isSuggestionsLoading) && (
+                                <div className="absolute z-[9999] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                                  {isSuggestionsLoading && addressSuggestions.length === 0 && (
+                                    <div className="flex items-center gap-2 px-3 py-3 text-[12px] text-gray-400">
+                                      <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-gray-200 border-t-teal-500" />
+                                      Ieškoma adresų...
+                                    </div>
+                                  )}
+                                  {addressSuggestions.map((s, i) => (
+                                    <button
+                                      key={`${s.short_name}-${s.postcode}-${i}`}
+                                      type="button"
+                                      onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(s); }}
+                                      className="w-full text-left px-3 py-2.5 hover:bg-teal-50 transition-colors border-b border-gray-100 last:border-0 flex items-start gap-2.5 group"
+                                    >
+                                      <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-teal-100 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors">
+                                        <MapPinIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-teal-600 transition-colors" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-[12px] font-semibold text-gray-800 group-hover:text-teal-700 truncate transition-colors">
+                                          {s.short_name}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                          {s.postcode && (
+                                            <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded font-mono">LT-{s.postcode}</span>
+                                          )}
+                                          {s.district && s.district !== s.city && (
+                                            <span className="text-[10px] text-gray-400">{s.district}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))}
+                                  {!isSuggestionsLoading && addressSuggestions.length === 0 && (
+                                    <div className="px-3 py-3 text-[12px] text-gray-400 text-center">
+                                      Adresų nerasta
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
                         />
                         {errors.address?.fullAddress ? (
@@ -1209,64 +1349,77 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                         )}
                       </div>
 
-                      {/* Address Verification */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-neutral-700">Adreso patvirtinimas</span>
-                          <div className="flex items-center gap-2">
-                            {isGeocoding && (
-                              <div className="flex items-center gap-1 text-xs text-neutral-600">
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#2F8481]"></div>
-                                Tikrinama...
-                              </div>
-                            )}
-                            {isAddressVerified && (
-                              <div className="flex items-center gap-1 text-xs text-green-600">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Patvirtintas
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {geocodingError && (
-                          <p className="text-rose-600 text-xs">{geocodingError}</p>
-                        )}
-
-                        {/* Map */}
-                        {watchedValues.location.coordinates && (
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-neutral-700">Žemėlapis</span>
-                              <button
-                                type="button"
-                                onClick={() => setShowMap(!showMap)}
-                                className="flex items-center gap-1 text-xs text-[#2F8481] hover:text-[#2a7875]"
-                              >
-                                {showMap ? <EyeSlashIcon className="h-3 w-3" /> : <EyeIcon className="h-3 w-3" />}
-                                {showMap ? 'Suskleisti' : 'Rodyti'}
-                              </button>
+                      {/* Address Verification + Map — only shown after address is verified */}
+                      {isAddressVerified && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-neutral-700">Adreso patvirtinimas</span>
+                            <div className="flex items-center gap-2">
+                              {isGeocoding && (
+                                <div className="flex items-center gap-1 text-xs text-neutral-600">
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#2F8481]"></div>
+                                  Tikrinama...
+                                </div>
+                              )}
+                              {isAddressVerified && (
+                                <div className="flex items-center gap-1 text-xs text-green-600">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Patvirtintas
+                                </div>
+                              )}
                             </div>
-
-                            {showMap && (
-                              <div className="border border-neutral-200 rounded-lg overflow-hidden">
-                                <iframe
-                                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${watchedValues.location.coordinates.lng - 0.01},${watchedValues.location.coordinates.lat - 0.01},${watchedValues.location.coordinates.lng + 0.01},${watchedValues.location.coordinates.lat + 0.01}&layer=mapnik&marker=${watchedValues.location.coordinates.lat},${watchedValues.location.coordinates.lng}`}
-                                  width="100%"
-                                  height="200"
-                                  frameBorder="0"
-                                  scrolling="no"
-                                  marginHeight={0}
-                                  marginWidth={0}
-                                  title="Address Map"
-                                />
-                              </div>
-                            )}
                           </div>
-                        )}
-                      </div>
+
+                          {geocodingError && (
+                            <p className="text-rose-600 text-xs">{geocodingError}</p>
+                          )}
+
+                          {/* Map — always visible on address step */}
+                          {watchedValues.location.coordinates && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-neutral-700">Žemėlapis</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowMap(!showMap)}
+                                  className="flex items-center gap-1 text-xs text-[#2F8481] hover:text-[#2a7875]"
+                                >
+                                  {showMap ? <EyeSlashIcon className="h-3 w-3" /> : <EyeIcon className="h-3 w-3" />}
+                                  {showMap ? 'Suskleisti' : 'Rodyti'}
+                                </button>
+                              </div>
+
+                              {showMap && watchedValues.location.coordinates && (
+                                <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                                  <DraggableMap
+                                    lat={watchedValues.location.coordinates.lat}
+                                    lng={watchedValues.location.coordinates.lng}
+                                    onPositionChange={async (lat: number, lng: number) => {
+                                      setValue('location.coordinates', { lat, lng });
+                                      setIsGeocoding(true);
+                                      const result = await reverseGeocode(lat, lng);
+                                      setIsGeocoding(false);
+                                      if (result) {
+                                        setValue('address.fullAddress', result.display_name, { shouldValidate: true });
+                                        if (result.city) setValue('address.city', result.city);
+                                        if (result.postcode) setValue('location.postalCode', result.postcode);
+                                        setIsAddressVerified(true);
+                                        setGeocodingError(null);
+                                      } else {
+                                        setValue('address.fullAddress', `${lat.toFixed(5)}, ${lng.toFixed(5)}`, { shouldValidate: true });
+                                        setGeocodingError('Nepavyko nustatyti adreso šioje vietoje');
+                                      }
+                                    }}
+                                  />
+                                  <p className="text-[10px] text-gray-400 px-2 py-1 bg-gray-50">Vilkite žymeklį, kad pakeistumėte vietą</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

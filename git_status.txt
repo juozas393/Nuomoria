@@ -1,0 +1,363 @@
+﻿ D .env.resend
+ D DEVELOPMENT.md
+ D DUAL_AUTH_IMPLEMENTATION.md
+ D Images/AddressCreation.jpg
+ D Images/CoverPhoto.jpg
+ D Images/Coverphoto2.jpg
+ D Images/ProfileBackground.jpg
+ D Images/ProfileCover.jpg
+ D RESTRUCTURE_SUMMARY.md
+ D SETUP_INSTRUKCIJOS.md
+ D SUPABASE_SETUP.sql
+ M apps/web/.env.development
+ M apps/web/.env.docker
+ D apps/web/.env.local.docker
+ M apps/web/.gitignore
+ D apps/web/env.development.template
+ D apps/web/env.example
+ D apps/web/env.production.ready
+ D apps/web/env.production.template
+ M apps/web/package-lock.json
+ M apps/web/package.json
+ M apps/web/public/_headers
+ D apps/web/public/artistic-buildings-bg.png
+ D apps/web/public/images/BuildingsBackground.png
+ D apps/web/public/images/DashboardBackground_bw.png
+ D apps/web/public/images/FormsBackground.png
+ D apps/web/public/images/ProfileBackground_bw.png
+ D apps/web/public/images/ProfileBackground_gaming.png
+ D apps/web/public/images/SettingsBackground.png
+ D apps/web/public/images/tenant-bg.png
+ D apps/web/public/index.html
+ D apps/web/public/logo192.png
+ D apps/web/public/logo512.png
+ D apps/web/public/property-card-bg.png
+ D apps/web/public/sw.js
+ M apps/web/src/App.tsx
+ D apps/web/src/assets/FormBackground.png
+ D apps/web/src/components/AmazingNavbar.tsx
+ M apps/web/src/components/LogoutButton.tsx
+ M apps/web/src/components/MessagingPanel.tsx
+ M apps/web/src/components/NotificationCenter.tsx
+ M apps/web/src/components/RoleGuard.tsx
+ M apps/web/src/components/Sidebar.tsx
+ M apps/web/src/components/communal/CommunalConfigModal.tsx
+ M apps/web/src/components/komunaliniai/MeterCostCalculator.tsx
+ M apps/web/src/components/meters/MeterCard.tsx
+ M apps/web/src/components/meters/MeterPolicyCard.tsx
+ M apps/web/src/components/meters/MeterTable.tsx
+ M apps/web/src/components/meters/UniversalAddMeterModal.tsx
+ M apps/web/src/components/nuomotojas2/AddressCard.tsx
+ M apps/web/src/components/nuomotojas2/AddressList.tsx
+ M apps/web/src/components/nuomotojas2/AmenitiesSection.tsx
+ M apps/web/src/components/nuomotojas2/ApartmentCard.tsx
+ M apps/web/src/components/nuomotojas2/DashboardGrid.tsx
+ M apps/web/src/components/nuomotojas2/InviteTenantModal.tsx
+ M apps/web/src/components/nuomotojas2/MinimalOverviewTab.tsx
+ M apps/web/src/components/nuomotojas2/PhotoGallerySection.tsx
+ M apps/web/src/components/nuomotojas2/PremiumOverviewTab.tsx
+ M apps/web/src/components/nuomotojas2/PropertyDetailsTab.tsx
+ M apps/web/src/components/nuomotojas2/QuickPanel.tsx
+ M apps/web/src/components/nuomotojas2/SearchAndFilters.tsx
+ M apps/web/src/components/nuomotojas2/StatisticsDashboard.tsx
+ M apps/web/src/components/nuomotojas2/TenantCard.tsx
+ M apps/web/src/components/nuomotojas2/TenantDetailModalPro.tsx
+ M apps/web/src/components/nuomotojas2/TenantDetailSheet.tsx
+ M apps/web/src/components/nuomotojas2/TenantListOptimized.tsx
+ M apps/web/src/components/nuomotojas2/UnitEditDrawer.tsx
+ M apps/web/src/components/nuomotojas2/overview/ActivityTimeline.tsx
+ M apps/web/src/components/nuomotojas2/overview/KPIStatCard.tsx
+ M apps/web/src/components/nuomotojas2/overview/PhotoStrip.tsx
+ M apps/web/src/components/nuomotojas2/overview/QuickSummaryCard.tsx
+ M apps/web/src/components/nuomotojas2/overview/RentReadyChecklist.tsx
+ M apps/web/src/components/nuomotojas2/overview/SummaryHeader.tsx
+ M apps/web/src/components/nuomotojas2/overview/TenantCard.tsx
+ M apps/web/src/components/nuomotojas2/overview/index.ts
+ M apps/web/src/components/nuomotojas2/ui/ModalCard.tsx
+ D apps/web/src/components/performance/VirtualTable.tsx
+ M apps/web/src/components/properties/AddAddressModal.tsx
+ M apps/web/src/components/properties/AddApartmentModal.tsx
+ M apps/web/src/components/properties/AddMeterModal.tsx
+ M apps/web/src/components/properties/AddressManager.tsx
+ M apps/web/src/components/properties/AddressPanelContent.tsx
+ M apps/web/src/components/properties/AddressSettingsModal.tsx
+ M apps/web/src/components/properties/CommunalMetersManager.tsx
+ M apps/web/src/components/properties/IconSelector.tsx
+ M apps/web/src/components/properties/MeterConfigurationModal.tsx
+ M apps/web/src/components/properties/MeterHistoryView.tsx
+ M apps/web/src/components/properties/MeterPriceManager.tsx
+ M apps/web/src/components/properties/MeterReadingsForm.tsx
+ M apps/web/src/components/properties/MetersPanel.tsx
+ M apps/web/src/components/properties/MetersSection.tsx
+ M apps/web/src/components/properties/MetersTable.tsx
+ M apps/web/src/components/properties/PropertyCard.tsx
+ M apps/web/src/components/properties/PropertyDetailsModal.tsx
+ M apps/web/src/components/properties/PropertyTypeDistribution.tsx
+ M apps/web/src/components/tenant/AIAssistant.tsx
+ M apps/web/src/components/ui/AppShell.tsx
+ M apps/web/src/components/ui/ContextPanel.tsx
+ M apps/web/src/components/ui/ContractBar.tsx
+ M apps/web/src/components/ui/ContractStrip.tsx
+ M apps/web/src/components/ui/DocStrip.tsx
+ D apps/web/src/components/ui/LazyImage.tsx
+ D apps/web/src/components/ui/PerformanceMonitor.tsx
+ M apps/web/src/constants/meterDistribution.ts
+ M apps/web/src/constants/meterTemplates.ts
+ M apps/web/src/context/AuthContext.tsx
+ D apps/web/src/context/PerformanceContext.tsx
+ M apps/web/src/data/communalConfigData.ts
+ M apps/web/src/features/auth/components/GoogleButton.tsx
+ M apps/web/src/features/auth/components/UsernameLoginForm.tsx
+ M apps/web/src/features/auth/pages/LoginPage.tsx
+ M apps/web/src/features/auth/pages/OnboardingPage.tsx
+ M apps/web/src/features/auth/pages/OnboardingWrapper.tsx
+ M apps/web/src/features/auth/services/usernameLogin.ts
+ M apps/web/src/features/tenant/components/PendingInvitationCard.tsx
+ M apps/web/src/features/tenant/components/TenantAccountHome.tsx
+ M apps/web/src/features/tenant/pages/TenantDashboardPage.tsx
+ M apps/web/src/features/tenant/pages/TenantSettingsPage.tsx
+ D apps/web/src/hooks/usePerformance.ts
+ D apps/web/src/hooks/usePerformanceMonitor.ts
+ D apps/web/src/hooks/usePerformanceOptimized.ts
+ M apps/web/src/index.css
+ M apps/web/src/index.tsx
+ M apps/web/src/lib/database.ts
+ M apps/web/src/lib/meterPriceApi.ts
+ M apps/web/src/lib/meterValidation.ts
+ M apps/web/src/lib/metersAdapter.ts
+ M apps/web/src/lib/supabase.ts
+ M apps/web/src/lib/userApi.ts
+ M apps/web/src/pages/AccountDeletedPage.tsx
+ M apps/web/src/pages/Analytics.tsx
+ M apps/web/src/pages/Apartments.tsx
+ M apps/web/src/pages/Dashboard.tsx
+ M apps/web/src/pages/EmailConfirmation.tsx
+ M apps/web/src/pages/EmailLogin.tsx
+ M apps/web/src/pages/GoogleLogin.tsx
+ M apps/web/src/pages/Invoices.tsx
+ M apps/web/src/pages/Login.tsx
+ M apps/web/src/pages/LoginPage.tsx
+ M apps/web/src/pages/MagicLinkVerify.tsx
+ M apps/web/src/pages/Meters.tsx
+ M apps/web/src/pages/NewLogin.tsx
+ M apps/web/src/pages/Nuomotojas2Dashboard.tsx
+ M apps/web/src/pages/Profile.tsx
+ D apps/web/src/pages/Register.tsx
+ D apps/web/src/pages/ResetPassword.tsx
+ M apps/web/src/pages/Settings.tsx
+ M apps/web/src/pages/SupabaseAuthCallback.tsx
+ M apps/web/src/pages/SupabaseLogin.tsx
+ M apps/web/src/pages/Users.tsx
+ M apps/web/src/pages/Welcome.tsx
+ M apps/web/src/pages/tenant/TenantContractTermination.tsx
+ M apps/web/src/pages/tenant/TenantDashboard.tsx
+ M apps/web/src/pages/tenant/TenantDemo.tsx
+ M apps/web/src/pages/tenant/TenantInvoices.tsx
+ M apps/web/src/pages/tenant/TenantMeters.tsx
+ M apps/web/src/pages/tenant/TenantPayment.tsx
+ D apps/web/src/react-app-env.d.ts
+ D apps/web/src/styles/performance.css
+ M apps/web/src/types/communal.ts
+ M apps/web/src/types/meters.ts
+ M apps/web/src/types/user.ts
+ M apps/web/src/utils/meterValidation.ts
+ M apps/web/src/utils/sanitize.ts
+ M apps/web/src/utils/security.ts
+ M apps/web/src/utils/validation.ts
+ M apps/web/tailwind.config.js
+ D apps/web/vite-error.txt
+ M apps/web/vite.config.ts
+ D archive/legacy/FINAL_PROJECT_STATUS.md
+ D archive/legacy/FIXES_APPLIED.md
+ D archive/legacy/IMPROVEMENTS_COMPLETED.md
+ D archive/old-docs/ANALYTICS_IMPROVEMENTS.md
+ D archive/old-docs/CODE_REVIEW_Nuomotojas2Dashboard.md
+ D archive/old-docs/COMPREHENSIVE_REVIEW_AND_IMPROVEMENTS.md
+ D archive/old-docs/FINAL_COMPREHENSIVE_REVIEW.md
+ D full_production_dump.sql
+ D logo_base64.txt
+ D run-sql.js
+ D supabase/.branches/_current_branch
+ M supabase/.temp/cli-latest
+ M supabase/.temp/gotrue-version
+ M supabase/.temp/pooler-url
+ M supabase/.temp/postgres-version
+ M supabase/.temp/project-ref
+ M supabase/.temp/rest-version
+ M supabase/.temp/storage-migration
+ M supabase/.temp/storage-version
+ D supabase/PRODUCTION_RLS_POLICIES.sql
+ D supabase/STAGING_FINAL_FIX.sql
+ D supabase/database-schema.sql
+ D supabase/fix_amenities_encoding.sql
+ D supabase/migrations/00000000_baseline.sql
+ D supabase/migrations/20250115_fix_rls_performance.sql
+ D supabase/migrations/20250115_fix_security_issues.sql
+ D supabase/migrations/20250117_dual_auth_system.sql
+ D supabase/migrations/20250120_fix_address_insert_403.sql
+ D supabase/migrations/20251109_create_hidden_meter_templates.sql
+ D supabase/migrations/20251109_create_notifications_table.sql
+ D supabase/migrations/20251109_create_tenant_invitations.sql
+ D supabase/migrations/20251109_create_user_meter_templates.sql
+ D supabase/migrations/20251109_fix_ensure_user_row.sql
+ D supabase/migrations/20251109_profile_rls_policies.sql
+ D supabase/migrations/20251110_property_view_invoices.sql
+ D supabase/migrations/20251110_property_view_phase1.sql
+ D supabase/migrations/20260116_create_profiles_dual_auth.sql
+ D supabase/migrations/20260117_add_avatar_url.sql
+ D supabase/migrations/20260117_create_avatars_bucket.sql
+ D supabase/migrations/20260117_delete_user_account.sql
+ D supabase/migrations/20260117_set_user_password.sql
+ D supabase/migrations/20260118_add_meter_columns.sql
+ D supabase/migrations/20260118_allow_account_deletion.sql
+ D supabase/migrations/20260118_create_property_photos_bucket.sql
+ D supabase/migrations/20260118_fix_address_meters_rls.sql
+ D supabase/migrations/20260119_create_messages_table.sql
+ D supabase/migrations/20260119_fix_tenant_invitations_insert.sql
+ D supabase/migrations/20260120_fix_role_overwrite.sql
+ D supabase/migrations/20260121_account_deletion_system.sql
+ D supabase/migrations/20260121_add_profiles_onboarding_column.sql
+ D supabase/migrations/20260121_docker_schema_fix.sql
+ D supabase/migrations/20260121_google_only_auth.sql
+ D supabase/migrations/20260121_property_extended_details.sql
+ D supabase/migrations/20260121_property_photos_optimization.sql
+ D supabase/migrations/20260121_storage_bucket.sql
+ D supabase/migrations/20260122_amenities_system.sql
+ D supabase/migrations/RLS_PERFORMANCE_FIXES_README.md
+ D supabase/migrations/SECURITY_FIXES_README.md
+ D supabase/migrations_backup/00000000_baseline_schema.sql
+ D supabase/migrations_backup/20250115_fix_rls_performance.sql
+ M supabase/migrations_backup/20250115_fix_security_issues.sql
+ M supabase/migrations_backup/20250117_dual_auth_system.sql
+ M supabase/migrations_backup/20250120_fix_address_insert_403.sql
+ D supabase/migrations_backup/20251109_create_notifications_table.sql
+ D supabase/migrations_backup/20251109_create_tenant_invitations.sql
+ D supabase/migrations_backup/20251109_create_user_meter_templates.sql
+ D supabase/migrations_backup/20251109_fix_ensure_user_row.sql
+ D supabase/migrations_backup/20251109_profile_rls_policies.sql
+ D supabase/migrations_backup/20251110_property_view_phase1.sql
+ M supabase/migrations_backup/20260116_create_profiles_dual_auth.sql
+ D supabase/migrations_backup/20260117_create_avatars_bucket.sql
+ D supabase/migrations_backup/20260117_delete_user_account.sql
+ D supabase/migrations_backup/20260117_set_user_password.sql
+ D supabase/migrations_backup/20260118_allow_account_deletion.sql
+ D supabase/migrations_backup/20260118_create_property_photos_bucket.sql
+ D supabase/migrations_backup/20260118_fix_address_meters_rls.sql
+ D supabase/migrations_backup/20260119_fix_tenant_invitations_insert.sql
+ D supabase/migrations_backup/20260120_onboarding_and_soft_delete.sql
+ D supabase/production_backup.sql
+ D supabase/production_backup_clean.sql
+ D supabase/production_dump.sql
+ D supabase/staging_complete_fix.sql
+ D supabase/staging_minimal_fix.sql
+ D supabase/staging_permissions_fix.sql
+ D supabase/staging_production_policies.sql
+ D supabase/staging_rls_fix.sql
+ D supabase/staging_setup.sql
+ D supabase/staging_tenant_dashboard_fix.sql
+ D supabase/staging_triggers.sql
+?? .agent/nuomoria-agent.md
+?? .agent/rules/
+?? append_css.txt
+?? apps/web/.env.example
+?? apps/web/.env.production
+?? apps/web/public/guide/
+?? apps/web/public/images/BlueArchBackground.webp
+?? apps/web/public/images/CardsBackground.webp
+?? apps/web/public/images/DashboardBackground_bw.webp
+?? apps/web/public/images/HelpCenterBackground_bw.webp
+?? apps/web/public/images/LoginBackground.webp
+?? apps/web/public/images/ModalBackground.png
+?? apps/web/public/images/ProfileBackground_bw.webp
+?? apps/web/public/images/modal_bg_dark.svg
+?? apps/web/src/assets/SmallLogo.png
+?? apps/web/src/assets/SmallLogoWHITE.png
+?? apps/web/src/assets/SmallLogoWHITEWithoutBG.png
+?? apps/web/src/assets/SmallLogoWithoutBG.png
+?? apps/web/src/assets/logocanvBLACK.png
+?? apps/web/src/assets/logocanvBLACKWithoutBG.png
+?? apps/web/src/components/ErrorFallbackPage.tsx
+?? apps/web/src/components/PageTransition.tsx
+?? apps/web/src/components/nuomotojas2/OverviewPanel.tsx
+?? apps/web/src/components/nuomotojas2/OverviewWithLayoutEditor.tsx
+?? apps/web/src/components/nuomotojas2/komunaliniai/
+?? apps/web/src/components/nuomotojas2/layout/
+?? apps/web/src/components/nuomotojas2/overview/ActivityFeed.tsx
+?? apps/web/src/components/nuomotojas2/overview/DocumentsSection.tsx
+?? apps/web/src/components/nuomotojas2/overview/FinancialSnapshot.tsx
+?? apps/web/src/components/nuomotojas2/overview/KPIStatTile.tsx
+?? apps/web/src/components/nuomotojas2/overview/MetersSection.tsx
+?? apps/web/src/components/nuomotojas2/overview/PhotosCardLarge.tsx
+?? apps/web/src/components/nuomotojas2/overview/PhotosSection.tsx
+?? apps/web/src/components/nuomotojas2/overview/PropertyHeroCard.tsx
+?? apps/web/src/components/nuomotojas2/overview/RecentActivityCard.tsx
+?? apps/web/src/components/nuomotojas2/overview/SetupProgress.tsx
+?? apps/web/src/components/nuomotojas2/overview/SetupProgressCard.tsx
+?? apps/web/src/components/nuomotojas2/overview/StatusHeader.tsx
+?? apps/web/src/components/nuomotojas2/overview/SummaryLinksCard.tsx
+?? apps/web/src/components/nuomotojas2/overview/TenantSection.tsx
+?? apps/web/src/components/nuomotojas2/overview/TenantSummaryCard.tsx
+?? apps/web/src/components/properties/ApartmentSettingsModal.tsx
+?? apps/web/src/components/ui/CardPatternOverlay.tsx
+?? apps/web/src/components/ui/FloatingBubbles.tsx
+?? apps/web/src/components/ui/ParticleDrift.tsx
+?? apps/web/src/context/DensityContext.tsx
+?? apps/web/src/lib/api/
+?? apps/web/src/lib/invoicesApi.ts
+?? apps/web/src/pages/GuidePage.tsx
+?? apps/web/src/styles/density.css
+?? apps/web/tsc_errors.txt
+?? apps/web/tsc_modal_errors.txt
+?? apps/web/tsc_out.txt
+?? balance_report.txt
+?? db_reset_log.txt
+?? div_analysis.txt
+?? div_detail.json
+?? dump_help.txt
+?? dump_output.txt
+?? fix_encoding.ps1
+?? git_status.txt
+?? link_output.txt
+?? migration_list.txt
+?? section_c_report.txt
+?? supabase/MIGRATION_TRACKER.md
+?? supabase/migrations/00000000000000_baseline.sql
+?? supabase/migrations_backup/00000000_baseline.sql
+?? supabase/migrations_backup/20250116_fix_rls_performance.sql
+?? supabase/migrations_backup/2025110902_create_notifications_table.sql
+?? supabase/migrations_backup/2025110903_create_tenant_invitations.sql
+?? supabase/migrations_backup/2025110904_create_user_meter_templates.sql
+?? supabase/migrations_backup/2025110905_fix_ensure_user_row.sql
+?? supabase/migrations_backup/2025110906_profile_rls_policies.sql
+?? supabase/migrations_backup/2025111002_property_view_phase1.sql
+?? supabase/migrations_backup/2026011702_create_avatars_bucket.sql
+?? supabase/migrations_backup/2026011703_delete_user_account.sql
+?? supabase/migrations_backup/2026011704_set_user_password.sql
+?? supabase/migrations_backup/2026011802_allow_account_deletion.sql
+?? supabase/migrations_backup/2026011803_create_property_photos_bucket.sql
+?? supabase/migrations_backup/2026011804_fix_address_meters_rls.sql
+?? supabase/migrations_backup/2026011902_fix_tenant_invitations_insert.sql
+?? supabase/migrations_backup/2026012102_add_profiles_onboarding_column.sql
+?? supabase/migrations_backup/2026012103_docker_schema_fix.sql
+?? supabase/migrations_backup/2026012104_google_only_auth.sql
+?? supabase/migrations_backup/2026012105_property_extended_details.sql
+?? supabase/migrations_backup/2026012106_property_photos_optimization.sql
+?? supabase/migrations_backup/2026012107_storage_bucket.sql
+?? supabase/migrations_backup/20260121_account_deletion_system.sql
+?? supabase/migrations_backup/20260122_amenities_system.sql
+?? supabase/migrations_backup/2026012802_storage_policies.sql
+?? supabase/migrations_backup/20260128_dashboard_layouts.sql
+?? supabase/migrations_backup/2026021102_fix_check_username_fn.sql
+?? supabase/migrations_backup/2026021103_fix_users_role_nullable.sql
+?? supabase/migrations_backup/2026021104_indexes_add_missing_fk.sql
+?? supabase/migrations_backup/2026021105_rls_policy_cleanup_and_initplan_fix.sql
+?? supabase/migrations_backup/2026021106_security_fixes_search_path.sql
+?? supabase/migrations_backup/2026021107_tenant_invitations_rls_final.sql
+?? supabase/migrations_backup/20260211_add_profile_changed_at.sql
+?? supabase/migrations_backup/2026021602_create_property_documents.sql
+?? supabase/migrations_backup/2026021603_enhance_invoices_for_payments.sql
+?? supabase/migrations_backup/20260216_add_invoices_property_fk.sql
+?? supabase/migrations_backup/2026021702_invitation_expiry_and_trigger.sql
+?? supabase/migrations_backup/20260217_create_tenant_history.sql
+?? supabase/staging_dump.sql
+?? truncate_css.ps1

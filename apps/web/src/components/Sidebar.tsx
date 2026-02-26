@@ -14,7 +14,8 @@ import {
   WrenchScrewdriverIcon,
   SparklesIcon,
   HomeModernIcon,
-  QuestionMarkCircleIcon
+  QuestionMarkCircleIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { smoothScrollTo } from '../utils/smoothScroll';
 import type { UserWithPermissions } from '../types/user';
@@ -111,58 +112,88 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
     };
   }, [isOpen, handleClose]);
 
-  // New grouped menu structure
-  const navigationGroups: NavGroup[] = useMemo(() => [
-    {
-      title: 'PAGRINDINIS',
-      items: [
-        { name: 'Apžvalga', page: '', icon: HomeIcon }
-      ]
-    },
-    {
-      title: 'TURTAS',
-      items: [
-        { name: 'Nekilnojamas turtas', page: 'turtas', icon: BuildingOfficeIcon },
-        { name: 'Butai', page: 'butai', icon: HomeModernIcon },
-        { name: 'Nuomininkai', page: 'nuomininkai', icon: UsersIcon }
-      ]
-    },
-    {
-      title: 'OPERACIJOS',
-      items: [
-        { name: 'Sąskaitos', page: 'saskaitos', icon: DocumentTextIcon },
-        { name: 'Remontas', page: 'remontas', icon: WrenchScrewdriverIcon }
-      ]
-    },
-    {
-      title: 'ANALITIKA',
-      items: [
-        { name: 'Ataskaitos', page: 'analitika', icon: ChartBarIcon }
-      ]
-    },
-    {
-      title: 'SISTEMA',
-      items: [
-        { name: 'Nustatymai', page: 'nustatymai', icon: CogIcon },
-        { name: 'Profilis', page: 'profilis', icon: UserCircleIcon },
-        { name: 'Pagalba', page: 'pagalba', icon: QuestionMarkCircleIcon }
-      ]
-    },
-    // Admin-only section
-    ...(isAdmin ? [{
-      title: 'ADMIN',
-      items: [
-        { name: 'Vartotojai', page: 'vartotojai', icon: UserIcon }
-      ]
-    }] : []),
-    // Dev-only section
-    ...(isDev ? [{
-      title: 'DEV',
-      items: [
-        { name: 'Depozito testai', page: 'deposit-tests', icon: SparklesIcon }
-      ]
-    }] : [])
-  ], [isAdmin, isDev]);
+  // New grouped menu structure — role-aware
+  const navigationGroups: NavGroup[] = useMemo(() => {
+    // Tenant-specific navigation
+    if (user?.role === 'tenant') {
+      return [
+        {
+          title: 'PAGRINDINIS',
+          items: [
+            { name: 'Skydelis', page: 'tenant', icon: HomeIcon },
+          ]
+        },
+        {
+          title: 'OPERACIJOS',
+          items: [
+            { name: 'Skaitikliai', page: 'tenant/meters', icon: BellIcon },
+            { name: 'Sąskaitos', page: 'tenant/invoices', icon: DocumentTextIcon },
+          ]
+        },
+        {
+          title: 'SISTEMA',
+          items: [
+            { name: 'Nustatymai', page: 'tenant/settings', icon: CogIcon },
+            { name: 'Profilis', page: 'profilis', icon: UserCircleIcon },
+          ]
+        },
+      ];
+    }
+
+    // Landlord / admin navigation
+    return [
+      {
+        title: 'PAGRINDINIS',
+        items: [
+          { name: 'Apžvalga', page: 'dashboard', icon: HomeIcon }
+        ]
+      },
+      {
+        title: 'TURTAS',
+        items: [
+          { name: 'Nekilnojamas turtas', page: 'turtas', icon: BuildingOfficeIcon },
+          { name: 'Butai', page: 'butai', icon: HomeModernIcon },
+          { name: 'Nuomininkai', page: 'nuomininkai', icon: UsersIcon }
+        ]
+      },
+      {
+        title: 'OPERACIJOS',
+        items: [
+          { name: 'Sąskaitos', page: 'saskaitos', icon: DocumentTextIcon },
+          { name: 'Remontas', page: 'remontas', icon: WrenchScrewdriverIcon }
+        ]
+      },
+      {
+        title: 'ANALITIKA',
+        items: [
+          { name: 'Ataskaitos', page: 'analitika', icon: ChartBarIcon }
+        ]
+      },
+      {
+        title: 'SISTEMA',
+        items: [
+          { name: 'Nustatymai', page: 'nustatymai', icon: CogIcon },
+          { name: 'Profilis', page: 'profilis', icon: UserCircleIcon },
+          { name: 'Pagalba', page: 'pagalba', icon: QuestionMarkCircleIcon }
+        ]
+      },
+      // Admin-only section
+      ...(isAdmin ? [{
+        title: 'ADMIN',
+        items: [
+          { name: 'Admin panelė', page: 'admin', icon: ShieldCheckIcon },
+          { name: 'Vartotojai', page: 'vartotojai', icon: UserIcon }
+        ]
+      }] : []),
+      // Dev-only section
+      ...(isDev ? [{
+        title: 'DEV',
+        items: [
+          { name: 'Depozito testai', page: 'deposit-tests', icon: SparklesIcon }
+        ]
+      }] : [])
+    ];
+  }, [isAdmin, isDev, user?.role]);
 
   // Render navigation item
   const renderNavItem = (item: NavItem, isActive: boolean) => (
@@ -223,7 +254,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
               alt="Nuomoria"
               className="w-full object-contain cursor-pointer hover:opacity-80 transition-opacity"
               style={{ maxWidth: '200px', maxHeight: '60px' }}
-              onClick={() => onPageChange('')}
+              onClick={() => onPageChange('dashboard')}
             />
           </div>
 
@@ -267,7 +298,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
                 </div>
               </div>
               <span className="px-2 py-0.5 text-xs font-medium bg-[#2f8481]/10 text-[#2f8481] rounded-md flex-shrink-0">
-                {user?.role === 'landlord' ? 'Nuomotojas' : user?.role || 'User'}
+                {user?.role === 'admin' ? 'Admin' : user?.role === 'landlord' ? 'Nuomotojas' : user?.role === 'tenant' ? 'Nuomininkas' : user?.role || 'User'}
               </span>
             </div>
           </div>

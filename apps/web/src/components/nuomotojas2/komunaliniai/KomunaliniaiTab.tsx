@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, createRef } from 'react';
-import { Calendar, MoreHorizontal, Download, Settings, Send, CheckCircle, Plus, Gauge, TrendingUp, Clock, ChevronDown, Loader2 } from 'lucide-react';
+import { Calendar, MoreHorizontal, Download, Settings, Send, CheckCircle, Plus, Gauge, TrendingUp, Clock, ChevronDown, Loader2, Bell, AlertTriangle } from 'lucide-react';
 import { RodmenysModule, StatusFilter, MeterCategory, MeterScope } from './WorkSurface';
 import { MeterRow, MeterData, MeterRowRef } from './MeterRow';
 import { BulkActionBar } from './BulkActionBar';
 import { useBulkEdits, useMetersFilters } from './hooks/useBulkEdits';
 import { useMeterReadings } from './useMeterReadings';
 import { MeterHistoryPanel } from './MeterHistoryPanel';
+import { supabase } from '../../../lib/supabase';
 
 // =============================================================================
 // TYPES
@@ -36,15 +37,17 @@ const PageHeader: React.FC<{
     year: number; month: number; onPeriod: (y: number, m: number) => void;
     missing: number; pending: number;
     onCollect?: () => void; onReview?: () => void; onAdd?: () => void; onExport?: () => void; onSettings?: () => void;
-}> = ({ year, month, onPeriod, missing, pending, onCollect, onReview, onAdd, onExport, onSettings }) => {
+    onRequestReadings?: () => void; isRequestingSent?: boolean; isRequestWarning?: boolean;
+}> = ({ year, month, onPeriod, missing, pending, onCollect, onReview, onAdd, onExport, onSettings, onRequestReadings, isRequestingSent, isRequestWarning }) => {
     const [showPicker, setShowPicker] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
 
     const cta = useMemo(() => {
-        if (missing > 0) return { label: 'Surinkti rodmenis', count: missing, icon: Send, onClick: onCollect };
-        if (pending > 0) return { label: 'Peržiūrėti', count: pending, icon: CheckCircle, onClick: onReview };
-        return { label: 'Pridėti', count: 0, icon: Plus, onClick: onAdd };
-    }, [missing, pending, onCollect, onReview, onAdd]);
+        if (isRequestingSent) return { label: 'Išsiųsta!', count: 0, icon: CheckCircle, onClick: undefined, sent: true };
+        if (missing > 0) return { label: 'Prašyti rodmenų', count: missing, icon: Send, onClick: onRequestReadings, sent: false };
+        if (pending > 0) return { label: 'Peržiūrėti', count: pending, icon: CheckCircle, onClick: onReview, sent: false };
+        return { label: 'Pridėti', count: 0, icon: Plus, onClick: onAdd, sent: false };
+    }, [missing, pending, onCollect, onReview, onAdd, isRequestingSent]);
 
     return (
         <div className="px-6 py-5 flex items-center gap-5 bg-white border-b border-slate-200">
@@ -109,7 +112,7 @@ const PageHeader: React.FC<{
                 {showMenu && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                        <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-50 min-w-[180px]">
+                        <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-50 min-w-[220px]">
                             <button onClick={() => { onExport?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-slate-50 flex items-center gap-3 font-medium transition-colors">
                                 <Download className="w-4 h-4 text-slate-400" />Eksportuoti
                             </button>
@@ -118,7 +121,7 @@ const PageHeader: React.FC<{
                             </button>
                             <hr className="my-1.5 border-slate-100" />
                             <button onClick={() => { onAdd?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-teal-600 hover:bg-teal-50 flex items-center gap-3 font-bold transition-colors">
-                                <Plus className="w-4 h-4" />Pridėti skaitiklį
+                                <Plus className="w-4 h-4" />Pridėti skaitliuką
                             </button>
                         </div>
                     </>
@@ -128,13 +131,17 @@ const PageHeader: React.FC<{
             {/* Main CTA */}
             <button
                 onClick={cta.onClick}
-                className="
+                disabled={cta.sent}
+                className={`
                     flex items-center gap-2.5 h-11 px-5 
-                    bg-teal-600 hover:bg-teal-700 text-white 
-                    rounded-xl font-bold text-sm 
-                    transition-colors duration-150
-                    shadow-sm hover:shadow-md hover:shadow-teal-500/20
-                "
+                    ${cta.sent
+                        ? 'bg-emerald-600 cursor-default'
+                        : 'bg-teal-600 hover:bg-teal-700 hover:shadow-md hover:shadow-teal-500/20'
+                    }
+                    text-white rounded-xl font-bold text-sm 
+                    transition-all duration-300
+                    shadow-sm
+                `}
             >
                 <cta.icon className="w-4 h-4" />
                 <span>{cta.label}</span>
@@ -163,7 +170,7 @@ const EmptyState: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => (
                 className="inline-flex items-center gap-2.5 h-12 px-6 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-colors duration-150 shadow-sm hover:shadow-lg hover:shadow-teal-500/20"
             >
                 <Plus className="w-5 h-5" />
-                Pridėti pirmą skaitiklį
+                Pridėti pirmą skaitliuką
             </button>
         </div>
     </div>
@@ -178,12 +185,33 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
     const [isSaving, setIsSaving] = useState(false);
+    const [requestSent, setRequestSent] = useState(false);
+    const [requestWarning, setRequestWarning] = useState<string | null>(null);
 
     // History panel state
     const [historyMeter, setHistoryMeter] = useState<{ id: string; name: string; unit: string } | null>(null);
 
     // Hook for period-aware meter data
     const hook = useMeterReadings(propertyId, addressId, year, month);
+
+    // Fetch meterReadingEndDay from address_settings (end of reading period = due date)
+    const [meterReadingDay, setMeterReadingDay] = useState<number | null>(null);
+    useEffect(() => {
+        if (!addressId) return;
+        let cancelled = false;
+        supabase
+            .from('address_settings')
+            .select('notification_settings')
+            .eq('address_id', addressId)
+            .maybeSingle()
+            .then(({ data }) => {
+                if (!cancelled && data?.notification_settings) {
+                    const endDay = data.notification_settings.meterReadingEndDay || data.notification_settings.meterReadingDay;
+                    if (endDay) setMeterReadingDay(endDay);
+                }
+            });
+        return () => { cancelled = true; };
+    }, [addressId]);
 
     // State for meter status overrides (for approve/reject workflow)
     const [meterOverrides, setMeterOverrides] = useState<Record<string, Partial<MeterData>>>({});
@@ -206,6 +234,10 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         if (hook.meters.length > 0) {
             // Hook has DB configs — use hook meters (they have correct per-period previousReading)
             return hook.meters;
+        }
+        // While hook is still loading in DB-backed mode, don't flash legacy meters
+        if (hook.isLoading && addressId) {
+            return [];
         }
         // No hook configs — but we can still overlay period readings on legacy meters
         // This handles the case where address_meters doesn't exist but meter_readings does
@@ -254,7 +286,11 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         };
     }, [activeMeters]);
 
-    const computedDueDate = useMemo(() => dueDate ?? new Date(year, month + 1, 0), [dueDate, year, month]);
+    const computedDueDate = useMemo(() => {
+        if (dueDate) return dueDate;
+        if (meterReadingDay) return new Date(year, month, meterReadingDay);
+        return new Date(year, month + 1, 0); // fallback: last day of month
+    }, [dueDate, year, month, meterReadingDay]);
     const filteredMeters = useMemo(() => applyFilters(activeMeters), [activeMeters, applyFilters]);
     const missingMeters = useMemo(() => filteredMeters.filter(m => m.status === 'missing'), [filteredMeters]);
 
@@ -306,74 +342,160 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         }
     }, [activeMeters]);
 
+    // Request readings from tenants — sends notification to all tenants at this address
+    const handleRequestReadings = useCallback(async () => {
+        console.log('[KomunaliniaiTab] handleRequestReadings called, addressId:', addressId, 'propertyId:', propertyId);
+        if (!addressId) {
+            console.warn('[KomunaliniaiTab] No addressId — cannot send notifications');
+            return;
+        }
+        try {
+            // Find all tenants at this address using SECURITY DEFINER function
+            // (direct user_addresses query is blocked by RLS — landlord can't see tenant rows)
+            const { data: tenantLinks, error: linkErr } = await supabase
+                .rpc('get_tenants_at_address', { p_address_id: addressId });
+
+            console.log('[KomunaliniaiTab] Tenant lookup result:', { tenantLinks, linkErr });
+
+            if (linkErr || !tenantLinks || tenantLinks.length === 0) {
+                console.warn('[KomunaliniaiTab] No tenants found at address', addressId);
+                // Show warning — no tenants to notify
+                setRequestWarning('Šiam butui nepriskirtas nuomininkas. Pirmiausia pridėkite nuomininką.');
+                setTimeout(() => setRequestWarning(null), 5000);
+                return;
+            }
+
+            const MONTHS = ['Sausis', 'Vasaris', 'Kovas', 'Balandis', 'Gegužė', 'Birželis', 'Liepa', 'Rugpjūtis', 'Rugsėjis', 'Spalis', 'Lapkritis', 'Gruodis'];
+            const periodLabel = `${MONTHS[month]} ${year}`;
+            const deadline = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+            const individualMeters = activeMeters.filter(m => m.scope === 'individual' && m.status === 'missing');
+
+            const notifications = (tenantLinks as { user_id: string }[]).map(t => ({
+                user_id: t.user_id,
+                kind: 'meter_reading_request',
+                title: 'Prašome pateikti skaitliukų rodmenis',
+                body: `Nuomotojas prašo pateikti skaitliukų rodmenis už ${periodLabel}. Terminas: ${deadline}. Skaitliukai: ${individualMeters.length}.`,
+                data: {
+                    property_id: propertyId,
+                    address_id: addressId,
+                    period: `${year}-${String(month + 1).padStart(2, '0')}`,
+                    deadline,
+                    meters: individualMeters.map(m => ({ id: m.id, name: m.name, unit: m.unit, category: m.category })),
+                },
+            }));
+
+            console.log('[KomunaliniaiTab] Inserting notifications:', notifications);
+            const { error } = await supabase.from('notifications').insert(notifications);
+            if (error) {
+                console.error('[KomunaliniaiTab] Failed to send notifications:', error);
+                return;
+            }
+
+            setRequestSent(true);
+            setTimeout(() => setRequestSent(false), 5000);
+            console.log(`[KomunaliniaiTab] ✅ Sent meter reading request to ${tenantLinks.length} tenant(s)`);
+        } catch (e) {
+            console.error('[KomunaliniaiTab] Error requesting readings:', e);
+        }
+    }, [addressId, propertyId, year, month, activeMeters]);
+
     // Save all dirty readings
     const prevDirtyCount = useMemo(() => Object.values(meterOverrides).filter(o => o.previousReading !== undefined).length, [meterOverrides]);
 
     const handleSave = useCallback(async () => {
-        const dirtyValues = getDirtyValues();
-        const hasPrevChanges = Object.values(meterOverrides).some(o => o.previousReading !== undefined);
+        const dirtyValues = getDirtyValues(); // Current reading drafts
+        const prevReadingUpdates = Object.entries(meterOverrides)
+            .filter(([_, override]) => override.previousReading !== undefined)
+            .map(([meterId, override]) => ({
+                meterId,
+                previousReading: override.previousReading as number
+            }));
+
         console.log(`[KomunaliniaiTab] handleSave called:`, {
             dirtyCount: dirtyValues.length,
-            hasPrevChanges,
+            prevCount: prevReadingUpdates.length,
             addressId,
-            hasHookSave: !!hook.saveReading,
+            hookMetersLen: hook.meters.length,
             period: `${year}-${month + 1}`,
-            dirtyValues,
         });
-        if (dirtyValues.length === 0 && !hasPrevChanges) {
+
+        if (dirtyValues.length === 0 && prevReadingUpdates.length === 0) {
             console.log('[KomunaliniaiTab] Nothing to save, aborting');
             return;
         }
 
         setIsSaving(true);
         try {
-            // Use hook's saveReading if addressId is available AND hook has loaded meter configs (DB-backed mode)
-            // Without loaded configs, hook.saveReading will silently fail (can't find config)
-            if (addressId && hook.saveReading && hook.meters.length > 0) {
-                console.log('[KomunaliniaiTab] Using HOOK save path (DB-backed)');
+            if (addressId && hook.meters.length > 0) {
+                // ====================================================
+                // DB-BACKED MODE: Save ALL changes via hook.saveReading
+                // ====================================================
+                console.log('[KomunaliniaiTab] DB-backed save mode');
+
+                // Build a unified set of meters to save
+                const metersToSave = new Map<string, { currentReading: number | null; previousReading: number | null }>();
+
+                // Add current reading changes from drafts
                 for (const { meterId, value } of dirtyValues) {
                     const meter = activeMeters.find(m => m.id === meterId);
-                    const prevReading = meter?.previousReading ?? null;
-                    console.log(`[KomunaliniaiTab] Saving meter ${meterId}: current=${value}, prev=${prevReading}`);
-                    const success = await hook.saveReading(meterId, value, prevReading);
-                    console.log(`[KomunaliniaiTab] Save result for ${meterId}: ${success ? 'SUCCESS' : 'FAILED'}`);
+                    // Use override previous reading if available, else existing
+                    const prevOverride = meterOverrides[meterId]?.previousReading;
+                    metersToSave.set(meterId, {
+                        currentReading: value,
+                        previousReading: prevOverride ?? meter?.previousReading ?? null,
+                    });
                 }
 
-                // Save previous reading changes too
-                const prevReadingUpdates = Object.entries(meterOverrides)
-                    .filter(([_, override]) => override.previousReading !== undefined);
-                for (const [meterId, override] of prevReadingUpdates) {
-                    const meter = activeMeters.find(m => m.id === meterId);
-                    const currentReading = meter?.currentReading;
-                    if (currentReading != null) {
-                        await hook.saveReading(meterId, currentReading, override.previousReading as number);
+                // Add previous reading changes (may overlap with current changes)
+                for (const { meterId, previousReading } of prevReadingUpdates) {
+                    const existing = metersToSave.get(meterId);
+                    if (existing) {
+                        // Already saving current reading — just update previous
+                        existing.previousReading = previousReading;
+                    } else {
+                        // Only previous reading changed — keep current as-is (null if never entered)
+                        const meter = activeMeters.find(m => m.id === meterId);
+                        const currentDraft = getDraft(meterId);
+                        const currentVal = currentDraft?.value ? parseFloat(currentDraft.value) : (meter?.currentReading ?? null);
+                        metersToSave.set(meterId, {
+                            currentReading: currentVal,
+                            previousReading,
+                        });
                     }
+                }
+
+                // Save each meter via hook
+                let savedCount = 0;
+                for (const [meterId, values] of metersToSave) {
+                    console.log(`[KomunaliniaiTab] Saving meter ${meterId}: current=${values.currentReading}, prev=${values.previousReading}`);
+                    const success = await hook.saveReading(meterId, values.currentReading, values.previousReading);
+                    if (success) savedCount++;
+                    console.log(`[KomunaliniaiTab] ${success ? '✅' : '❌'} meter ${meterId}`);
                 }
 
                 // Refetch to get updated data from DB
                 await hook.refetch();
-                console.log('[KomunaliniaiTab] Refetch complete after save');
+                console.log(`[KomunaliniaiTab] Refetch complete. Saved ${savedCount}/${metersToSave.size} meters`);
+
+                // Clear all local state — hook.meters now has fresh DB data
+                clearAllDrafts();
+                setMeterOverrides({});
             } else {
-                console.log('[KomunaliniaiTab] Using LEGACY save path (no addressId or no hook)');
-                // Legacy mode: use parent callbacks
-                if (onSaveReadings) {
+                // ====================================================
+                // LEGACY MODE: Use parent callbacks
+                // ====================================================
+                console.log('[KomunaliniaiTab] Legacy save mode');
+
+                if (onSaveReadings && dirtyValues.length > 0) {
                     await onSaveReadings(dirtyValues);
                 }
-                if (onSavePreviousReadings) {
-                    const prevReadingUpdates = Object.entries(meterOverrides)
-                        .filter(([_, override]) => override.previousReading !== undefined)
-                        .map(([meterId, override]) => ({
-                            meterId,
-                            previousReading: override.previousReading as number
-                        }));
-                    if (prevReadingUpdates.length > 0) {
-                        await onSavePreviousReadings(prevReadingUpdates);
-                    }
-                }
-            }
 
-            // Only update local overrides if NOT using hook (hook refetch handles it)
-            if (!(addressId && hook.saveReading && hook.meters.length > 0)) {
+                if (onSavePreviousReadings && prevReadingUpdates.length > 0) {
+                    await onSavePreviousReadings(prevReadingUpdates);
+                }
+
+                // Update local overrides for legacy mode
                 setMeterOverrides(prev => {
                     const updates: Record<string, Partial<MeterData>> = { ...prev };
                     for (const { meterId, value } of dirtyValues) {
@@ -383,24 +505,45 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                             status: 'ok'
                         };
                     }
-                    return updates;
+                    // Clear saved previousReading entries
+                    for (const { meterId } of prevReadingUpdates) {
+                        if (updates[meterId]) {
+                            const { previousReading, ...rest } = updates[meterId] as any;
+                            updates[meterId] = Object.keys(rest).length > 0 ? rest : {};
+                        }
+                    }
+                    return Object.fromEntries(
+                        Object.entries(updates).filter(([_, v]) => Object.keys(v || {}).length > 0)
+                    );
                 });
+                clearAllDrafts();
             }
 
-            clearAllDrafts();
-            console.log(`[KomunaliniaiTab] ✅ Saved ${dirtyValues.length} readings for period ${year}-${month + 1}`);
+            console.log(`[KomunaliniaiTab] ✅ Save complete for period ${year}-${month + 1}`);
         } catch (e) {
             console.error('[KomunaliniaiTab] ❌ Error saving readings:', e);
         } finally {
             setIsSaving(false);
         }
-    }, [onSaveReadings, onSavePreviousReadings, getDirtyValues, clearAllDrafts, meterOverrides, addressId, hook, activeMeters, year, month]);
+    }, [onSaveReadings, onSavePreviousReadings, getDirtyValues, getDraft, clearAllDrafts, meterOverrides, addressId, hook, activeMeters, year, month]);
 
     // Loading state when hook is fetching
     if (hook.isLoading && activeMeters.length === 0) {
         return (
             <div className="flex flex-col h-full bg-white">
-                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} />
+                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} />
+                {requestSent && (
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl animate-in fade-in duration-300">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-emerald-700">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
+                    </div>
+                )}
+                {requestWarning && (
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl animate-in fade-in duration-300">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-amber-700">{requestWarning}</span>
+                    </div>
+                )}
                 <div className="flex-1 flex items-center justify-center py-24">
                     <div className="text-center">
                         <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto mb-3" />
@@ -415,7 +558,19 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
     if (activeMeters.length === 0) {
         return (
             <div className="flex flex-col h-full bg-white">
-                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} />
+                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} />
+                {requestSent && (
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-emerald-700">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
+                    </div>
+                )}
+                {requestWarning && (
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-amber-700">{requestWarning}</span>
+                    </div>
+                )}
                 <EmptyState onAdd={onAddMeter} />
             </div>
         );
@@ -423,7 +578,19 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
 
     return (
         <div className="flex flex-col h-full bg-slate-100/80">
-            <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={counts.missing} pending={counts.pending} onCollect={onCollectReadings} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} />
+            <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={counts.missing} pending={counts.pending} onCollect={handleRequestReadings} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} />
+            {requestSent && (
+                <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-emerald-700">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
+                </div>
+            )}
+            {requestWarning && (
+                <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-amber-700">{requestWarning}</span>
+                </div>
+            )}
 
             <div className="flex-1 flex flex-col p-5 min-h-0">
                 <RodmenysModule

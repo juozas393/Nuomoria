@@ -32,11 +32,8 @@ const PendingInvitationCard: React.FC<PendingInvitationCardProps> = ({
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return 'Nenurodyta';
-        return new Date(dateStr).toLocaleDateString('lt-LT', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
     const formatCurrency = (amount?: number) => {
@@ -146,8 +143,8 @@ const PendingInvitationCard: React.FC<PendingInvitationCardProps> = ({
                     onClick={handleDecline}
                     disabled={isAccepting || isDeclining}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors ${isDark
-                            ? 'bg-white/5 hover:bg-white/10 text-gray-300'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        ? 'bg-white/5 hover:bg-white/10 text-gray-300'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         } disabled:opacity-50`}
                 >
                     {isDeclining ? (

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CameraIcon,
   CloudArrowUpIcon,
@@ -12,31 +13,24 @@ import {
   InformationCircleIcon,
   ClockIcon,
   CalendarIcon,
-  ArrowRightOnRectangleIcon
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
-import { propertyMeterConfigsApi } from '../../lib/api';
+// Reads from apartment_meters for the tenant's property, filtered by collection_mode = 'tenant_submits'
 import { supabase } from '../../lib/supabase';
 
 interface MeterConfig {
   id: string;
-  property_id: string;
-  meter_type: 'electricity' | 'water_cold' | 'water_hot' | 'gas' | 'heating' | 'internet' | 'garbage' | 'custom';
-  custom_name?: string;
-  unit: 'm3' | 'kWh' | 'GJ' | 'MB' | 'fixed';
-  tariff: 'single' | 'day_night' | 'peak_offpeak';
+  address_id: string;
+  name: string;
+  type: 'individual' | 'communal';
+  unit: string;
   price_per_unit: number;
   fixed_price?: number;
-  initial_reading?: number;
-  initial_date?: string;
-  require_photo: boolean;
-  require_serial: boolean;
-  serial_number?: string;
-  provider?: string;
-  status: 'active' | 'inactive' | 'maintenance';
-  notes?: string;
+  distribution_method?: string;
+  requires_photo: boolean;
+  collection_mode?: string;
   created_at: string;
-  updated_at: string;
 }
 
 interface MeterReading {
@@ -63,17 +57,21 @@ interface MeterValidation {
 }
 
 const TenantMeters: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [meterConfigs, setMeterConfigs] = useState<MeterConfig[]>([]);
   const [readings, setReadings] = useState<MeterReading[]>([]);
+  const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [addressId, setAddressId] = useState<string | null>(null);
   const [selectedMeter, setSelectedMeter] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState<Record<string, boolean>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Fetch meter configurations for the tenant's property
+  // Fetch meter configurations from address_meters — matching landlord's data source
   useEffect(() => {
     const fetchMeterConfigs = async () => {
       if (!user) return;
@@ -81,69 +79,67 @@ const TenantMeters: React.FC = () => {
       try {
         setIsLoading(true);
 
-        // Get tenant's property ID from user_addresses table
-        console.log('🔍 Fetching property for user:', user.id);
+        // Priority 1: Use unread meter_reading_request notification data
+        // This contains the exact address_id and property_id the landlord targeted
+        const { data: notifData } = await supabase
+          .from('notifications')
+          .select('data')
+          .eq('user_id', user.id)
+          .eq('kind', 'meter_reading_request')
+          .eq('is_read', false)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        // First get user's address association
-        const { data: userAddresses, error: addressError } = await supabase
+        if (notifData?.data?.address_id && notifData?.data?.property_id) {
+          setAddressId(notifData.data.address_id);
+          setPropertyId(notifData.data.property_id);
+          return;
+        }
+
+        // Priority 2: tenant_invitations — has exact property mapping
+        const { data: invitations } = await supabase
+          .from('tenant_invitations')
+          .select('property_id, address_id')
+          .eq('email', user.email)
+          .eq('status', 'accepted')
+          .limit(1);
+
+        if (invitations?.[0]) {
+          const inv = invitations[0];
+          if (inv.property_id) setPropertyId(inv.property_id);
+          if (inv.address_id) {
+            setAddressId(inv.address_id);
+          } else if (inv.property_id) {
+            const { data: propData } = await supabase
+              .from('properties')
+              .select('address_id')
+              .eq('id', inv.property_id)
+              .single();
+            if (propData?.address_id) setAddressId(propData.address_id);
+          }
+          return;
+        }
+
+        // Priority 3: user_addresses fallback
+        const { data: userAddrs } = await supabase
           .from('user_addresses')
           .select('address_id')
           .eq('user_id', user.id)
           .eq('role', 'tenant')
-          .single();
+          .limit(1);
 
-        if (addressError || !userAddresses) {
-          console.log('❌ No address found for tenant:', addressError);
-          setIsLoading(false);
-          return;
+        if (userAddrs?.[0]) {
+          setAddressId(userAddrs[0].address_id);
+          const { data: props } = await supabase
+            .from('properties')
+            .select('id')
+            .eq('address_id', userAddrs[0].address_id)
+            .limit(1);
+          if (props?.[0]?.id) setPropertyId(props[0].id);
         }
-
-        // Then get any property from that address for demo
-        const { data: properties, error: propertyError } = await supabase
-          .from('properties')
-          .select('id')
-          .eq('address_id', userAddresses.address_id)
-          .limit(1)
-          .single();
-
-        if (propertyError || !properties) {
-          console.log('❌ No property found for address:', propertyError);
-          setIsLoading(false);
-          return;
-        }
-
-        const propertyId = properties.id;
-        console.log('✅ Found property ID for tenant:', propertyId);
-
-        try {
-          const configs = await propertyMeterConfigsApi.getByPropertyId(propertyId);
-
-          setMeterConfigs(configs || []);
-
-          // Create readings for ALL meters (photo required and not required)
-          const allReadings: MeterReading[] = (configs || []).map((config: MeterConfig, index: number) => ({
-            id: `reading-${index + 1}`,
-            meterType: mapMeterType(config.meter_type),
-            meterConfigId: config.id,
-            previousReading: config.initial_reading || 0,
-            currentReading: 0,
-            date: new Date().toISOString().split('T')[0],
-            photos: [],
-            status: 'pending',
-            submissionDeadline: '2024-01-31', // TODO: Calculate based on billing cycle
-            meterNumber: config.serial_number || `${config.meter_type.toUpperCase()}-${index + 1}`,
-            location: 'Butas 15, Vilniaus g. 15', // TODO: Get from property info
-            requirePhoto: config.require_photo
-          }));
-
-          setReadings(allReadings);
-
-        } catch (error) {
-          console.error('Error fetching meter configurations:', error);
-        }
-
       } catch (error) {
-        console.error('Error fetching meter configurations:', error);
+        console.error('Error finding tenant property:', error);
       } finally {
         setIsLoading(false);
       }
@@ -152,16 +148,125 @@ const TenantMeters: React.FC = () => {
     fetchMeterConfigs();
   }, [user]);
 
-  // Helper function to map database meter types to UI types
-  const mapMeterType = (dbType: string): 'electricity' | 'water' | 'gas' | 'heating' => {
-    switch (dbType) {
-      case 'electricity': return 'electricity';
-      case 'water_cold':
-      case 'water_hot': return 'water';
-      case 'gas': return 'gas';
-      case 'heating': return 'heating';
-      default: return 'electricity';
-    }
+  // 2. Once we have addressId, fetch meters + notification + readings
+  useEffect(() => {
+    const fetchMeters = async () => {
+      if (!user || !addressId) return;
+
+      try {
+        setIsLoading(true);
+
+        // Fetch ALL individual address_meters for this address
+        const { data: addrMeters, error: metersError } = await supabase
+          .from('address_meters')
+          .select('id, address_id, name, type, unit, price_per_unit, fixed_price, distribution_method, requires_photo, is_active, collection_mode, created_at')
+          .eq('address_id', addressId)
+          .eq('is_active', true)
+          .eq('type', 'individual');
+
+        if (metersError || !addrMeters || addrMeters.length === 0) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch the latest unread meter_reading_request notification
+        const { data: notifData } = await supabase
+          .from('notifications')
+          .select('data, created_at')
+          .eq('user_id', user.id)
+          .eq('kind', 'meter_reading_request')
+          .eq('is_read', false)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        // Extract deadline and requested meter IDs from notification
+        const notifDeadline = notifData?.data?.deadline;
+        const notifMeterIds: string[] = (notifData?.data?.meters || []).map((m: any) => m.id);
+
+        // Filter meters: if we have a notification, show only those meters; otherwise show all individual
+        const metersToShow = notifMeterIds.length > 0
+          ? addrMeters.filter(m => notifMeterIds.includes(m.id))
+          : addrMeters;
+
+        setMeterConfigs(metersToShow as unknown as MeterConfig[]);
+
+        // Get last readings for each meter
+        const readingsPromises = metersToShow.map(async (config: any) => {
+          const { data: lastReading } = await supabase
+            .from('meter_readings')
+            .select('current_reading, reading_date')
+            .eq('meter_id', config.id)
+            .eq('property_id', propertyId || '')
+            .order('reading_date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          // Also try without property_id filter (address-level meters)
+          if (!lastReading) {
+            const { data: fallbackReading } = await supabase
+              .from('meter_readings')
+              .select('current_reading, reading_date')
+              .eq('meter_id', config.id)
+              .order('reading_date', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            return {
+              config,
+              lastReading: fallbackReading?.current_reading || 0,
+              lastDate: fallbackReading?.reading_date
+            };
+          }
+
+          return {
+            config,
+            lastReading: lastReading?.current_reading || 0,
+            lastDate: lastReading?.reading_date
+          };
+        });
+
+        const readingsData = await Promise.all(readingsPromises);
+
+        // Build deadline from notification or end of current month
+        const now = new Date();
+        const deadline = notifDeadline || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+        const allReadings: MeterReading[] = readingsData.map((rd, index: number) => ({
+          id: `reading-${index + 1}`,
+          meterType: mapMeterType(rd.config.name),
+          meterConfigId: rd.config.id,
+          previousReading: Number(rd.lastReading),
+          currentReading: 0,
+          date: new Date().toISOString().split('T')[0],
+          photos: [],
+          status: 'pending',
+          submissionDeadline: deadline,
+          meterNumber: rd.config.name,
+          location: '',
+          requirePhoto: rd.config.requires_photo || false
+        }));
+
+        setReadings(allReadings);
+
+      } catch (error) {
+        console.error('Error fetching meter configurations:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMeters();
+  }, [user, addressId, propertyId]);
+
+  // Helper function to map meter name to UI type
+  const mapMeterType = (name: string): 'electricity' | 'water' | 'gas' | 'heating' => {
+    const lower = (name || '').toLowerCase();
+    if (lower.includes('elektr')) return 'electricity';
+    if (lower.includes('vand') || lower.includes('water')) return 'water';
+    if (lower.includes('duj') || lower.includes('gas')) return 'gas';
+    if (lower.includes('šild') || lower.includes('heat')) return 'heating';
+    return 'electricity';
   };
 
   useEffect(() => {
@@ -319,27 +424,53 @@ const TenantMeters: React.FC = () => {
     ));
   };
 
-  const handlePhotoUpload = (meterId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (meterId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files) return;
+    if (!files || !user) return;
 
-    const uploadPromises = Array.from(files).map((file) => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          resolve(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
-      });
-    });
+    setUploadingPhotos(prev => ({ ...prev, [meterId]: true }));
 
-    Promise.all(uploadPromises).then((imageUrls) => {
-      setReadings(prev => prev.map(meter =>
-        meter.id === meterId
-          ? { ...meter, photos: [...meter.photos, ...imageUrls] }
-          : meter
-      ));
-    });
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (const file of Array.from(files)) {
+        // Generate unique filename
+        const ext = file.name.split('.').pop() || 'jpg';
+        const fileName = `${user.id}/${meterId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('meter-readings')
+          .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('meter-readings')
+          .getPublicUrl(fileName);
+
+        if (urlData?.publicUrl) {
+          uploadedUrls.push(urlData.publicUrl);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setReadings(prev => prev.map(meter =>
+          meter.id === meterId
+            ? { ...meter, photos: [...meter.photos, ...uploadedUrls] }
+            : meter
+        ));
+      }
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+    } finally {
+      setUploadingPhotos(prev => ({ ...prev, [meterId]: false }));
+      // Reset file input
+      const inputRef = fileInputRefs.current[meterId];
+      if (inputRef) inputRef.value = '';
+    }
   };
 
   const removePhoto = (meterId: string, photoIndex: number) => {
@@ -363,20 +494,110 @@ const TenantMeters: React.FC = () => {
       return;
     }
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Insert real meter readings into the database
+      const readingsToInsert = readings.map(reading => {
+        const consumption = reading.currentReading - reading.previousReading;
+        const config = meterConfigs.find(c => c.id === reading.meterConfigId);
+        const pricePerUnit = config?.price_per_unit || 0;
+        const fixedPrice = config?.fixed_price || 0;
+        const totalSum = fixedPrice > 0 ? fixedPrice : consumption * pricePerUnit;
+        const meterType = config?.distribution_method === 'per_consumption' ? 'apartment' : 'address';
 
-    // Update status to approved
-    setReadings(prev => prev.map(meter => ({
-      ...meter,
-      status: 'approved' as const,
-      lastSubmissionDate: new Date().toISOString()
-    })));
+        return {
+          property_id: propertyId,
+          meter_id: reading.meterConfigId,
+          meter_type: meterType,
+          type: mapMeterTypeToDbType(reading.meterType, reading.meterConfigId),
+          reading_date: reading.date,
+          previous_reading: reading.previousReading,
+          current_reading: reading.currentReading,
+          difference: consumption,
+          price_per_unit: pricePerUnit,
+          total_sum: totalSum,
+          amount: totalSum,
+          notes: `Nuomininko pateiktas rodmuo`,
+          photo_urls: reading.photos.length > 0 ? reading.photos : [],
+          submitted_by: user?.id,
+        };
+      });
 
-    setIsSubmitting(false);
-    setShowSuccess(true);
+      const { error } = await supabase
+        .from('meter_readings')
+        .insert(readingsToInsert);
 
-    setTimeout(() => setShowSuccess(false), 5000);
+      if (error) {
+        console.error('Error submitting readings:', error);
+        alert(`Klaida pateikiant rodmenis: ${error.message}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Send notification to landlord
+      if (addressId) {
+        try {
+          // Find the landlord via addresses.created_by (tenant can read this via RLS)
+          const { data: addressData } = await supabase
+            .from('addresses')
+            .select('created_by')
+            .eq('id', addressId)
+            .single();
+
+          if (addressData?.created_by) {
+            const now = new Date();
+            const periodLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            await supabase.from('notifications').insert({
+              user_id: addressData.created_by,
+              kind: 'meter_readings_submitted',
+              title: 'Nuomininkas pateikė skaitliukų rodmenis',
+              body: `Gauti skaitliukų rodmenys už ${periodLabel}. ${readings.length} skaitliukai pateikti.`,
+              data: {
+                address_id: addressId,
+                property_id: propertyId,
+                meter_count: readings.length,
+                period: periodLabel,
+                submitted_by: user?.id,
+              },
+            });
+          }
+        } catch (notifErr) {
+          console.error('Failed to notify landlord:', notifErr);
+          // Non-blocking — readings already saved
+        }
+      }
+
+      // Mark tenant's meter_reading_request notifications as read
+      if (user?.id) {
+        await supabase
+          .from('notifications')
+          .update({ is_read: true, read_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .eq('kind', 'meter_reading_request')
+          .eq('is_read', false);
+      }
+
+      // Update status to approved
+      setReadings(prev => prev.map(meter => ({
+        ...meter,
+        status: 'approved' as const,
+        lastSubmissionDate: new Date().toISOString()
+      })));
+
+      setIsSubmitting(false);
+      setShowSuccess(true);
+    } catch (error) {
+      console.error('Error submitting readings:', error);
+      alert('Klaida pateikiant rodmenis. Bandykite dar kartą.');
+      setIsSubmitting(false);
+    }
+  };
+
+  // Map UI meter type back to DB type column value using meter name
+  const mapMeterTypeToDbType = (uiType: string, configId: string): string => {
+    const config = meterConfigs.find(c => c.id === configId);
+    if (!config) return uiType;
+    return mapMeterType(config.name);
   };
 
   const canSubmit = readings.every(reading => {
@@ -385,11 +606,8 @@ const TenantMeters: React.FC = () => {
   });
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('lt-LT', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const d = new Date(dateString);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
   const getDaysUntilDeadline = (deadline: string) => {
@@ -409,26 +627,23 @@ const TenantMeters: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      {/* Page subheader */}
+      <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-[#2F8481] rounded-lg flex items-center justify-center">
-                <DocumentTextIcon className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">Skaitliukai</h1>
-                <p className="text-sm text-gray-500">Pateikite savo skaitliukų rodmenis</p>
-              </div>
-            </div>
+          <div className="flex items-center gap-3 py-4">
             <button
-              onClick={logout}
-              className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => navigate('/tenant')}
+              className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors"
             >
-              <ArrowRightOnRectangleIcon className="w-4 h-4" />
-              <span className="text-sm">Atsijungti</span>
+              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
             </button>
+            <div className="w-8 h-8 bg-[#2F8481] rounded-lg flex items-center justify-center">
+              <DocumentTextIcon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">Skaitliukai</h1>
+              <p className="text-sm text-gray-500">Pateikite savo skaitliukų rodmenis</p>
+            </div>
           </div>
         </div>
       </div>
@@ -468,14 +683,23 @@ const TenantMeters: React.FC = () => {
 
             {/* Success Message */}
             {showSuccess && (
-              <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
+              <div className="mb-6 bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <CheckCircleIcon className="w-7 h-7 text-emerald-600" />
+                  </div>
                   <div>
-                    <h3 className="font-medium text-green-900">Skaitliukai sėkmingai pateikti!</h3>
-                    <p className="text-sm text-green-700">Jūsų skaitliukai buvo išsiųsti ir bus peržiūrėti.</p>
+                    <h3 className="text-lg font-bold text-emerald-900">Rodmenys sėkmingai pateikti!</h3>
+                    <p className="text-sm text-emerald-700 mt-1">Nuomotojas gavo pranešimą ir peržiūrės jūsų rodmenis. Galite grįžti atgal.</p>
                   </div>
                 </div>
+                <button
+                  onClick={() => navigate('/tenant')}
+                  className="mt-4 w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowLeftIcon className="w-5 h-5" />
+                  Grįžti į pagrindinį puslapį
+                </button>
               </div>
             )}
 
@@ -554,13 +778,32 @@ const TenantMeters: React.FC = () => {
                       {/* Previous Reading */}
                       <div className="bg-gray-50 rounded-xl p-4">
                         <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm text-gray-500">Ankstesnis rodmuo</p>
-                            <p className="text-2xl font-bold text-gray-900">
-                              {meter.previousReading.toLocaleString()} {meterInfo.unit}
+                          <div className="flex-1">
+                            <label className="text-sm text-gray-500 mb-1 block">Ankstesnis rodmuo</label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={meter.previousReading || ''}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  setReadings(prev => prev.map(r =>
+                                    r.id === meter.id ? { ...r, previousReading: val } : r
+                                  ));
+                                }}
+                                disabled={showSuccess}
+                                className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/40 focus:border-transparent transition-colors duration-200 text-xl font-bold text-gray-900 bg-white ${showSuccess ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                placeholder="0"
+                                min="0"
+                                step="0.01"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+                                {meterInfo.unit}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {meter.previousReading === 0 ? 'Nėra ankstesnių duomenų — galite įvesti rankiniu būdu' : 'Automatiškai užpildyta iš praeito mėnesio'}
                             </p>
                           </div>
-                          <CheckCircleIcon className="w-8 h-8 text-green-500" />
                         </div>
                       </div>
 
@@ -574,7 +817,10 @@ const TenantMeters: React.FC = () => {
                             type="number"
                             value={meter.currentReading || ''}
                             onChange={(e) => handleReadingChange(meter.id, e.target.value)}
-                            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-2xl font-bold ${validation.errors.some(e => e.includes('rodmuo'))
+                            disabled={showSuccess}
+                            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-2xl font-bold ${showSuccess
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                              : validation.errors.some(e => e.includes('rodmuo'))
                                 ? 'border-red-300 bg-red-50'
                                 : 'border-gray-300'
                               }`}
@@ -629,22 +875,32 @@ const TenantMeters: React.FC = () => {
                             Skaitliuko nuotrauka *
                           </label>
                           <div
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => fileInputRefs.current[meter.id]?.click()}
                             className={`border-2 border-dashed rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200 cursor-pointer ${validation.errors.some(e => e.includes('nuotrauka'))
-                                ? 'border-red-300 bg-red-50'
-                                : 'border-gray-300'
+                              ? 'border-red-300 bg-red-50'
+                              : 'border-gray-300'
                               }`}
                           >
                             <input
-                              ref={fileInputRef}
+                              ref={el => { fileInputRefs.current[meter.id] = el; }}
                               type="file"
                               accept="image/*"
+                              multiple
                               onChange={(e) => handlePhotoUpload(meter.id, e)}
                               className="hidden"
                             />
-                            <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                            <p className="text-gray-600 font-medium mb-2">Nufotografuokite skaitliuką</p>
-                            <p className="text-sm text-gray-500">Arba nuvilkite nuotrauką čia</p>
+                            {uploadingPhotos[meter.id] ? (
+                              <>
+                                <div className="w-12 h-12 border-3 border-[#2F8481] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                                <p className="text-gray-600 font-medium mb-2">Įkeliama nuotrauka...</p>
+                              </>
+                            ) : (
+                              <>
+                                <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                <p className="text-gray-600 font-medium mb-2">Nufotografuokite skaitliuką</p>
+                                <p className="text-sm text-gray-500">Arba nuvilkite nuotrauką čia</p>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
@@ -681,7 +937,7 @@ const TenantMeters: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             <CheckCircleIcon className="w-5 h-5 text-green-600" />
                             <span className="text-sm font-medium text-green-800">
-                              Šiam skaitlikliui nuotrauka nereikalinga
+                              Šiam skaitliukui nuotrauka nereikalinga
                             </span>
                           </div>
                           <p className="text-xs text-green-600 mt-1">
@@ -695,39 +951,51 @@ const TenantMeters: React.FC = () => {
               })}
             </div>
 
-            {/* Submit Button */}
+            {/* Submit / Return Section */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">Pateikti rodmenis</h3>
-                  <p className="text-sm text-gray-500">
-                    {readings.filter(r => {
-                      const validation = validateMeterReading(r);
-                      return validation.isValid;
-                    }).length} / {readings.length} skaitliukai paruošti
-                  </p>
+              {showSuccess ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <CheckCircleIcon className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-emerald-800">Visi rodmenys pateikti</h3>
+                    <p className="text-sm text-emerald-600">{readings.length} skaitliukai sėkmingai išsiųsti</p>
+                  </div>
                 </div>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit || isSubmitting}
-                  className="group relative px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-colors duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
-                  <span className="relative flex items-center gap-2">
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Siunčiama...
-                      </>
-                    ) : (
-                      <>
-                        <ArrowUpTrayIcon className="w-5 h-5" />
-                        Pateikti Rodmenis
-                      </>
-                    )}
-                  </span>
-                </button>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Pateikti rodmenis</h3>
+                    <p className="text-sm text-gray-500">
+                      {readings.filter(r => {
+                        const validation = validateMeterReading(r);
+                        return validation.isValid;
+                      }).length} / {readings.length} skaitliukai paruošti
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!canSubmit || isSubmitting}
+                    className="group relative px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-colors duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
+                    <span className="relative flex items-center gap-2">
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Siunčiama...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowUpTrayIcon className="w-5 h-5" />
+                          Pateikti Rodmenis
+                        </>
+                      )}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -45,7 +45,8 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 }) => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Nenurodyta';
-    return new Date(dateString).toLocaleDateString('lt-LT');
+    const d = new Date(dateString);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
   const getContractStatus = () => {

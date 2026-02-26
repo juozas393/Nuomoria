@@ -5,6 +5,7 @@
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import LtDateInput from '../ui/LtDateInput';
 import {
   XMarkIcon,
   HomeIcon,
@@ -17,7 +18,9 @@ import {
   PlusIcon,
   BuildingOfficeIcon,
   ArrowLeftIcon,
-  TrashIcon
+  TrashIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import MeterTable from '../meters/MeterTable';
 import { MeterRow } from '../../types/meters';
@@ -83,7 +86,7 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
   onAdd,
   address = ''
 }) => {
-  const [currentStep, setCurrentStep] = useState<ModalStep>('type-selection');
+  const [currentStep, setCurrentStep] = useState<ModalStep>('single-apartment');
   const [apartmentType, setApartmentType] = useState<'single' | 'multiple'>('single');
 
   // Default meters for new apartments
@@ -123,15 +126,6 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
       rate: 0.095,
       initialReading: 0,
       photoRequired: true
-    },
-    {
-      id: 'meter-5',
-      key: 'maintenance',
-      name: 'Techninė apžiūra',
-      unit: 'Kitas',
-      rate: 0,
-      initialReading: 0,
-      photoRequired: false
     }
   ];
 
@@ -180,6 +174,7 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [metersExpanded, setMetersExpanded] = useState(true);
 
   // Single apartment input change handler
   const handleSingleInputChange = (field: keyof Omit<ApartmentData, 'type'>, value: string | number | MeterRow[]) => {
@@ -408,11 +403,11 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
 
   // ─── Shared Styles ───────────────────────────────────────────
   const inputCls = (hasError?: boolean) =>
-    `w-full px-4 py-2.5 text-sm bg-white border rounded-xl focus:ring-2 focus:ring-[#2F8481] focus:border-transparent transition-all ${hasError ? 'border-red-300' : 'border-gray-300'
+    `w-full px-3.5 py-2 text-[13px] text-gray-900 caret-gray-900 bg-white/90 border rounded-xl shadow-sm focus:ring-2 focus:ring-[#2F8481]/30 focus:border-[#2F8481] focus:bg-white transition-all placeholder:text-gray-400 ${hasError ? 'border-red-400 bg-red-50/50' : 'border-gray-200/80 hover:border-gray-300'
     }`;
 
-  const labelCls = 'block text-[13px] font-semibold text-gray-700 mb-1.5';
-  const sectionTitleCls = 'text-sm font-bold text-gray-900 uppercase tracking-wide';
+  const labelCls = 'block text-[11px] font-semibold text-gray-600 uppercase tracking-wider mb-1';
+  const sectionTitleCls = 'text-[13px] font-bold text-gray-800 tracking-tight';
 
   // ─── Type Selection ──────────────────────────────────────────
   const renderTypeSelection = () => (
@@ -457,196 +452,71 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
     </div>
   );
 
-  // ─── Single Apartment Form ───────────────────────────────────
   const renderSingleApartmentForm = () => (
-    <form onSubmit={handleSingleSubmit} className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-        {/* Section 1: Butas */}
+    <form onSubmit={handleSingleSubmit} className="flex flex-col h-full min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 py-5 space-y-4">
+        {/* Unified Property Card */}
         <div
-          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
-          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          className="rounded-2xl border border-gray-200/50 shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-5 bg-cover bg-center"
+          style={{ backgroundImage: `url('${cardsBg}')` }}
         >
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-[#2F8481]/10 flex items-center justify-center">
-              <HomeIcon className="w-4 h-4 text-[#2F8481]" />
+          {/* Section: Buto informacija */}
+          <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-gray-200/40">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#2F8481]/15 to-[#2F8481]/5 flex items-center justify-center">
+              <HomeIcon className="w-3.5 h-3.5 text-[#2F8481]" />
             </div>
-            <h3 className={sectionTitleCls}>Butas</h3>
+            <h3 className={sectionTitleCls}>Buto informacija</h3>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+
+          {/* 5-field grid: Numeris + Plotas + Kambariai + Nuoma + Depozitas */}
+          <div className="grid grid-cols-5 gap-3">
             <div>
               <label className={labelCls}>Numeris <span className="text-red-400">*</span></label>
-              <input
-                type="text"
-                value={singleFormData.apartmentNumber}
-                onChange={(e) => handleSingleInputChange('apartmentNumber', e.target.value)}
-                className={inputCls(!!errors.apartmentNumber)}
-                placeholder="pvz., 5"
-              />
-              {errors.apartmentNumber && <p className="mt-1 text-xs text-red-600">{errors.apartmentNumber}</p>}
+              <input type="text" value={singleFormData.apartmentNumber} onChange={(e) => handleSingleInputChange('apartmentNumber', e.target.value)} className={inputCls(!!errors.apartmentNumber)} placeholder="5" />
+              {errors.apartmentNumber && <p className="mt-1 text-[10px] text-red-500 font-medium">{errors.apartmentNumber}</p>}
             </div>
             <div>
               <label className={labelCls}>Plotas (m²) <span className="text-red-400">*</span></label>
-              <input
-                type="number"
-                value={singleFormData.area || ''}
-                onChange={(e) => handleNumberInputChange('area', e.target.value)}
-                className={inputCls(!!errors.area)}
-                placeholder="45"
-              />
-              {errors.area && <p className="mt-1 text-xs text-red-600">{errors.area}</p>}
+              <input type="number" value={singleFormData.area || ''} onChange={(e) => handleNumberInputChange('area', e.target.value)} className={inputCls(!!errors.area)} placeholder="45" />
+              {errors.area && <p className="mt-1 text-[10px] text-red-500 font-medium">{errors.area}</p>}
             </div>
             <div>
               <label className={labelCls}>Kambariai <span className="text-red-400">*</span></label>
-              <input
-                type="number"
-                value={singleFormData.rooms || ''}
-                onChange={(e) => handleNumberInputChange('rooms', e.target.value)}
-                className={inputCls(!!errors.rooms)}
-                placeholder="2"
-              />
-              {errors.rooms && <p className="mt-1 text-xs text-red-600">{errors.rooms}</p>}
+              <input type="number" value={singleFormData.rooms || ''} onChange={(e) => handleNumberInputChange('rooms', e.target.value)} className={inputCls(!!errors.rooms)} placeholder="2" />
+              {errors.rooms && <p className="mt-1 text-[10px] text-red-500 font-medium">{errors.rooms}</p>}
             </div>
-          </div>
-        </div>
-
-        {/* Section 2: Finansai */}
-        <div
-          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
-          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-              <span className="text-emerald-600 text-sm font-bold">€</span>
-            </div>
-            <h3 className={sectionTitleCls}>Finansai</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Nuoma (€/mėn) <span className="text-red-400">*</span></label>
-              <input
-                type="number"
-                step="0.01"
-                value={singleFormData.monthlyRent || ''}
-                onChange={(e) => handleNumberInputChange('monthlyRent', e.target.value)}
-                className={inputCls(!!errors.monthlyRent)}
-                placeholder="520"
-              />
-              {errors.monthlyRent && <p className="mt-1 text-xs text-red-600">{errors.monthlyRent}</p>}
+              <input type="number" step="0.01" value={singleFormData.monthlyRent || ''} onChange={(e) => handleNumberInputChange('monthlyRent', e.target.value)} className={inputCls(!!errors.monthlyRent)} placeholder="520" />
+              {errors.monthlyRent && <p className="mt-1 text-[10px] text-red-500 font-medium">{errors.monthlyRent}</p>}
             </div>
             <div>
               <label className={labelCls}>Depozitas (€)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={singleFormData.deposit || ''}
-                onChange={(e) => handleNumberInputChange('deposit', e.target.value)}
-                className={inputCls()}
-                placeholder="1040"
-              />
+              <input type="number" step="0.01" value={singleFormData.deposit || ''} onChange={(e) => handleNumberInputChange('deposit', e.target.value)} className={inputCls()} placeholder="1040" />
             </div>
           </div>
         </div>
 
-        {/* Section 3: Nuomininkas (optional) */}
+        {/* Skaitliukai — always visible */}
         <div
-          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
-          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          className="rounded-2xl border border-gray-200/50 shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-5 bg-cover bg-center"
+          style={{ backgroundImage: `url('${cardsBg}')` }}
         >
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <UserIcon className="w-4 h-4 text-blue-600" />
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200/40">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+                <CreditCardIcon className="w-3.5 h-3.5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className={sectionTitleCls}>Skaitliukai</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Pasirink šabloną arba pridėk savo
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <h3 className={sectionTitleCls}>Nuomininkas</h3>
-              <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">neprivaloma</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Vardas, pavardė</label>
-              <input
-                type="text"
-                value={singleFormData.tenantName}
-                onChange={(e) => handleSingleInputChange('tenantName', e.target.value)}
-                className={inputCls(!!errors.tenantName)}
-                placeholder="Jonas Jonaitis"
-              />
-              {errors.tenantName && <p className="mt-1 text-xs text-red-600">{errors.tenantName}</p>}
-            </div>
-            <div>
-              <label className={labelCls}>Telefonas</label>
-              <input
-                type="tel"
-                value={singleFormData.tenantPhone}
-                onChange={(e) => handleSingleInputChange('tenantPhone', e.target.value)}
-                className={inputCls()}
-                placeholder="+370 600 00000"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className={labelCls}>El. paštas</label>
-              <input
-                type="email"
-                value={singleFormData.tenantEmail}
-                onChange={(e) => handleSingleInputChange('tenantEmail', e.target.value)}
-                className={inputCls()}
-                placeholder="jonas@example.com"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: Sutartis (optional) */}
-        <div
-          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
-          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
-              <CalendarIcon className="w-4 h-4 text-violet-600" />
-            </div>
-            <div className="flex items-center gap-2">
-              <h3 className={sectionTitleCls}>Sutartis</h3>
-              <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">neprivaloma</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Pradžia</label>
-              <input
-                type="date"
-                value={singleFormData.contractStart}
-                onChange={(e) => handleSingleInputChange('contractStart', e.target.value)}
-                className={inputCls(!!errors.contractStart)}
-              />
-              {errors.contractStart && <p className="mt-1 text-xs text-red-600">{errors.contractStart}</p>}
-            </div>
-            <div>
-              <label className={labelCls}>Pabaiga</label>
-              <input
-                type="date"
-                value={singleFormData.contractEnd}
-                onChange={(e) => handleSingleInputChange('contractEnd', e.target.value)}
-                className={inputCls(!!errors.contractEnd)}
-              />
-              {errors.contractEnd && <p className="mt-1 text-xs text-red-600">{errors.contractEnd}</p>}
-            </div>
-          </div>
-        </div>
-
-        {/* Section 5: Skaitliukai */}
-        <div
-          className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
-          style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <CreditCardIcon className="w-4 h-4 text-amber-600" />
-            </div>
-            <div>
-              <h3 className={sectionTitleCls}>Skaitliukai</h3>
-              <p className="text-[11px] text-gray-400">Pagrindiniai skaitliukai pridėti automatiškai</p>
-            </div>
+            <span className="text-[11px] font-semibold text-[#2F8481] bg-[#2F8481]/10 px-2.5 py-1 rounded-full">
+              {singleFormData.meters.length} pridėti
+            </span>
           </div>
           <MeterTable
             value={singleFormData.meters}
@@ -656,18 +526,18 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
         </div>
       </div>
 
-      {/* Sticky Footer */}
-      <div className="border-t border-white/10 px-6 py-4 bg-neutral-900/60 backdrop-blur-sm flex justify-end gap-3">
+      {/* Footer */}
+      <div className="shrink-0 border-t border-white/10 px-6 py-3.5 bg-neutral-900/70 backdrop-blur-md flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={handleClose}
-          className="px-5 py-2.5 text-sm font-medium text-gray-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+          className="px-4 py-2 text-[13px] font-medium text-gray-400 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:text-gray-300 transition-all"
         >
           Atšaukti
         </button>
         <button
           type="submit"
-          className="px-5 py-2.5 text-sm font-medium text-white bg-[#2F8481] rounded-xl hover:bg-[#297a77] transition-colors flex items-center gap-2"
+          className="px-5 py-2 text-[13px] font-semibold text-white bg-gradient-to-r from-[#2F8481] to-[#267673] rounded-xl hover:from-[#297a77] hover:to-[#1f6b68] shadow-lg shadow-[#2F8481]/25 transition-all active:scale-[0.98] flex items-center gap-2"
         >
           <PlusIcon className="w-4 h-4" />
           Pridėti butą
@@ -678,8 +548,8 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
 
   // ─── Multiple Apartments Form ────────────────────────────────
   const renderMultipleApartmentsForm = () => (
-    <form onSubmit={handleMultipleSubmit} className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+    <form onSubmit={handleMultipleSubmit} className="flex flex-col h-full min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 py-5 space-y-5">
         {/* Apartments List Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold text-white">Butai ({multipleFormData.apartments.length})</h3>
@@ -696,13 +566,13 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
         {multipleFormData.apartments.map((apt, index) => (
           <div
             key={index}
-            className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-5"
+            className="bg-white/95 rounded-2xl border border-white/20 shadow-sm p-4"
             style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
           >
             {/* Card Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#2F8481]/10 flex items-center justify-center">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#2F8481]/10 flex items-center justify-center">
                   <span className="text-[#2F8481] text-sm font-bold">{index + 1}</span>
                 </div>
                 <h4 className={sectionTitleCls}>
@@ -710,153 +580,68 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
                 </h4>
               </div>
               {multipleFormData.apartments.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeApartment(index)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                >
+                <button type="button" onClick={() => removeApartment(index)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                   <TrashIcon className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            <div className="space-y-4">
-              {/* Apartment Details Row */}
-              <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-3">
+              {/* Row 1: Nr + Plotas + Kamb + Nuoma + Depozitas */}
+              <div className="grid grid-cols-5 gap-3">
                 <div>
                   <label className={labelCls}>Numeris <span className="text-red-400">*</span></label>
-                  <input
-                    type="text"
-                    value={apt.apartmentNumber}
-                    onChange={(e) => handleMultipleInputChange(index, 'apartmentNumber', e.target.value)}
-                    className={inputCls(!!errors[`apartments.${index}.apartmentNumber`])}
-                    placeholder="pvz., 1"
-                  />
-                  {errors[`apartments.${index}.apartmentNumber`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.apartmentNumber`]}</p>
-                  )}
+                  <input type="text" value={apt.apartmentNumber} onChange={(e) => handleMultipleInputChange(index, 'apartmentNumber', e.target.value)} className={inputCls(!!errors[`apartments.${index}.apartmentNumber`])} placeholder="1" />
+                  {errors[`apartments.${index}.apartmentNumber`] && <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.apartmentNumber`]}</p>}
                 </div>
                 <div>
                   <label className={labelCls}>Plotas (m²) <span className="text-red-400">*</span></label>
-                  <input
-                    type="number"
-                    value={apt.area || ''}
-                    onChange={(e) => handleMultipleNumberInputChange(index, 'area', e.target.value)}
-                    className={inputCls(!!errors[`apartments.${index}.area`])}
-                    placeholder="45"
-                  />
-                  {errors[`apartments.${index}.area`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.area`]}</p>
-                  )}
+                  <input type="number" value={apt.area || ''} onChange={(e) => handleMultipleNumberInputChange(index, 'area', e.target.value)} className={inputCls(!!errors[`apartments.${index}.area`])} placeholder="45" />
+                  {errors[`apartments.${index}.area`] && <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.area`]}</p>}
                 </div>
                 <div>
-                  <label className={labelCls}>Kambariai <span className="text-red-400">*</span></label>
-                  <input
-                    type="number"
-                    value={apt.rooms || ''}
-                    onChange={(e) => handleMultipleNumberInputChange(index, 'rooms', e.target.value)}
-                    className={inputCls(!!errors[`apartments.${index}.rooms`])}
-                    placeholder="2"
-                  />
-                  {errors[`apartments.${index}.rooms`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.rooms`]}</p>
-                  )}
+                  <label className={labelCls}>Kamb. <span className="text-red-400">*</span></label>
+                  <input type="number" value={apt.rooms || ''} onChange={(e) => handleMultipleNumberInputChange(index, 'rooms', e.target.value)} className={inputCls(!!errors[`apartments.${index}.rooms`])} placeholder="2" />
+                  {errors[`apartments.${index}.rooms`] && <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.rooms`]}</p>}
+                </div>
+                <div>
+                  <label className={labelCls}>Nuoma € <span className="text-red-400">*</span></label>
+                  <input type="number" step="0.01" value={apt.monthlyRent || ''} onChange={(e) => handleMultipleNumberInputChange(index, 'monthlyRent', e.target.value)} className={inputCls(!!errors[`apartments.${index}.monthlyRent`])} placeholder="520" />
+                  {errors[`apartments.${index}.monthlyRent`] && <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.monthlyRent`]}</p>}
+                </div>
+                <div>
+                  <label className={labelCls}>Depozitas €</label>
+                  <input type="number" step="0.01" value={apt.deposit || ''} onChange={(e) => handleMultipleNumberInputChange(index, 'deposit', e.target.value)} className={inputCls()} placeholder="1040" />
                 </div>
               </div>
 
-              {/* Financial Row */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row 2: Nuomininkas + Tel + El. paštas */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={labelCls}>Nuoma (€/mėn) <span className="text-red-400">*</span></label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={apt.monthlyRent || ''}
-                    onChange={(e) => handleMultipleNumberInputChange(index, 'monthlyRent', e.target.value)}
-                    className={inputCls(!!errors[`apartments.${index}.monthlyRent`])}
-                    placeholder="520"
-                  />
-                  {errors[`apartments.${index}.monthlyRent`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.monthlyRent`]}</p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelCls}>Depozitas (€)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={apt.deposit || ''}
-                    onChange={(e) => handleMultipleNumberInputChange(index, 'deposit', e.target.value)}
-                    className={inputCls()}
-                    placeholder="1040"
-                  />
-                </div>
-              </div>
-
-              {/* Tenant Row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>Nuomininkas <span className="text-red-400">*</span></label>
-                  <input
-                    type="text"
-                    value={apt.tenantName}
-                    onChange={(e) => handleMultipleInputChange(index, 'tenantName', e.target.value)}
-                    className={inputCls(!!errors[`apartments.${index}.tenantName`])}
-                    placeholder="Jonas Jonaitis"
-                  />
-                  {errors[`apartments.${index}.tenantName`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.tenantName`]}</p>
-                  )}
+                  <label className={labelCls}>Nuomininkas</label>
+                  <input type="text" value={apt.tenantName} onChange={(e) => handleMultipleInputChange(index, 'tenantName', e.target.value)} className={inputCls(!!errors[`apartments.${index}.tenantName`])} placeholder="Jonas Jonaitis" />
                 </div>
                 <div>
                   <label className={labelCls}>Telefonas</label>
-                  <input
-                    type="tel"
-                    value={apt.tenantPhone}
-                    onChange={(e) => handleMultipleInputChange(index, 'tenantPhone', e.target.value)}
-                    className={inputCls()}
-                    placeholder="+370 600 00000"
-                  />
+                  <input type="tel" value={apt.tenantPhone} onChange={(e) => handleMultipleInputChange(index, 'tenantPhone', e.target.value)} className={inputCls()} placeholder="+370 600 00000" />
+                </div>
+                <div>
+                  <label className={labelCls}>El. paštas</label>
+                  <input type="email" value={apt.tenantEmail} onChange={(e) => handleMultipleInputChange(index, 'tenantEmail', e.target.value)} className={inputCls()} placeholder="jonas@example.com" />
                 </div>
               </div>
 
-              {/* Email */}
-              <div>
-                <label className={labelCls}>El. paštas</label>
-                <input
-                  type="email"
-                  value={apt.tenantEmail}
-                  onChange={(e) => handleMultipleInputChange(index, 'tenantEmail', e.target.value)}
-                  className={inputCls()}
-                  placeholder="jonas@example.com"
-                />
-              </div>
-
-              {/* Contract Dates */}
+              {/* Row 3: Sutarties datos */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Sutarties pradžia <span className="text-red-400">*</span></label>
-                  <input
-                    type="date"
-                    value={apt.contractStart}
-                    onChange={(e) => handleMultipleInputChange(index, 'contractStart', e.target.value)}
-                    className={inputCls(!!errors[`apartments.${index}.contractStart`])}
-                  />
-                  {errors[`apartments.${index}.contractStart`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.contractStart`]}</p>
-                  )}
+                  <label className={labelCls}>Sutarties pradžia</label>
+                  <LtDateInput value={apt.contractStart} onChange={(e) => handleMultipleInputChange(index, 'contractStart', e.target.value)} className={inputCls(!!errors[`apartments.${index}.contractStart`])} />
+                  {errors[`apartments.${index}.contractStart`] && <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.contractStart`]}</p>}
                 </div>
                 <div>
-                  <label className={labelCls}>Sutarties pabaiga <span className="text-red-400">*</span></label>
-                  <input
-                    type="date"
-                    value={apt.contractEnd}
-                    onChange={(e) => handleMultipleInputChange(index, 'contractEnd', e.target.value)}
-                    className={inputCls(!!errors[`apartments.${index}.contractEnd`])}
-                  />
-                  {errors[`apartments.${index}.contractEnd`] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.contractEnd`]}</p>
-                  )}
+                  <label className={labelCls}>Sutarties pabaiga</label>
+                  <LtDateInput value={apt.contractEnd} onChange={(e) => handleMultipleInputChange(index, 'contractEnd', e.target.value)} className={inputCls(!!errors[`apartments.${index}.contractEnd`])} />
+                  {errors[`apartments.${index}.contractEnd`] && <p className="mt-1 text-xs text-red-600">{errors[`apartments.${index}.contractEnd`]}</p>}
                 </div>
               </div>
             </div>
@@ -886,7 +671,7 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
       </div>
 
       {/* Sticky Footer */}
-      <div className="border-t border-white/10 px-6 py-4 bg-neutral-900/60 backdrop-blur-sm flex justify-end gap-3">
+      <div className="shrink-0 border-t border-white/10 px-6 py-4 bg-neutral-900/60 backdrop-blur-sm flex justify-end gap-3">
         <button
           type="button"
           onClick={handleClose}
@@ -908,11 +693,11 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       {/* Backdrop overlay */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer" onClick={handleClose} />
 
       {/* Modal card — same pattern as UniversalAddMeterModal */}
       <div
-        className="relative rounded-2xl shadow-2xl max-w-[960px] w-full max-h-[90vh] flex flex-col overflow-hidden"
+        className="relative rounded-2xl shadow-2xl max-w-[960px] w-full max-h-[90vh] flex flex-col overflow-hidden cursor-default"
         style={{
           background: `linear-gradient(135deg, rgba(0, 0, 0, 0.45) 0%, rgba(20, 20, 20, 0.30) 50%, rgba(0, 0, 0, 0.45) 100%), url('/images/ModalBackground.png')`,
           backgroundSize: 'cover',
@@ -920,32 +705,24 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
         }}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 border-b border-white/10 px-6 py-4 flex items-center justify-between bg-neutral-900/60 backdrop-blur-sm">
+        <div className="sticky top-0 z-10 border-b border-white/10 px-6 py-3.5 flex items-center justify-between bg-neutral-900/70 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            {currentStep !== 'type-selection' && (
-              <button
-                onClick={goBackToTypeSelection}
-                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <ArrowLeftIcon className="w-5 h-5" />
-              </button>
-            )}
+
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#2F8481]/20 flex items-center justify-center">
-                <HomeIcon className="w-5 h-5 text-[#2F8481]" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2F8481]/25 to-[#2F8481]/10 flex items-center justify-center">
+                <HomeIcon className="w-4.5 h-4.5 text-[#2F8481]" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">
-                  {currentStep === 'type-selection' ? 'Pridėti butus' :
-                    currentStep === 'single-apartment' ? 'Pridėti butą' : 'Pridėti butus'}
+                <h2 className="text-[15px] font-bold text-white tracking-tight">
+                  Pridėti butą
                 </h2>
-                <p className="text-xs text-gray-400">{address}</p>
+                <p className="text-[11px] text-gray-400">{address}</p>
               </div>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 text-gray-400 hover:text-white transition-colors"
+            className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
             title="Uždaryti"
           >
             <XMarkIcon className="w-5 h-5" />
@@ -953,9 +730,7 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
         </div>
 
         {/* Content */}
-        {currentStep === 'type-selection' && renderTypeSelection()}
-        {currentStep === 'single-apartment' && renderSingleApartmentForm()}
-        {currentStep === 'multiple-apartments' && renderMultipleApartmentsForm()}
+        {renderSingleApartmentForm()}
       </div>
     </div>,
     document.body

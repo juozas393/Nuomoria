@@ -11,6 +11,9 @@ interface EnvironmentConfig {
     url: string;
     anonKey: string;
   };
+  stripe: {
+    publishableKey: string;
+  };
   app: {
     url: string;
     name: string;
@@ -42,6 +45,9 @@ function getEnvironmentConfig(): EnvironmentConfig {
     import.meta.env.REACT_APP_APP_NAME ||
     'Nuomoria';
 
+  const stripePublishableKey =
+    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+
   // Validate required environment variables
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn(
@@ -54,6 +60,9 @@ function getEnvironmentConfig(): EnvironmentConfig {
     supabase: {
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
+    },
+    stripe: {
+      publishableKey: stripePublishableKey,
     },
     app: {
       url: appUrl,
@@ -68,4 +77,4 @@ function getEnvironmentConfig(): EnvironmentConfig {
 export const env = getEnvironmentConfig();
 
 // Export individual values for convenience
-export const { supabase, app, isDevelopment, isProduction } = env;
+export const { supabase, stripe, app, isDevelopment, isProduction } = env;

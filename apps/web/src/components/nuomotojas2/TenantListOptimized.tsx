@@ -116,7 +116,7 @@ const TenantRow = React.memo<{
   const daysLate = calculateDaysLate();
 
   // Real deposit check
-  const depositLow = tenant.deposit < tenant.monthlyRent;
+  const depositLow = (tenant.deposit ?? 0) < tenant.monthlyRent;
 
   // Real meters check
   const metersMissing = !tenant.meters_submitted;

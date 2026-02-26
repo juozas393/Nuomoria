@@ -1,0 +1,130 @@
+
+/* ═══ Animated Floating Circles — Dashboard Background ═══ */
+
+.floating-circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(1px);
+}
+
+/* --- Travel paths --- */
+@keyframes travel-1 {
+  0%   { top: -5%;  left: -5%;  }
+  25%  { top: 30%;  left: 70%;  }
+  50%  { top: 80%;  left: 40%;  }
+  75%  { top: 20%;  left: 90%;  }
+  100% { top: -5%;  left: -5%;  }
+}
+@keyframes travel-2 {
+  0%   { top: 90%;  left: 110%; }
+  20%  { top: 60%;  left: 50%;  }
+  40%  { top: 10%;  left: 20%;  }
+  60%  { top: 40%;  left: 80%;  }
+  80%  { top: 80%;  left: 10%;  }
+  100% { top: 90%;  left: 110%; }
+}
+@keyframes travel-3 {
+  0%   { top: 50%;  left: -10%; }
+  33%  { top: 10%;  left: 60%;  }
+  66%  { top: 70%;  left: 85%;  }
+  100% { top: 50%;  left: -10%; }
+}
+@keyframes travel-4 {
+  0%   { top: -10%; left: 50%;  }
+  25%  { top: 40%;  left: 10%;  }
+  50%  { top: 90%;  left: 60%;  }
+  75%  { top: 30%;  left: 100%; }
+  100% { top: -10%; left: 50%;  }
+}
+@keyframes travel-5 {
+  0%   { top: 100%; left: 30%;  }
+  30%  { top: 50%;  left: 80%;  }
+  60%  { top: 5%;   left: 15%;  }
+  100% { top: 100%; left: 30%;  }
+}
+@keyframes travel-6 {
+  0%   { top: 20%;  left: 110%; }
+  25%  { top: 70%;  left: 60%;  }
+  50%  { top: 40%;  left: -5%;  }
+  75%  { top: 80%;  left: 40%;  }
+  100% { top: 20%;  left: 110%; }
+}
+@keyframes travel-7 {
+  0%   { top: 110%; left: 80%;  }
+  20%  { top: 70%;  left: 20%;  }
+  40%  { top: 20%;  left: 50%;  }
+  60%  { top: 50%;  left: 90%;  }
+  80%  { top: 90%;  left: 60%;  }
+  100% { top: 110%; left: 80%;  }
+}
+@keyframes travel-8 {
+  0%   { top: 5%;   left: 40%;  }
+  33%  { top: 60%;  left: 5%;   }
+  66%  { top: 85%;  left: 75%;  }
+  100% { top: 5%;   left: 40%;  }
+}
+
+/* --- Vivid blue/teal circles --- */
+
+.fc-1 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.30) 0%, rgba(56, 189, 248, 0.08) 55%, transparent 70%);
+  animation: travel-1 35s ease-in-out infinite;
+}
+
+.fc-2 {
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.35) 0%, rgba(20, 184, 166, 0.10) 55%, transparent 70%);
+  animation: travel-2 40s ease-in-out infinite;
+}
+
+.fc-3 {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, rgba(99, 102, 241, 0.06) 55%, transparent 70%);
+  animation: travel-3 30s ease-in-out infinite;
+}
+
+.fc-4 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.32) 0%, rgba(6, 182, 212, 0.08) 55%, transparent 70%);
+  animation: travel-4 38s ease-in-out infinite;
+}
+
+.fc-5 {
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.28) 0%, rgba(59, 130, 246, 0.07) 55%, transparent 70%);
+  animation: travel-5 45s ease-in-out infinite;
+}
+
+.fc-6 {
+  width: 170px;
+  height: 170px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.35) 0%, rgba(34, 211, 238, 0.10) 55%, transparent 70%);
+  animation: travel-6 32s ease-in-out infinite;
+}
+
+.fc-7 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.28) 0%, rgba(45, 212, 191, 0.06) 55%, transparent 70%);
+  animation: travel-7 42s ease-in-out infinite;
+}
+
+.fc-8 {
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.30) 0%, rgba(79, 70, 229, 0.08) 55%, transparent 70%);
+  animation: travel-8 28s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-circle {
+    animation: none !important;
+  }
+}

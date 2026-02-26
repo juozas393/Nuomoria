@@ -1,11 +1,11 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useMemo, useCallback, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  ExclamationCircleIcon, 
+import {
+  ExclamationCircleIcon,
   InformationCircleIcon,
   ChartBarIcon,
-  DocumentTextIcon, 
+  DocumentTextIcon,
   CogIcon,
   BellIcon,
   UserIcon,
@@ -76,7 +76,7 @@ interface PropertyInfo {
 }
 
 interface KeyMetric {
-    label: string;
+  label: string;
   value: string | number;
   change: number;
   icon: React.ComponentType<any>;
@@ -143,7 +143,7 @@ class DashboardErrorBoundary extends React.Component<
 // eslint-disable-next-line react/prop-types
 const MetricCard = React.memo<{ metric: KeyMetric }>(({ metric }) => {
   const Icon = metric.icon;
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -160,9 +160,8 @@ const MetricCard = React.memo<{ metric: KeyMetric }>(({ metric }) => {
         </div>
       </div>
       <div className="mt-2 flex items-center">
-        <span className={`text-sm font-medium ${
-          metric.change >= 0 ? 'text-primary' : 'text-red-600'
-        }`}>
+        <span className={`text-sm font-medium ${metric.change >= 0 ? 'text-primary' : 'text-red-600'
+          }`}>
           {metric.change >= 0 ? '+' : ''}{metric.change}%
         </span>
         <span className="text-sm text-gray-500 ml-2">vs last month</span>
@@ -189,15 +188,14 @@ const ProfileCard = React.memo<{ profile: TenantProfile }>(({ profile }) => (
         <p className="text-sm text-gray-600">{profile.email}</p>
         <p className="text-sm text-gray-600">{profile.phone}</p>
       </div>
-      <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-        profile.status === 'active' ? 'status-active' :
-        profile.status === 'pending' ? 'status-warning' :
-        'status-error'
-      }`}>
+      <div className={`px-3 py-1 rounded-full text-xs font-medium ${profile.status === 'active' ? 'status-active' :
+          profile.status === 'pending' ? 'status-warning' :
+            'status-error'
+        }`}>
         {profile.status}
       </div>
     </div>
-    
+
     <div className="mt-4 space-y-2">
       <div className="flex items-center text-sm text-gray-600">
         <HomeIcon className="w-4 h-4 mr-2" />
@@ -225,30 +223,30 @@ const ContractAnalysisCard = React.memo<{ analysis: ContractAnalysis }>(({ analy
     className="card p-6"
   >
     <h3 className="text-lg font-semibold text-black mb-4">Contract Analysis</h3>
-    
+
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <span className="text-sm text-gray-600">Contract Type</span>
         <span className="text-sm font-medium text-black">{analysis.contractType}</span>
       </div>
-      
+
       <div className="flex justify-between items-center">
         <span className="text-sm text-gray-600">Monthly Rent</span>
         <span className="text-sm font-medium text-black">€{analysis.monthlyRent}</span>
       </div>
-      
+
       <div className="flex justify-between items-center">
         <span className="text-sm text-gray-600">Deposit</span>
         <span className="text-sm font-medium text-black">€{analysis.depositAmount}</span>
       </div>
-      
+
       <div className="flex justify-between items-center">
         <span className="text-sm text-gray-600">Utilities Included</span>
         <span className="text-sm font-medium text-black">
           {analysis.utilitiesIncluded ? 'Yes' : 'No'}
         </span>
       </div>
-      
+
       <div className="border-t border-gray-200 pt-4">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">Next Payment</span>
@@ -256,9 +254,8 @@ const ContractAnalysisCard = React.memo<{ analysis: ContractAnalysis }>(({ analy
         </div>
         <div className="flex justify-between items-center mt-1">
           <span className="text-sm text-gray-600">Days Until Payment</span>
-          <span className={`text-sm font-medium ${
-            analysis.daysUntilPayment <= 7 ? 'text-red-600' : 'text-black'
-          }`}>
+          <span className={`text-sm font-medium ${analysis.daysUntilPayment <= 7 ? 'text-red-600' : 'text-black'
+            }`}>
             {analysis.daysUntilPayment} days
           </span>
         </div>
@@ -277,31 +274,29 @@ const SmartActionsCard = React.memo<{ actions: SmartAction[] }>(({ actions }) =>
     className="card p-6"
   >
     <h3 className="text-lg font-semibold text-black mb-4">Smart Actions</h3>
-    
+
     <div className="space-y-3">
       {actions.map((action) => (
         <div key={action.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
-          <div className={`w-2 h-2 rounded-full ${
-            action.priority === 'high' ? 'bg-red-500' :
-            action.priority === 'medium' ? 'bg-yellow-500' :
-            'bg-primary'
-          }`} />
-          
+          <div className={`w-2 h-2 rounded-full ${action.priority === 'high' ? 'bg-red-500' :
+              action.priority === 'medium' ? 'bg-yellow-500' :
+                'bg-primary'
+            }`} />
+
           <div className="flex-1">
             <h4 className="text-sm font-medium text-black">{action.title}</h4>
             <p className="text-xs text-gray-600">{action.description}</p>
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            <span className={`text-xs px-2 py-1 rounded-full ${
-              action.category === 'payment' ? 'bg-primary text-white' :
-              action.category === 'maintenance' ? 'bg-orange-100 text-orange-800' :
-              action.category === 'document' ? 'bg-purple-100 text-purple-800' :
-              'bg-primary-100 text-primary-800'
-            }`}>
+            <span className={`text-xs px-2 py-1 rounded-full ${action.category === 'payment' ? 'bg-primary text-white' :
+                action.category === 'maintenance' ? 'bg-orange-100 text-orange-800' :
+                  action.category === 'document' ? 'bg-purple-100 text-purple-800' :
+                    'bg-primary-100 text-primary-800'
+              }`}>
               {action.category}
             </span>
-            
+
             {action.isCompleted ? (
               <CheckCircleIcon className="w-4 h-4 text-primary" />
             ) : (
@@ -324,26 +319,24 @@ const NotificationsCard = React.memo<{ notifications: Notification[] }>(({ notif
     className="card p-6"
   >
     <h3 className="text-lg font-semibold text-black mb-4">Recent Notifications</h3>
-    
+
     <div className="space-y-3">
       {notifications.map((notification) => (
-        <div key={notification.id} className={`p-3 border border-gray-200 rounded-lg ${
-          !notification.isRead ? 'bg-gray-50' : ''
-        }`}>
+        <div key={notification.id} className={`p-3 border border-gray-200 rounded-lg ${!notification.isRead ? 'bg-gray-50' : ''
+          }`}>
           <div className="flex items-start space-x-3">
-            <div className={`w-2 h-2 rounded-full mt-2 ${
-              notification.type === 'info' ? 'bg-primary' :
-              notification.type === 'warning' ? 'bg-yellow-500' :
-              notification.type === 'success' ? 'bg-primary-500' :
-              'bg-red-500'
-            }`} />
-            
+            <div className={`w-2 h-2 rounded-full mt-2 ${notification.type === 'info' ? 'bg-primary' :
+                notification.type === 'warning' ? 'bg-yellow-500' :
+                  notification.type === 'success' ? 'bg-primary-500' :
+                    'bg-red-500'
+              }`} />
+
             <div className="flex-1">
               <h4 className="text-sm font-medium text-black">{notification.title}</h4>
               <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
               <p className="text-xs text-gray-500 mt-2">{notification.timestamp}</p>
             </div>
-            
+
             {!notification.isRead && (
               <div className="w-2 h-2 bg-primary rounded-full" />
             )}
@@ -364,23 +357,23 @@ const AnalyticsCard = React.memo<{ analytics: Analytics }>(({ analytics }) => (
     className="card p-6"
   >
     <h3 className="text-lg font-semibold text-black mb-4">Analytics Overview</h3>
-    
+
     <div className="grid grid-cols-2 gap-4">
       <div className="text-center p-4 border border-gray-200 rounded-lg">
         <p className="text-2xl font-bold text-black">€{analytics.rentPaid}</p>
         <p className="text-xs text-gray-600">Rent Paid</p>
       </div>
-      
+
       <div className="text-center p-4 border border-gray-200 rounded-lg">
         <p className="text-2xl font-bold text-black">€{analytics.rentDue}</p>
         <p className="text-xs text-gray-600">Rent Due</p>
       </div>
-      
+
       <div className="text-center p-4 border border-gray-200 rounded-lg">
         <p className="text-2xl font-bold text-black">{analytics.maintenanceRequests}</p>
         <p className="text-xs text-gray-600">Maintenance Requests</p>
       </div>
-      
+
       <div className="text-center p-4 border border-gray-200 rounded-lg">
         <p className="text-2xl font-bold text-black">{analytics.documentsUploaded}</p>
         <p className="text-xs text-gray-600">Documents</p>
@@ -554,7 +547,7 @@ const TenantDashboard: React.FC = () => {
 
   return (
     <DashboardErrorBoundary>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('/imagesGen/DashboardImage.jpg')` }}>
         {/* Header */}
         <header className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -562,9 +555,9 @@ const TenantDashboard: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <h1 className="text-xl font-semibold text-black">Tenant Dashboard</h1>
               </div>
-              
+
               <div className="flex items-center space-x-4">
-                <button 
+                <button
                   onClick={logout}
                   className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                   title="Atsijungti"
@@ -572,7 +565,7 @@ const TenantDashboard: React.FC = () => {
                   <ArrowRightOnRectangleIcon className="w-5 h-5" />
                   <span className="hidden sm:inline">Atsijungti</span>
                 </button>
-            </div>
+              </div>
             </div>
           </div>
         </header>
@@ -587,11 +580,10 @@ const TenantDashboard: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
-                      tab.isActive
+                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${tab.isActive
                         ? 'border-primary text-primary'
                         : 'border-transparent text-gray-500 hover:text-primary hover:border-primary'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     <span>{tab.label}</span>
@@ -637,21 +629,21 @@ const TenantDashboard: React.FC = () => {
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-black mb-4">Payments</h2>
               <p className="text-gray-600">Payment management interface will be implemented here.</p>
-          </div>
+            </div>
           )}
 
           {activeTab === 'maintenance' && (
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-black mb-4">Maintenance</h2>
               <p className="text-gray-600">Maintenance request interface will be implemented here.</p>
-                  </div>
+            </div>
           )}
 
           {activeTab === 'documents' && (
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-black mb-4">Documents</h2>
               <p className="text-gray-600">Document management interface will be implemented here.</p>
-                    </div>
+            </div>
           )}
         </main>
       </div>

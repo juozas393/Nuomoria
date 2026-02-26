@@ -28,9 +28,9 @@ interface SavedLayouts {
 // =============================================================================
 
 /**
- * Get saved layouts for a property
+ * Get saved layouts for the overview (global per user, same layout for all properties)
  */
-export const getLayouts = async (propertyId: string): Promise<SavedLayouts | null> => {
+export const getLayouts = async (_propertyId?: string): Promise<SavedLayouts | null> => {
     const { data: user } = await supabase.auth.getUser();
     if (!user?.user?.id) return null;
 
@@ -38,7 +38,7 @@ export const getLayouts = async (propertyId: string): Promise<SavedLayouts | nul
         .from('dashboard_layouts')
         .select('breakpoint, layout, layout_version')
         .eq('user_id', user.user.id)
-        .eq('property_id', propertyId)
+        .eq('property_id', 'global')
         .eq('view', 'overview');
 
     if (error || !data || data.length === 0) {
@@ -65,10 +65,10 @@ export const getLayouts = async (propertyId: string): Promise<SavedLayouts | nul
 };
 
 /**
- * Save layouts for a property
+ * Save layouts (global per user, applies to all properties)
  */
 export const saveLayouts = async (
-    propertyId: string,
+    _propertyId: string,
     layouts: SavedLayouts
 ): Promise<void> => {
     const { data: user } = await supabase.auth.getUser();
@@ -81,7 +81,7 @@ export const saveLayouts = async (
             .from('dashboard_layouts')
             .upsert({
                 user_id: user.user.id,
-                property_id: propertyId,
+                property_id: 'global',
                 view: 'overview',
                 breakpoint: bp,
                 layout: layouts[bp],
@@ -99,9 +99,9 @@ export const saveLayouts = async (
 };
 
 /**
- * Reset layouts for a property (delete custom layouts)
+ * Reset layouts (delete custom global layouts)
  */
-export const resetLayouts = async (propertyId: string): Promise<void> => {
+export const resetLayouts = async (_propertyId?: string): Promise<void> => {
     const { data: user } = await supabase.auth.getUser();
     if (!user?.user?.id) throw new Error('User not authenticated');
 
@@ -109,7 +109,7 @@ export const resetLayouts = async (propertyId: string): Promise<void> => {
         .from('dashboard_layouts')
         .delete()
         .eq('user_id', user.user.id)
-        .eq('property_id', propertyId)
+        .eq('property_id', 'global')
         .eq('view', 'overview');
 
     if (error) {

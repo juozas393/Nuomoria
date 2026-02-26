@@ -86,7 +86,7 @@ export const FinancialSnapshot = memo<FinancialSnapshotProps>(({
 
                 {/* Deposit row */}
                 <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Užstatas</span>
+                    <span className="text-sm text-gray-600">Depozitas</span>
                     {deposit ? (
                         <span className="text-base font-bold text-gray-900">
                             {formatCurrency(deposit)}

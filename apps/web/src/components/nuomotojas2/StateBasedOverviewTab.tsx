@@ -267,7 +267,7 @@ export const StateBasedOverviewTab: React.FC<OverviewTabProps> = ({
                                     <div className="text-xs text-neutral-500">Nuoma/mėn</div>
                                 </div>
                                 <div className="text-center p-3 bg-neutral-100 rounded-xl">
-                                    <div className="text-xl font-bold text-neutral-700">€{tenant.deposit || 0}</div>
+                                    <div className="text-xl font-bold text-neutral-700">€{tenant.deposit ?? 0}</div>
                                     <div className="text-xs text-neutral-500">Depozitas</div>
                                 </div>
                             </div>

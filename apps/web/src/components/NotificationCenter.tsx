@@ -197,7 +197,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = React.memo(
     if (diffMin < 60) return `prieš ${diffMin} min.`;
     if (diffHrs < 24) return `prieš ${diffHrs} val.`;
     if (diffDays < 7) return `prieš ${diffDays} d.`;
-    return date.toLocaleDateString('lt-LT');
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
 
   return (
@@ -310,8 +310,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = React.memo(
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <h4 className={`text-sm leading-snug ${notification.is_read
-                              ? 'font-medium text-gray-600'
-                              : 'font-semibold text-gray-900'
+                            ? 'font-medium text-gray-600'
+                            : 'font-semibold text-gray-900'
                             }`}>
                             {notification.title}
                           </h4>

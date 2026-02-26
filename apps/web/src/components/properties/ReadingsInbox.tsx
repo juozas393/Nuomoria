@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
-import { 
-  CheckIcon, 
-  XMarkIcon, 
-  ClockIcon, 
+import {
+  CheckIcon,
+  XMarkIcon,
+  ClockIcon,
   ExclamationTriangleIcon,
   EyeIcon,
   DocumentCheckIcon
 } from '@heroicons/react/24/outline';
-import { 
-  Droplets, 
-  Bolt, 
+import {
+  Droplets,
+  Bolt,
   Zap,
-  Flame, 
-  Wifi, 
-  Trash2, 
-  Fan, 
-  ArrowUpDown, 
-  Gauge 
+  Flame,
+  Wifi,
+  Trash2,
+  Fan,
+  ArrowUpDown,
+  Gauge
 } from 'lucide-react';
 
 interface ReadingSubmission {
@@ -55,7 +55,7 @@ export const ReadingsInbox: React.FC<ReadingsInboxProps> = ({
   const [rejectReason, setRejectReason] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
-  const filteredSubmissions = readingSubmissions.filter(submission => 
+  const filteredSubmissions = readingSubmissions.filter(submission =>
     filterStatus === 'all' || submission.status === filterStatus
   );
 
@@ -109,13 +109,8 @@ export const ReadingsInbox: React.FC<ReadingsInboxProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('lt-LT', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const d = new Date(dateString);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
   const getMeterIcon = (name: string) => {
@@ -274,14 +269,14 @@ export const ReadingsInbox: React.FC<ReadingsInboxProps> = ({
                 <div className="text-center py-12 text-neutral-500">
                   <DocumentCheckIcon className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
                   <p className="text-lg font-medium mb-2">
-                    {filterStatus === 'all' 
-                      ? 'Nėra gautų rodmenų' 
+                    {filterStatus === 'all'
+                      ? 'Nėra gautų rodmenų'
                       : `Nėra rodmenų su statusu "${getStatusText(filterStatus)}"`
                     }
                   </p>
                   <p className="text-sm">
-                    {filterStatus === 'all' 
-                      ? 'Nuomininkas dar nepateikė rodmenų' 
+                    {filterStatus === 'all'
+                      ? 'Nuomininkas dar nepateikė rodmenų'
                       : 'Visi skaitliukai jau apdoroti'
                     }
                   </p>

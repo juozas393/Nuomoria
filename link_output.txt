@@ -1,0 +1,28 @@
+﻿supabase : WARNING: Local database 
+version differs from the linked 
+project.
+At line:1 char:1
++ supabase link --project-ref 
+isuqgyxrwvvniwvaljrc 2>&1 | Out-File 
+-Fil ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpec 
+   ified: (WARNING: Local ...linked   
+  project.:String) [], RemoteExcept   
+ ion
+    + FullyQualifiedErrorId : NativeC 
+   ommandError
+ 
+Update your supabase\config.toml to 
+fix it:
+[db]
+major_version = 17
+Finished supabase link.
+A new version of Supabase CLI is 
+available: v2.75.0 (currently 
+installed v2.72.7)
+We recommend updating regularly for 
+new features and bug fixes: https://su
+pabase.com/docs/guides/cli/getting-sta
+rted#updating-the-supabase-cli

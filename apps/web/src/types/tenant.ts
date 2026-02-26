@@ -15,8 +15,8 @@ export interface Tenant {
   contractEnd: string;
   moveInDate: string;
   monthlyRent: number;
-  deposit: number;
-  
+  deposit: number | null;
+
   // Optional fields for extended functionality
   notification_count?: number;
   cleaning_required?: boolean;

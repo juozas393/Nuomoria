@@ -64,6 +64,30 @@ function getMonthRange(year: number, month: number): { start: string; end: strin
     return { start, end };
 }
 
+// Map meter config name to the correct database type for meter_readings
+// address_meters.type is 'individual'/'communal' (distribution), NOT the meter type
+// meter_readings.type CHECK constraint: 'electricity','water','heating','internet','garbage','gas'
+function resolveMeterReadingType(config: MeterConfig): string {
+    const nameLower = (config.name || '').toLowerCase();
+    if (nameLower.includes('vanduo') || nameLower.includes('water') || nameLower.includes('karštas') || nameLower.includes('šaltas')) {
+        return 'water';
+    }
+    if (nameLower.includes('šildym') || nameLower.includes('heat')) {
+        return 'heating';
+    }
+    if (nameLower.includes('duj') || nameLower.includes('gas')) {
+        return 'gas';
+    }
+    if (nameLower.includes('internet') || nameLower.includes('ryšy')) {
+        return 'internet';
+    }
+    if (nameLower.includes('šiukšl') || nameLower.includes('atliek') || nameLower.includes('trash') || nameLower.includes('garbage')) {
+        return 'garbage';
+    }
+    // Default: electricity (covers elektra, techninė apžiūra, etc.)
+    return 'electricity';
+}
+
 // =============================================================================
 // HOOK: useMeterReadings
 // =============================================================================
@@ -183,9 +207,9 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 ? fixedPrice
                 : (consumption !== null ? consumption * pricePerUnit : null);
 
-            // Determine status
+            // Determine status: 'ok' only if current reading was actually entered
             let status: 'missing' | 'pending' | 'ok' = 'missing';
-            if (reading) {
+            if (reading && reading.current_reading != null) {
                 status = 'ok';
             }
 
@@ -255,7 +279,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
     // Save a reading for the current period
     const saveReading = useCallback(async (
         meterId: string,
-        currentReadingValue: number,
+        currentReadingValue: number | null,
         previousReadingValue: number | null,
         meterConfig?: MeterConfig
     ): Promise<boolean> => {
@@ -268,16 +292,15 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 return false;
             }
 
-            // Defensive: ensure all values are proper numbers, never NaN/undefined
-            const currentVal = Number(currentReadingValue) || 0;
+            // Defensive: ensure values are proper numbers, keep null for current if not entered
+            const currentVal = currentReadingValue != null ? (Number(currentReadingValue) || 0) : null;
             const prev = Number(previousReadingValue) || 0;
-            const consumption = currentVal - prev;
-            const difference = isNaN(consumption) ? 0 : consumption;
+            const difference = currentVal != null ? (currentVal - prev) : 0;
             const pricePerUnit = Number(config.price_per_unit) || 0;
             const fixedPrice = Number(config.fixed_price) || 0;
-            const totalSum = fixedPrice > 0
-                ? fixedPrice
-                : difference * pricePerUnit;
+            const totalSum = currentVal != null
+                ? (fixedPrice > 0 ? fixedPrice : difference * pricePerUnit)
+                : 0;
 
             const meterType = config.distribution_method === 'per_consumption' ? 'apartment' : 'address';
 
@@ -323,7 +346,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                         property_id: propertyId,
                         meter_id: meterId,
                         meter_type: meterType,
-                        type: config.type || 'electricity',
+                        type: resolveMeterReadingType(config),
                         reading_date: readingDate,
                         current_reading: currentVal,
                         previous_reading: prev,
@@ -350,7 +373,12 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
 
     // Refetch readings for current AND previous period (call after save)
     const refetch = useCallback(async () => {
-        if (!propertyId) return;
+        if (!propertyId) {
+            console.warn('[useMeterReadings] refetch: no propertyId');
+            return;
+        }
+
+        console.log(`[useMeterReadings] refetch: propertyId=${propertyId}, period=${periodStart} - ${periodEnd}`);
 
         // Current period
         const { data: currentData, error: currErr } = await supabase
@@ -360,6 +388,8 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             .gte('reading_date', periodStart)
             .lte('reading_date', periodEnd)
             .order('reading_date', { ascending: false });
+
+        console.log(`[useMeterReadings] refetch: currentData=${(currentData || []).length} readings, error=${currErr?.message || 'none'}`);
 
         if (!currErr) {
             setReadings(currentData || []);
@@ -381,6 +411,8 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
         if (!prevErr) {
             setPrevMonthReadings(prevData || []);
         }
+
+        console.log(`[useMeterReadings] refetch complete: ${(currentData || []).length} current, ${(prevData || []).length} prev`);
     }, [propertyId, periodStart, periodEnd, year, month]);
 
     return {

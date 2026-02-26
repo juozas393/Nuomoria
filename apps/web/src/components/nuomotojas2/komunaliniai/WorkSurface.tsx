@@ -138,15 +138,12 @@ export const RodmenysModule: React.FC<RodmenysModuleProps> = ({
                     </div>
                 </div>
 
-                {/* Ghost action (Rule 7) */}
+                {/* Missing count indicator */}
                 {missingCount > 0 && (
-                    <button
-                        onClick={onEnterAll}
-                        className="flex items-center gap-2 h-9 px-4 text-sm font-semibold text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors duration-100"
-                    >
+                    <div className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-orange-600 bg-orange-50 rounded-lg border border-orange-200">
                         <Pencil className="w-4 h-4" />
-                        Įvesti visus
-                    </button>
+                        {missingCount} laukia įvesties
+                    </div>
                 )}
             </div>
 

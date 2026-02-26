@@ -40,7 +40,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
   onEditMeter,
   onDeleteMeter,
   onToggleActive,
-          title = "Skaitliukai",
+  title = "Skaitliukai",
   showAddButton = true,
   showFilters = true,
   showStats = true,
@@ -49,7 +49,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(initialViewMode);
   const [showAddModal, setShowAddModal] = useState(false);
-  
+
   const {
     filters,
     filteredMeters,
@@ -88,7 +88,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
             compact={true}
           />
         )}
-        
+
         <div className="space-y-3">
           {filteredMeters.map(meter => (
             <MeterCard
@@ -151,7 +151,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
               className="px-4 py-2 bg-[#2F8481] text-white rounded-lg hover:bg-[#297a77] transition-colors flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Pridėti skaitiklį
+              Pridėti skaitliuką
             </button>
           )}
         </div>
@@ -196,7 +196,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
 
       {/* Meters List */}
       <div className={
-        viewMode === 'grid' 
+        viewMode === 'grid'
           ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           : "space-y-4"
       }>
@@ -218,7 +218,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nerasta skaitliukų</h3>
           <p className="text-gray-600 mb-6">
-            {hasActiveFilters 
+            {hasActiveFilters
               ? "Nerasta skaitliukų pagal pasirinktus filtrus. Pakeiskite filtrus arba pridėkite naują skaitliuką."
               : "Dar neturite pridėję jokių skaitliukų. Pradėkite pridėdami pirmą skaitliuką."
             }
@@ -238,7 +238,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
                 className="px-4 py-2 bg-[#2F8481] text-white rounded-lg hover:bg-[#297a77] transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Pridėti skaitiklį
+                Pridėti skaitliuką
               </button>
             )}
           </div>
@@ -252,7 +252,7 @@ export const UniversalMetersList: React.FC<UniversalMetersListProps> = React.mem
           onClose={() => setShowAddModal(false)}
           onAddMeters={handleAddMeters}
           existingMeterNames={meters.map(m => m.name || m.title || '').filter(Boolean)}
-          title="Pridėti naują skaitiklį"
+          title="Pridėti naują skaitliuką"
           allowMultiple={true}
         />
       )}

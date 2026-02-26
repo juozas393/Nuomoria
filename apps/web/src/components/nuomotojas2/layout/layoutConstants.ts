@@ -101,17 +101,17 @@ export const GRID_CONFIG = {
 
 export const DEFAULT_LAYOUTS: { lg: LayoutItem[]; md: LayoutItem[]; sm: LayoutItem[] } = {
     lg: [
-        // Row 0: Hero (8 cols) + Tenant (4 cols) — compact headers
-        { i: CARD_IDS.HERO, x: 0, y: 0, w: 8, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.HERO] },
-        { i: CARD_IDS.TENANT, x: 8, y: 0, w: 4, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.TENANT] },
-        // Row 1: Photos (8 cols) + Summary (4 cols)
-        { i: CARD_IDS.PHOTOS, x: 0, y: 1, w: 8, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.PHOTOS] },
-        { i: CARD_IDS.SUMMARY, x: 8, y: 1, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.SUMMARY] },
-        // Row 3: KPI (8 cols) + Activity (4 cols) — compact
-        { i: CARD_IDS.KPI, x: 0, y: 3, w: 8, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.KPI] },
-        { i: CARD_IDS.ACTIVITY, x: 8, y: 3, w: 4, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.ACTIVITY] },
-        // Row 4: Checklist full width — tall for full content
-        { i: CARD_IDS.CHECKLIST, x: 0, y: 4, w: 12, h: 4, ...CARD_CONSTRAINTS[CARD_IDS.CHECKLIST] },
+        // Row 0: Hero (8 cols) + Tenant (4 cols)
+        { i: CARD_IDS.HERO, x: 0, y: 0, w: 8, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.HERO] },
+        { i: CARD_IDS.TENANT, x: 8, y: 0, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.TENANT] },
+        // Row 2: Photos (8 cols) + Summary (4 cols)
+        { i: CARD_IDS.PHOTOS, x: 0, y: 2, w: 8, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.PHOTOS] },
+        { i: CARD_IDS.SUMMARY, x: 8, y: 2, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.SUMMARY] },
+        // Row 4: KPI (8 cols) + Activity (4 cols)
+        { i: CARD_IDS.KPI, x: 0, y: 4, w: 8, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.KPI] },
+        { i: CARD_IDS.ACTIVITY, x: 8, y: 4, w: 4, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.ACTIVITY] },
+        // Row 5: Checklist full width (compact)
+        { i: CARD_IDS.CHECKLIST, x: 0, y: 5, w: 12, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.CHECKLIST] },
     ],
 
     md: [
@@ -121,8 +121,8 @@ export const DEFAULT_LAYOUTS: { lg: LayoutItem[]; md: LayoutItem[]; sm: LayoutIt
         { i: CARD_IDS.PHOTOS, x: 0, y: 4, w: 8, h: 3, ...CARD_CONSTRAINTS[CARD_IDS.PHOTOS] },
         { i: CARD_IDS.SUMMARY, x: 0, y: 7, w: 8, h: 3, ...CARD_CONSTRAINTS[CARD_IDS.SUMMARY] },
         { i: CARD_IDS.KPI, x: 0, y: 10, w: 8, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.KPI] },
-        { i: CARD_IDS.CHECKLIST, x: 0, y: 12, w: 8, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.CHECKLIST] },
-        { i: CARD_IDS.ACTIVITY, x: 0, y: 14, w: 8, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.ACTIVITY] },
+        { i: CARD_IDS.CHECKLIST, x: 0, y: 12, w: 8, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.CHECKLIST] },
+        { i: CARD_IDS.ACTIVITY, x: 0, y: 13, w: 8, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.ACTIVITY] },
     ],
 
     sm: [
@@ -130,10 +130,10 @@ export const DEFAULT_LAYOUTS: { lg: LayoutItem[]; md: LayoutItem[]; sm: LayoutIt
         { i: CARD_IDS.HERO, x: 0, y: 0, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.HERO] },
         { i: CARD_IDS.TENANT, x: 0, y: 2, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.TENANT] },
         { i: CARD_IDS.PHOTOS, x: 0, y: 4, w: 4, h: 3, ...CARD_CONSTRAINTS[CARD_IDS.PHOTOS] },
-        { i: CARD_IDS.CHECKLIST, x: 0, y: 7, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.CHECKLIST] },
-        { i: CARD_IDS.SUMMARY, x: 0, y: 9, w: 4, h: 3, ...CARD_CONSTRAINTS[CARD_IDS.SUMMARY] },
-        { i: CARD_IDS.KPI, x: 0, y: 12, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.KPI] },
-        { i: CARD_IDS.ACTIVITY, x: 0, y: 14, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.ACTIVITY] },
+        { i: CARD_IDS.CHECKLIST, x: 0, y: 7, w: 4, h: 1, ...CARD_CONSTRAINTS[CARD_IDS.CHECKLIST] },
+        { i: CARD_IDS.SUMMARY, x: 0, y: 8, w: 4, h: 3, ...CARD_CONSTRAINTS[CARD_IDS.SUMMARY] },
+        { i: CARD_IDS.KPI, x: 0, y: 11, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.KPI] },
+        { i: CARD_IDS.ACTIVITY, x: 0, y: 13, w: 4, h: 2, ...CARD_CONSTRAINTS[CARD_IDS.ACTIVITY] },
     ],
 };
 
@@ -155,4 +155,4 @@ export const CARD_SIZE_THRESHOLDS = {
 // LAYOUT VERSION (for migrations)
 // =============================================================================
 
-export const LAYOUT_VERSION = 4; // Bumped: KPI h:2, Checklist h:4 to match user's preferred layout
+export const LAYOUT_VERSION = 6; // Bumped: Reduced checklist height to eliminate excess scroll

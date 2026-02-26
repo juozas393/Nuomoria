@@ -10,11 +10,15 @@ export const formatCurrency = (amount: number): string => {
 
 export const formatDate = (date: Date | string): string => {
   if (!date || date === '') return 'Nenurodyta';
-  
+
   try {
     const dateObj = new Date(date);
     if (isNaN(dateObj.getTime())) return 'Nenurodyta';
-    return dateLt.format(dateObj);
+    // Explicit yyyy-mm-dd format
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   } catch (error) {
     console.error('Error formatting date:', error);
     return 'Nenurodyta';
@@ -42,7 +46,7 @@ export const formatRelativeTime = (date: Date): string => {
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-  
+
   if (diffInDays === 0) {
     return 'Šiandien';
   } else if (diffInDays === 1) {
@@ -60,11 +64,11 @@ export const formatRelativeTime = (date: Date): string => {
 // File size formatting
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
-  
+
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
@@ -72,11 +76,11 @@ export const formatFileSize = (bytes: number): string => {
 export const formatPhoneNumber = (phone: string): string => {
   const cleaned = phone.replace(/\D/g, '');
   const match = cleaned.match(/^(\d{3})(\d{3})(\d{3})$/);
-  
+
   if (match) {
     return `+370 ${match[1]} ${match[2]} ${match[3]}`;
   }
-  
+
   return phone;
 };
 
@@ -86,7 +90,7 @@ export const formatAddress = (street: string, city: string, postalCode?: string)
     return `${street}, ${postalCode} ${city}`;
   }
   return `${street}, ${city}`;
-}; 
+};
 
 // Utility functions for formatting and displaying values
 
@@ -146,21 +150,21 @@ export const shouldDisplay = (value: any): boolean => {
  */
 export const conditionalRender = (value: any, renderFn: () => React.ReactElement): React.ReactElement | null => {
   return shouldDisplay(value) ? renderFn() : null;
-}; 
+};
 
 // Optimized debounced search hook with useDeferredValue
 export const useDebouncedSearch = (delay: number = 200) => {
   const [query, setQuery] = React.useState('');
   const [debouncedQuery, setDebouncedQuery] = React.useState('');
   const deferredQuery = React.useDeferredValue(query);
-  
+
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(deferredQuery);
     }, delay);
-    
+
     return () => clearTimeout(timer);
   }, [deferredQuery, delay]);
-  
+
   return { query, setQuery, debouncedQuery };
 }; 

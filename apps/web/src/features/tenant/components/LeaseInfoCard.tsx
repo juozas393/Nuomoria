@@ -8,8 +8,8 @@ interface LeaseInfoCardProps {
 }
 
 const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('lt-LT', { year: 'numeric', month: 'long', day: 'numeric' });
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const calculateDaysRemaining = (endDate: string): number => {
@@ -81,10 +81,10 @@ export const LeaseInfoCard: React.FC<LeaseInfoCardProps> = ({
                     Sutarties informacija
                 </h2>
                 <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${lease.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : lease.status === 'ending_soon'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-gray-100 text-gray-600'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : lease.status === 'ending_soon'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-gray-100 text-gray-600'
                     }`}>
                     {STATUS_LABELS.lease[lease.status]}
                 </span>

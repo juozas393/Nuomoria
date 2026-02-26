@@ -88,7 +88,7 @@ export function convertTenantToDetailData(tenant: any, apartment: any): TenantDe
     monthPaid: tenant.paidThisMonth || 0,
     totalDebt,
     metersTotal,
-    deposit: tenant.deposit || 0,
+    deposit: tenant.deposit ?? 0,
     confirmedCharges: (tenant.cleaning || 0) + (tenant.other || 0),
     policyUseDeposit: false, // Default policy
     moveOutNotice: tenant.tenant_response_date,
@@ -139,7 +139,7 @@ const formatCurrencyLt = (amount: number) => {
 };
 
 const formatDateLt = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('lt-LT');
+  return new Date(dateString).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
 // UI Components
@@ -181,8 +181,8 @@ function KeyRow({ k, v, bold, danger }: { k: string; v: string; bold?: boolean; 
 function Result({ label, amount, good, warn }: { label: string; amount: number; good?: boolean; warn?: boolean }) {
   return (
     <div className={`mt-2 p-2 rounded-md border text-sm ${good ? 'border-emerald-200 bg-emerald-50 text-emerald-800' :
-        warn ? 'border-amber-200 bg-amber-50 text-amber-800' :
-          'border-neutral-200 bg-neutral-50 text-neutral-800'
+      warn ? 'border-amber-200 bg-amber-50 text-amber-800' :
+        'border-neutral-200 bg-neutral-50 text-neutral-800'
       }`}>
       <b>{label}:</b> {formatCurrencyLt(amount)}
     </div>
@@ -489,8 +489,8 @@ export function TenantDetailSheet({
                   onClick={() => onRefundDeposit(data.id)}
                   disabled={!canRefund}
                   className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${canRefund
-                      ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
-                      : 'bg-neutral-200 text-neutral-600 cursor-not-allowed'
+                    ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
+                    : 'bg-neutral-200 text-neutral-600 cursor-not-allowed'
                     }`}
                 >
                   Grąžinti
@@ -499,8 +499,8 @@ export function TenantDetailSheet({
                   onClick={() => onIssueInvoice(data.id)}
                   disabled={!canIssueInvoice}
                   className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${canIssueInvoice
-                      ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
-                      : 'bg-neutral-200 text-neutral-600 cursor-not-allowed'
+                    ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
+                    : 'bg-neutral-200 text-neutral-600 cursor-not-allowed'
                     }`}
                 >
                   Išrašyti sąskaitą

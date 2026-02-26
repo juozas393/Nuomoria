@@ -25,6 +25,7 @@ interface ExtendedPropertyInfo {
     type?: string;
     property_type?: string;
     status?: string;
+    under_maintenance?: boolean;
     rent?: number;
     deposit_amount?: number;
     extended_details?: {
@@ -234,6 +235,9 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
         floor: property.floor?.toString() || '',
         floors_total: property.floors_total?.toString() || '',
         status: property.status || 'vacant',
+        under_maintenance: (property as any).under_maintenance ?? false,
+        rent: property.rent?.toString() || '',
+        deposit_amount: property.deposit_amount?.toString() || '',
         // Extended details
         bedrooms: property.extended_details?.bedrooms?.toString() || '',
         bathrooms: property.extended_details?.bathrooms?.toString() || '',
@@ -261,6 +265,9 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                 floor: property.floor?.toString() || '',
                 floors_total: property.floors_total?.toString() || '',
                 status: property.status || 'vacant',
+                under_maintenance: (property as any).under_maintenance ?? false,
+                rent: property.rent?.toString() || '',
+                deposit_amount: property.deposit_amount?.toString() || '',
                 bedrooms: property.extended_details?.bedrooms?.toString() || '',
                 bathrooms: property.extended_details?.bathrooms?.toString() || '',
                 balcony: property.extended_details?.balcony ?? false,
@@ -386,12 +393,14 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
         setIsSaving(true);
         try {
             await onSave({
-                type: formData.type,
+                property_type: formData.type,
                 rooms: formData.rooms ? parseInt(formData.rooms) : undefined,
                 area: formData.area ? parseFloat(formData.area) : undefined,
                 floor: formData.floor ? parseInt(formData.floor) : undefined,
                 floors_total: formData.floors_total ? parseInt(formData.floors_total) : undefined,
-                status: formData.status,
+                rent: formData.rent ? parseFloat(formData.rent) : undefined,
+                deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : undefined,
+                under_maintenance: formData.under_maintenance,
                 extended_details: {
                     bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
                     bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
@@ -576,7 +585,7 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                                     <SelectField
                                         label="Parkavimas"
                                         value={formData.parking_type}
-                                        onChange={(v) => updateField('parking_type', v)}
+                                        onChange={(v) => updateField('parking_type', v as 'none' | 'street' | 'yard' | 'underground')}
                                         options={[
                                             { value: 'none', label: 'Nėra' },
                                             { value: 'street', label: 'Gatvėje' },
@@ -628,17 +637,26 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                         <div className="space-y-4">
                             {/* Būsena */}
                             <SectionCard title="Būsto būsena" icon={<Home className="w-4 h-4" />}>
-                                <SelectField
-                                    label="Dabartinė būsena"
-                                    value={formData.status}
-                                    onChange={(v) => updateField('status', v)}
-                                    options={[
-                                        { value: 'vacant', label: 'Laisvas' },
-                                        { value: 'occupied', label: 'Išnuomotas' },
-                                        { value: 'reserved', label: 'Rezervuotas' },
-                                        { value: 'maintenance', label: 'Remontas' },
-                                    ]}
-                                />
+                                <div>
+                                    <label className="text-[10px] font-medium text-gray-400 mb-1 block">Dabartinė būsena</label>
+                                    <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold ${property.status === 'occupied'
+                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                        : 'bg-white/[0.06] text-gray-400 border border-white/[0.10]'
+                                        }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${property.status === 'occupied' ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                                        {property.status === 'occupied' ? 'Išnuomotas' : 'Laisvas'}
+                                    </div>
+                                    <p className="text-[9px] text-gray-500 mt-1">Būsena nustatoma automatiškai pagal nuomininką</p>
+                                </div>
+                                {/* Under maintenance toggle */}
+                                <div className="mt-2">
+                                    <ToggleField
+                                        label="Vyksta remontas"
+                                        description="Nuosavybė šiuo metu remontuojama"
+                                        checked={formData.under_maintenance}
+                                        onChange={(v) => updateField('under_maintenance', v)}
+                                    />
+                                </div>
                             </SectionCard>
 
                             {/* Taisyklės */}
@@ -662,6 +680,24 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
                             {/* Sąlygos */}
                             <SectionCard title="Mokėjimo sąlygos" icon={<Euro className="w-4 h-4" />}>
                                 <div className="grid grid-cols-2 gap-4">
+                                    <InputField
+                                        label="Nuoma"
+                                        value={formData.rent}
+                                        onChange={(v) => updateField('rent', v)}
+                                        type="number"
+                                        placeholder="0"
+                                        suffix="€/mėn."
+                                    />
+                                    <InputField
+                                        label="Depozitas"
+                                        value={formData.deposit_amount}
+                                        onChange={(v) => updateField('deposit_amount', v)}
+                                        type="number"
+                                        placeholder="0"
+                                        suffix="€"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 mt-3">
                                     <InputField
                                         label="Min. nuomos terminas"
                                         value={formData.min_term_months}

@@ -49,7 +49,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         if (pendingApprovals > 0) {
             return { label: 'Peržiūrėti', count: pendingApprovals, icon: CheckCircle, onClick: onReviewApprovals };
         }
-        return { label: 'Pridėti skaitiklį', count: 0, icon: Plus, onClick: onAddMeter };
+        return { label: 'Pridėti skaitliuką', count: 0, icon: Plus, onClick: onAddMeter };
     }, [missingReadings, pendingApprovals, onCollectReadings, onReviewApprovals, onAddMeter]);
 
     const handleMonthChange = useCallback((month: number) => {
@@ -120,7 +120,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
                             <Settings className="w-4 h-4" /> Nustatymai
                         </button>
                         <button onClick={() => { onAddMeter?.(); setShowMenu(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                            <Plus className="w-4 h-4" /> Pridėti skaitiklį
+                            <Plus className="w-4 h-4" /> Pridėti skaitliuką
                         </button>
                     </div>
                 )}

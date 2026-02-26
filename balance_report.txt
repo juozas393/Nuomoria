@@ -1,0 +1,11 @@
+Return_wrapper_open: 1
+Card_open: 1
+Section_A: 0
+Section_B: 0
+Section_C: 4
+Section_D: -2
+Save_button: 0
+Return_close: -1
+SUM: 3
+
+Gaps:

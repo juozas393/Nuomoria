@@ -124,10 +124,37 @@ export const getMeterIconName = (iconName: string) => {
   return iconName;
 };
 
-// --- Custom Template Management (localStorage) ---
+// --- Custom Template Management (localStorage, scoped per user) ---
 
-const CUSTOM_TEMPLATES_KEY = 'nuomoria_custom_meter_templates';
-const HIDDEN_DEFAULTS_KEY = 'nuomoria_hidden_default_templates';
+import { supabase } from '../lib/supabase';
+
+/** Cached user ID — updated on auth state change */
+let _cachedUserId: string | null = null;
+
+// Listen for auth state changes to keep the cached user ID in sync
+supabase.auth.onAuthStateChange((_event, session) => {
+  _cachedUserId = session?.user?.id ?? null;
+});
+
+// Initialize from current session on module load
+supabase.auth.getSession().then(({ data }) => {
+  _cachedUserId = data.session?.user?.id ?? null;
+});
+
+/** Get current user ID (synchronous, uses cached value) */
+const getCurrentUserId = (): string | null => {
+  return _cachedUserId;
+};
+
+const getCustomTemplatesKey = () => {
+  const userId = getCurrentUserId();
+  return userId ? `nuomoria_custom_meter_templates_${userId}` : 'nuomoria_custom_meter_templates';
+};
+
+const getHiddenDefaultsKey = () => {
+  const userId = getCurrentUserId();
+  return userId ? `nuomoria_hidden_default_templates_${userId}` : 'nuomoria_hidden_default_templates';
+};
 
 export type CustomMeterTemplate = Omit<MeterTemplate, 'icon'> & {
   icon: MeterTemplate['icon'];
@@ -135,10 +162,10 @@ export type CustomMeterTemplate = Omit<MeterTemplate, 'icon'> & {
   createdAt: string;
 };
 
-/** Get all custom templates from localStorage */
+/** Get all custom templates from localStorage (scoped to current user) */
 export const getCustomTemplates = (): CustomMeterTemplate[] => {
   try {
-    const stored = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+    const stored = localStorage.getItem(getCustomTemplatesKey());
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
@@ -170,14 +197,14 @@ export const saveCustomTemplate = (template: {
     createdAt: new Date().toISOString(),
   };
   customs.push(newTemplate);
-  localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customs));
+  localStorage.setItem(getCustomTemplatesKey(), JSON.stringify(customs));
   return newTemplate;
 };
 
 /** Remove a custom template by ID */
 export const removeCustomTemplate = (id: string): void => {
   const customs = getCustomTemplates().filter(t => t.id !== id);
-  localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customs));
+  localStorage.setItem(getCustomTemplatesKey(), JSON.stringify(customs));
 };
 
 // --- Hidden Default Templates Management ---
@@ -185,7 +212,7 @@ export const removeCustomTemplate = (id: string): void => {
 /** Get IDs of hidden default templates */
 export const getHiddenDefaultIds = (): string[] => {
   try {
-    const stored = localStorage.getItem(HIDDEN_DEFAULTS_KEY);
+    const stored = localStorage.getItem(getHiddenDefaultsKey());
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
@@ -197,13 +224,13 @@ export const hideDefaultTemplate = (id: string): void => {
   const hidden = getHiddenDefaultIds();
   if (!hidden.includes(id)) {
     hidden.push(id);
-    localStorage.setItem(HIDDEN_DEFAULTS_KEY, JSON.stringify(hidden));
+    localStorage.setItem(getHiddenDefaultsKey(), JSON.stringify(hidden));
   }
 };
 
 /** Restore all hidden default templates */
 export const restoreDefaultTemplates = (): void => {
-  localStorage.removeItem(HIDDEN_DEFAULTS_KEY);
+  localStorage.removeItem(getHiddenDefaultsKey());
 };
 
 /** Check if any defaults are currently hidden */
@@ -238,3 +265,4 @@ export const getAllTemplates = (): MeterTemplate[] => {
   }));
   return [...visibleDefaults, ...customAsMeterTemplate];
 };
+

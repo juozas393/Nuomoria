@@ -253,33 +253,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null); setLoading(false); return;
     }
 
-    // If we have a Supabase session, also check if we have a direct session for faster fallback
-    const directSession = localStorage.getItem('direct-auth-session');
-    if (directSession) {
-      // Found direct session alongside Supabase session, using direct session for faster auth - logging removed for production
-      try {
-        const sessionData = JSON.parse(directSession);
-        if (sessionData.access_token && sessionData.user) {
-          const fallbackUser: UserWithPermissions = {
-            id: sessionData.user.id,
-            email: sessionData.user.email ?? '',
-            first_name: sessionData.user.user_metadata?.first_name ?? 'User',
-            last_name: sessionData.user.user_metadata?.last_name ?? 'Name',
-            role: sessionData.user.user_metadata?.role ?? localStorage.getItem('signup.role') ?? 'landlord',
-            is_active: true,
-            created_at: sessionData.user.created_at ?? new Date().toISOString(),
-            updated_at: sessionData.user.updated_at ?? new Date().toISOString(),
-            permissions: [],
-          };
-          // Using direct session for immediate auth - logging removed for production
-          setUser(fallbackUser);
-          setLoading(false);
-          return;
-        }
-      } catch (error) {
-        // Error parsing direct session - logging removed for production
-      }
-    }
+    // Clean up any stale direct-auth-session if we have a valid Supabase session
+    // (direct sessions lack avatar_url and other profile data — always prefer fetchProfile)
+    localStorage.removeItem('direct-auth-session');
 
     // 2) pasiruošiam fallback'ą (jei DB neprieinama/RLS)
     const meta = authUser.user_metadata ?? {};
@@ -399,6 +375,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         // SIGNED_IN/INITIAL_SESSION event, hydrating session - logging removed for production
         await hydrateFromSession();
+        // Track login activity (fire-and-forget)
+        if (event === 'SIGNED_IN') {
+          import('../lib/activityTracker').then(({ trackLogin }) => trackLogin());
+        }
       }
       if (event === 'TOKEN_REFRESHED') {
         // Token refreshed - update session without full rehydration
@@ -1001,7 +981,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (process.env.NODE_ENV === 'development') {
           console.log('✅ Found existing user:', existingUser.email);
         }
-        return existingUser;
+
+        // Update last_login (non-blocking — don't await)
+        supabase
+          .from('users')
+          .update({ last_login: new Date().toISOString() })
+          .eq('id', existingUser.id)
+          .then(({ error }) => {
+            if (error && process.env.NODE_ENV === 'development') {
+              console.error('Failed to update last_login:', error);
+            }
+          });
+
+        return { ...existingUser, last_login: new Date().toISOString() };
       }
 
       // Create new user

@@ -117,17 +117,6 @@ const availableMeters: AvailableMeter[] = [
     icon: Flame
   },
   {
-    id: "maintenance_available",
-    type: "electricity_common",
-    name: "Techninė apžiūra",
-    description: "Namo techninė priežiūra ir apžiūra",
-    defaultUnit: "Kitas",
-    defaultPrice: 0,
-    defaultMode: "shared",
-    defaultAllocation: "per_apartment",
-    icon: Building2
-  },
-  {
     id: "garbage_available",
     type: "electricity_common",
     name: "Šiukšlės",
@@ -211,7 +200,7 @@ function Toolbar({
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#2F8481] rounded-xl hover:bg-[#297a77] transition-colors duration-200 shadow-sm hover:shadow-md"
         >
           <Plus className="w-4 h-4" />
-          Pridėti skaitiklį
+          Pridėti skaitliuką
         </button>
       </div>
     </div>
@@ -689,7 +678,7 @@ export function MetersPanel({
                   <Zap className="h-6 w-6 text-neutral-400" />
                 </div>
                 <p className="text-sm font-medium text-neutral-700 mb-1">Nėra individualių skaitliukų</p>
-                <p className="text-xs text-neutral-500">Pridėkite individualų skaitiklį iš galimų</p>
+                <p className="text-xs text-neutral-500">Pridėkite individualų skaitliuką iš galimų</p>
               </div>
             )}
           </div>
@@ -717,7 +706,7 @@ export function MetersPanel({
                   <Building2 className="h-6 w-6 text-neutral-400" />
                 </div>
                 <p className="text-sm font-medium text-neutral-700 mb-1">Nėra bendrų skaitliukų</p>
-                <p className="text-xs text-neutral-500">Pridėkite bendrą skaitiklį iš galimų</p>
+                <p className="text-xs text-neutral-500">Pridėkite bendrą skaitliuką iš galimų</p>
               </div>
             )}
           </div>
@@ -727,7 +716,7 @@ export function MetersPanel({
           {/* Galimi skaitliukai */}
           <GroupHeader
             title="Galimi skaitliukai"
-            note="Pasirinkite skaitiklį, kurį norite pridėti"
+            note="Pasirinkite skaitliuką, kurį norite pridėti"
             tone="brand"
           />
           <div className="grid gap-3 content-visibility-auto">

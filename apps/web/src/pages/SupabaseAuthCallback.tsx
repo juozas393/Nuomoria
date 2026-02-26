@@ -9,7 +9,7 @@ import logoImage from '../assets/logocanvBLACKWithoutBG.png';
  * animated verification flow, and smooth transitions.
  */
 
-const heroBgImage = '/images/LoginBackground.webp';
+const heroBgImage = '/images/ImageIntroduction.jpg';
 
 const SupabaseAuthCallback: React.FC = () => {
   const navigate = useNavigate();

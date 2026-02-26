@@ -40,7 +40,7 @@ export const calculateContractStatus = (property: Property): ContractStatus => {
   // Calculate original contract duration in months
   const contractDurationMs = contractEnd.getTime() - contractStart.getTime();
   const contractDurationMonths = Math.round(contractDurationMs / (1000 * 60 * 60 * 24 * 30.44));
-  
+
   // Check if this is a long-term contract (>12 months)
   const isLongTermContract = contractDurationMonths > 12;
 
@@ -122,7 +122,7 @@ export const calculateContractStatus = (property: Property): ContractStatus => {
     // Check if contract has been running for more than 12 months (auto-renewed)
     const monthsSinceStart = Math.round((today.getTime() - contractStart.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
     const isAutoRenewed = monthsSinceStart > 12;
-    
+
     if (diffDays < 0) {
       return {
         status: 'expired',
@@ -190,7 +190,7 @@ export const calculateContractStatus = (property: Property): ContractStatus => {
         shouldAutoRenew: false
       };
     }
-  } 
+  }
   // If less than 1 month + 1 day remaining (31 days), auto-renew if no response
   else if (diffDays <= 31) {
     // If no response yet, auto-renew
@@ -292,8 +292,8 @@ export const calculateContractStatus = (property: Property): ContractStatus => {
 
 export const generateNotificationMessage = (property: Property, notificationType: string): string => {
   const contractEnd = new Date(property.contract_end);
-  const formattedDate = contractEnd.toLocaleDateString('lt-LT');
-  
+  const formattedDate = `${contractEnd.getFullYear()}-${String(contractEnd.getMonth() + 1).padStart(2, '0')}-${String(contractEnd.getDate()).padStart(2, '0')}`;
+
   switch (notificationType) {
     case 'contract_expiring':
       return `Sveiki ${property.tenant_name}!
@@ -348,7 +348,7 @@ Nuomos valdymo komanda`;
 
 Jūsų nuomos sutartis butui ${property.address} ${property.apartment_number} buvo automatiškai pratęsta 6 mėnesiams.
 
-Nauja sutarties pabaigos data: ${new Date(new Date(property.contract_end).getTime() + 6 * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('lt-LT')}
+Nauja sutarties pabaigos data: ${(() => { const d = new Date(new Date(property.contract_end).getTime() + 6 * 30 * 24 * 60 * 60 * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}
 
 Kontaktai:
 - Telefonu: +370 600 00000
@@ -451,24 +451,24 @@ export const sendNotification = async (property: Property): Promise<boolean> => 
   try {
     const notificationType = getNotificationType(property);
     const message = generateNotificationMessage(property, notificationType);
-    
+
     // Simulate sending notification
     console.log(`Sending ${notificationType} notification to ${property.tenant_name}:`);
     console.log(message);
-    
+
     // Update notification count and last sent date in database
     await propertiesApi.update(property.id, {
       notification_count: (property.notification_count || 0) + 1,
       last_notification_sent: new Date().toISOString()
     });
-    
+
     // Automatiškai pratęsti sutartį, jei nuomininkas išsiunčia pranešimą
     // ir sutartis baigėsi arba baigiasi greitai
     await autoRenewOnNotification(property);
-    
+
     // In real implementation, this would send email/SMS
     // For now, we'll just log it
-    
+
     return true;
   } catch (error) {
     console.error('Failed to send notification:', error);
@@ -478,7 +478,7 @@ export const sendNotification = async (property: Property): Promise<boolean> => 
 
 export const checkAndSendNotifications = async (properties: Property[]): Promise<void> => {
   const notificationsToSend = properties.filter(shouldSendNotification);
-  
+
   for (const property of notificationsToSend) {
     const success = await sendNotification(property);
     if (success) {
@@ -494,7 +494,7 @@ export const handleTenantResponse = async (propertyId: string, response: 'wants_
   try {
     // In real implementation, this would update the database
     console.log(`Tenant response for property ${propertyId}: ${response}`);
-    
+
     if (response === 'wants_to_renew') {
       console.log('Tenant wants to renew - automatically extending contract for 1 year');
       // Automatically extend contract for 1 year
@@ -510,17 +510,17 @@ export const handleTenantResponse = async (propertyId: string, response: 'wants_
 // Helper function to calculate deposit deductions
 export const calculateDepositDeductions = (property: Property): number => {
   let deductions = 0;
-  
+
   // Bedding fee (50€ if landlord provides bedding)
   if (property.bedding_owner === 'landlord' && !property.bedding_fee_paid) {
     deductions += 50;
   }
-  
+
   // Cleaning cost if required
   if (property.cleaning_required) {
     deductions += property.cleaning_cost || 0;
   }
-  
+
   return deductions;
 };
 
@@ -531,27 +531,27 @@ export const calculateDepositReturn = (property: Property): number => {
   const daysUntilEnd = Math.ceil((contractEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   const depositPaid = property.deposit_paid_amount || 0;
   const oneMonthRent = property.rent || 0;
-  
+
   console.log(`DEBUG calculateDepositReturn:`);
   console.log(`- Today: ${today.toISOString()}`);
   console.log(`- Contract End: ${contractEnd.toISOString()}`);
   console.log(`- Days Until End: ${daysUntilEnd}`);
   console.log(`- Deposit Paid: ${depositPaid}`);
   console.log(`- One Month Rent: ${oneMonthRent}`);
-  
+
   // Jei nėra išsikraustymo pranešimo, depozitas lieka galioti
   if (!property.tenant_response || !property.planned_move_out_date) {
     return depositPaid;
   }
-  
+
   // Tik jei nuomininkas nori išsikraustyti
   if (property.tenant_response !== 'does_not_want_to_renew') {
     return depositPaid;
   }
-  
+
   const plannedMoveOut = new Date(property.planned_move_out_date);
   const responseDate = property.tenant_response_date ? new Date(property.tenant_response_date) : null;
-  
+
   // Skaičiuojame pranešimo laiką
   let daysNotice = 0;
   if (responseDate) {
@@ -560,10 +560,10 @@ export const calculateDepositReturn = (property: Property): number => {
     console.log(`DEBUG: Pateikimo data: ${responseDate.toISOString()}`);
     console.log(`DEBUG: Išsikraustymo data: ${plannedMoveOut.toISOString()}`);
   }
-  
+
   // 1. SUTARTIS DAR GALIOJA (iki pabaigos datos)
   if (daysUntilEnd > 0) {
-    
+
     // 1.1. IŠSIKRAUSTYMAS SUTARTIES PABAIGOJE
     if (plannedMoveOut.getTime() === contractEnd.getTime()) {
       console.log(`DEBUG: Išsikraustymas sutarties pabaigoje, pranešimo laikas: ${daysNotice} dienų`);
@@ -578,7 +578,7 @@ export const calculateDepositReturn = (property: Property): number => {
         return result; // Išskaičiuojama 1 mėn. nuoma
       }
     }
-    
+
     // 1.2. IŠSIKRAUSTYMAS ANKSCIAU NEI SUTARTIES PABAIGA
     if (plannedMoveOut.getTime() < contractEnd.getTime()) {
       if (daysNotice >= 30) {
@@ -588,10 +588,10 @@ export const calculateDepositReturn = (property: Property): number => {
       }
     }
   }
-  
+
   // 2. SUTARTIS PASIBAIGIA IR TAMPA NETERMINUOTA
   if (daysUntilEnd <= 0) {
-    
+
     // 2.1. NUOMININKAS NORI IŠSIKRAUSTYTI (neterminuotoje fazėje)
     console.log(`DEBUG: Neterminuota sutartis, pranešimo laikas: ${daysNotice} dienų`);
     if (daysNotice >= 30) {
@@ -602,7 +602,7 @@ export const calculateDepositReturn = (property: Property): number => {
       return Math.max(0, depositPaid - oneMonthRent); // Išskaičiuojama 1 mėn. nuoma
     }
   }
-  
+
   // Numatytoji logika - depozitas grąžinamas
   console.log(`DEBUG: Galutinis depozito grąžinimas: ${depositPaid}`);
   return depositPaid;
@@ -611,27 +611,27 @@ export const calculateDepositReturn = (property: Property): number => {
 // Calculate additional deductions (cleaning, damages, unpaid bills, etc.)
 export const calculateAdditionalDeductions = (property: Property): number => {
   let totalDeductions = 0;
-  
+
   // 🧼 Valymo išlaidos
   if (property.cleaning_required && property.cleaning_cost) {
     totalDeductions += property.cleaning_cost;
   }
-  
+
   // 🛏️ Sugadintas inventorių (pvz. čiužinį)
   if (property.deposit_deductions) {
     totalDeductions += property.deposit_deductions;
   }
-  
+
   // 📩 Neapmokėtas sąskaitas (jei būtų papildomas laukas)
   // if (property.unpaid_bills) {
   //   totalDeductions += property.unpaid_bills;
   // }
-  
+
   // 🔧 Techninius pažeidimus ar praradimus (jei būtų papildomas laukas)
   // if (property.technical_damages) {
   //   totalDeductions += property.technical_damages;
   // }
-  
+
   return totalDeductions;
 };
 
@@ -642,19 +642,19 @@ export const calculateFinalDepositReturn = (property: Property): number => {
   const baseDepositReturn = calculateDepositReturn(property);
   const additionalDeductions = calculateAdditionalDeductions(property);
   const outstandingAmount = (property as any).outstanding_amount || 0;
-  
+
   console.log(`DEBUG calculateFinalDepositReturn:`);
   console.log(`- Base deposit return: ${baseDepositReturn}`);
   console.log(`- Additional deductions: ${additionalDeductions}`);
   console.log(`- Outstanding amount: ${outstandingAmount}`);
-  
+
   // Jei yra neapmokėtų sąskaitų ar kitų išlaidų, depozitas negrąžinamas
   // Nuomininkas turi pats padengti visas sąskaitas prieš grąžinant depozitą
   if (additionalDeductions > 0) {
     console.log(`- Final result: 0 (due to additional deductions)`);
     return 0; // Depozitas negrąžinamas, kol neapmokėtos sąskaitos
   }
-  
+
   console.log(`- Final result: ${baseDepositReturn}`);
   return baseDepositReturn;
 };
@@ -664,32 +664,32 @@ export const autoRenewContract = async (property: Property): Promise<void> => {
   try {
     const newEndDate = new Date(property.contract_end);
     newEndDate.setMonth(newEndDate.getMonth() + 6); // Add 6 months
-    
-    console.log(`Auto-renewing contract for ${property.tenant_name} until ${newEndDate.toLocaleDateString('lt-LT')}`);
-    
+
+    console.log(`Auto-renewing contract for ${property.tenant_name} until ${newEndDate.getFullYear()}-${String(newEndDate.getMonth() + 1).padStart(2, '0')}-${String(newEndDate.getDate()).padStart(2, '0')}`);
+
     // In real implementation, this would update the database
     // Update contract_end and set auto_renewal_enabled to true
   } catch (error) {
     console.error('Failed to auto-renew contract:', error);
   }
-}; 
+};
 
 // Automatinis pratęsimas, jei nuomininkas atsako teigiamai
 export const autoRenewOnPositiveResponse = async (property: Property): Promise<Property | null> => {
   const tenantResponse = property.tenant_response as string | null;
-  
+
   // Jei nuomininkas atsakė "wants_to_renew" ir sutartis dar nebuvo pratęsta, pratęsti 1 metui
   if (tenantResponse === 'wants_to_renew' && !property.auto_renewal_enabled) {
     const contractEnd = new Date(property.contract_end);
     const newEnd = new Date(contractEnd);
     newEnd.setFullYear(newEnd.getFullYear() + 1); // Pratęsti 1 metui
-    
+
     const updated = await propertiesApi.update(property.id, {
       contract_end: newEnd.toISOString().slice(0, 10),
       tenant_response: 'wants_to_renew',
       auto_renewal_enabled: true // Pažymėti, kad sutartis jau pratęsta
     });
-    console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.toLocaleDateString('lt-LT')} (1 year extension)`);
+    console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (1 year extension)`);
     return updated;
   }
   return null;
@@ -701,14 +701,14 @@ export const autoRenewIfNeeded = async (property: Property): Promise<Property | 
   const contractEnd = new Date(property.contract_end);
   const contractStart = new Date(property.contract_start);
   const diffDays = Math.ceil((contractEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   // Calculate original contract duration in months
   const contractDurationMs = contractEnd.getTime() - contractStart.getTime();
   const contractDurationMonths = Math.round(contractDurationMs / (1000 * 60 * 60 * 24 * 30.44));
-  
+
   // Check if this is a long-term contract (>12 months)
   const isLongTermContract = contractDurationMonths > 12;
-  
+
   // Jei ilgalaikė sutartis (>12 mėn.), nepratęsti automatiškai
   if (isLongTermContract) {
     return null;
@@ -734,13 +734,13 @@ export const autoRenewIfNeeded = async (property: Property): Promise<Property | 
     // Pratęsiam 6 mėnesiams nuo pabaigos datos
     const newEnd = new Date(contractEnd);
     newEnd.setMonth(newEnd.getMonth() + 6);
-    
+
     try {
       const updated = await propertiesApi.update(property.id, {
         contract_end: newEnd.toISOString().slice(0, 10),
         auto_renewal_enabled: true // Pažymėti, kad sutartis jau pratęsta
       });
-      console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.toLocaleDateString('lt-LT')} (${diffDays < 0 ? 'expired' : '31 days remaining'})`);
+      console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (${diffDays < 0 ? 'expired' : '31 days remaining'})`);
       return updated;
     } catch (error) {
       console.error(`Failed to auto-renew contract for ${property.tenant_name}:`, error);
@@ -748,14 +748,14 @@ export const autoRenewIfNeeded = async (property: Property): Promise<Property | 
     }
   }
   return null;
-}; 
+};
 
 // Automatinis pratęsimas, kai nuomininkas išsiunčia pranešimą
 export const autoRenewOnNotification = async (property: Property): Promise<Property | null> => {
   const today = new Date();
   const contractEnd = new Date(property.contract_end);
   const diffDays = Math.ceil((contractEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   // Jei butas remontuojamas, nepratęsti automatiškai
   if (property.status === 'maintenance') {
     return null;
@@ -770,20 +770,20 @@ export const autoRenewOnNotification = async (property: Property): Promise<Prope
   if (property.tenant_response === 'does_not_want_to_renew') {
     return null;
   }
-  
+
   // Jei sutartis baigėsi arba lieka mažiau nei 31 diena ir dar nebuvo pratęsta
   if ((diffDays < 0 || diffDays <= 31) && !property.auto_renewal_enabled) {
     // Pratęsiam 6 mėnesiams nuo pabaigos datos
     const newEnd = new Date(contractEnd);
     newEnd.setMonth(newEnd.getMonth() + 6);
-    
+
     try {
       const updated = await propertiesApi.update(property.id, {
         contract_end: newEnd.toISOString().slice(0, 10),
         auto_renewal_enabled: true, // Pažymėti, kad sutartis jau pratęsta
         tenant_response: 'wants_to_renew' // Automatiškai pažymėti, kad nuomininkas nori pratęsti
       });
-      console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.toLocaleDateString('lt-LT')} (notification sent)`);
+      console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (notification sent)`);
       return updated;
     } catch (error) {
       console.error(`Failed to auto-renew contract for ${property.tenant_name}:`, error);
@@ -791,7 +791,7 @@ export const autoRenewOnNotification = async (property: Property): Promise<Prope
     }
   }
   return null;
-}; 
+};
 
 // Utility function to validate move-out date
 export const validateMoveOutDate = (moveOutDate: string, contractEndDate: string): { isValid: boolean; error?: string } => {
@@ -805,22 +805,22 @@ export const validateMoveOutDate = (moveOutDate: string, contractEndDate: string
 
   // Check if move-out date is after contract end date
   if (moveOut > contractEnd) {
-    return { 
-      isValid: false, 
-      error: 'Išsikėlimo data negali būti vėlesnė nei sutarties pabaigos data' 
+    return {
+      isValid: false,
+      error: 'Išsikėlimo data negali būti vėlesnė nei sutarties pabaigos data'
     };
   }
 
   // Check if move-out date is before today
   if (moveOut < today) {
-    return { 
-      isValid: false, 
-      error: 'Išsikėlimo data negali būti ankstesnė nei šiandien' 
+    return {
+      isValid: false,
+      error: 'Išsikėlimo data negali būti ankstesnė nei šiandien'
     };
   }
 
   return { isValid: true };
-}; 
+};
 
 // ========================================
 // 📧 PRANEŠIMŲ SISTEMOS LOGIKOS PATOBULINIMAS
@@ -862,7 +862,10 @@ const generateId = (): string => {
 };
 
 const formatDate = (date: Date): string => {
-  return date.toLocaleDateString('lt-LT');
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 const getDaysUntilContractEnd = (contractEnd: string): number => {
@@ -875,14 +878,14 @@ const isAutoRenewedContract = (tenant: Tenant): boolean => {
   const contractEnd = new Date(tenant.contractEnd);
   const autoRenewalDate = new Date(contractEnd);
   autoRenewalDate.setMonth(autoRenewalDate.getMonth() + 6);
-  
-  return contractEnd < new Date() && 
-         autoRenewalDate > new Date() &&
-         !tenant.tenant_response;
+
+  return contractEnd < new Date() &&
+    autoRenewalDate > new Date() &&
+    !tenant.tenant_response;
 };
 
 // Pranešimų tipai
-export type NotificationType = 
+export type NotificationType =
   | 'contract_expiry_reminder_1'    // Pirmas pranešimas (2 mėn. prieš)
   | 'contract_expiry_reminder_2'    // Antras pranešimas (po 15 dienų)
   | 'contract_expiry_reminder_3'    // Trečias pranešimas (po 29 dienų)
@@ -914,7 +917,7 @@ export const scheduleContractNotifications = (tenant: Tenant): Notification[] =>
   const notifications: Notification[] = [];
   const contractEnd = new Date(tenant.contractEnd);
   const now = new Date();
-  
+
   // Patikrinti ar sutartis jau pratęsta
   if (isAutoRenewedContract(tenant)) {
     // Jei sutartis jau pratęsta, siųsti tik išsikraustymo pranešimus
@@ -923,17 +926,17 @@ export const scheduleContractNotifications = (tenant: Tenant): Notification[] =>
     }
     return notifications;
   }
-  
+
   // Patikrinti ar nuomininkas jau atsakė
   if (tenant.tenant_response) {
     // Jei atsakė, nesiųsti daugiau pranešimų
     return notifications;
   }
-  
+
   // Pirmas pranešimas - 2 mėnesiai prieš sutarties pabaigą
   const firstReminderDate = new Date(contractEnd);
   firstReminderDate.setMonth(firstReminderDate.getMonth() - 2);
-  
+
   if (firstReminderDate > now) {
     notifications.push({
       id: generateId(),
@@ -951,11 +954,11 @@ export const scheduleContractNotifications = (tenant: Tenant): Notification[] =>
       }
     });
   }
-  
+
   // Antras pranešimas - po 15 dienų nuo pirmo
   const secondReminderDate = new Date(firstReminderDate);
   secondReminderDate.setDate(secondReminderDate.getDate() + 15);
-  
+
   if (secondReminderDate > now) {
     notifications.push({
       id: generateId(),
@@ -973,11 +976,11 @@ export const scheduleContractNotifications = (tenant: Tenant): Notification[] =>
       }
     });
   }
-  
+
   // Trečias pranešimas - po 29 dienų nuo pirmo
   const thirdReminderDate = new Date(firstReminderDate);
   thirdReminderDate.setDate(thirdReminderDate.getDate() + 29);
-  
+
   if (thirdReminderDate > now) {
     notifications.push({
       id: generateId(),
@@ -995,7 +998,7 @@ export const scheduleContractNotifications = (tenant: Tenant): Notification[] =>
       }
     });
   }
-  
+
   return notifications;
 };
 
@@ -1004,7 +1007,7 @@ export const createAutoRenewalNotification = (tenant: Tenant): Notification => {
   const contractEnd = new Date(tenant.contractEnd);
   const autoRenewalEnd = new Date(contractEnd);
   autoRenewalEnd.setMonth(autoRenewalEnd.getMonth() + 6);
-  
+
   return {
     id: generateId(),
     tenantId: tenant.id,
@@ -1028,15 +1031,15 @@ export const createMoveOutNotification = (tenant: Tenant): Notification => {
   const moveOutDate = new Date(tenant.planned_move_out_date!);
   const noticeDate = tenant.move_out_notice_date ? new Date(tenant.move_out_notice_date) : new Date();
   const daysNotice = Math.ceil((moveOutDate.getTime() - noticeDate.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   let message = `Jūsų išsikraustymo data: ${formatDate(moveOutDate)}. `;
-  
+
   if (daysNotice >= 30) {
     message += 'Pranešimas pateiktas laiku - visas depozitas bus grąžintas.';
   } else {
     message += `Pranešimas pateiktas ${daysNotice} dienų prieš išsikraustymą. Gali būti išskaičiuota 1 mėnesio nuomos suma.`;
   }
-  
+
   return {
     id: generateId(),
     tenantId: tenant.id,
@@ -1068,14 +1071,14 @@ export const sendNotificationNew = async (notification: Notification): Promise<b
   try {
     // Simuliuoti pranešimo siuntimą
     console.log(`Sending notification to tenant ${notification.tenantId}:`, notification.message);
-    
+
     // Čia būtų tikras pranešimo siuntimas (email, SMS, etc.)
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simuliuoti API call
-    
+
     // Atnaujinti pranešimo statusą
     notification.status = 'sent';
     notification.sentDate = new Date();
-    
+
     return true;
   } catch (error) {
     console.error('Failed to send notification:', error);
@@ -1087,12 +1090,12 @@ export const sendNotificationNew = async (notification: Notification): Promise<b
 // Pranešimų planavimo funkcija
 export const scheduleNotificationsForAllTenants = (tenants: Tenant[]): Notification[] => {
   const allNotifications: Notification[] = [];
-  
+
   tenants.forEach(tenant => {
     const tenantNotifications = scheduleContractNotifications(tenant);
     allNotifications.push(...tenantNotifications);
   });
-  
+
   return allNotifications;
 };
 
@@ -1104,7 +1107,7 @@ export const checkNotificationStatus = (tenant: Tenant): {
 } => {
   const notifications = scheduleContractNotifications(tenant);
   const pendingNotifications = notifications.filter(n => n.status === 'pending');
-  
+
   return {
     hasPendingNotifications: pendingNotifications.length > 0,
     nextNotificationDate: pendingNotifications.length > 0 ? pendingNotifications[0].scheduledDate : undefined,
@@ -1115,17 +1118,17 @@ export const checkNotificationStatus = (tenant: Tenant): {
 // Automatinio pratėsimo logikos patobulinimas
 export const shouldAutoRenewContract = (tenant: Tenant): boolean => {
   const daysUntilExpiry = getDaysUntilContractEnd(tenant.contractEnd);
-  
+
   // Jei nuomininkas atsisakė pratėsimo, nepratęsti
   if (tenant.tenant_response === 'does_not_want_to_renew') {
     return false;
   }
-  
+
   // Jei yra išsikraustymo planas, nepratęsti
   if (tenant.planned_move_out_date) {
     return false;
   }
-  
+
   // Pratęsti visada (net jei 12+ mėnesių ar jau buvo pratęsta), jei sutartis baigėsi arba baigiasi
   return daysUntilExpiry <= 0;
 };
@@ -1135,13 +1138,13 @@ export const executeAutoRenewal = (tenant: Tenant): Tenant => {
   const contractEnd = new Date(tenant.contractEnd);
   const autoRenewalEnd = new Date(contractEnd);
   autoRenewalEnd.setMonth(autoRenewalEnd.getMonth() + 6);
-  
+
   // Atšaukti visus laukiančius pranešimus
   cancelPendingNotifications(tenant.id, 'contract_auto_renewed');
-  
+
   // Sukurti automatinio pratėsimo pranešimą
   const autoRenewalNotification = createAutoRenewalNotification(tenant);
-  
+
   return {
     ...tenant,
     contractEnd: autoRenewalEnd.toISOString().split('T')[0], // Format as YYYY-MM-DD
@@ -1154,7 +1157,7 @@ export const executeAutoRenewal = (tenant: Tenant): Tenant => {
 export const getNotificationHistory = (tenant: Tenant): Notification[] => {
   // Čia būtų logika gauti pranešimų istoriją iš duomenų bazės
   const mockHistory: Notification[] = [];
-  
+
   if (tenant.last_notification_sent) {
     mockHistory.push({
       id: generateId(),
@@ -1169,7 +1172,7 @@ export const getNotificationHistory = (tenant: Tenant): Notification[] => {
       priority: 'high'
     });
   }
-  
+
   return mockHistory;
 };
 
@@ -1190,18 +1193,18 @@ export const getNotificationStats = (tenants: Tenant[]): {
     autoRenewals: 0,
     responses: 0
   };
-  
+
   tenants.forEach(tenant => {
     stats.totalNotifications += tenant.notification_count || 0;
-    
+
     if (isAutoRenewedContract(tenant)) {
       stats.autoRenewals++;
     }
-    
+
     if (tenant.tenant_response) {
       stats.responses++;
     }
   });
-  
+
   return stats;
 }; 

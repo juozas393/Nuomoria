@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
     const primaryCTA = useMemo(() => {
         if (missingReadings > 0) return { label: 'Surinkti rodmenis', count: missingReadings, icon: Send, onClick: onCollectReadings };
         if (pendingApprovals > 0) return { label: 'Peržiūrėti', count: pendingApprovals, icon: CheckCircle, onClick: onReviewApprovals };
-        return { label: 'Pridėti skaitiklį', count: 0, icon: Plus, onClick: onAddMeter };
+        return { label: 'Pridėti skaitliuką', count: 0, icon: Plus, onClick: onAddMeter };
     }, [missingReadings, pendingApprovals, onCollectReadings, onReviewApprovals, onAddMeter]);
 
     return (
@@ -98,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
                             <Settings className="w-4 h-4 text-gray-400" /> Nustatymai
                         </button>
                         <button onClick={() => { onAddMeter?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
-                            <Plus className="w-4 h-4 text-gray-400" /> Pridėti skaitiklį
+                            <Plus className="w-4 h-4 text-gray-400" /> Pridėti skaitliuką
                         </button>
                     </div>
                 )}

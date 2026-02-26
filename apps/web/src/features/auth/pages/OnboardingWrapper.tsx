@@ -61,7 +61,7 @@ const OnboardingWrapper: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/images/LoginBackground.webp')", transform: 'scale(1.08)' }} />
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/images/ImageIntroduction.jpg')", transform: 'scale(1.08)' }} />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(3,6,8,0.90) 0%, rgba(3,6,8,0.93) 50%, rgba(3,6,8,0.88) 100%)' }} />
         <div className="relative z-10 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4DB6AC] mx-auto mb-4"></div>

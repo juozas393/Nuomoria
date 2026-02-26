@@ -280,7 +280,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Nenurodyta';
-    return new Date(dateString).toLocaleDateString('lt-LT');
+    return new Date(dateString).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' });
   };
 
   const formatDateTime = (dateString: string | null) => {

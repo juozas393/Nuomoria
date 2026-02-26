@@ -1,7 +1,11 @@
 import { Calendar } from 'lucide-react';
 
 const ContractBar = ({ start, end, rightChip }: { start?: string; end?: string; rightChip?: { tone: 'ok' | 'danger' | 'warn' | 'muted'; label: string } }) => {
-  const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('lt-LT') : '—';
+  const fmt = (d?: string) => {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  };
   const chipTone = rightChip?.tone ?? 'muted';
   return (
     <div className="mt-3 h-11 rounded-xl border border-neutral-200 bg-white px-3 flex items-center justify-between">

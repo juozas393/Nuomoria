@@ -5,8 +5,8 @@ export const Button = ({
   variant = 'outline',
   className = '',
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { 
-  variant?: 'brand' | 'outline' 
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'brand' | 'outline'
 }) => (
   <button
     type="button"
@@ -149,15 +149,14 @@ export const InfoRow = ({
     <div className="flex items-center gap-2 ml-4">
       <span className="text-sm font-medium text-gray-900 tabular-nums">{value}</span>
       {status && (
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-          status === 'success' ? 'bg-green-100 text-green-700' :
-          status === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-          status === 'error' ? 'bg-red-100 text-red-700' :
-          'bg-gray-100 text-gray-700'
-        }`}>
-          {status === 'success' ? '✓' : 
-           status === 'warning' ? '⚠' : 
-           status === 'error' ? '✗' : '•'}
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status === 'success' ? 'bg-green-100 text-green-700' :
+            status === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+              status === 'error' ? 'bg-red-100 text-red-700' :
+                'bg-gray-100 text-gray-700'
+          }`}>
+          {status === 'success' ? '✓' :
+            status === 'warning' ? '⚠' :
+              status === 'error' ? '✗' : '•'}
         </span>
       )}
     </div>
@@ -229,13 +228,12 @@ export const CompactMetersCard = ({
             <div className="text-xs text-gray-600 truncate">{meter.kind}</div>
             <div className="text-sm font-medium text-gray-900">{meter.lastReading || '—'}</div>
           </div>
-          <span className={`ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            meter.status === 'approved' ? 'bg-green-100 text-green-700' :
-            meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-            'bg-red-100 text-red-700'
-          }`}>
-            {meter.status === 'approved' ? '✓' : 
-             meter.status === 'pending' ? '⏳' : '✗'}
+          <span className={`ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${meter.status === 'approved' ? 'bg-green-100 text-green-700' :
+              meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-red-100 text-red-700'
+            }`}>
+            {meter.status === 'approved' ? '✓' :
+              meter.status === 'pending' ? '⏳' : '✗'}
           </span>
         </div>
       ))}
@@ -291,7 +289,7 @@ export const CompactTenantCard = ({
 }) => {
   const refundable = Math.max(0, tenant.finance.deposit - tenant.finance.totalDebt);
   const approvedMeters = tenant.meters.filter(m => m.status === 'approved').length;
-  
+
   return (
     <div className={`bg-white border border-gray-200 rounded-xl p-6 ${className}`}>
       {/* Viršutinė eilutė - nuomininko pagrindinė informacija */}
@@ -303,7 +301,7 @@ export const CompactTenantCard = ({
             <span>•</span>
             <span>{tenant.phone}</span>
             <span>•</span>
-            <span>Įsikėlė: {new Date(tenant.moveInDate).toLocaleDateString('lt-LT')}</span>
+            <span>Įsikėlė: {new Date(tenant.moveInDate).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
           </div>
         </div>
         <div className="flex gap-2 ml-4">
@@ -385,13 +383,12 @@ export const CompactTenantCard = ({
                   <div className="text-xs text-gray-600 truncate">{meter.kind}</div>
                   <div className="text-sm font-medium">{meter.lastReading || '—'}</div>
                 </div>
-                <span className={`ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  meter.status === 'approved' ? 'bg-green-100 text-green-700' :
-                  meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {meter.status === 'approved' ? '✓' : 
-                   meter.status === 'pending' ? '⏳' : '✗'}
+                <span className={`ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${meter.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                  }`}>
+                  {meter.status === 'approved' ? '✓' :
+                    meter.status === 'pending' ? '⏳' : '✗'}
                 </span>
               </div>
             ))}
@@ -426,18 +423,18 @@ export const CompactTenantCard = ({
               Grąžinti depozitą
             </button>
           </div>
-          
+
           {tenant.moveOut && (
             <div className="pt-3 border-t border-gray-200">
               <h4 className="text-xs font-medium text-gray-700 mb-2">Išsikraustymas</h4>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Pranešimas:</span>
-                  <span>{new Date(tenant.moveOut.notice).toLocaleDateString('lt-LT')}</span>
+                  <span>{new Date(tenant.moveOut.notice).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Planuojama:</span>
-                  <span>{new Date(tenant.moveOut.planned).toLocaleDateString('lt-LT')}</span>
+                  <span>{new Date(tenant.moveOut.planned).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
                 </div>
               </div>
             </div>
@@ -494,9 +491,9 @@ export const UltraCompactTenantCard = ({
   const refundable = Math.max(0, tenant.finance.deposit - tenant.finance.totalDebt);
   const approvedMeters = tenant.meters.filter(m => m.status === 'approved').length;
   const debtStatus = tenant.finance.totalDebt > 0 ? 'error' : 'success';
-  const metersStatus = approvedMeters === tenant.meters.length ? 'success' : 
-                      approvedMeters > 0 ? 'warning' : 'error';
-  
+  const metersStatus = approvedMeters === tenant.meters.length ? 'success' :
+    approvedMeters > 0 ? 'warning' : 'error';
+
   return (
     <div className={`bg-white border border-gray-200 rounded-xl p-5 ${className}`}>
       {/* Viršutinė eilutė - nuomininko pagrindinė informacija + veiksmai */}
@@ -504,13 +501,12 @@ export const UltraCompactTenantCard = ({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 mb-2">
             <h2 className="text-lg font-bold text-gray-900 truncate">{tenant.name}</h2>
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              tenant.status === 'active' ? 'bg-green-100 text-green-700' :
-              tenant.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-red-100 text-red-700'
-            }`}>
-              {tenant.status === 'active' ? 'Aktyvus' : 
-               tenant.status === 'pending' ? 'Laukia' : 'Neaktyvus'}
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tenant.status === 'active' ? 'bg-green-100 text-green-700' :
+                tenant.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
+              }`}>
+              {tenant.status === 'active' ? 'Aktyvus' :
+                tenant.status === 'pending' ? 'Laukia' : 'Neaktyvus'}
             </span>
           </div>
           <div className="flex items-center gap-4 text-xs text-gray-600">
@@ -518,7 +514,7 @@ export const UltraCompactTenantCard = ({
             <span>•</span>
             <span>{tenant.phone}</span>
             <span>•</span>
-            <span>Įsikėlė: {new Date(tenant.moveInDate).toLocaleDateString('lt-LT')}</span>
+            <span>Įsikėlė: {new Date(tenant.moveInDate).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
           </div>
         </div>
         <div className="flex gap-2 ml-4 flex-shrink-0">
@@ -614,13 +610,12 @@ export const UltraCompactTenantCard = ({
                   <div className="text-xs text-gray-600 truncate">{meter.kind}</div>
                   <div className="text-xs font-medium">{meter.lastReading || '—'}</div>
                 </div>
-                <span className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                  meter.status === 'approved' ? 'bg-green-100 text-green-700' :
-                  meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {meter.status === 'approved' ? '✓' : 
-                   meter.status === 'pending' ? '⏳' : '✗'}
+                <span className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${meter.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                  }`}>
+                  {meter.status === 'approved' ? '✓' :
+                    meter.status === 'pending' ? '⏳' : '✗'}
                 </span>
               </div>
             ))}
@@ -650,9 +645,8 @@ export const UltraCompactTenantCard = ({
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Skola:</span>
-              <span className={`font-medium tabular-nums ${
-                tenant.finance.totalDebt > 0 ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <span className={`font-medium tabular-nums ${tenant.finance.totalDebt > 0 ? 'text-red-600' : 'text-green-600'
+                }`}>
                 {new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(tenant.finance.totalDebt)}
               </span>
             </div>
@@ -688,18 +682,18 @@ export const UltraCompactTenantCard = ({
               Grąžinti
             </button>
           </div>
-          
+
           {tenant.moveOut && (
             <div className="pt-2 border-t border-gray-200">
               <h4 className="text-xs font-medium text-gray-700 mb-1">Išsikraustymas</h4>
               <div className="space-y-0.5 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Pranešimas:</span>
-                  <span>{new Date(tenant.moveOut.notice).toLocaleDateString('lt-LT')}</span>
+                  <span>{new Date(tenant.moveOut.notice).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Planuojama:</span>
-                  <span>{new Date(tenant.moveOut.planned).toLocaleDateString('lt-LT')}</span>
+                  <span>{new Date(tenant.moveOut.planned).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
                 </div>
               </div>
             </div>
@@ -718,19 +712,17 @@ export const UltraCompactTenantCard = ({
             <span>Skola: {new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(tenant.finance.totalDebt)}</span>
           </div>
           <div className="flex gap-1">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              debtStatus === 'success' ? 'bg-green-100 text-green-700' :
-              'bg-red-100 text-red-700'
-            }`}>
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${debtStatus === 'success' ? 'bg-green-100 text-green-700' :
+                'bg-red-100 text-red-700'
+              }`}>
               {debtStatus === 'success' ? '✓ Mokėjimai tvarkoje' : '⚠ Yra skolos'}
             </span>
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              metersStatus === 'success' ? 'bg-green-100 text-green-700' :
-              metersStatus === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-red-100 text-red-700'
-            }`}>
-              {metersStatus === 'success' ? '✓ Skaitliukai tvarkoje' : 
-               metersStatus === 'warning' ? '⚠ Dalinai pateikti' : '✗ Nepateikti'}
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${metersStatus === 'success' ? 'bg-green-100 text-green-700' :
+                metersStatus === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
+              }`}>
+              {metersStatus === 'success' ? '✓ Skaitliukai tvarkoje' :
+                metersStatus === 'warning' ? '⚠ Dalinai pateikti' : '✗ Nepateikti'}
             </span>
           </div>
         </div>
@@ -783,24 +775,24 @@ export const PerformanceTenantCard = React.memo(({
   className?: string;
 }) => {
   // Memoized calculations
-  const refundable = React.useMemo(() => 
-    Math.max(0, tenant.finance.deposit - tenant.finance.totalDebt), 
+  const refundable = React.useMemo(() =>
+    Math.max(0, tenant.finance.deposit - tenant.finance.totalDebt),
     [tenant.finance.deposit, tenant.finance.totalDebt]
   );
-  
-  const approvedMeters = React.useMemo(() => 
-    tenant.meters.filter(m => m.status === 'approved').length, 
+
+  const approvedMeters = React.useMemo(() =>
+    tenant.meters.filter(m => m.status === 'approved').length,
     [tenant.meters]
   );
-  
-  const debtStatus = React.useMemo(() => 
-    tenant.finance.totalDebt > 0 ? 'error' : 'success', 
+
+  const debtStatus = React.useMemo(() =>
+    tenant.finance.totalDebt > 0 ? 'error' : 'success',
     [tenant.finance.totalDebt]
   );
-  
-  const metersStatus = React.useMemo(() => 
-    approvedMeters === tenant.meters.length ? 'success' : 
-    approvedMeters > 0 ? 'warning' : 'error', 
+
+  const metersStatus = React.useMemo(() =>
+    approvedMeters === tenant.meters.length ? 'success' :
+      approvedMeters > 0 ? 'warning' : 'error',
     [approvedMeters, tenant.meters.length]
   );
 
@@ -810,7 +802,7 @@ export const PerformanceTenantCard = React.memo(({
   const handleInvoice = React.useCallback(() => onInvoice(), [onInvoice]);
   const handleAddPayment = React.useCallback(() => onAddPayment(), [onAddPayment]);
   const handleRefund = React.useCallback(() => onRefund(), [onRefund]);
-  
+
   return (
     <div className={`bg-white border border-gray-200 rounded-xl p-4 ${className}`}>
       {/* Viršutinė eilutė - nuomininko pagrindinė informacija + veiksmai */}
@@ -818,13 +810,12 @@ export const PerformanceTenantCard = React.memo(({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-base font-bold text-gray-900 truncate">{tenant.name}</h2>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-              tenant.status === 'active' ? 'bg-green-100 text-green-700' :
-              tenant.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-red-100 text-red-700'
-            }`}>
-              {tenant.status === 'active' ? 'Aktyvus' : 
-               tenant.status === 'pending' ? 'Laukia' : 'Neaktyvus'}
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${tenant.status === 'active' ? 'bg-green-100 text-green-700' :
+                tenant.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
+              }`}>
+              {tenant.status === 'active' ? 'Aktyvus' :
+                tenant.status === 'pending' ? 'Laukia' : 'Neaktyvus'}
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-600">
@@ -832,7 +823,7 @@ export const PerformanceTenantCard = React.memo(({
             <span>•</span>
             <span>{tenant.phone}</span>
             <span>•</span>
-            <span>Įsikėlė: {new Date(tenant.moveInDate).toLocaleDateString('lt-LT')}</span>
+            <span>Įsikėlė: {new Date(tenant.moveInDate).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
           </div>
         </div>
         <div className="flex gap-1 ml-3 flex-shrink-0">
@@ -928,13 +919,12 @@ export const PerformanceTenantCard = React.memo(({
                   <div className="text-xs text-gray-600 truncate">{meter.kind}</div>
                   <div className="text-xs font-medium">{meter.lastReading || '—'}</div>
                 </div>
-                <span className={`ml-1 inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium ${
-                  meter.status === 'approved' ? 'bg-green-100 text-green-700' :
-                  meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {meter.status === 'approved' ? '✓' : 
-                   meter.status === 'pending' ? '⏳' : '✗'}
+                <span className={`ml-1 inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium ${meter.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    meter.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                  }`}>
+                  {meter.status === 'approved' ? '✓' :
+                    meter.status === 'pending' ? '⏳' : '✗'}
                 </span>
               </div>
             ))}
@@ -964,9 +954,8 @@ export const PerformanceTenantCard = React.memo(({
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Skola:</span>
-              <span className={`font-medium tabular-nums ${
-                tenant.finance.totalDebt > 0 ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <span className={`font-medium tabular-nums ${tenant.finance.totalDebt > 0 ? 'text-red-600' : 'text-green-600'
+                }`}>
                 {new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(tenant.finance.totalDebt)}
               </span>
             </div>
@@ -1002,18 +991,18 @@ export const PerformanceTenantCard = React.memo(({
               Grąžinti
             </button>
           </div>
-          
+
           {tenant.moveOut && (
             <div className="pt-1 border-t border-gray-200">
               <h4 className="text-xs font-medium text-gray-700 mb-1">Išsikraustymas</h4>
               <div className="space-y-0.5 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Pranešimas:</span>
-                  <span>{new Date(tenant.moveOut.notice).toLocaleDateString('lt-LT')}</span>
+                  <span>{new Date(tenant.moveOut.notice).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Planuojama:</span>
-                  <span>{new Date(tenant.moveOut.planned).toLocaleDateString('lt-LT')}</span>
+                  <span>{new Date(tenant.moveOut.planned).toLocaleDateString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
                 </div>
               </div>
             </div>
@@ -1032,19 +1021,17 @@ export const PerformanceTenantCard = React.memo(({
             <span>Skola: {new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR' }).format(tenant.finance.totalDebt)}</span>
           </div>
           <div className="flex gap-1">
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-              debtStatus === 'success' ? 'bg-green-100 text-green-700' :
-              'bg-red-100 text-red-700'
-            }`}>
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${debtStatus === 'success' ? 'bg-green-100 text-green-700' :
+                'bg-red-100 text-red-700'
+              }`}>
               {debtStatus === 'success' ? '✓ Mokėjimai tvarkoje' : '⚠ Yra skolos'}
             </span>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-              metersStatus === 'success' ? 'bg-green-100 text-green-700' :
-              metersStatus === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-red-100 text-red-700'
-            }`}>
-              {metersStatus === 'success' ? '✓ Skaitliukai tvarkoje' : 
-               metersStatus === 'warning' ? '⚠ Dalinai pateikti' : '✗ Nepateikti'}
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${metersStatus === 'success' ? 'bg-green-100 text-green-700' :
+                metersStatus === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
+              }`}>
+              {metersStatus === 'success' ? '✓ Skaitliukai tvarkoje' :
+                metersStatus === 'warning' ? '⚠ Dalinai pateikti' : '✗ Nepateikti'}
             </span>
           </div>
         </div>

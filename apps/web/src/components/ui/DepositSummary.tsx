@@ -16,27 +16,27 @@ export function DepositSummary({ refundAmount, canRefund, refundDeadline, onSeeF
   return (
     <div className="space-y-3">
       <div className="text-xs text-neutral-500">Depozito santrauka</div>
-      
+
       <div className="text-[15px] font-semibold text-teal-700">
         Grąžintina: {fx(refundAmount)} €
       </div>
-      
+
       {refundDeadline && (
         <div className="text-xs text-neutral-500">
-          Grąžinti iki {new Date(refundDeadline).toLocaleDateString('lt-LT')}
+          Grąžinti iki {(() => { const d = new Date(refundDeadline); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}
         </div>
       )}
-      
-      <button 
+
+      <button
         className="text-[12px] text-teal-700 underline"
         onClick={onSeeFormula}
       >
         Peržiūrėti formulę
       </button>
-      
+
       {canRefund && (
-        <Button 
-          variant="primary" 
+        <Button
+          variant="primary"
           className="w-full h-10"
           onClick={onRefund}
         >
@@ -47,13 +47,12 @@ export function DepositSummary({ refundAmount, canRefund, refundDeadline, onSeeF
   );
 }
 
-const Button = ({variant="primary", className, ...p}: any) => (
+const Button = ({ variant = "primary", className, ...p }: any) => (
   <button
-    className={`rounded-xl text-sm font-medium transition ${
-      variant==="primary" ? "bg-[#2F8481] text-white hover:bg-[#297674]" :
-      variant==="outline" ? "border border-neutral-300 hover:bg-neutral-50" :
-      "hover:bg-neutral-100"
-    } ${className || ''}`}
+    className={`rounded-xl text-sm font-medium transition ${variant === "primary" ? "bg-[#2F8481] text-white hover:bg-[#297674]" :
+        variant === "outline" ? "border border-neutral-300 hover:bg-neutral-50" :
+          "hover:bg-neutral-100"
+      } ${className || ''}`}
     {...p}
   />
 );

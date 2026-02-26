@@ -34,7 +34,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
   onClose,
   onAddMeters,
   existingMeterNames = [],
-  title = "Pridėti skaitiklį",
+  title = "Pridėti skaitliuką",
   allowMultiple = true
 }) => {
   const [activeTab, setActiveTab] = useState<'templates' | 'custom'>('templates');
@@ -43,7 +43,6 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<ValidationError[]>([]);
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
-  const [templateSaved, setTemplateSaved] = useState(false);
   const [templateListVersion, setTemplateListVersion] = useState(0);
   const [customForm, setCustomForm] = useState<{
     name: string;
@@ -64,7 +63,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
   });
 
   // Use ALL templates (built-in + custom saved ones)
-  const allTemplates = useMemo(() => getAllTemplates(), [templateSaved, templateListVersion]);
+  const allTemplates = useMemo(() => getAllTemplates(), [saveAsTemplate, templateListVersion]);
 
   // Check if any defaults are hidden
   const defaultsHidden = useMemo(() => hasHiddenDefaults(), [templateListVersion]);
@@ -197,7 +196,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
     setValidationErrors([]);
     setValidationWarnings(warnings);
 
-    // Actually save as template if toggled
+    // Save as user-scoped template if toggled (templates are per-user via meterTemplates.ts)
     if (saveAsTemplate) {
       saveCustomTemplate({
         name: customForm.name,
@@ -208,7 +207,6 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
         requiresPhoto: customForm.requiresPhoto,
         description: customForm.description,
       });
-      setTemplateSaved(prev => !prev); // trigger re-render of template list
     }
 
     const metersWithMeta = [{ ...meterData, saveAsTemplate }];
@@ -568,7 +566,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                       </div>
                     </div>
 
-                    {/* Save as template toggle */}
+                    {/* Save as template toggle — templates are user-scoped */}
                     <div
                       className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-gray-300 transition-colors group"
                       onClick={() => setSaveAsTemplate(prev => !prev)}
@@ -584,6 +582,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                         <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${saveAsTemplate ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
                       </div>
                     </div>
+
                   </div>
                 </div>
               </form>
@@ -641,7 +640,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                 className="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-sm"
               >
                 <Plus className="w-4 h-4" />
-                Sukurti skaitiklį
+                Sukurti skaitliuką
               </button>
             </div>
           )}

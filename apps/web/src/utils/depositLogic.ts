@@ -107,11 +107,8 @@ export function addDays(date: string | Date, days: number): Date {
  * Formatuoja datą lietuviškai
  */
 export function formatDateLT(date: string | Date): string {
-    return new Date(date).toLocaleDateString('lt-LT', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /**

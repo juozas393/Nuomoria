@@ -1,10 +1,18 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 
 // Lazy load heavy components for better performance
 const AddAddressModal = React.lazy(() => import('../components/properties/AddAddressModal'));
 const AddApartmentModal = React.lazy(() => import('../components/properties/AddApartmentModal').then(module => ({ default: module.AddApartmentModal })));
 const TenantListOptimized = React.lazy(() => import('../components/nuomotojas2/TenantListOptimized'));
-const TenantDetailModalPro = React.lazy(() => import('../components/nuomotojas2/TenantDetailModalPro'));
+const tenantModalImport = () => import('../components/nuomotojas2/TenantDetailModalPro');
+const TenantDetailModalPro = React.lazy(tenantModalImport);
+
+// Preload TenantDetailModalPro on idle so it opens instantly on click
+if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+  (window as any).requestIdleCallback(() => { tenantModalImport(); });
+} else {
+  setTimeout(() => { tenantModalImport(); }, 1000);
+}
 import { PlusIcon, Cog6ToothIcon, TrashIcon, BuildingOfficeIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 // VirtualizedList removed for stability - using optimized regular rendering
 import { useAuth } from '../context/AuthContext';
@@ -20,7 +28,7 @@ import { Tenant } from '../types/tenant';
 // Context Panel imports removed - using modal instead
 // Optimized image loading
 // Background image path (optimized - modern cityscape)
-const addressImage = '/images/DashboardBackground_bw.webp';
+const addressImage = '/imagesGen/DashboardImage.jpg';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatCurrency } from '../utils/format';
 import MessagingPanel from '../components/MessagingPanel';
@@ -94,7 +102,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       contractEnd: property.contract_end,
       moveInDate: property.contract_start,
       monthlyRent: property.rent || 0,
-      deposit: property.deposit_amount || 0,
+      deposit: property.deposit_amount ?? null,
       area: property.area || 0,
       rooms: property.rooms || 0,
       photos: [],
@@ -123,7 +131,13 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       heating_type: property.heating_type || 'central',
       parking_spaces: property.parking_spaces || 0,
       balcony: property.balcony || false,
-      furnished: property.furnished || false
+      furnished: property.furnished || false,
+      // Property fields needed by TenantDetailModalPro PropertyTab
+      rent: property.rent || 0,
+      deposit_amount: property.deposit_amount ?? null,
+      extended_details: property.extended_details || {},
+      under_maintenance: property.under_maintenance ?? false,
+      floor: property.floor || 0
     }));
   }, [properties]);
 
@@ -208,9 +222,28 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
     if (!apartmentToDelete) return;
     setIsDeletingApartment(true);
     try {
+      // Safety check: verify no active tenant exists for this property
+      const { data: activeTenant } = await supabase
+        .from('tenant_invitations')
+        .select('id')
+        .eq('property_id', apartmentToDelete.id)
+        .eq('status', 'accepted')
+        .limit(1);
+
+      if (activeTenant && activeTenant.length > 0) {
+        alert('Negalima ištrinti buto — yra aktyvus nuomininkas. Pirma nutraukite sutartį.');
+        return;
+      }
+
       // Delete meter readings first
       await supabase
         .from('meter_readings')
+        .delete()
+        .eq('property_id', apartmentToDelete.id);
+
+      // Delete pending/expired invitations
+      await supabase
+        .from('tenant_invitations')
         .delete()
         .eq('property_id', apartmentToDelete.id);
 
@@ -246,8 +279,6 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
     if (!addressToDelete) return;
 
     try {
-      // Starting bulk address deletion - logging removed for production
-
       // 1. Find all properties for this address
       const propertiesToDelete = properties?.filter(property =>
         property.address?.id === addressToDelete.id ||
@@ -255,54 +286,79 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       ) || [];
 
       const propertyIds = propertiesToDelete.map(p => p.id);
-      // Found properties to delete - logging removed for production
 
-      // 2. Bulk delete all related data in parallel
-      const deletePromises = [];
+      // Helper: batch .in() queries to avoid PostgREST URL length limits
+      const IN_BATCH = 50;
 
-      // Delete all meter readings for all properties at once
+      // 2. Check for active tenant invitations — block deletion if found
       if (propertyIds.length > 0) {
-        console.log(`🗑️ Bulk deleting meter readings for ${propertyIds.length} properties`);
-        deletePromises.push(
-          supabase
+        const activeInvitations: any[] = [];
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { data, error: invCheckError } = await supabase
+            .from('tenant_invitations')
+            .select('id, email, property_id')
+            .in('property_id', batch)
+            .eq('status', 'accepted');
+          if (invCheckError) console.error('Error checking tenant invitations:', invCheckError);
+          if (data) activeInvitations.push(...data);
+        }
+
+        if (activeInvitations.length > 0) {
+          alert('Negalima ištrinti adreso — yra aktyvių nuomininkų. Pirma nutraukite sutartį su nuomininku.');
+          return;
+        }
+      }
+
+      // 3. Sequential deletion — order matters for RLS!
+      // Step 3a: Delete tenant_invitations (pending/expired) for properties
+      if (propertyIds.length > 0) {
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { error: invError } = await supabase
+            .from('tenant_invitations')
+            .delete()
+            .in('property_id', batch);
+          if (invError) console.error('Error deleting tenant_invitations:', invError);
+        }
+      }
+
+      // Step 3b: Delete meter_readings (depends on properties existing)
+      if (propertyIds.length > 0) {
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { error: mrError } = await supabase
             .from('meter_readings')
             .delete()
-            .in('property_id', propertyIds)
-            .then(() => console.log(`✅ Bulk deleted meter readings for ${propertyIds.length} properties`))
-        );
+            .in('property_id', batch);
+          if (mrError) console.error('Error deleting meter_readings:', mrError);
+        }
       }
 
-      // Delete all properties at once
+      // Step 3c: Delete properties (RLS needs user_addresses to still exist!)
       if (propertyIds.length > 0) {
-        console.log(`🗑️ Bulk deleting ${propertyIds.length} properties`);
-        deletePromises.push(
-          supabase
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { error: propError } = await supabase
             .from('properties')
             .delete()
-            .in('id', propertyIds)
-            .then(() => console.log(`✅ Bulk deleted ${propertyIds.length} properties`))
-        );
+            .in('id', batch);
+          if (propError) {
+            console.error('Error deleting properties:', propError);
+            throw new Error('Nepavyko ištrinti butų');
+          }
+        }
       }
 
-      // Delete user_addresses relationships
-      console.log(`🗑️ Deleting user_addresses relationships for address: ${addressToDelete.id}`);
-      deletePromises.push(
-        supabase
-          .from('user_addresses')
-          .delete()
-          .eq('address_id', addressToDelete.id)
-          .then(() => console.log(`✅ User addresses relationships deleted for address: ${addressToDelete.id}`))
-      );
+      // Step 3d: Delete user_addresses (safe now — properties already gone)
+      const { error: uaError } = await supabase
+        .from('user_addresses')
+        .delete()
+        .eq('address_id', addressToDelete.id);
+      if (uaError) console.error('Error deleting user_addresses:', uaError);
 
-      // Wait for all deletions to complete
-      await Promise.all(deletePromises);
-
-      // Delete the address itself
-      console.log(`🗑️ Deleting address: ${addressToDelete.id}`);
+      // Step 3e: Delete the address itself
       await addressApi.delete(addressToDelete.id);
-      console.log(`✅ Address deleted: ${addressToDelete.id}`);
-
-      console.log('🎉 Bulk address deletion completed successfully');
 
       // Close modal and refresh data
       setShowDeleteAddressModal(false);
@@ -311,8 +367,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       await refreshData();
 
     } catch (error) {
-      // Error deleting address - logging removed for production
-      // Security: Error notification handled by alert
+      console.error('Error deleting address:', error);
       alert('Klaida ištrynimo metu');
     }
   }, [addressToDelete, properties, refreshData]);
@@ -328,16 +383,12 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
   const confirmDeleteAllAddresses = useCallback(async () => {
     try {
-      console.log('🗑️ Starting deletion of ALL addresses');
-
       if (!addresses || addresses.length === 0) {
-        console.log('ℹ️ No addresses to delete');
         setShowDeleteAllAddressesModal(false);
         return;
       }
 
       const addressIds = addresses.map(addr => addr.id);
-      console.log(`📋 Found ${addresses.length} addresses to delete:`, addressIds);
 
       // 1. Find all properties for all addresses
       const allProperties = properties?.filter(property =>
@@ -345,68 +396,96 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       ) || [];
 
       const propertyIds = allProperties.map(p => p.id);
-      console.log(`📋 Found ${allProperties.length} properties to delete:`, propertyIds);
 
-      // 2. Bulk delete all related data in parallel
-      const deletePromises = [];
+      // Helper: batch .in() queries to avoid PostgREST URL length limits
+      const IN_BATCH = 50;
 
-      // Delete all meter readings for all properties at once
+      // 2. Check for active tenant invitations — block deletion if found
       if (propertyIds.length > 0) {
-        console.log(`🗑️ Bulk deleting meter readings for ${propertyIds.length} properties`);
-        deletePromises.push(
-          supabase
+        const activeInvitations: any[] = [];
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { data, error: invCheckError } = await supabase
+            .from('tenant_invitations')
+            .select('id, email, property_id')
+            .in('property_id', batch)
+            .eq('status', 'accepted');
+          if (invCheckError) console.error('Error checking tenant invitations:', invCheckError);
+          if (data) activeInvitations.push(...data);
+        }
+
+        if (activeInvitations.length > 0) {
+          alert(`Negalima ištrinti — yra ${activeInvitations.length} aktyvių nuomininkų. Pirma nutraukite sutartis su nuomininkais.`);
+          return;
+        }
+      }
+
+      // 3. Sequential deletion — order matters for RLS!
+      // Step 3a: Delete tenant_invitations (pending/expired)
+      if (propertyIds.length > 0) {
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { error: invError } = await supabase
+            .from('tenant_invitations')
+            .delete()
+            .in('property_id', batch);
+          if (invError) console.error('Error deleting tenant_invitations:', invError);
+        }
+      }
+
+      // Step 3b: Delete meter_readings
+      if (propertyIds.length > 0) {
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { error: mrError } = await supabase
             .from('meter_readings')
             .delete()
-            .in('property_id', propertyIds)
-            .then(() => console.log(`✅ Bulk deleted meter readings for ${propertyIds.length} properties`))
-        );
+            .in('property_id', batch);
+          if (mrError) console.error('Error deleting meter_readings:', mrError);
+        }
       }
 
-      // Delete all properties at once
+      // Step 3c: Delete properties (RLS needs user_addresses to still exist!)
       if (propertyIds.length > 0) {
-        console.log(`🗑️ Bulk deleting ${propertyIds.length} properties`);
-        deletePromises.push(
-          supabase
+        for (let i = 0; i < propertyIds.length; i += IN_BATCH) {
+          const batch = propertyIds.slice(i, i + IN_BATCH);
+          const { error: propError } = await supabase
             .from('properties')
             .delete()
-            .in('id', propertyIds)
-            .then(() => console.log(`✅ Bulk deleted ${propertyIds.length} properties`))
-        );
+            .in('id', batch);
+          if (propError) {
+            console.error('Error deleting properties:', propError);
+            throw new Error('Nepavyko ištrinti butų');
+          }
+        }
       }
 
-      // Delete all user_addresses relationships
-      console.log(`🗑️ Deleting all user_addresses relationships`);
-      deletePromises.push(
-        supabase
-          .from('user_addresses')
-          .delete()
-          .in('address_id', addressIds)
-          .then(() => console.log(`✅ All user addresses relationships deleted`))
-      );
+      // Step 3d: Delete user_addresses (safe now — properties already gone)
+      const { error: uaError } = await supabase
+        .from('user_addresses')
+        .delete()
+        .in('address_id', addressIds);
+      if (uaError) console.error('Error deleting user_addresses:', uaError);
 
-      // Wait for all deletions to complete
-      await Promise.all(deletePromises);
-
-      // Delete all addresses at once
-      console.log(`🗑️ Bulk deleting ${addresses.length} addresses`);
-      await supabase
+      // Step 3e: Delete all addresses
+      const { error: addrError } = await supabase
         .from('addresses')
         .delete()
         .in('id', addressIds);
-      console.log(`✅ Bulk deleted ${addresses.length} addresses`);
-
-      console.log('🎉 ALL addresses deletion completed successfully');
+      if (addrError) {
+        console.error('Error deleting addresses:', addrError);
+        throw new Error('Nepavyko ištrinti adresų');
+      }
 
       // Close modal and refresh data
       setShowDeleteAllAddressesModal(false);
       setSelectedAddress(null);
       await refreshData();
 
-      // Show success message
       alert(`Sėkmingai ištrinta ${addresses.length} adresų ir ${allProperties.length} butų!`);
 
     } catch (error) {
-      // Error deleting all addresses - logging removed for production
+      console.error('Error deleting all addresses:', error);
       alert('Klaida ištrynimo metu');
     }
   }, [addresses, properties, refreshData]);
@@ -440,9 +519,9 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   }, [refreshData]);
 
   // TenantListOptimized handlers
-  const handleTenantClick = useCallback((tenant: Tenant) => {
+  const handleTenantClick = useCallback((tenant: Tenant, addressId?: string) => {
     setSelectedTenant(tenant);
-    // Security: Tenant details modal functionality implemented
+    if (addressId) setSelectedAddressId(addressId);
   }, []);
 
   const handleChatClick = useCallback((address: string) => {
@@ -480,7 +559,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   return (
     <div
       className="min-h-full relative overflow-hidden bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: `url('/images/BlueArchBackground.webp')` }}
+      style={{ backgroundImage: `url('/imagesGen/DashboardImage.jpg')` }}
     >
       {/* Particle drift background — snowfall-style effect */}
       <ParticleDrift />
@@ -498,25 +577,28 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             </div>
           </div>
 
-          {/* Main Content - with gaming theme background */}
+          {/* Main Content - dark building background */}
           <div
-            className="bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)] p-4 bg-cover bg-center border border-gray-200/80"
-            style={{ backgroundImage: `url('/images/CardsBackground.webp')` }}
+            className="relative rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25),0_2px_8px_rgba(0,0,0,0.15)] p-4 bg-cover bg-center border border-white/[0.08] overflow-hidden"
+            style={{ backgroundImage: `url('/images/DarkBuildingCardBg.png')` }}
           >
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50 rounded-2xl" />
+
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2F8481]"></div>
-                <span className="ml-3 text-gray-600">Kraunama...</span>
+              <div className="relative z-10 flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400"></div>
+                <span className="ml-3 text-white/70">Kraunama...</span>
               </div>
             ) : (
-              <div>
+              <div className="relative z-10">
                 {addressCount === 0 ? (
                   <div className="text-center py-12">
-                    <div className="text-gray-500 text-lg mb-4">Nėra pridėtų adresų</div>
-                    <p className="text-gray-500 mb-6">Pradėkite pridėdami pirmąjį adresą</p>
+                    <div className="text-white/70 text-lg mb-4">Nėra pridėtų adresų</div>
+                    <p className="text-white/50 mb-6">Pradėkite pridėdami pirmąjį adresą</p>
                     <button
                       onClick={() => setShowAddAddressModal(true)}
-                      className="inline-flex items-center px-6 py-3 bg-[#2F8481] hover:bg-[#297a77] text-white rounded-xl font-semibold transition-colors shadow-sm"
+                      className="inline-flex items-center px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white rounded-xl font-semibold transition-colors shadow-lg"
                     >
                       <PlusIcon className="w-5 h-5 mr-2" />
                       Pridėti pirmąjį adresą
@@ -525,8 +607,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                 ) : (
                   <div>
                     <div className="mb-6">
-                      <h2 className="text-2xl font-bold text-gray-900">Adresų kortelės</h2>
-                      <p className="text-gray-600">Pasirinkite adresą, kad peržiūrėtumėte jo nuomininkus</p>
+                      <h2 className="text-2xl font-bold text-white drop-shadow-sm">Adresų kortelės</h2>
+                      <p className="text-white/60">Pasirinkite adresą, kad peržiūrėtumėte jo nuomininkus</p>
                     </div>
 
                     {/* Show all addresses - optimized rendering */}
@@ -539,22 +621,30 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                         );
 
                         return (
-                          <div key={address.id} data-address-id={address.id} className="rounded-2xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-gray-200/60 bg-white">
-                            {/* Address Header — Gradient */}
-                            <div className="bg-gradient-to-r from-[#2F8481] to-[#3a9f9c] px-4 py-3">
+                          <div
+                            key={address.id}
+                            data-address-id={address.id}
+                            className="rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.25)] border border-white/[0.08] bg-cover bg-center relative"
+                            style={{ backgroundImage: `url('/images/DarkBuildingCardBg.png')` }}
+                          >
+                            {/* Dark overlay for readability */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/40 rounded-2xl" />
+
+                            {/* Address Header — Glass over dark bg */}
+                            <div className="relative z-10 bg-white/[0.06] backdrop-blur-sm border-b border-white/[0.08] px-4 py-3">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
-                                    <BuildingOfficeIcon className="h-5 w-5 text-white" />
+                                  <div className="w-9 h-9 rounded-xl bg-teal-500/20 backdrop-blur flex items-center justify-center flex-shrink-0">
+                                    <BuildingOfficeIcon className="h-5 w-5 text-teal-400" />
                                   </div>
                                   <div className="min-w-0">
-                                    <h3 className="text-[14px] font-bold text-white truncate">{address.full_address}</h3>
+                                    <h3 className="text-[14px] font-bold text-white truncate drop-shadow-sm">{address.full_address}</h3>
                                     <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-[11px] text-white/70">{addressTenants.length} butų</span>
+                                      <span className="text-[11px] text-white/60">{addressTenants.length} butų</span>
                                       {addressTenants.length > 0 && (
                                         <>
-                                          <span className="text-[11px] text-white/40">•</span>
-                                          <span className="text-[11px] text-white/90 font-medium">
+                                          <span className="text-[11px] text-white/30">•</span>
+                                          <span className="text-[11px] text-teal-300/90 font-medium">
                                             {Math.round((addressTenants.filter(t => t.status === 'active').length / addressTenants.length) * 100)}% užimta
                                           </span>
                                         </>
@@ -565,21 +655,21 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                   <button
                                     onClick={() => handleAddApartment(address.full_address, address.id)}
-                                    className="p-1.5 text-white/70 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
+                                    className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                                     title="Pridėti butą"
                                   >
                                     <PlusIcon className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setEditingAddressId(editingAddressId === address.id ? null : address.id); }}
-                                    className={`p-1.5 rounded-lg transition-colors ${editingAddressId === address.id ? 'text-white bg-white/20' : 'text-white/70 hover:text-white hover:bg-white/15'}`}
+                                    className={`p-1.5 rounded-lg transition-colors ${editingAddressId === address.id ? 'text-white bg-white/15' : 'text-white/50 hover:text-white hover:bg-white/10'}`}
                                     title={editingAddressId === address.id ? 'Baigti redagavimą' : 'Redaguoti'}
                                   >
                                     <PencilSquareIcon className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={() => handleSettingsClick(address.full_address, address.id)}
-                                    className="p-1.5 text-white/70 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
+                                    className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                                     title="Nustatymai"
                                   >
                                     <Cog6ToothIcon className="h-4 w-4" />
@@ -588,9 +678,9 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                               </div>
                             </div>
 
-                            {/* Apartment Rows */}
+                            {/* Apartment Rows — individual cards with CardsBackground */}
                             {addressTenants.length > 0 ? (
-                              <div className="divide-y divide-gray-200/80">
+                              <div className="relative z-10 p-2 flex flex-col gap-1.5">
                                 {addressTenants.map((tenant) => {
                                   const isVacant = tenant.status === 'vacant';
                                   const statusConfig = tenant.status === 'active'
@@ -606,8 +696,9 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                   return (
                                     <div
                                       key={tenant.id}
-                                      className="group/row flex items-center gap-2.5 px-3 py-2 hover:bg-[#2F8481]/[0.07] border-l-2 border-l-transparent hover:border-l-[#2F8481] transition-colors cursor-pointer"
-                                      onClick={() => handleTenantClick(tenant)}
+                                      className="group/row flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/95 bg-cover bg-center shadow-sm border border-white/60 hover:shadow-md border-l-2 border-l-transparent hover:border-l-[#2F8481] transition-all cursor-pointer"
+                                      style={{ backgroundImage: `url('/images/CardsBackground.webp')` }}
+                                      onClick={() => handleTenantClick(tenant, address.id)}
                                     >
                                       {/* Avatar / Icon */}
                                       {isVacant ? (
@@ -644,7 +735,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                             {formatCurrency(tenant.monthlyRent)}
                                           </div>
                                         )}
-                                        {editingAddressId === address.id && (
+                                        {editingAddressId === address.id && isVacant && (
                                           <button
                                             onClick={(e) => handleDeleteApartment(e, tenant)}
                                             className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -659,14 +750,14 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                 })}
                               </div>
                             ) : (
-                              <div className="px-4 py-8 text-center">
-                                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                              <div className="relative z-10 px-4 py-8 text-center">
+                                <div className="w-12 h-12 bg-white/[0.08] rounded-xl flex items-center justify-center mx-auto mb-3">
                                   <BuildingOfficeIcon className="h-6 w-6 text-gray-400" />
                                 </div>
-                                <p className="text-[12px] text-gray-500 mb-2">Nėra butų šiame adrese</p>
+                                <p className="text-[12px] text-gray-400 mb-2">Nėra butų šiame adrese</p>
                                 <button
                                   onClick={() => handleAddApartment(address.full_address, address.id)}
-                                  className="inline-flex items-center px-3 py-1.5 bg-[#2F8481] text-white text-[11px] font-semibold rounded-lg hover:bg-[#297a77] transition-colors"
+                                  className="inline-flex items-center px-3 py-1.5 bg-teal-500 text-white text-[11px] font-semibold rounded-lg hover:bg-teal-600 transition-colors"
                                 >
                                   <PlusIcon className="h-3 w-3 mr-1" />
                                   Pridėti butą
@@ -869,11 +960,16 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
             property={{
               id: selectedTenant.id,
               address: selectedTenant.address,
+              address_id: selectedAddressId,
               rooms: selectedTenant.rooms || 0,
               area: selectedTenant.area || 0,
-              floor: 0,
-              type: 'apartment',
-              status: selectedTenant.status
+              floor: (selectedTenant as any).floor || 0,
+              type: (selectedTenant as any).property_type || 'apartment',
+              status: selectedTenant.status,
+              rent: (selectedTenant as any).rent || selectedTenant.monthlyRent || 0,
+              deposit_amount: (selectedTenant as any).deposit_amount ?? selectedTenant.deposit ?? null,
+              extended_details: (selectedTenant as any).extended_details || {},
+              under_maintenance: (selectedTenant as any).under_maintenance ?? false,
             }}
             moveOut={{
               notice: '',
@@ -903,6 +999,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                 costPerApartment: meter.costPerApartment
               };
             }) : []}
+            onPropertyUpdated={refetchProperties}
           />
         </React.Suspense>
       )}

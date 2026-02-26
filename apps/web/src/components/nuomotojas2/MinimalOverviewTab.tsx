@@ -249,10 +249,10 @@ export const MinimalOverviewTab: React.FC<MinimalOverviewTabProps> = ({
                     <KPIStatCard
                         icon={Euro}
                         value={hasMeaningfulValue(tenant.deposit) ? `€${tenant.deposit}` : ''}
-                        label="Užstatas"
+                        label="Depozitas"
                         isEmpty={!hasMeaningfulValue(tenant.deposit)}
                         emptyLabel="Nenustatyta"
-                        emptyCta="Pridėti užstatą"
+                        emptyCta="Pridėti depozitą"
                         onEmptyAction={() => onNavigateTab?.('nuoma')}
                         onClick={() => onNavigateTab?.('nuoma')}
                     />
@@ -262,7 +262,7 @@ export const MinimalOverviewTab: React.FC<MinimalOverviewTabProps> = ({
                         label="Skaitikliai"
                         isEmpty={meters.length === 0}
                         emptyLabel="Nėra"
-                        emptyCta="Pridėti skaitiklį"
+                        emptyCta="Pridėti skaitliuką"
                         onEmptyAction={() => onNavigateTab?.('komunaliniai')}
                         onClick={() => onNavigateTab?.('komunaliniai')}
                     />

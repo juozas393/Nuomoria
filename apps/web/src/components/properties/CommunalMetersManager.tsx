@@ -89,16 +89,6 @@ const DEFAULT_METERS: Omit<CommunalMeter, 'id' | 'created_at' | 'updated_at'>[] 
     distribution_method: 'per_area',
     description: 'Centrinis šildymas pagal plotą',
     is_active: true
-  },
-  {
-    name: 'Techninė apžiūra',
-    type: 'communal',
-    unit: 'Kitas',
-    price_per_unit: 0,
-    fixed_price: 0,
-    distribution_method: 'per_apartment',
-    description: 'Namo techninė priežiūra ir apžiūra',
-    is_active: true
   }
 ];
 
@@ -335,7 +325,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
               {activeMeters.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p>Nėra aktyvių skaitiklių</p>
-                  <p className="text-sm">Pridėkite skaitiklį, kad pradėtumėte valdyti sąnaudas</p>
+                  <p className="text-sm">Pridėkite skaitliuką, kad pradėtumėte valdyti sąnaudas</p>
                 </div>
               ) : (
                 activeMeters.map((meter) => (
@@ -583,7 +573,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
               addMeter(meter);
             });
           }}
-          title="Pridėti komunalinį skaitiklį"
+          title="Pridėti komunalinį skaitliuką"
           allowMultiple={false}
         />
       )}

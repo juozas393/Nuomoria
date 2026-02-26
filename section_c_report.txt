@@ -1,0 +1,46 @@
+L914 [1] +1/-0: <div className="border-b border-gray-200/60">
+L915 [2] +1/-0: <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r f
+L916 [3] +1/-0: <div className="flex items-center gap-2.5">
+L917 [4] +1/-0: <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-cent
+L919 [3] +0/-1: </div>
+L921 [2] +0/-1: </div>
+L939 [1] +0/-1: </div>
+L940 [2] +1/-0: <div className="px-4 py-3">
+L942 [3] +1/-0: <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+L943 [4] +1/-0: <div>
+L945 [5] +1/-0: <div className="relative">
+L948 [4] +0/-1: </div>
+L949 [3] +0/-1: </div>
+L950 [4] +1/-0: <div>
+L952 [5] +1/-0: <div className="relative">
+L955 [4] +0/-1: </div>
+L956 [3] +0/-1: </div>
+L957 [2] +0/-1: </div>
+L961 [3] +1/-0: <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+L962 [4] +1/-0: <div className="px-3 py-2 bg-teal-50/60 rounded-lg border border-teal-100/60">
+L967 [3] +0/-1: </div>
+L968 [4] +1/-0: <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
+L973 [3] +0/-1: </div>
+L975 [4] +1/-0: <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
+L978 [3] +0/-1: </div>
+L981 [4] +1/-0: <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
+L989 [3] +0/-1: </div>
+L991 [2] +0/-1: </div>
+L996 [3] +1/-0: <div className="mt-2 flex items-center gap-4 px-3 py-2 bg-gray-50 rounded-lg bor
+L997 [4] +1/-0: <div className="flex-1">
+L1000 [3] +0/-1: </div>
+L1001 [4] +1/-0: <div className="w-px h-6 bg-gray-200" />
+L1002 [5] +1/-0: <div className="flex-1">
+L1005 [4] +0/-1: </div>
+L1006 [5] +1/-0: <div className="w-px h-6 bg-gray-200" />
+L1007 [6] +1/-0: <div className="flex-1">
+L1010 [5] +0/-1: </div>
+L1013 [6] +1/-0: <div className="w-px h-6 bg-gray-200" />
+L1014 [7] +1/-0: <div className="flex-1 flex items-center justify-center gap-1.5">
+L1015 [8] +1/-0: <div className={`w-1.5 h-1.5 rounded-full ${depositReturned ? 'bg-amber-500' : d
+L1022 [7] +0/-1: </div>
+L1025 [6] +0/-1: </div>
+L1030 [7] +1/-0: <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg bor
+L1033 [6] +0/-1: </div>
+L1035 [5] +0/-1: </div>
+L1036 [4] +0/-1: </div>

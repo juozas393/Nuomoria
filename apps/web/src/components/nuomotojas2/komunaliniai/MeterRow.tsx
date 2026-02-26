@@ -63,11 +63,11 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-// FORMATTERS - Null = em-dash for clean ledger scan
+// FORMATTERS - Null previous = 0, null current = em-dash
 // ════════════════════════════════════════════════════════════════════════════
 
 const fmt = (v: number | null | undefined): string =>
-    v == null ? '—' : v.toLocaleString('lt-LT');
+    v == null ? '0' : v.toLocaleString('lt-LT');
 
 const fmtCost = (v: number | null | undefined): string =>
     (v == null || v === 0) ? '—' : `${v.toFixed(2)} €`;
@@ -97,16 +97,17 @@ export const MeterRow = forwardRef<MeterRowRef, MeterRowProps>(({
     // Derived state
     const displayValue = draftValue !== null ? draftValue : (meter.currentReading?.toString() ?? '');
     const isDirty = draftValue !== null && draftValue !== (meter.currentReading?.toString() ?? '');
-    const showWarning = draftValue !== null && meter.previousReading !== null && parseFloat(draftValue) < meter.previousReading;
-    // All meters are always editable
+    const prevValue = meter.previousReading ?? 0;
+    const showWarning = draftValue !== null && parseFloat(draftValue) < prevValue;
+    // Always editable — null previous treated as 0
     const isEditable = true;
     const needsInput = meter.status === 'missing' && !meter.currentReading;
 
     // Live calculation
     const consumption = (() => {
-        if (draftValue && meter.previousReading !== null) {
+        if (draftValue) {
             const val = parseFloat(draftValue);
-            if (!isNaN(val) && val >= meter.previousReading) return val - meter.previousReading;
+            if (!isNaN(val) && val >= prevValue) return val - prevValue;
         }
         return meter.consumption ?? null;
     })();
@@ -146,7 +147,7 @@ export const MeterRow = forwardRef<MeterRowRef, MeterRowProps>(({
 
     return (
         <>
-            <tr className={`group transition-colors duration-100 ${rowBg}`}>
+            <tr className={`group transition-colors duration-100 select-none cursor-default ${rowBg}`}>
 
                 {/* ══════════════════════════════════════════════════════════════
                COLUMN 1: Meter Identity
@@ -218,10 +219,15 @@ export const MeterRow = forwardRef<MeterRowRef, MeterRowProps>(({
                             <input
                                 type="text"
                                 inputMode="decimal"
-                                value={prevDraft !== null ? prevDraft : (meter.previousReading?.toString() ?? '')}
+                                value={prevDraft !== null ? prevDraft : (prevValue.toString())}
                                 onChange={(e) => {
                                     const cleaned = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
                                     setPrevDraft(cleaned);
+                                    // Notify parent immediately so save bar appears while typing
+                                    const numVal = parseFloat(cleaned);
+                                    if (!isNaN(numVal)) {
+                                        onPreviousReadingChange(meter.id, numVal);
+                                    }
                                 }}
                                 onFocus={(e) => { e.target.select(); setIsPrevFocused(true); }}
                                 onBlur={() => {
@@ -234,14 +240,14 @@ export const MeterRow = forwardRef<MeterRowRef, MeterRowProps>(({
                                     }
                                     setPrevDraft(null);
                                 }}
-                                placeholder="—"
+                                placeholder="0"
                                 className={`
                                     w-full h-9 px-3 text-sm text-right tabular-nums font-medium rounded-lg
                                     transition-colors duration-150 placeholder:text-slate-300
                                     focus:outline-none
                                     ${isPrevFocused
-                                        ? 'bg-white border border-teal-500 ring-2 ring-teal-500/20 text-slate-900'
-                                        : 'bg-transparent border border-transparent hover:border-slate-200 hover:bg-slate-50 text-slate-500'
+                                        ? 'bg-white border border-teal-500 ring-2 ring-teal-500/20 text-slate-900 cursor-text'
+                                        : 'bg-transparent border border-transparent hover:border-slate-200 hover:bg-slate-50 text-slate-500 cursor-default'
                                     }
                                 `}
                             />
@@ -271,20 +277,20 @@ export const MeterRow = forwardRef<MeterRowRef, MeterRowProps>(({
                                 onKeyDown={handleKeyDown}
                                 onFocus={(e) => { e.target.select(); setIsFocused(true); }}
                                 onBlur={() => setIsFocused(false)}
-                                placeholder="—"
+                                placeholder="0"
                                 className={`
                                 w-full h-9 px-3 text-sm text-right tabular-nums font-medium rounded-lg
                                 transition-colors duration-150 placeholder:text-slate-300
                                 focus:outline-none
                                 ${hasError || showWarning
-                                        ? 'bg-red-50 border border-red-300 text-red-700 ring-2 ring-red-500/20'
+                                        ? 'bg-red-50 border border-red-300 text-red-700 ring-2 ring-red-500/20 cursor-text'
                                         : isDirty
-                                            ? 'bg-amber-50 border border-amber-300 text-amber-700'
+                                            ? 'bg-amber-50 border border-amber-300 text-amber-700 cursor-text'
                                             : isFocused
-                                                ? 'bg-white border border-teal-500 ring-2 ring-teal-500/20 text-slate-900'
+                                                ? 'bg-white border border-teal-500 ring-2 ring-teal-500/20 text-slate-900 cursor-text'
                                                 : needsInput
-                                                    ? 'bg-slate-50 border border-slate-200 hover:border-teal-400 text-slate-900'
-                                                    : 'bg-transparent border border-transparent hover:border-slate-200 hover:bg-slate-50 text-slate-900'
+                                                    ? 'bg-slate-50 border border-slate-200 hover:border-teal-400 text-slate-900 cursor-text'
+                                                    : 'bg-transparent border border-transparent hover:border-slate-200 hover:bg-slate-50 text-slate-900 cursor-default'
                                     }
                             `}
                             />
@@ -367,7 +373,7 @@ export const MeterRow = forwardRef<MeterRowRef, MeterRowProps>(({
                                     className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5 font-medium"
                                 >
                                     <Trash2 className="w-4 h-4" />
-                                    Šalinti skaitiklį
+                                    Šalinti skaitliuką
                                 </button>
                             </div>
                         </>

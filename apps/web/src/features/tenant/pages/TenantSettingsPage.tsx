@@ -55,11 +55,20 @@ const TenantSettingsPage: React.FC = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
     const [deletingAccount, setDeletingAccount] = useState(false);
+    const [deletionCheck, setDeletionCheck] = useState<{
+        loading: boolean;
+        activeLeases: { address: string; unitLabel: string; contractEnd: string }[];
+        unpaidInvoices: { count: number; totalAmount: number };
+    }>({ loading: false, activeLeases: [], unpaidInvoices: { count: 0, totalAmount: 0 } });
 
     // Role change modal
     const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
     const [roleChangeConfirmText, setRoleChangeConfirmText] = useState('');
     const [changingRole, setChangingRole] = useState(false);
+    const [roleChangeCheck, setRoleChangeCheck] = useState<{
+        loading: boolean;
+        activeLeases: { address: string; unitLabel: string; contractEnd: string }[];
+    }>({ loading: false, activeLeases: [] });
 
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const usernameCheckTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -169,8 +178,77 @@ const TenantSettingsPage: React.FC = () => {
 
 
 
+    const checkDeletionEligibility = useCallback(async () => {
+        if (!user) return;
+        setDeletionCheck(prev => ({ ...prev, loading: true }));
+        try {
+            // Check active leases (properties with status 'occupied' linked to this user)
+            const { data: activeProps } = await supabase
+                .from('user_addresses')
+                .select(`
+                    address_id,
+                    addresses:address_id (
+                        full_address
+                    )
+                `)
+                .eq('user_id', user.id);
+
+            let activeLeases: { address: string; unitLabel: string; contractEnd: string }[] = [];
+            if (activeProps && activeProps.length > 0) {
+                const addressIds = activeProps.map((ap: any) => ap.address_id);
+                const { data: occupiedProps } = await supabase
+                    .from('properties')
+                    .select('apartment_number, contract_end, address_id, addresses:address_id(full_address)')
+                    .in('address_id', addressIds)
+                    .eq('status', 'occupied');
+
+                if (occupiedProps) {
+                    activeLeases = occupiedProps.map((p: any) => ({
+                        address: (p.addresses as any)?.full_address || 'Nežinomas adresas',
+                        unitLabel: `Butas ${p.apartment_number || '?'}`,
+                        contractEnd: p.contract_end || '',
+                    }));
+                }
+            }
+
+            // Check unpaid invoices
+            let unpaidCount = 0;
+            let unpaidTotal = 0;
+            if (activeProps && activeProps.length > 0) {
+                const addressIds = activeProps.map((ap: any) => ap.address_id);
+                const { data: unpaidInvoices } = await supabase
+                    .from('invoices')
+                    .select('amount')
+                    .in('address_id', addressIds)
+                    .eq('status', 'unpaid');
+
+                if (unpaidInvoices) {
+                    unpaidCount = unpaidInvoices.length;
+                    unpaidTotal = unpaidInvoices.reduce((sum: number, inv: any) => sum + (Number(inv.amount) || 0), 0);
+                }
+            }
+
+            setDeletionCheck({
+                loading: false,
+                activeLeases,
+                unpaidInvoices: { count: unpaidCount, totalAmount: unpaidTotal },
+            });
+        } catch {
+            setDeletionCheck(prev => ({ ...prev, loading: false }));
+        }
+    }, [user]);
+
+    const handleOpenDeleteModal = useCallback(async () => {
+        setShowDeleteModal(true);
+        setDeleteConfirmText('');
+        await checkDeletionEligibility();
+    }, [checkDeletionEligibility]);
+
+    const hasBlockers = deletionCheck.activeLeases.length > 0 || deletionCheck.unpaidInvoices.count > 0;
+
     const handleDeleteAccount = async () => {
         if (!user || !profile || deleteConfirmText !== `@${profile.username}`) return;
+        if (hasBlockers) return; // Safety: don't allow deletion with blockers
         setDeletingAccount(true);
         try {
             const now = new Date();
@@ -216,6 +294,66 @@ const TenantSettingsPage: React.FC = () => {
             setDeletingAccount(false);
         }
     };
+
+    const checkRoleChangeEligibility = useCallback(async () => {
+        if (!user) return;
+        setRoleChangeCheck(prev => ({ ...prev, loading: true }));
+        try {
+            // Check if tenant is linked to any properties via tenants table
+            const { data: activeTenancies } = await supabase
+                .from('tenants')
+                .select('id, property_id, contract_end, properties:property_id(unit_number, address_id, addresses:address_id(full_address))')
+                .eq('user_id', user.id);
+
+            let activeLeases: { address: string; unitLabel: string; contractEnd: string }[] = [];
+            if (activeTenancies && activeTenancies.length > 0) {
+                activeLeases = activeTenancies.map((t: any) => ({
+                    address: (t.properties as any)?.addresses?.full_address || 'Nežinomas adresas',
+                    unitLabel: `Butas ${(t.properties as any)?.unit_number || '?'}`,
+                    contractEnd: t.contract_end || '',
+                }));
+            }
+
+            // Also check user_addresses linkage
+            if (activeLeases.length === 0) {
+                const { data: linkedAddresses } = await supabase
+                    .from('user_addresses')
+                    .select('address_id, addresses:address_id(full_address)')
+                    .eq('user_id', user.id)
+                    .eq('role', 'tenant');
+
+                if (linkedAddresses && linkedAddresses.length > 0) {
+                    // Check if any properties are occupied under these addresses
+                    const addressIds = linkedAddresses.map((la: any) => la.address_id);
+                    const { data: occupiedProps } = await supabase
+                        .from('properties')
+                        .select('unit_number, contract_end, address_id, addresses:address_id(full_address)')
+                        .in('address_id', addressIds)
+                        .eq('status', 'occupied');
+
+                    if (occupiedProps && occupiedProps.length > 0) {
+                        activeLeases = occupiedProps.map((p: any) => ({
+                            address: (p.addresses as any)?.full_address || 'Nežinomas adresas',
+                            unitLabel: `Butas ${p.unit_number || '?'}`,
+                            contractEnd: p.contract_end || '',
+                        }));
+                    }
+                }
+            }
+
+            setRoleChangeCheck({ loading: false, activeLeases });
+        } catch {
+            setRoleChangeCheck(prev => ({ ...prev, loading: false }));
+        }
+    }, [user]);
+
+    const handleOpenRoleChangeModal = useCallback(async () => {
+        setShowRoleChangeModal(true);
+        setRoleChangeConfirmText('');
+        await checkRoleChangeEligibility();
+    }, [checkRoleChangeEligibility]);
+
+    const hasRoleChangeBlockers = roleChangeCheck.activeLeases.length > 0;
 
     const handleRoleChange = async () => {
         if (!user || !profile || roleChangeConfirmText !== 'KEISTI') return;
@@ -447,7 +585,7 @@ const TenantSettingsPage: React.FC = () => {
                                         <span className="font-medium text-gray-900">Google</span>
                                     </div>
                                 </div>
-                                {profile.created_at && <div className="flex justify-between"><span className="text-gray-500">Registracija</span><span className="font-medium text-gray-900">{new Date(profile.created_at).toLocaleDateString('lt-LT')}</span></div>}
+                                {profile.created_at && <div className="flex justify-between"><span className="text-gray-500">Registracija</span><span className="font-medium text-gray-900">{(() => { const d = new Date(profile.created_at); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span></div>}
                             </div>
 
                             {/* Profile completion progress */}
@@ -500,7 +638,7 @@ const TenantSettingsPage: React.FC = () => {
                                     Keičiant rolę, visi duomenys bus ištrinti ir galėsite pasirinkti naują rolę.
                                 </p>
                                 <button
-                                    onClick={() => setShowRoleChangeModal(true)}
+                                    onClick={handleOpenRoleChangeModal}
                                     className="text-sm text-amber-600 hover:text-amber-700 font-medium"
                                 >
                                     Keisti rolę →
@@ -510,7 +648,7 @@ const TenantSettingsPage: React.FC = () => {
                             {/* Delete Account */}
                             <p className="text-xs text-gray-500 mb-2">Paskyros ištrynimas yra negrįžtamas. Visi duomenys bus prarasti.</p>
                             <button
-                                onClick={() => setShowDeleteModal(true)}
+                                onClick={() => handleOpenDeleteModal()}
                                 className="text-sm text-red-600 hover:text-red-700 font-medium"
                             >
                                 Ištrinti paskyrą →
@@ -525,38 +663,101 @@ const TenantSettingsPage: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
                         <div className="text-center mb-6">
-                            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            <div className={`w-14 h-14 ${hasBlockers ? 'bg-amber-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                                <svg className={`w-7 h-7 ${hasBlockers ? 'text-amber-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-1">Ištrinti paskyrą?</h3>
-                            <p className="text-sm text-gray-500">Paskyra bus ištrinta. Galėsite atkurti per 30 dienų.</p>
+                            <h3 className="text-xl font-bold text-gray-900 mb-1">
+                                {hasBlockers ? 'Negalima ištrinti paskyros' : 'Ištrinti paskyrą?'}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                                {hasBlockers
+                                    ? 'Prašome išspręsti šiuos klausimus prieš trinant paskyrą.'
+                                    : 'Paskyra bus ištrinta. Galėsite atkurti per 30 dienų.'}
+                            </p>
                         </div>
-                        <div className="mb-5">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Įveskite <span className="font-bold text-red-600">@{profile.username}</span> patvirtinimui
-                            </label>
-                            <input
-                                type="text"
-                                value={deleteConfirmText}
-                                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                                className="w-full h-11 px-4 border-2 border-gray-200 rounded-xl focus:border-red-400 focus:outline-none text-center"
-                                placeholder={`@${profile.username}`}
-                            />
-                        </div>
+
+                        {/* Loading state */}
+                        {deletionCheck.loading && (
+                            <div className="flex items-center justify-center py-4">
+                                <div className="w-5 h-5 border-2 border-gray-300 border-t-[#2F8481] rounded-full animate-spin" />
+                                <span className="ml-2 text-sm text-gray-500">Tikrinama...</span>
+                            </div>
+                        )}
+
+                        {/* Blockers */}
+                        {!deletionCheck.loading && hasBlockers && (
+                            <div className="space-y-3 mb-5">
+                                {deletionCheck.activeLeases.length > 0 && (
+                                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                            <span className="text-sm font-semibold text-red-700">Aktyvi nuomos sutartis</span>
+                                        </div>
+                                        {deletionCheck.activeLeases.map((lease, i) => (
+                                            <div key={i} className="text-xs text-red-600 ml-6">
+                                                {lease.unitLabel}, {lease.address}
+                                                {lease.contractEnd && (
+                                                    <span className="text-red-400"> (iki {(() => { const d = new Date(lease.contractEnd); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()})</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <p className="text-xs text-red-500 mt-2 ml-6">
+                                            Susisiekite su nuomotoju dėl sutarties nutraukimo.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {deletionCheck.unpaidInvoices.count > 0 && (
+                                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span className="text-sm font-semibold text-amber-700">Neapmokėtos sąskaitos</span>
+                                        </div>
+                                        <p className="text-xs text-amber-600 ml-6">
+                                            {deletionCheck.unpaidInvoices.count} sąskait{deletionCheck.unpaidInvoices.count === 1 ? 'a' : 'os'} — {new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(deletionCheck.unpaidInvoices.totalAmount)}
+                                        </p>
+                                        <p className="text-xs text-amber-500 mt-1 ml-6">
+                                            Apmokėkite sąskaitas prieš trinant paskyrą.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Confirm input — only when no blockers */}
+                        {!deletionCheck.loading && !hasBlockers && (
+                            <div className="mb-5">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Įveskite <span className="font-bold text-red-600">@{profile.username}</span> patvirtinimui
+                                </label>
+                                <input
+                                    type="text"
+                                    value={deleteConfirmText}
+                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                    className="w-full h-11 px-4 border-2 border-gray-200 rounded-xl focus:border-red-400 focus:outline-none text-center"
+                                    placeholder={`@${profile.username}`}
+                                />
+                            </div>
+                        )}
+
                         <div className="flex gap-3">
-                            <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }} className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium">Atšaukti</button>
-                            <button
-                                onClick={handleDeleteAccount}
-                                disabled={deleteConfirmText !== `@${profile.username}` || deletingAccount}
-                                className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {deletingAccount ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        Trinama...
-                                    </>
-                                ) : 'Ištrinti'}
+                            <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }} className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium">
+                                {hasBlockers ? 'Supratau' : 'Atšaukti'}
                             </button>
+                            {!hasBlockers && !deletionCheck.loading && (
+                                <button
+                                    onClick={handleDeleteAccount}
+                                    disabled={deleteConfirmText !== `@${profile.username}` || deletingAccount}
+                                    className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {deletingAccount ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            Trinama...
+                                        </>
+                                    ) : 'Ištrinti'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -567,38 +768,84 @@ const TenantSettingsPage: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
                         <div className="text-center mb-6">
-                            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                            <div className={`w-14 h-14 ${hasRoleChangeBlockers ? 'bg-red-100' : 'bg-amber-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                                <svg className={`w-7 h-7 ${hasRoleChangeBlockers ? 'text-red-600' : 'text-amber-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-1">Keisti rolę?</h3>
-                            <p className="text-sm text-gray-500">Visi jūsų duomenys bus ištrinti ir galėsite pasirinkti naują rolę.</p>
+                            <h3 className="text-xl font-bold text-gray-900 mb-1">
+                                {hasRoleChangeBlockers ? 'Negalima keisti rolės' : 'Keisti rolę?'}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                                {hasRoleChangeBlockers
+                                    ? 'Turite aktyvią nuomos sutartį. Prašome pirmiausia susisiekti su nuomotoju.'
+                                    : 'Visi jūsų duomenys bus ištrinti ir galėsite pasirinkti naują rolę.'}
+                            </p>
                         </div>
-                        <div className="mb-5">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Įveskite <span className="font-bold text-amber-600">KEISTI</span> patvirtinimui
-                            </label>
-                            <input
-                                type="text"
-                                value={roleChangeConfirmText}
-                                onChange={(e) => setRoleChangeConfirmText(e.target.value.toUpperCase())}
-                                className="w-full h-11 px-4 border-2 border-gray-200 rounded-xl focus:border-amber-400 focus:outline-none text-center"
-                                placeholder="KEISTI"
-                            />
-                        </div>
+
+                        {/* Loading state */}
+                        {roleChangeCheck.loading && (
+                            <div className="flex items-center justify-center py-4">
+                                <div className="w-5 h-5 border-2 border-gray-300 border-t-[#2F8481] rounded-full animate-spin" />
+                                <span className="ml-2 text-sm text-gray-500">Tikrinama...</span>
+                            </div>
+                        )}
+
+                        {/* Blockers — active tenancies */}
+                        {!roleChangeCheck.loading && hasRoleChangeBlockers && (
+                            <div className="mb-5">
+                                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                        <span className="text-sm font-semibold text-red-700">Aktyvios nuomos sutartys</span>
+                                    </div>
+                                    {roleChangeCheck.activeLeases.map((lease, i) => (
+                                        <div key={i} className="text-xs text-red-600 ml-6">
+                                            {lease.unitLabel}, {lease.address}
+                                            {lease.contractEnd && (
+                                                <span className="text-red-400"> (iki {(() => { const d = new Date(lease.contractEnd); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()})</span>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <p className="text-xs text-red-500 mt-2 ml-6">
+                                        Susisiekite su nuomotoju dėl nuomos sutarties nutraukimo.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Confirm input — only when no blockers */}
+                        {!roleChangeCheck.loading && !hasRoleChangeBlockers && (
+                            <div className="mb-5">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Įveskite <span className="font-bold text-amber-600">KEISTI</span> patvirtinimui
+                                </label>
+                                <input
+                                    type="text"
+                                    value={roleChangeConfirmText}
+                                    onChange={(e) => setRoleChangeConfirmText(e.target.value.toUpperCase())}
+                                    className="w-full h-11 px-4 border-2 border-gray-200 rounded-xl focus:border-amber-400 focus:outline-none text-center"
+                                    placeholder="KEISTI"
+                                />
+                            </div>
+                        )}
+
                         <div className="flex gap-3">
-                            <button onClick={() => { setShowRoleChangeModal(false); setRoleChangeConfirmText(''); }} className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium">Atšaukti</button>
-                            <button
-                                onClick={handleRoleChange}
-                                disabled={roleChangeConfirmText !== 'KEISTI' || changingRole}
-                                className="flex-1 h-11 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {changingRole ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        Keičiama...
-                                    </>
-                                ) : 'Keisti rolę'}
+                            <button onClick={() => { setShowRoleChangeModal(false); setRoleChangeConfirmText(''); }} className="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium">
+                                {hasRoleChangeBlockers ? 'Supratau' : 'Atšaukti'}
                             </button>
+                            {!hasRoleChangeBlockers && !roleChangeCheck.loading && (
+                                <button
+                                    onClick={handleRoleChange}
+                                    disabled={roleChangeConfirmText !== 'KEISTI' || changingRole}
+                                    className="flex-1 h-11 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {changingRole ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            Keičiama...
+                                        </>
+                                    ) : 'Keisti rolę'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

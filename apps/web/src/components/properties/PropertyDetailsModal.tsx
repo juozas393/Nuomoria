@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import LtDateInput from '../ui/LtDateInput';
 import { PhoneIcon, EnvelopeIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { ModalPortal } from '../ui/ModalPortal';
 import clsx from 'clsx';
@@ -81,7 +82,8 @@ interface PropertyDetailsModalProps {
 // Utility functions (moved to top for component access)
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('lt-LT');
+  const d = new Date(dateString);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const formatCurrency = (amount: number) => {
@@ -297,17 +299,15 @@ const MoveOutSection = React.memo(({ apartment, actualMoveOutDate, setActualMove
       <div className="flex items-center justify-between">
         <span className="text-neutral-600">Faktinė data:</span>
         <div className="flex items-center gap-3">
-          <input
-            type="date"
+          <LtDateInput
             className="text-sm border border-neutral-300 rounded px-3 py-2 w-32"
             value={actualMoveOutDate}
             onChange={(e) => setActualMoveOutDate(e.target.value)}
-            placeholder="yyyy-MM-dd"
           />
           <button
             className={`text-sm px-4 py-2 rounded ${actualMoveOutDate
-                ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
-                : 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+              ? 'bg-[#2F8481] text-white hover:bg-[#2F8481]/90'
+              : 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
               }`}
             onClick={onSaveActualMoveOutDate}
             disabled={!actualMoveOutDate}
@@ -775,8 +775,8 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
             <button
               onClick={() => setActiveTab('overview')}
               className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'overview'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               Apžvalga
@@ -784,8 +784,8 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
             <button
               onClick={() => setActiveTab('meters')}
               className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'meters'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               Skaitliukai

@@ -26,8 +26,12 @@ const Nuomotojas2Dashboard = React.lazy(() =>
 
 const Properties = React.lazy(() => import(/* webpackChunkName: "properties" */ './pages/Properties'));
 const Tenants = React.lazy(() => import(/* webpackChunkName: "tenants" */ './pages/Tenants'));
+const TenantLayout = React.lazy(() => import(/* webpackChunkName: "tenant-layout" */ './features/tenant/layouts/TenantLayout'));
 const TenantDashboard = React.lazy(() => import(/* webpackChunkName: "tenant-dashboard" */ './features/tenant/pages/TenantDashboardPage'));
 const TenantSettingsPage = React.lazy(() => import(/* webpackChunkName: "tenant-settings" */ './features/tenant/pages/TenantSettingsPage'));
+const TenantMeters = React.lazy(() => import(/* webpackChunkName: "tenant-meters" */ './pages/tenant/TenantMeters'));
+const TenantInvoices = React.lazy(() => import(/* webpackChunkName: "tenant-invoices" */ './pages/tenant/TenantInvoices'));
+const TenantContractPage = React.lazy(() => import(/* webpackChunkName: "tenant-contract" */ './pages/tenant/TenantContractPage'));
 const MetersPage = React.lazy(() => import(/* webpackChunkName: "meters" */ './pages/Meters'));
 const MeterPolicyDemo = React.lazy(() => import(/* webpackChunkName: "meter-demo" */ './pages/MeterPolicyDemo'));
 const Invoices = React.lazy(() => import(/* webpackChunkName: "invoices" */ './pages/Invoices'));
@@ -37,6 +41,7 @@ const Profile = React.lazy(() => import(/* webpackChunkName: "profile" */ './pag
 const Apartments = React.lazy(() => import(/* webpackChunkName: "apartments" */ './pages/Apartments'));
 const Settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './pages/Settings'));
 const Users = React.lazy(() => import(/* webpackChunkName: "users" */ './pages/Users'));
+const AdminDashboard = React.lazy(() => import(/* webpackChunkName: "admin" */ './pages/AdminDashboard'));
 
 // Auth pages - load immediately as they're critical
 const SupabaseLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseLogin'));
@@ -48,6 +53,9 @@ const MagicLinkVerify = React.lazy(() => import(/* webpackChunkName: "auth" */ '
 
 const EmailConfirmation = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/EmailConfirmation'));
 const Welcome = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Welcome'));
+
+// Landing page
+const LandingPage = React.lazy(() => import(/* webpackChunkName: "landing" */ './pages/LandingPage'));
 
 // Guide page
 const GuidePage = React.lazy(() => import(/* webpackChunkName: "guide" */ './pages/GuidePage'));
@@ -126,7 +134,11 @@ const RoleBasedRedirect: React.FC = () => {
     return <Navigate to="/tenant" replace />;
   }
 
-  // Landlord/admin -> landlord dashboard
+  if (user.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  // Landlord -> landlord dashboard
   return <Navigate to="/dashboard" replace />;
 };
 
@@ -138,6 +150,7 @@ function AppContent() {
         <React.Suspense fallback={<LoadingFallback />}>
           <Routes>
             {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<ProfessionalLogin />} />
             <Route path="/login-old" element={<SupabaseLogin />} />
             <Route path="/auth/callback" element={<SupabaseAuthCallback />} />
@@ -150,14 +163,12 @@ function AppContent() {
             <Route path="/test-modal" element={<TestModal />} />
             <Route path="/pagalba" element={<GuidePage />} />
 
-            {/* Protected routes with AppShell */}
-            <Route path="/" element={
+            {/* Protected routes with AppShell — pathless layout so / stays as LandingPage */}
+            <Route element={
               <ProtectedRoute>
                 <AppShell />
               </ProtectedRoute>
             }>
-              {/* Role-based home page redirect */}
-              <Route index element={<RoleBasedRedirect />} />
 
               {/* Landlord-only routes — tenants get redirected to /tenant */}
               <Route path="dashboard" element={
@@ -233,13 +244,11 @@ function AppContent() {
                 </RoleGuard>
               } />
               <Route path="profilis" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunamas profilis..." />}>
-                      <Profile />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
+                <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                  <React.Suspense fallback={<LoadingFallback message="Kraunamas profilis..." />}>
+                    <Profile />
+                  </React.Suspense>
+                </ErrorBoundary>
               } />
               <Route path="nustatymai" element={
                 <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
@@ -260,6 +269,17 @@ function AppContent() {
                 </RoleGuard>
               } />
 
+              {/* Admin-only dashboard */}
+              <Route path="admin" element={
+                <RoleGuard allowedRoles={['admin']} redirectTo="/dashboard">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
+                    <React.Suspense fallback={<LoadingFallback message="Kraunama admin panelė..." />}>
+                      <AdminDashboard />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                </RoleGuard>
+              } />
+
               {/* Guide page - accessible by all roles */}
               <Route path="pagalba" element={
                 <ErrorBoundary fallback={<ErrorFallbackPage />}>
@@ -268,31 +288,47 @@ function AppContent() {
                   </React.Suspense>
                 </ErrorBoundary>
               } />
-            </Route>
 
-            {/* Tenant routes */}
-            <Route path="/tenant" element={
-              <ProtectedRoute>
+              {/* Tenant routes — inside AppShell (sidebar + header) */}
+              <Route path="tenant" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomininko dashboard..." />}>
+                  <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomininko skydelis..." />}>
                     <TenantDashboard />
                   </React.Suspense>
                 </RoleGuard>
-              </ProtectedRoute>
-            } />
-
-            <Route path="/tenant/settings" element={
-              <ProtectedRoute>
+              } />
+              <Route path="tenant/settings" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
                   <React.Suspense fallback={<LoadingFallback message="Kraunami nustatymai..." />}>
                     <TenantSettingsPage />
                   </React.Suspense>
                 </RoleGuard>
-              </ProtectedRoute>
-            } />
+              } />
+              <Route path="tenant/meters" element={
+                <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
+                  <React.Suspense fallback={<LoadingFallback message="Kraunami skaitikliai..." />}>
+                    <TenantMeters />
+                  </React.Suspense>
+                </RoleGuard>
+              } />
+              <Route path="tenant/invoices" element={
+                <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
+                  <React.Suspense fallback={<LoadingFallback message="Kraunamos sąskaitos..." />}>
+                    <TenantInvoices />
+                  </React.Suspense>
+                </RoleGuard>
+              } />
+              <Route path="tenant/contract" element={
+                <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
+                  <React.Suspense fallback={<LoadingFallback message="Kraunama sutartis..." />}>
+                    <TenantContractPage />
+                  </React.Suspense>
+                </RoleGuard>
+              } />
+            </Route>
 
             {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </React.Suspense>
       </div>

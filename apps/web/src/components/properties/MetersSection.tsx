@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import LtDateInput from '../ui/LtDateInput';
 import { MeterForm, MeterType, MeterUnit, MeterTariff, Unit, type Allocation } from '../../types/meters';
 
 interface MetersSectionProps {
@@ -121,11 +122,10 @@ export function MetersSection({ defaultStartDate, meters, onMetersChange }: Mete
                 value={m.initialReading || ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(m.id || '', { initialReading: e.target.valueAsNumber || 0 })}
               />
-              <Input
-                type="date"
-                label="Data"
+              <LtDateInput
                 value={m.initialDate ?? ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(m.id || '', { initialDate: e.target.value })}
+                onChange={(e) => update(m.id || '', { initialDate: e.target.value })}
+                className="w-full rounded-lg border border-neutral-200 px-2 py-1.5 text-[13px]"
               />
             </div>
 

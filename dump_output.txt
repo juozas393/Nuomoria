@@ -1,0 +1,26 @@
+﻿supabase : Initialising login role...
+At line:1 char:1
++ supabase db dump --file 
+supabase/staging_dump.sql 2>&1 | 
+Out-File -Fi ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpec 
+   ified: (Initialising login role..  
+  .:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeC 
+   ommandError
+ 
+Dumping schemas from remote 
+database...
+Dumped schema to 
+C:\Users\juoza\Desktop\Tvarkingi Darba
+i\PropertyManagmentv2\supabase\staging
+_dump.sql.
+A new version of Supabase CLI is 
+available: v2.75.0 (currently 
+installed v2.72.7)
+We recommend updating regularly for 
+new features and bug fixes: https://su
+pabase.com/docs/guides/cli/getting-sta
+rted#updating-the-supabase-cli

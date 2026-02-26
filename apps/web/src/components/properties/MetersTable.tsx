@@ -105,7 +105,6 @@ const AVAILABLE_METERS = [
   { name: 'Elektra', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.23, distribution_method: 'per_consumption' as const, description: 'Buto elektros suvartojimas', icon: 'Elektra', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
   { name: 'Šildymas', type: 'individual' as const, unit: 'kWh' as const, price_per_unit: 0.095, distribution_method: 'per_area' as const, description: 'Centrinis šildymas pagal plotą', icon: 'Šildymas', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
   { name: 'Dujos', type: 'individual' as const, unit: 'm3' as const, price_per_unit: 0.99, distribution_method: 'per_consumption' as const, description: 'Gamtinių dujų suvartojimas', icon: 'Dujos', requires_photo: true, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: true },
-  { name: 'Techninė apžiūra', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 0, distribution_method: 'per_apartment' as const, description: 'Namo techninė priežiūra ir apžiūra', icon: 'Techninė apžiūra', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: true, tenantPhotoEnabled: false },
   { name: 'Šiukšlės', type: 'communal' as const, unit: 'Kitas' as const, price_per_unit: 0, fixed_price: 5, distribution_method: 'fixed_split' as const, description: 'Komunalinių atliekų išvežimas', icon: 'Šiukšlės', requires_photo: false, enableMeterEditing: true, landlordReadingEnabled: false, tenantPhotoEnabled: false }
 ];
 
@@ -677,11 +676,8 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       setConnectorPath(path);
     };
 
-    // Initial measure
-    requestAnimationFrame(() => {
-      // Second RAF to catch final layout after modal/fonts/scroll settle
-      requestAnimationFrame(measure);
-    });
+    // Single RAF — measure on next paint frame
+    requestAnimationFrame(measure);
   }, [selectedMeterId]);
 
   // Update connector on mount, selection, and resize - use useLayoutEffect for synchronous measurement
@@ -776,11 +772,6 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   // Adapter functions for modern design
   const convertToModernMeter = (meter: LocalMeter): ModernMeter => {
-    console.log('🔍 Converting meter to modern format:', {
-      name: meter.name,
-      type: meter.type,
-      distribution_method: meter.distribution_method
-    });
 
     // Determine the correct type based on meter name
     let type: ModernMeter['type'] = 'electricity';
@@ -953,7 +944,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
     } catch (error) {
       console.error('Error adding meter:', error);
-      alert('Klaida pridedant skaitiklį. Bandykite dar kartą.');
+      alert('Klaida pridedant skaitliuką. Bandykite dar kartą.');
     }
   };
 
@@ -1427,7 +1418,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             stroke="url(#connectorGradient)"
             strokeWidth="2.5"
             strokeLinecap="round"
-            className="transition-colors duration-200"
+            style={{ transition: 'd 250ms ease-out' }}
           />
 
           {/* Start endpoint - ring + dot */}
@@ -1438,14 +1429,14 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             fill="white"
             stroke="#14b8a6"
             strokeWidth="2"
-            className="transition-colors duration-200"
+            style={{ transition: 'cx 250ms ease-out, cy 250ms ease-out' }}
           />
           <circle
             cx={connectorPath.split(' ')[1]}
             cy={connectorPath.split(' ')[2]}
             r="3"
             fill="#0d9488"
-            className="transition-colors duration-200"
+            style={{ transition: 'cx 250ms ease-out, cy 250ms ease-out' }}
           />
 
           {/* End endpoint - extract end coordinates */}
@@ -1455,8 +1446,8 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             const endY = parts[parts.length - 1];
             return (
               <>
-                <circle cx={endX} cy={endY} r="6" fill="white" stroke="#14b8a6" strokeWidth="2" className="transition-colors duration-200" />
-                <circle cx={endX} cy={endY} r="3" fill="#0d9488" className="transition-colors duration-200" />
+                <circle cx={endX} cy={endY} r="6" fill="white" stroke="#14b8a6" strokeWidth="2" style={{ transition: 'cx 250ms ease-out, cy 250ms ease-out' }} />
+                <circle cx={endX} cy={endY} r="3" fill="#0d9488" style={{ transition: 'cx 250ms ease-out, cy 250ms ease-out' }} />
               </>
             );
           })()}
@@ -1473,7 +1464,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       >
         {/* LEFT: Meters List - Browse Zone */}
         <div className="transition-colors duration-200">
-          <div className="bg-white/95 rounded-xl border border-white/10 shadow-md p-4" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+          <div className="bg-white/95 rounded-xl border border-white/10 shadow-md p-4 select-none" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
             {/* List Header */}
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -1561,7 +1552,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                       tabIndex={0}
                       role="button"
                       aria-pressed={isSelected}
-                      className={`group flex items-center gap-3 px-3.5 py-3.5 rounded-xl cursor-pointer transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#2F8481]/50 ${isSelected
+                      className={`group flex items-center gap-3 px-3.5 py-3.5 rounded-xl cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#2F8481]/50 transition-[background-color,border-color,box-shadow] duration-200 ease-out ${isSelected
                         ? 'bg-teal-50/80 border-l-4 border-l-[#2F8481] border border-t-teal-200/60 border-r-teal-200/60 border-b-teal-200/60 shadow-sm'
                         : 'bg-white/70 hover:bg-white/90 border border-gray-300 hover:border-gray-400 shadow-sm'
                         }`}
@@ -1657,12 +1648,12 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         {/* RIGHT: Editor Panel - Workspace Zone */}
         {selectedMeter ? (
           <div
-            className="bg-white/95 rounded-xl border border-white/10 shadow-lg transition-colors duration-200 flex flex-col"
+            className="bg-white/95 rounded-xl border border-white/10 shadow-lg flex flex-col"
             style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}
             ref={panelRef}
           >
             {/* Panel Header - Workspace bar */}
-            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl select-none">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-[#2F8481]/10 flex items-center justify-center flex-shrink-0">
@@ -1700,11 +1691,11 @@ export const MetersTable: React.FC<MetersTableProps> = ({
               </div>
             </div>
 
-            {/* Form Content */}
-            <div className="p-5 space-y-4 overflow-y-auto flex-1 h-[400px]">
+            {/* Form Content — fade in on meter change */}
+            <div key={selectedMeterId} className="p-5 space-y-4 overflow-y-auto flex-1 h-[400px]" style={{ animation: 'fadeInContent 180ms ease-out' }}>
 
               {/* Card 1: Type */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 select-none">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Tipas</h4>
                 </div>
@@ -1716,7 +1707,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                 <div className="flex gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm">
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), mode: 'individual' })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors ${selectedMeter.type === 'individual'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all duration-200 ${selectedMeter.type === 'individual'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1725,7 +1716,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                   </button>
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), mode: 'shared' })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors ${selectedMeter.type === 'communal'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all duration-200 ${selectedMeter.type === 'communal'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1763,7 +1754,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
               </div>
 
               {/* Card 3: Distribution */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 select-none">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Paskirstymas</h4>
                 </div>
@@ -1781,7 +1772,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                 <div className="grid grid-cols-2 gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm">
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_consumption' })}
-                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_consumption'
+                    className={`py-2 rounded-md text-[11px] font-bold transition-all duration-200 ${selectedMeter.distribution_method === 'per_consumption'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1790,7 +1781,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                   </button>
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_area' })}
-                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_area'
+                    className={`py-2 rounded-md text-[11px] font-bold transition-all duration-200 ${selectedMeter.distribution_method === 'per_area'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1799,7 +1790,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                   </button>
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_apartment' })}
-                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_apartment'
+                    className={`py-2 rounded-md text-[11px] font-bold transition-all duration-200 ${selectedMeter.distribution_method === 'per_apartment'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1808,7 +1799,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                   </button>
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), allocation: 'per_person' })}
-                    className={`py-2 rounded-md text-[11px] font-bold transition-colors ${selectedMeter.distribution_method === 'per_person'
+                    className={`py-2 rounded-md text-[11px] font-bold transition-all duration-200 ${selectedMeter.distribution_method === 'per_person'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1819,14 +1810,14 @@ export const MetersTable: React.FC<MetersTableProps> = ({
               </div>
 
               {/* Card 4: Readings */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 select-none">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Rodmenys</h4>
                 </div>
                 <div className="flex gap-1 p-1 bg-white rounded-lg border border-gray-200 shadow-sm mb-3">
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), collectionMode: 'landlord_only', photoRequired: false })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'landlord_only'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all duration-200 flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'landlord_only'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1836,7 +1827,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                   </button>
                   <button
                     onClick={() => handleModernMeterChange({ ...convertToModernMeter(selectedMeter), collectionMode: 'tenant_photo', photoRequired: true })}
-                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-colors flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'tenant_photo'
+                    className={`flex-1 py-2 rounded-md text-[12px] font-bold transition-all duration-200 flex items-center justify-center gap-2 ${selectedMeter.collectionMode === 'tenant_photo'
                       ? 'bg-[#2F8481] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-50'
                       }`}
@@ -1923,7 +1914,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         onClose={() => setShowAddModal(false)}
         onAddMeters={handleAddMeters}
         existingMeterNames={meters.map(m => m.name)}
-        title="Pridėti skaitiklį"
+        title="Pridėti skaitliuką"
         allowMultiple={true}
       />
 
