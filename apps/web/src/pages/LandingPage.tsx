@@ -114,7 +114,6 @@ const LandingPage: React.FC = () => {
     // If authenticated, redirect based on role
     if (!loading && isAuthenticated) {
         if (user?.role === 'tenant') return <Navigate to="/tenant" replace />;
-        if (user?.role === 'admin') return <Navigate to="/admin" replace />;
         return <Navigate to="/dashboard" replace />;
     }
 
@@ -777,7 +776,7 @@ const LandingPage: React.FC = () => {
                 <div className="max-w-[1100px] mx-auto">
                     <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-3">
-                            <img src={logoImage} alt="Nuomoria" className="h-8 w-auto object-contain opacity-40" />
+                            <img src={smallLogoWhite} alt="Nuomoria" className="h-8 w-auto object-contain opacity-50" />
                         </div>
                         <div className="flex items-center gap-6">
                             <a href="#features" className="text-[12px] transition-colors duration-200 hover:text-teal-400/60" style={{ color: 'rgba(255,255,255,0.25)' }}>
