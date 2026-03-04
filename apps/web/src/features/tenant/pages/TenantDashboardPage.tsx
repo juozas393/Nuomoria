@@ -21,6 +21,7 @@ import {
     Gauge,
     AlertTriangle,
     ChevronDown,
+    ChevronRight,
     Check,
     Clock,
     Phone,
@@ -156,8 +157,10 @@ const TenantDashboardPage: React.FC = () => {
         // TODO: Dokumentų peržiūra
     };
 
-    // User info
-    const userName = (user as any)?.user_metadata?.full_name || user?.first_name || user?.email?.split('@')[0] || 'Naudotojas';
+    // User info — Google OAuth stores name as 'full_name'/'given_name', not 'first_name'
+    const userMeta = (user as any)?.user_metadata;
+    const firstName = user?.first_name && user.first_name !== 'User' ? user.first_name : null;
+    const userName = userMeta?.full_name || userMeta?.given_name || firstName || user?.email?.split('@')[0] || 'Naudotojas';
 
     // Loading state — light theme
     if (loading) {
@@ -417,8 +420,8 @@ const TenantDashboardPage: React.FC = () => {
                                 {hasPendingInvitations && (
                                     <section className="rounded-xl bg-white/[0.08] backdrop-blur-sm border border-white/[0.12] p-4">
                                         <div className="flex items-center gap-3 mb-3">
-                                            <div className="w-10 h-10 bg-teal-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
-                                                <Inbox className="w-5 h-5 text-teal-400" />
+                                            <div className="w-10 h-10 bg-[#2F8481]/15 rounded-xl flex items-center justify-center flex-shrink-0">
+                                                <Inbox className="w-5 h-5 text-[#5ec4c1]" />
                                             </div>
                                             <div>
                                                 <div className="font-semibold text-white text-sm">Nauji kvietimai</div>
@@ -663,23 +666,41 @@ const TenantDashboardPage: React.FC = () => {
                                         </div>
                                         {notifications.length > 0 ? (
                                             <div className="space-y-3">
-                                                {notifications.map((notif) => (
-                                                    <div key={notif.id} className="flex gap-3 p-3 rounded-xl bg-gray-50">
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${notif.type === 'payment_due' ? 'bg-amber-100' :
-                                                            notif.type === 'payment_received' ? 'bg-emerald-100' :
-                                                                'bg-gray-100'
-                                                            }`}>
-                                                            {notif.type === 'payment_due' ? <Clock className="w-4 h-4 text-amber-600" /> :
-                                                                notif.type === 'payment_received' ? <Check className="w-4 h-4 text-emerald-600" /> :
-                                                                    <Bell className="w-4 h-4 text-gray-500" />}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-medium text-sm text-gray-900">{notif.title}</div>
-                                                            <div className="text-xs text-gray-500 line-clamp-1">{notif.message}</div>
-                                                            <div className="text-xs text-gray-400 mt-1">{notif.relativeTime}</div>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                {notifications.map((notif) => {
+                                                    const isClickable = !!notif.link;
+                                                    const Wrapper = isClickable ? 'button' : 'div';
+                                                    return (
+                                                        <Wrapper
+                                                            key={notif.id}
+                                                            onClick={isClickable ? () => navigate(notif.link!) : undefined}
+                                                            className={`flex gap-3 p-3 rounded-xl w-full text-left ${isClickable
+                                                                ? 'bg-teal-50/70 border border-teal-200/60 hover:bg-teal-100/80 cursor-pointer transition-all duration-200 hover:shadow-sm active:scale-[0.99]'
+                                                                : 'bg-gray-50'
+                                                                }`}
+                                                        >
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${notif.type === 'meter_reading_request' ? 'bg-teal-100' :
+                                                                notif.type === 'payment_due' ? 'bg-amber-100' :
+                                                                    notif.type === 'payment_received' ? 'bg-emerald-100' :
+                                                                        'bg-gray-100'
+                                                                }`}>
+                                                                {notif.type === 'meter_reading_request' ? <Gauge className="w-4 h-4 text-teal-600" /> :
+                                                                    notif.type === 'payment_due' ? <Clock className="w-4 h-4 text-amber-600" /> :
+                                                                        notif.type === 'payment_received' ? <Check className="w-4 h-4 text-emerald-600" /> :
+                                                                            <Bell className="w-4 h-4 text-gray-500" />}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="font-medium text-sm text-gray-900">{notif.title}</div>
+                                                                <div className="text-xs text-gray-500 line-clamp-1">{notif.message}</div>
+                                                                <div className="text-xs text-gray-400 mt-1">{notif.relativeTime}</div>
+                                                            </div>
+                                                            {isClickable && (
+                                                                <div className="flex items-center flex-shrink-0">
+                                                                    <ChevronRight className="w-4 h-4 text-[#2F8481]" />
+                                                                </div>
+                                                            )}
+                                                        </Wrapper>
+                                                    );
+                                                })}
                                             </div>
                                         ) : (
                                             <div className="text-center py-8 text-gray-500">
@@ -1045,114 +1066,120 @@ const TenantDashboardPage: React.FC = () => {
                         )}
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Floating Chat */}
-            {user?.id && (
-                <MessagingPanel
-                    currentUserId={user.id}
-                    currentUserName={userName}
-                />
-            )}
+            {
+                user?.id && (
+                    <MessagingPanel
+                        currentUserId={user.id}
+                        currentUserName={userName}
+                    />
+                )
+            }
 
             {/* Pay Rent Modal */}
-            {selectedRental && (
-                <PayRentModal
-                    isOpen={payModalOpen}
-                    onClose={() => setPayModalOpen(false)}
-                    propertyId={selectedRental.id}
-                    addressId={selectedRental.addressId}
-                    amount={selectedRental.rentAmount || hero.amount}
-                    propertyLabel={`${selectedRental.address} — ${selectedRental.unitLabel}`}
-                    onPaymentSuccess={() => {
-                        setPayModalOpen(false);
-                        dashboard.refresh();
-                    }}
-                />
-            )}
+            {
+                selectedRental && (
+                    <PayRentModal
+                        isOpen={payModalOpen}
+                        onClose={() => setPayModalOpen(false)}
+                        propertyId={selectedRental.id}
+                        addressId={selectedRental.addressId}
+                        amount={selectedRental.rentAmount || hero.amount}
+                        propertyLabel={`${selectedRental.address} — ${selectedRental.unitLabel}`}
+                        onPaymentSuccess={() => {
+                            setPayModalOpen(false);
+                            dashboard.refresh();
+                        }}
+                    />
+                )
+            }
 
             {/* Join Code Modal */}
-            {showJoinModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowJoinModal(false)} />
-                    <div
-                        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-gray-200/80 bg-cover bg-center"
-                        style={{ backgroundImage: `url('/images/CardsBackground.webp')` }}
-                    >
-                        <button
-                            onClick={() => setShowJoinModal(false)}
-                            className="absolute top-3 right-3 w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+            {
+                showJoinModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowJoinModal(false)} />
+                        <div
+                            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-gray-200/80 bg-cover bg-center"
+                            style={{ backgroundImage: `url('/images/CardsBackground.webp')` }}
                         >
-                            <X className="w-4 h-4 text-gray-500" />
-                        </button>
-
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-[#2F8481] flex items-center justify-center shadow-md">
-                                <Home className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-gray-900 text-[15px]">Pridėti būstą</h3>
-                                <p className="text-xs text-gray-500">Įveskite kvietimo kodą</p>
-                            </div>
-                        </div>
-
-                        {joinSuccess && (
-                            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm mb-4">
-                                <Check className="w-4 h-4" />
-                                Sėkmingai prisijungta!
-                            </div>
-                        )}
-
-                        {joinError && (
-                            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm mb-4">
-                                <AlertCircle className="w-4 h-4" />
-                                {joinError}
-                            </div>
-                        )}
-
-                        <div className="space-y-3">
-                            <div className="relative">
-                                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    value={joinCode}
-                                    onChange={(e) => {
-                                        setJoinCode(e.target.value.toUpperCase());
-                                        setJoinError(null);
-                                    }}
-                                    placeholder="XXXX - XXXX"
-                                    maxLength={9}
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl text-center font-mono text-base tracking-[0.2em] bg-gray-900/[0.03] border border-gray-200 focus:border-[#2F8481] focus:ring-2 focus:ring-[#2F8481]/20 text-gray-900 outline-none transition-colors placeholder:text-gray-300"
-                                    autoFocus
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleJoinByCode(); }}
-                                />
-                            </div>
                             <button
-                                onClick={handleJoinByCode}
-                                disabled={!joinCode.trim() || joinCode.replace(/-/g, '').length < 8 || isJoining || joinSuccess}
-                                className="w-full px-5 py-3 bg-[#2F8481] hover:bg-[#297a77] text-white rounded-xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-sm"
+                                onClick={() => setShowJoinModal(false)}
+                                className="absolute top-3 right-3 w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
                             >
-                                {isJoining ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Jungiamasi...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Home className="w-4 h-4" />
-                                        Prisijungti
-                                    </>
-                                )}
+                                <X className="w-4 h-4 text-gray-500" />
                             </button>
-                        </div>
 
-                        <p className="text-[11px] text-gray-400 mt-3 text-center leading-relaxed">
-                            Gavote kodą iš nuomotojo? Įveskite jį aukščiau.
-                        </p>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-[#2F8481] flex items-center justify-center shadow-md">
+                                    <Home className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 text-[15px]">Pridėti būstą</h3>
+                                    <p className="text-xs text-gray-500">Įveskite kvietimo kodą</p>
+                                </div>
+                            </div>
+
+                            {joinSuccess && (
+                                <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm mb-4">
+                                    <Check className="w-4 h-4" />
+                                    Sėkmingai prisijungta!
+                                </div>
+                            )}
+
+                            {joinError && (
+                                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm mb-4">
+                                    <AlertCircle className="w-4 h-4" />
+                                    {joinError}
+                                </div>
+                            )}
+
+                            <div className="space-y-3">
+                                <div className="relative">
+                                    <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={joinCode}
+                                        onChange={(e) => {
+                                            setJoinCode(e.target.value.toUpperCase());
+                                            setJoinError(null);
+                                        }}
+                                        placeholder="XXXX - XXXX"
+                                        maxLength={9}
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl text-center font-mono text-base tracking-[0.2em] bg-gray-900/[0.03] border border-gray-200 focus:border-[#2F8481] focus:ring-2 focus:ring-[#2F8481]/20 text-gray-900 outline-none transition-colors placeholder:text-gray-300"
+                                        autoFocus
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleJoinByCode(); }}
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleJoinByCode}
+                                    disabled={!joinCode.trim() || joinCode.replace(/-/g, '').length < 8 || isJoining || joinSuccess}
+                                    className="w-full px-5 py-3 bg-[#2F8481] hover:bg-[#297a77] text-white rounded-xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-sm"
+                                >
+                                    {isJoining ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Jungiamasi...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Home className="w-4 h-4" />
+                                            Prisijungti
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            <p className="text-[11px] text-gray-400 mt-3 text-center leading-relaxed">
+                                Gavote kodą iš nuomotojo? Įveskite jį aukščiau.
+                            </p>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

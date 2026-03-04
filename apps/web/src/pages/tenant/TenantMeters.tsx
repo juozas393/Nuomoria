@@ -1,23 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  CameraIcon,
-  CloudArrowUpIcon,
-  DocumentTextIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  XMarkIcon,
-  EyeIcon,
-  TrashIcon,
-  ArrowUpTrayIcon,
-  InformationCircleIcon,
-  ClockIcon,
-  CalendarIcon,
-  ArrowLeftIcon
-} from '@heroicons/react/24/outline';
+  Droplets, Zap, Flame, Thermometer, Camera, ArrowLeft,
+  CheckCircle, AlertTriangle, Info, Trash2, Loader2, Gauge, Send, TrendingUp
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-// Reads from apartment_meters for the tenant's property, filtered by collection_mode = 'tenant_submits'
 import { supabase } from '../../lib/supabase';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MeterConfig {
   id: string;
@@ -42,8 +32,6 @@ interface MeterReading {
   date: string;
   photos: string[];
   status: 'pending' | 'approved' | 'rejected';
-  notes?: string;
-  lastSubmissionDate?: string;
   submissionDeadline: string;
   meterNumber: string;
   location: string;
@@ -56,947 +44,540 @@ interface MeterValidation {
   warnings: string[];
 }
 
+// ─── Meter type config ────────────────────────────────────────────────────────
+
+const METER_TYPE_INFO: Record<string, {
+  icon: React.FC<{ className?: string }>;
+  solidBg: string;
+  accentBg: string;
+  accentText: string;
+  accentStrip: string;
+  unit: string;
+  label: string;
+  maxReasonable: number;
+  minReasonable: number;
+}> = {
+  electricity: {
+    icon: Zap,
+    solidBg: 'bg-amber-500',
+    accentBg: 'bg-amber-500/10',
+    accentText: 'text-amber-400',
+    accentStrip: 'bg-amber-500',
+    unit: 'kWh',
+    label: 'Elektra',
+    maxReasonable: 800,
+    minReasonable: 50,
+  },
+  water: {
+    icon: Droplets,
+    solidBg: 'bg-sky-500',
+    accentBg: 'bg-sky-500/10',
+    accentText: 'text-sky-400',
+    accentStrip: 'bg-sky-500',
+    unit: 'm\u00B3',
+    label: 'Vanduo',
+    maxReasonable: 30,
+    minReasonable: 2,
+  },
+  gas: {
+    icon: Flame,
+    solidBg: 'bg-orange-500',
+    accentBg: 'bg-orange-500/10',
+    accentText: 'text-orange-400',
+    accentStrip: 'bg-orange-500',
+    unit: 'm\u00B3',
+    label: 'Dujos',
+    maxReasonable: 120,
+    minReasonable: 10,
+  },
+  heating: {
+    icon: Thermometer,
+    solidBg: 'bg-rose-500',
+    accentBg: 'bg-rose-500/10',
+    accentText: 'text-rose-400',
+    accentStrip: 'bg-rose-500',
+    unit: 'kWh',
+    label: 'Šildymas',
+    maxReasonable: 1500,
+    minReasonable: 100,
+  },
+};
+
+function mapMeterType(name: string): string {
+  const n = (name || '').toLowerCase();
+  if (n.includes('vanduo') || n.includes('water') || n.includes('karštas') || n.includes('šaltas')) return 'water';
+  if (n.includes('šildym') || n.includes('heat')) return 'heating';
+  if (n.includes('duj') || n.includes('gas')) return 'gas';
+  return 'electricity';
+}
+
+// ─── Shared tokens ───────────────────────────────────────────────────────────
+
+// Card style with CardsBackground.webp
+const cardStyle: React.CSSProperties = {
+  backgroundImage: 'url(/images/CardsBackground.webp)',
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+
 const TenantMeters: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [meterConfigs, setMeterConfigs] = useState<MeterConfig[]>([]);
   const [readings, setReadings] = useState<MeterReading[]>([]);
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [addressId, setAddressId] = useState<string | null>(null);
-  const [selectedMeter, setSelectedMeter] = useState<string | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingPhotos, setUploadingPhotos] = useState<Record<string, boolean>>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Fetch meter configurations from address_meters — matching landlord's data source
-  useEffect(() => {
-    const fetchMeterConfigs = async () => {
-      if (!user) return;
+  // ─── Data fetching ────────────────────────────────────────────────────────
 
+  useEffect(() => {
+    const resolve = async () => {
+      if (!user) return;
       try {
         setIsLoading(true);
-
-        // Priority 1: Use unread meter_reading_request notification data
-        // This contains the exact address_id and property_id the landlord targeted
         const { data: notifData } = await supabase
-          .from('notifications')
-          .select('data')
-          .eq('user_id', user.id)
-          .eq('kind', 'meter_reading_request')
-          .eq('is_read', false)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .from('notifications').select('data')
+          .eq('user_id', user.id).eq('kind', 'meter_reading_request').eq('is_read', false)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
         if (notifData?.data?.address_id && notifData?.data?.property_id) {
           setAddressId(notifData.data.address_id);
           setPropertyId(notifData.data.property_id);
           return;
         }
-
-        // Priority 2: tenant_invitations — has exact property mapping
-        const { data: invitations } = await supabase
-          .from('tenant_invitations')
-          .select('property_id, address_id')
-          .eq('email', user.email)
-          .eq('status', 'accepted')
-          .limit(1);
-
-        if (invitations?.[0]) {
-          const inv = invitations[0];
-          if (inv.property_id) setPropertyId(inv.property_id);
-          if (inv.address_id) {
-            setAddressId(inv.address_id);
-          } else if (inv.property_id) {
-            const { data: propData } = await supabase
-              .from('properties')
-              .select('address_id')
-              .eq('id', inv.property_id)
-              .single();
-            if (propData?.address_id) setAddressId(propData.address_id);
+        const { data: authData } = await supabase.auth.getUser();
+        const email = authData?.user?.email;
+        if (email) {
+          const { data: inv } = await supabase.from('tenant_invitations').select('property_id').eq('status', 'accepted');
+          const my = inv?.filter((i: any) => i.email?.toLowerCase() === email.toLowerCase()) || inv || [];
+          if (my.length > 0) {
+            const { data: p } = await supabase.from('properties').select('id, address_id').eq('id', my[0].property_id).maybeSingle();
+            if (p) { setPropertyId(p.id); setAddressId(p.address_id); return; }
           }
-          return;
         }
-
-        // Priority 3: user_addresses fallback
-        const { data: userAddrs } = await supabase
-          .from('user_addresses')
-          .select('address_id')
-          .eq('user_id', user.id)
-          .eq('role', 'tenant')
-          .limit(1);
-
-        if (userAddrs?.[0]) {
-          setAddressId(userAddrs[0].address_id);
-          const { data: props } = await supabase
-            .from('properties')
-            .select('id')
-            .eq('address_id', userAddrs[0].address_id)
-            .limit(1);
-          if (props?.[0]?.id) setPropertyId(props[0].id);
-        }
-      } catch (error) {
-        console.error('Error finding tenant property:', error);
-      } finally {
         setIsLoading(false);
-      }
+      } catch { setIsLoading(false); }
     };
-
-    fetchMeterConfigs();
+    resolve();
   }, [user]);
 
-  // 2. Once we have addressId, fetch meters + notification + readings
   useEffect(() => {
-    const fetchMeters = async () => {
+    const fetch = async () => {
       if (!user || !addressId) return;
-
       try {
         setIsLoading(true);
-
-        // Fetch ALL individual address_meters for this address
-        const { data: addrMeters, error: metersError } = await supabase
-          .from('address_meters')
+        const { data: am, error: e } = await supabase.from('address_meters')
           .select('id, address_id, name, type, unit, price_per_unit, fixed_price, distribution_method, requires_photo, is_active, collection_mode, created_at')
-          .eq('address_id', addressId)
-          .eq('is_active', true)
-          .eq('type', 'individual');
+          .eq('address_id', addressId).eq('is_active', true);
+        if (e || !am || am.length === 0) { setIsLoading(false); return; }
+        setMeterConfigs(am);
 
-        if (metersError || !addrMeters || addrMeters.length === 0) {
-          setIsLoading(false);
-          return;
-        }
+        const { data: nd } = await supabase.from('notifications').select('data')
+          .eq('user_id', user.id).eq('kind', 'meter_reading_request').eq('is_read', false)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-        // Fetch the latest unread meter_reading_request notification
-        const { data: notifData } = await supabase
-          .from('notifications')
-          .select('data, created_at')
-          .eq('user_id', user.id)
-          .eq('kind', 'meter_reading_request')
-          .eq('is_read', false)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const nids = nd?.data?.meters?.map((m: any) => m.id) || [];
+        const deadline = nd?.data?.deadline || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
+        const show = nids.length > 0 ? am.filter((m: any) => nids.includes(m.id)) : am.filter((m: any) => m.type === 'individual');
+        const ids = show.map((m: any) => m.id);
+        const { data: prev } = await supabase.from('meter_readings').select('meter_id, current_reading').in('meter_id', ids).order('reading_date', { ascending: false });
+        const latest: Record<string, number> = {};
+        prev?.forEach((r: any) => { if (!(r.meter_id in latest)) latest[r.meter_id] = r.current_reading ?? 0; });
 
-        // Extract deadline and requested meter IDs from notification
-        const notifDeadline = notifData?.data?.deadline;
-        const notifMeterIds: string[] = (notifData?.data?.meters || []).map((m: any) => m.id);
-
-        // Filter meters: if we have a notification, show only those meters; otherwise show all individual
-        const metersToShow = notifMeterIds.length > 0
-          ? addrMeters.filter(m => notifMeterIds.includes(m.id))
-          : addrMeters;
-
-        setMeterConfigs(metersToShow as unknown as MeterConfig[]);
-
-        // Get last readings for each meter
-        const readingsPromises = metersToShow.map(async (config: any) => {
-          const { data: lastReading } = await supabase
-            .from('meter_readings')
-            .select('current_reading, reading_date')
-            .eq('meter_id', config.id)
-            .eq('property_id', propertyId || '')
-            .order('reading_date', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          // Also try without property_id filter (address-level meters)
-          if (!lastReading) {
-            const { data: fallbackReading } = await supabase
-              .from('meter_readings')
-              .select('current_reading, reading_date')
-              .eq('meter_id', config.id)
-              .order('reading_date', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            return {
-              config,
-              lastReading: fallbackReading?.current_reading || 0,
-              lastDate: fallbackReading?.reading_date
-            };
-          }
-
-          return {
-            config,
-            lastReading: lastReading?.current_reading || 0,
-            lastDate: lastReading?.reading_date
-          };
-        });
-
-        const readingsData = await Promise.all(readingsPromises);
-
-        // Build deadline from notification or end of current month
-        const now = new Date();
-        const deadline = notifDeadline || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-
-        const allReadings: MeterReading[] = readingsData.map((rd, index: number) => ({
-          id: `reading-${index + 1}`,
-          meterType: mapMeterType(rd.config.name),
-          meterConfigId: rd.config.id,
-          previousReading: Number(rd.lastReading),
-          currentReading: 0,
-          date: new Date().toISOString().split('T')[0],
-          photos: [],
-          status: 'pending',
-          submissionDeadline: deadline,
-          meterNumber: rd.config.name,
-          location: '',
-          requirePhoto: rd.config.requires_photo || false
-        }));
-
-        setReadings(allReadings);
-
-      } catch (error) {
-        console.error('Error fetching meter configurations:', error);
-      } finally {
-        setIsLoading(false);
-      }
+        setReadings(show.map((c: any) => ({
+          id: c.id, meterType: mapMeterType(c.name) as MeterReading['meterType'], meterConfigId: c.id,
+          previousReading: latest[c.id] ?? 0, currentReading: 0, date: new Date().toISOString().split('T')[0],
+          photos: [], status: 'pending', submissionDeadline: deadline, meterNumber: c.name, location: c.name,
+          requirePhoto: c.requires_photo ?? false,
+        })));
+      } catch { /* silent */ } finally { setIsLoading(false); }
     };
-
-    fetchMeters();
+    fetch();
   }, [user, addressId, propertyId]);
 
-  // Helper function to map meter name to UI type
-  const mapMeterType = (name: string): 'electricity' | 'water' | 'gas' | 'heating' => {
-    const lower = (name || '').toLowerCase();
-    if (lower.includes('elektr')) return 'electricity';
-    if (lower.includes('vand') || lower.includes('water')) return 'water';
-    if (lower.includes('duj') || lower.includes('gas')) return 'gas';
-    if (lower.includes('šild') || lower.includes('heat')) return 'heating';
-    return 'electricity';
-  };
+  // ─── Validation ────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const getMeterTypeInfo = (type: string) => {
-    const types = {
-      electricity: {
-        name: 'Elektros skaitliukas',
-        icon: '⚡',
-        color: 'yellow',
-        unit: 'kWh',
-        description: 'Elektros energijos suvartojimas',
-        averageMonthly: 300, // kWh per mėnesį
-        maxReasonable: 800, // maksimalus protingas suvartojimas
-        minReasonable: 50    // minimalus protingas suvartojimas
-      },
-      water: {
-        name: 'Vandens skaitliukas',
-        icon: '💧',
-        color: 'blue',
-        unit: 'm³',
-        description: 'Vandens suvartojimas',
-        averageMonthly: 12,  // m³ per mėnesį
-        maxReasonable: 30,   // maksimalus protingas suvartojimas
-        minReasonable: 2     // minimalus protingas suvartojimas
-      },
-      gas: {
-        name: 'Dujų skaitliukas',
-        icon: '🔥',
-        color: 'orange',
-        unit: 'm³',
-        description: 'Dujų suvartojimas',
-        averageMonthly: 45,  // m³ per mėnesį
-        maxReasonable: 120,  // maksimalus protingas suvartojimas
-        minReasonable: 10    // minimalus protingas suvartojimas
-      },
-      heating: {
-        name: 'Šildymo skaitliukas',
-        icon: '🌡️',
-        color: 'red',
-        unit: 'kWh',
-        description: 'Šildymo energijos suvartojimas',
-        averageMonthly: 500, // kWh per mėnesį
-        maxReasonable: 1500, // maksimalus protingas suvartojimas
-        minReasonable: 100   // minimalus protingas suvartojimas
-      }
-    };
-    return types[type as keyof typeof types];
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'approved': return 'Patvirtinta';
-      case 'rejected': return 'Atmesta';
-      default: return 'Laukiama';
-    }
-  };
-
-  const validateMeterReading = (reading: MeterReading): MeterValidation => {
+  const validate = useCallback((r: MeterReading): MeterValidation => {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const meterInfo = getMeterTypeInfo(reading.meterType);
+    const info = METER_TYPE_INFO[r.meterType];
+    if (!info) return { isValid: true, errors, warnings };
+    if (r.currentReading === 0) errors.push('Rodmuo privalomas');
+    if (r.currentReading > 0 && r.currentReading < r.previousReading) errors.push('Rodmuo negali b\u016Bti mažesnis');
+    if (r.requirePhoto && r.photos.length === 0) errors.push('Nuotrauka privaloma');
+    const c = r.currentReading - r.previousReading;
+    if (c > 0 && c < info.minReasonable) warnings.push('Ne\u012Fprastai mažas suvartojimas');
+    if (c > info.maxReasonable) warnings.push('Ne\u012Fprastai didelis suvartojimas');
+    return { isValid: errors.length === 0, errors, warnings };
+  }, []);
 
-    // Check if current reading is entered
-    if (reading.currentReading === 0) {
-      errors.push('Dabartinis rodmuo yra privalomas');
-    }
+  // ─── Handlers ──────────────────────────────────────────────────────────────
 
-    // Check if current reading is less than previous
-    if (reading.currentReading < reading.previousReading) {
-      errors.push('Dabartinis rodmuo negali būti mažesnis už ankstesnį');
-    }
+  const handleReadingChange = useCallback((id: string, v: string) => {
+    setReadings(p => p.map(m => m.id === id ? { ...m, currentReading: parseFloat(v) || 0 } : m));
+  }, []);
 
-    // Check if photos are uploaded (only for meters that require photos)
-    if (reading.requirePhoto && reading.photos.length === 0) {
-      errors.push('Skaitliuko nuotrauka yra privaloma');
-    }
-
-    // Calculate consumption
-    const consumption = reading.currentReading - reading.previousReading;
-
-    // Check for negative consumption (impossible)
-    if (consumption < 0) {
-      errors.push('Sunaudojimas negali būti neigiamas');
-    }
-
-    // Check for unreasonably low consumption
-    if (consumption > 0 && consumption < meterInfo.minReasonable) {
-      warnings.push(`${meterInfo.name}: Suvartojimas atrodo per mažas (${consumption} ${meterInfo.unit})`);
-    }
-
-    // Check for unreasonably high consumption
-    if (consumption > meterInfo.maxReasonable) {
-      warnings.push(`${meterInfo.name}: Suvartojimas atrodo per didelis (${consumption} ${meterInfo.unit})`);
-    }
-
-    // Check for zero consumption (suspicious)
-    if (consumption === 0 && reading.currentReading > 0) {
-      warnings.push(`${meterInfo.name}: Suvartojimas lygus nuliui - patikrinkite rodmenis`);
-    }
-
-    // Check for consumption much higher than average
-    if (consumption > meterInfo.averageMonthly * 1.5) {
-      warnings.push(`${meterInfo.name}: Suvartojimas ${Math.round((consumption / meterInfo.averageMonthly) * 100)}% didesnis už vidutinį`);
-    }
-
-    // Check deadline
-    const deadline = new Date(reading.submissionDeadline);
-    const daysUntilDeadline = Math.ceil((deadline.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysUntilDeadline < 0) {
-      errors.push('Pateikimo terminas praėjo');
-    } else if (daysUntilDeadline <= 3) {
-      warnings.push(`Pateikimo terminas baigiasi už ${daysUntilDeadline} dienų`);
-    }
-
-    // Check for suspicious patterns
-    if (consumption > 0) {
-      const dailyAverage = consumption / 30;
-
-      // Check for extremely high daily consumption
-      if (dailyAverage > meterInfo.maxReasonable / 30) {
-        warnings.push(`${meterInfo.name}: Vidutinis dienos suvartojimas atrodo neįprastai didelis`);
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
-  };
-
-  const handleReadingChange = (meterId: string, value: string) => {
-    const newValue = parseFloat(value) || 0;
-
-    setReadings(prev => prev.map(meter =>
-      meter.id === meterId
-        ? { ...meter, currentReading: newValue }
-        : meter
-    ));
-  };
-
-  const handlePhotoUpload = async (meterId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = useCallback(async (meterId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || !user) return;
-
-    setUploadingPhotos(prev => ({ ...prev, [meterId]: true }));
-
+    setUploadingPhotos(p => ({ ...p, [meterId]: true }));
     try {
-      const uploadedUrls: string[] = [];
-
+      const urls: string[] = [];
       for (const file of Array.from(files)) {
-        // Generate unique filename
         const ext = file.name.split('.').pop() || 'jpg';
-        const fileName = `${user.id}/${meterId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('meter-readings')
-          .upload(fileName, file, { cacheControl: '3600', upsert: false });
-
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          continue;
-        }
-
-        const { data: urlData } = supabase.storage
-          .from('meter-readings')
-          .getPublicUrl(fileName);
-
-        if (urlData?.publicUrl) {
-          uploadedUrls.push(urlData.publicUrl);
-        }
+        const fn = `readings/${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
+        const { error } = await supabase.storage.from('meter-readings').upload(fn, file, { cacheControl: '3600', upsert: false });
+        if (error) continue;
+        const { data } = supabase.storage.from('meter-readings').getPublicUrl(fn);
+        if (data?.publicUrl) urls.push(data.publicUrl);
       }
-
-      if (uploadedUrls.length > 0) {
-        setReadings(prev => prev.map(meter =>
-          meter.id === meterId
-            ? { ...meter, photos: [...meter.photos, ...uploadedUrls] }
-            : meter
-        ));
-      }
-    } catch (err) {
-      console.error('Photo upload failed:', err);
-    } finally {
-      setUploadingPhotos(prev => ({ ...prev, [meterId]: false }));
-      // Reset file input
-      const inputRef = fileInputRefs.current[meterId];
-      if (inputRef) inputRef.value = '';
+      if (urls.length > 0) setReadings(p => p.map(m => m.id === meterId ? { ...m, photos: [...m.photos, ...urls] } : m));
+    } catch { /* silent */ }
+    finally {
+      setUploadingPhotos(p => ({ ...p, [meterId]: false }));
+      const ref = fileInputRefs.current[meterId];
+      if (ref) ref.value = '';
     }
-  };
+  }, [user]);
 
-  const removePhoto = (meterId: string, photoIndex: number) => {
-    setReadings(prev => prev.map(meter =>
-      meter.id === meterId
-        ? { ...meter, photos: meter.photos.filter((_, index) => index !== photoIndex) }
-        : meter
-    ));
-  };
+  const removePhoto = useCallback((id: string, idx: number) => {
+    setReadings(p => p.map(m => m.id === id ? { ...m, photos: m.photos.filter((_, i) => i !== idx) } : m));
+  }, []);
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-
-    // Validate all readings
-    const validations = readings.map(reading => validateMeterReading(reading));
-    const hasErrors = validations.some(v => !v.isValid);
-
-    if (hasErrors) {
-      alert('Prašome ištaisyti klaidas prieš pateikiant rodmenis');
-      setIsSubmitting(false);
+  const handleSubmit = useCallback(async () => {
+    setHasAttemptedSubmit(true);
+    setSubmitError(null);
+    if (readings.some(r => !validate(r).isValid)) {
+      setSubmitError('Ištaisykite klaidas prieš pateikdami rodmenis');
       return;
     }
-
+    setIsSubmitting(true);
     try {
-      // Insert real meter readings into the database
-      const readingsToInsert = readings.map(reading => {
-        const consumption = reading.currentReading - reading.previousReading;
-        const config = meterConfigs.find(c => c.id === reading.meterConfigId);
-        const pricePerUnit = config?.price_per_unit || 0;
-        const fixedPrice = config?.fixed_price || 0;
-        const totalSum = fixedPrice > 0 ? fixedPrice : consumption * pricePerUnit;
-        const meterType = config?.distribution_method === 'per_consumption' ? 'apartment' : 'address';
-
+      const rows = readings.map(r => {
+        const c = r.currentReading - r.previousReading;
+        const cfg = meterConfigs.find(x => x.id === r.meterConfigId);
+        const ppu = cfg?.price_per_unit || 0;
+        const fp = cfg?.fixed_price || 0;
+        const total = fp > 0 ? fp : c * ppu;
         return {
-          property_id: propertyId,
-          meter_id: reading.meterConfigId,
-          meter_type: meterType,
-          type: mapMeterTypeToDbType(reading.meterType, reading.meterConfigId),
-          reading_date: reading.date,
-          previous_reading: reading.previousReading,
-          current_reading: reading.currentReading,
-          difference: consumption,
-          price_per_unit: pricePerUnit,
-          total_sum: totalSum,
-          amount: totalSum,
-          notes: `Nuomininko pateiktas rodmuo`,
-          photo_urls: reading.photos.length > 0 ? reading.photos : [],
-          submitted_by: user?.id,
+          property_id: propertyId, meter_id: r.meterConfigId,
+          meter_type: cfg?.distribution_method === 'per_consumption' ? 'apartment' : 'address',
+          type: mapMeterType(cfg?.name || ''), reading_date: r.date,
+          previous_reading: r.previousReading, current_reading: r.currentReading,
+          difference: c, price_per_unit: ppu, total_sum: total, amount: total,
+          notes: 'Nuomininko pateiktas rodmuo',
+          photo_urls: r.photos.length > 0 ? r.photos : [], submitted_by: user?.id,
         };
       });
+      const { error } = await supabase.from('meter_readings').insert(rows);
+      if (error) { setSubmitError('Nepavyko pateikti. Bandykite dar kartą.'); setIsSubmitting(false); return; }
 
-      const { error } = await supabase
-        .from('meter_readings')
-        .insert(readingsToInsert);
-
-      if (error) {
-        console.error('Error submitting readings:', error);
-        alert(`Klaida pateikiant rodmenis: ${error.message}`);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Send notification to landlord
       if (addressId) {
         try {
-          // Find the landlord via addresses.created_by (tenant can read this via RLS)
-          const { data: addressData } = await supabase
-            .from('addresses')
-            .select('created_by')
-            .eq('id', addressId)
-            .single();
-
-          if (addressData?.created_by) {
-            const now = new Date();
-            const periodLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
+          const { data: a } = await supabase.from('addresses').select('created_by').eq('id', addressId).single();
+          if (a?.created_by) {
+            const period = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
             await supabase.from('notifications').insert({
-              user_id: addressData.created_by,
-              kind: 'meter_readings_submitted',
-              title: 'Nuomininkas pateikė skaitliukų rodmenis',
-              body: `Gauti skaitliukų rodmenys už ${periodLabel}. ${readings.length} skaitliukai pateikti.`,
-              data: {
-                address_id: addressId,
-                property_id: propertyId,
-                meter_count: readings.length,
-                period: periodLabel,
-                submitted_by: user?.id,
-              },
+              user_id: a.created_by, kind: 'meter_readings_submitted',
+              title: 'Nuomininkas pateikė rodmenis',
+              body: `Gauti rodmenys už ${period}. ${readings.length} skaitliukai.`,
+              data: { address_id: addressId, property_id: propertyId, meter_count: readings.length, period },
             });
           }
-        } catch (notifErr) {
-          console.error('Failed to notify landlord:', notifErr);
-          // Non-blocking — readings already saved
-        }
+        } catch { /* non-blocking */ }
       }
-
-      // Mark tenant's meter_reading_request notifications as read
       if (user?.id) {
-        await supabase
-          .from('notifications')
-          .update({ is_read: true, read_at: new Date().toISOString() })
-          .eq('user_id', user.id)
-          .eq('kind', 'meter_reading_request')
-          .eq('is_read', false);
+        await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() })
+          .eq('user_id', user.id).eq('kind', 'meter_reading_request').eq('is_read', false);
       }
-
-      // Update status to approved
-      setReadings(prev => prev.map(meter => ({
-        ...meter,
-        status: 'approved' as const,
-        lastSubmissionDate: new Date().toISOString()
-      })));
-
+      setReadings(p => p.map(m => ({ ...m, status: 'approved' as const })));
       setIsSubmitting(false);
       setShowSuccess(true);
-    } catch (error) {
-      console.error('Error submitting readings:', error);
-      alert('Klaida pateikiant rodmenis. Bandykite dar kartą.');
-      setIsSubmitting(false);
-    }
-  };
+    } catch { setSubmitError('Klaida. Bandykite dar kartą.'); setIsSubmitting(false); }
+  }, [readings, meterConfigs, propertyId, addressId, user, validate]);
 
-  // Map UI meter type back to DB type column value using meter name
-  const mapMeterTypeToDbType = (uiType: string, configId: string): string => {
-    const config = meterConfigs.find(c => c.id === configId);
-    if (!config) return uiType;
-    return mapMeterType(config.name);
-  };
+  // ─── Computed ──────────────────────────────────────────────────────────────
 
-  const canSubmit = readings.every(reading => {
-    const validation = validateMeterReading(reading);
-    return validation.isValid;
-  });
+  const readyCount = useMemo(() => readings.filter(r => validate(r).isValid).length, [readings, validate]);
+  const progress = readings.length > 0 ? Math.round((readyCount / readings.length) * 100) : 0;
+  const getDaysLeft = useCallback((d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400000), []);
 
-  const formatDate = (dateString: string) => {
-    const d = new Date(dateString);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
-
-  const getDaysUntilDeadline = (deadline: string) => {
-    const deadlineDate = new Date(deadline);
-    return Math.ceil((deadlineDate.getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24));
-  };
-
-  const getConsumptionColor = (consumption: number, meterType: string) => {
-    const meterInfo = getMeterTypeInfo(meterType);
-    const ratio = consumption / meterInfo.averageMonthly;
-
-    if (ratio < 0.5) return 'text-blue-600';
-    if (ratio > 1.5) return 'text-orange-600';
-    if (ratio > 2) return 'text-red-600';
-    return 'text-green-600';
-  };
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Page subheader */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 py-4">
+    <div
+      className="min-h-screen text-white"
+      style={{
+        backgroundImage: 'url(/images/tenants\\ meters.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      {/* ── Hero header ── */}
+      <div className="relative">
+        <div className="max-w-2xl mx-auto px-4 lg:px-6 pt-6 pb-6" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>
+          <div className="flex items-center gap-3 mb-5">
             <button
               onClick={() => navigate('/tenant')}
-              className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors"
+              className="w-8 h-8 bg-white/[0.15] border border-white/[0.20] rounded-lg flex items-center justify-center hover:bg-white/[0.25] transition-colors active:scale-[0.97] backdrop-blur-sm"
             >
-              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-4 h-4 text-white" />
             </button>
-            <div className="w-8 h-8 bg-[#2F8481] rounded-lg flex items-center justify-center">
-              <DocumentTextIcon className="w-5 h-5 text-white" />
-            </div>
+            <span className="text-[10px] text-white/60 font-medium">{'Nuomininkas'}</span>
+          </div>
+
+          <div className="flex items-end justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Skaitliukai</h1>
-              <p className="text-sm text-gray-500">Pateikite savo skaitliukų rodmenis</p>
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-9 h-9 rounded-xl bg-[#2F8481] flex items-center justify-center shadow-lg shadow-[#2F8481]/20">
+                  <Gauge className="w-4.5 h-4.5 text-white" />
+                </div>
+                <h1 className="text-[18px] font-bold tracking-tight">{'Skaitlikų rodmenys'}</h1>
+              </div>
+              <p className="text-[11px] text-white/60 ml-[47px]">{'Pateikite savo mėnesio rodmenis'}</p>
             </div>
+            {readings.length > 0 && !showSuccess && (
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-[10px] font-bold text-[#5ec4c1]">{readyCount}/{readings.length}</span>
+                <div className="w-24 h-1.5 bg-white/[0.15] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#2F8481] rounded-full transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* ── Content ── */}
+      <div className="max-w-2xl mx-auto px-4 lg:px-6 pb-8">
         {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2F8481] mx-auto mb-4"></div>
-            <p className="text-gray-600">Kraunama skaitliukų informacija...</p>
+          <div className="rounded-xl overflow-hidden border border-gray-200/20" style={cardStyle}>
+            <div className="text-center py-16">
+              <Loader2 className="w-7 h-7 text-[#2F8481] mx-auto mb-3 animate-spin" />
+              <p className="text-[11px] text-gray-500">{'Kraunama skaitliklų informacija...'}</p>
+            </div>
           </div>
         ) : readings.length === 0 ? (
-          <div className="text-center py-12">
-            <InformationCircleIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nėra skaitliukų, kuriems reikia rodmenų</h3>
-            <p className="text-gray-600">
-              Jūsų nuomotojas nėra sukonfigūravęs skaitliukų, kuriems reikia rodmenų nuotraukų.
-            </p>
+          <div className="rounded-xl overflow-hidden border border-gray-200/20" style={cardStyle}>
+            <div className="text-center py-14 px-6">
+              <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Info className="w-6 h-6 text-gray-400" />
+              </div>
+              <h3 className="text-[13px] font-bold text-gray-800 mb-1">{'Nėra prašomų rodmenų'}</h3>
+              <p className="text-[11px] text-gray-500 max-w-xs mx-auto">{'Nuomotojas dar neprašė skaitliklų rodmenų arba jie jau pateikti.'}</p>
+            </div>
           </div>
         ) : (
           <>
-            {/* Info Banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-blue-900 mb-1">
-                    Skaitliukai
-                  </h3>
-                  <p className="text-sm text-blue-700">
-                    Pateikite tik tuos skaitliukus, kuriems reikia rodmenų nuotraukų.
-                    Bendri skaitliukai (internetas, šiukšlės) skaičiuojami automatiškai.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Success Message */}
+            {/* ── Success ── */}
             {showSuccess && (
-              <div className="mb-6 bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <CheckCircleIcon className="w-7 h-7 text-emerald-600" />
+              <div className="rounded-xl overflow-hidden border border-emerald-200/30 mb-4" style={cardStyle}>
+                <div className="bg-emerald-50/90 backdrop-blur-sm px-4 py-4 flex items-center gap-3">
+                  <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-emerald-900">Rodmenys sėkmingai pateikti!</h3>
-                    <p className="text-sm text-emerald-700 mt-1">Nuomotojas gavo pranešimą ir peržiūrės jūsų rodmenis. Galite grįžti atgal.</p>
+                  <div className="flex-1">
+                    <h3 className="text-[13px] font-bold text-emerald-800">{'Rodmenys sėkmingai pateikti!'}</h3>
+                    <p className="text-[10px] text-emerald-600/70">{'Nuomotojas gavo pranešimą.'}</p>
                   </div>
+                  <button
+                    onClick={() => navigate('/tenant')}
+                    className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-600 transition-colors"
+                  >
+                    {'Grįžti'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => navigate('/tenant')}
-                  className="mt-4 w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-                >
-                  <ArrowLeftIcon className="w-5 h-5" />
-                  Grįžti į pagrindinį puslapį
-                </button>
               </div>
             )}
 
-            {/* Meters Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* ── Error ── */}
+            {submitError && (
+              <div className="mb-4 bg-red-50/90 backdrop-blur-sm border border-red-200/40 rounded-xl px-4 py-3 flex items-center gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                <p className="text-[10px] text-red-700 font-medium">{submitError}</p>
+              </div>
+            )}
+
+            {/* ── Meter Cards ── */}
+            <div className="space-y-3">
               {readings.map((meter) => {
-                const meterInfo = getMeterTypeInfo(meter.meterType);
+                const info = METER_TYPE_INFO[meter.meterType];
+                if (!info) return null;
+                const Icon = info.icon;
                 const consumption = meter.currentReading - meter.previousReading;
-                const validation = validateMeterReading(meter);
-                const daysUntilDeadline = getDaysUntilDeadline(meter.submissionDeadline);
-                const consumptionColor = getConsumptionColor(consumption, meter.meterType);
+                const v = validate(meter);
+                const daysLeft = getDaysLeft(meter.submissionDeadline);
+                const showErrors = hasAttemptedSubmit && v.errors.length > 0;
 
                 return (
-                  <div key={meter.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                    {/* Header */}
-                    <div className="p-6 border-b border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-3 rounded-xl bg-${meterInfo.color}-100`}>
-                            <span className="text-2xl">{meterInfo.icon}</span>
+                  <div key={meter.id} className="rounded-xl overflow-hidden border border-gray-200/20 shadow-sm" style={cardStyle}>
+                    {/* Colored top accent */}
+                    <div className={`h-[2px] ${info.accentStrip}`} />
+
+                    <div>
+                      {/* Header */}
+                      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-lg ${info.solidBg} flex items-center justify-center shadow-sm`}>
+                            <Icon className="w-4 h-4 text-white" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-gray-900">{meterInfo.name}</h3>
-                            <p className="text-sm text-gray-500">{meterInfo.description}</p>
-                            <p className="text-xs text-gray-400">Skaitliukas: {meter.meterNumber}</p>
+                            <h3 className="text-[12px] font-bold text-gray-800">{meter.meterNumber}</h3>
+                            <p className="text-[9px] text-gray-500">{info.label} {'\u00B7'} {info.unit}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(meter.status)}`}>
-                            {getStatusText(meter.status)}
-                          </span>
-                          <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                            <ClockIcon className="w-3 h-3" />
-                            <span>{daysUntilDeadline > 0 ? `${daysUntilDeadline} d.` : 'Terminas praėjo'}</span>
-                          </div>
-                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${meter.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                          daysLeft < 0 ? 'bg-red-100 text-red-700' :
+                            daysLeft <= 3 ? 'bg-amber-100 text-amber-700' :
+                              'bg-[#2F8481]/10 text-[#2F8481]'
+                          }`}>
+                          {meter.status === 'approved' ? 'Pateikta' :
+                            daysLeft < 0 ? `Vėluoja ${Math.abs(daysLeft)}d.` :
+                              daysLeft <= 3 ? `Liko ${daysLeft}d.` : 'Laukiama'}
+                        </span>
                       </div>
-                    </div>
 
-                    {/* Validation Errors */}
-                    {validation.errors.length > 0 && (
-                      <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                        <div className="flex items-start gap-2">
-                          <ExclamationTriangleIcon className="w-4 h-4 text-red-600 mt-0.5" />
+                      {/* Errors */}
+                      {showErrors && (
+                        <div className="mx-4 mb-2 px-3 py-2 bg-red-50 border border-red-200/40 rounded-lg flex items-center gap-2">
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                          <span className="text-[9px] text-red-600 font-medium">{v.errors.join(' \u00B7 ')}</span>
+                        </div>
+                      )}
+
+                      {/* Input row */}
+                      <div className="px-4 pb-3 space-y-2.5">
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Previous */}
                           <div>
-                            <p className="text-sm font-medium text-red-800">Klaidos:</p>
-                            <ul className="text-xs text-red-700 mt-1 space-y-1">
-                              {validation.errors.map((error, index) => (
-                                <li key={index}>• {error}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Validation Warnings */}
-                    {validation.warnings.length > 0 && (
-                      <div className="mx-6 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                        <div className="flex items-start gap-2">
-                          <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium text-yellow-800">Įspėjimai:</p>
-                            <ul className="text-xs text-yellow-700 mt-1 space-y-1">
-                              {validation.warnings.map((warning, index) => (
-                                <li key={index}>• {warning}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Reading Form */}
-                    <div className="p-6 space-y-6">
-                      {/* Previous Reading */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <label className="text-sm text-gray-500 mb-1 block">Ankstesnis rodmuo</label>
+                            <label className="text-[9px] font-medium text-gray-400 mb-1 block">{'Ankstesnis'}</label>
                             <div className="relative">
                               <input
                                 type="number"
                                 value={meter.previousReading || ''}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value) || 0;
-                                  setReadings(prev => prev.map(r =>
-                                    r.id === meter.id ? { ...r, previousReading: val } : r
-                                  ));
-                                }}
+                                onChange={e => { const val = parseFloat(e.target.value) || 0; setReadings(p => p.map(r => r.id === meter.id ? { ...r, previousReading: val } : r)); }}
                                 disabled={showSuccess}
-                                className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500/40 focus:border-transparent transition-colors duration-200 text-xl font-bold text-gray-900 bg-white ${showSuccess ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                                placeholder="0"
-                                min="0"
-                                step="0.01"
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[13px] text-gray-500 placeholder-gray-400 focus:ring-1 focus:ring-[#2F8481]/40 focus:border-[#2F8481]/40 transition-all disabled:opacity-30"
+                                placeholder="0" min="0" step="0.01"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                                {meterInfo.unit}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {meter.previousReading === 0 ? 'Nėra ankstesnių duomenų — galite įvesti rankiniu būdu' : 'Automatiškai užpildyta iš praeito mėnesio'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Current Reading Input */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Dabartinis rodmuo *
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={meter.currentReading || ''}
-                            onChange={(e) => handleReadingChange(meter.id, e.target.value)}
-                            disabled={showSuccess}
-                            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-2xl font-bold ${showSuccess
-                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                              : validation.errors.some(e => e.includes('rodmuo'))
-                                ? 'border-red-300 bg-red-50'
-                                : 'border-gray-300'
-                              }`}
-                            placeholder="0"
-                            min={meter.previousReading}
-                            step="0.01"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
-                            {meterInfo.unit}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Consumption Display */}
-                      {meter.currentReading > 0 && (
-                        <div className="bg-[#E8F5F4] rounded-xl p-4 border border-[#2F8481]/20">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-blue-600">Sunaudota per mėnesį</p>
-                              <p className={`text-2xl font-bold ${consumptionColor}`}>
-                                {consumption.toLocaleString()} {meterInfo.unit}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-blue-600">Vidutiniškai per dieną</p>
-                              <p className="text-lg font-semibold text-blue-900">
-                                {(consumption / 30).toFixed(1)} {meterInfo.unit}
-                              </p>
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">{info.unit}</span>
                             </div>
                           </div>
-
-                          {/* Consumption Analysis */}
-                          <div className="mt-3 pt-3 border-t border-blue-200">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-gray-600">Vidutinis mėnesinis suvartojimas:</span>
-                              <span className="font-medium">{meterInfo.averageMonthly} {meterInfo.unit}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs mt-1">
-                              <span className="text-gray-600">Jūsų suvartojimas:</span>
-                              <span className={`font-medium ${consumptionColor}`}>
-                                {consumption} {meterInfo.unit} ({Math.round((consumption / meterInfo.averageMonthly) * 100)}%)
-                              </span>
+                          {/* Current */}
+                          <div>
+                            <label className="text-[9px] font-medium text-gray-600 mb-1 block">{'Dabartinis *'}</label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={meter.currentReading || ''}
+                                onChange={e => handleReadingChange(meter.id, e.target.value)}
+                                disabled={showSuccess}
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[13px] text-gray-800 placeholder-gray-400 focus:ring-1 focus:ring-[#2F8481]/40 focus:border-[#2F8481]/40 transition-all disabled:opacity-30 ${showErrors && v.errors.some(e => e.includes('Rodmuo')) ? 'border-red-400 bg-red-50/50' : 'border-gray-200'
+                                  }`}
+                                placeholder={'Įveskite'} min={meter.previousReading} step="0.01"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">{info.unit}</span>
                             </div>
                           </div>
                         </div>
-                      )}
 
-                      {/* Photo Upload - only show if meter requires photo */}
-                      {meter.requirePhoto && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Skaitliuko nuotrauka *
-                          </label>
+                        {/* Consumption chip */}
+                        {meter.currentReading > 0 && consumption >= 0 && (
+                          <div className={`flex items-center justify-between ${info.accentBg} rounded-lg px-3 py-2`}>
+                            <div className="flex items-center gap-1.5">
+                              <TrendingUp className={`w-3.5 h-3.5 ${info.accentText}`} />
+                              <span className="text-[9px] text-gray-500 font-medium">{'Suvartota'}</span>
+                            </div>
+                            <span className={`text-[12px] font-bold ${info.accentText}`}>{consumption.toLocaleString('lt-LT')} {info.unit}</span>
+                          </div>
+                        )}
+
+                        {/* Warnings */}
+                        {v.warnings.length > 0 && meter.currentReading > 0 && (
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200/40 rounded-lg">
+                            <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                            <span className="text-[9px] text-amber-700">{v.warnings[0]}</span>
+                          </div>
+                        )}
+
+                        {/* Photo upload zone */}
+                        {meter.requirePhoto && meter.photos.length === 0 && (
                           <div
                             onClick={() => fileInputRefs.current[meter.id]?.click()}
-                            className={`border-2 border-dashed rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200 cursor-pointer ${validation.errors.some(e => e.includes('nuotrauka'))
-                              ? 'border-red-300 bg-red-50'
-                              : 'border-gray-300'
+                            className={`border border-dashed rounded-lg px-3 py-3 flex items-center gap-3 cursor-pointer transition-all hover:border-[#2F8481] hover:bg-[#2F8481]/5 group ${showErrors && v.errors.some(e => e.includes('Nuotrauka')) ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
                               }`}
                           >
-                            <input
-                              ref={el => { fileInputRefs.current[meter.id] = el; }}
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={(e) => handlePhotoUpload(meter.id, e)}
-                              className="hidden"
-                            />
-                            {uploadingPhotos[meter.id] ? (
-                              <>
-                                <div className="w-12 h-12 border-3 border-[#2F8481] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                                <p className="text-gray-600 font-medium mb-2">Įkeliama nuotrauka...</p>
-                              </>
-                            ) : (
-                              <>
-                                <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <p className="text-gray-600 font-medium mb-2">Nufotografuokite skaitliuką</p>
-                                <p className="text-sm text-gray-500">Arba nuvilkite nuotrauką čia</p>
-                              </>
-                            )}
+                            <input ref={el => { fileInputRefs.current[meter.id] = el; }} type="file" accept="image/*" multiple onChange={e => handlePhotoUpload(meter.id, e)} className="hidden" />
+                            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-[#2F8481]/10 transition-colors">
+                              {uploadingPhotos[meter.id]
+                                ? <Loader2 className="w-4 h-4 text-[#2F8481] animate-spin" />
+                                : <Camera className="w-4 h-4 text-gray-400 group-hover:text-[#2F8481] transition-colors" />
+                              }
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold text-gray-600">{uploadingPhotos[meter.id] ? 'Įkeliama...' : 'Pridėti nuotrauką'}</p>
+                              <p className="text-[8px] text-gray-400">{'Nufotografuokite skaitliuką'}</p>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Photo Preview - only show if meter requires photo and has photos */}
-                      {meter.requirePhoto && meter.photos.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-gray-700 mb-2">
-                            Nuotraukos ({meter.photos.length})
-                          </p>
-                          <div className="grid grid-cols-2 gap-3">
-                            {meter.photos.map((photo, index) => (
-                              <div key={index} className="relative group">
-                                <img
-                                  src={photo}
-                                  alt={`Skaitliukas ${index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg"
-                                />
-                                <button
-                                  onClick={() => removePhoto(meter.id, index)}
-                                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                                >
-                                  <TrashIcon className="w-4 h-4" />
+                        {/* Photo thumbnails */}
+                        {meter.photos.length > 0 && (
+                          <div className="flex items-center gap-2 pt-1">
+                            {meter.photos.map((photo, i) => (
+                              <div key={i} className="relative group w-12 h-12 rounded-lg overflow-hidden ring-1 ring-gray-200">
+                                <img src={photo} alt="" className="w-full h-full object-cover" />
+                                <button onClick={() => removePhoto(meter.id, i)} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Trash2 className="w-3.5 h-3.5 text-white" />
                                 </button>
                               </div>
                             ))}
+                            {meter.requirePhoto && (
+                              <div onClick={() => fileInputRefs.current[meter.id]?.click()} className="w-12 h-12 border border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-[#2F8481] transition-all">
+                                <input ref={el => { fileInputRefs.current[meter.id] = el; }} type="file" accept="image/*" multiple onChange={e => handlePhotoUpload(meter.id, e)} className="hidden" />
+                                <Camera className="w-3.5 h-3.5 text-gray-400" />
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
-
-                      {/* Info note for meters that don't require photos */}
-                      {!meter.requirePhoto && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                          <div className="flex items-center space-x-2">
-                            <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">
-                              Šiam skaitliukui nuotrauka nereikalinga
-                            </span>
-                          </div>
-                          <p className="text-xs text-green-600 mt-1">
-                            Užtenka tik įrašyti dabartinį rodmenį
-                          </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Submit / Return Section */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-              {showSuccess ? (
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <CheckCircleIcon className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-emerald-800">Visi rodmenys pateikti</h3>
-                    <p className="text-sm text-emerald-600">{readings.length} skaitliukai sėkmingai išsiųsti</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Pateikti rodmenis</h3>
-                    <p className="text-sm text-gray-500">
-                      {readings.filter(r => {
-                        const validation = validateMeterReading(r);
-                        return validation.isValid;
-                      }).length} / {readings.length} skaitliukai paruošti
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!canSubmit || isSubmitting}
-                    className="group relative px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-colors duration-200 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
-                    <span className="relative flex items-center gap-2">
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Siunčiama...
-                        </>
-                      ) : (
-                        <>
-                          <ArrowUpTrayIcon className="w-5 h-5" />
-                          Pateikti Rodmenis
-                        </>
-                      )}
-                    </span>
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* ── Submit ── */}
+            {!showSuccess && (
+              <div className="mt-6">
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="w-full py-3 bg-[#2F8481] hover:bg-[#276e6b] text-white text-[12px] font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#2F8481]/20 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {'Siunčiama...'}</>
+                  ) : (
+                    <><Send className="w-4 h-4" /> {'Pateikti rodmenis'} ({readyCount}/{readings.length})</>
+                  )}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1004,4 +585,4 @@ const TenantMeters: React.FC = () => {
   );
 };
 
-export default TenantMeters; 
+export default TenantMeters;

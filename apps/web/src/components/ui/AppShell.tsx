@@ -313,9 +313,18 @@ export const AppShell: React.FC = React.memo(() => {
           {/* Clean bottom separator — already provided by border-b on header */}
         </header>
 
-        {/* Page content */}
+        {/* Page content — Suspense here keeps sidebar+header visible during lazy loads */}
         <main className={`flex-1 overflow-auto relative transition-[margin-left] duration-300 ease-out ${sidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
-          <Outlet />
+          <React.Suspense fallback={
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2F8481] mx-auto mb-3"></div>
+                <p className="text-gray-400 text-xs">Kraunama...</p>
+              </div>
+            </div>
+          }>
+            <Outlet />
+          </React.Suspense>
         </main>
       </div>
 

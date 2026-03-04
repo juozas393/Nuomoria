@@ -371,9 +371,13 @@ const AdminDashboard: React.FC = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [logsRes, usersRes] = await Promise.all([
+            // All 5 queries in parallel for faster initial load
+            const [logsRes, usersRes, addrCount, propCount, invCount] = await Promise.all([
                 buildLogQuery(0),
                 supabase.from('users').select('id, email, role, first_name, last_name, is_active, last_login, created_at'),
+                supabase.from('addresses').select('id', { count: 'exact', head: true }),
+                supabase.from('properties').select('id', { count: 'exact', head: true }),
+                supabase.from('invoices').select('id', { count: 'exact', head: true }),
             ]);
 
             if (logsRes.data) {
@@ -382,21 +386,14 @@ const AdminDashboard: React.FC = () => {
             }
             if (usersRes.data) {
                 setUsers(usersRes.data);
-                setKpi(prev => ({ ...prev, totalUsers: usersRes.data.length }));
             }
 
-            const [addrCount, propCount, invCount] = await Promise.all([
-                supabase.from('addresses').select('id', { count: 'exact', head: true }),
-                supabase.from('properties').select('id', { count: 'exact', head: true }),
-                supabase.from('invoices').select('id', { count: 'exact', head: true }),
-            ]);
-
-            setKpi(prev => ({
-                ...prev,
+            setKpi({
+                totalUsers: usersRes.data?.length ?? 0,
                 totalAddresses: addrCount.count ?? 0,
                 totalProperties: propCount.count ?? 0,
                 totalInvoices: invCount.count ?? 0,
-            }));
+            });
         } catch (err) {
             console.error('Admin fetch error:', err);
         } finally {

@@ -182,9 +182,9 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             // Find previous period's reading
             const prevReading = prevMonthReadings.find(r => r.meter_id === config.id);
 
-            // Auto-previous: use this period's saved previous_reading, 
-            // OR fall back to last month's current_reading
-            const previousReading = reading?.previous_reading ?? prevReading?.current_reading ?? null;
+            // Carry-forward: prev month's current_reading is authoritative
+            // Only fall back to this period's saved previous_reading if no prev month data
+            const previousReading = prevReading?.current_reading ?? reading?.previous_reading ?? null;
             const currentReading = reading?.current_reading ?? null;
 
             console.log(`[useMeterReadings] Meter "${config.name}" (${config.id}):`, {
@@ -203,9 +203,19 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             // Calculate cost
             const pricePerUnit = config.price_per_unit || 0;
             const fixedPrice = config.fixed_price || 0;
-            const cost = fixedPrice > 0
-                ? fixedPrice
-                : (consumption !== null ? consumption * pricePerUnit : null);
+            const isCommunal = config.distribution_method !== 'per_consumption';
+
+            // For communal meters, use the stored per-apartment share from DB
+            // (already distributed by saveCommunalReading)
+            // For individual meters, calculate from consumption × price
+            let cost: number | null;
+            if (isCommunal && reading && (reading.total_sum != null || reading.amount != null)) {
+                cost = reading.total_sum || reading.amount || 0;
+            } else if (fixedPrice > 0) {
+                cost = fixedPrice;
+            } else {
+                cost = consumption !== null ? consumption * pricePerUnit : null;
+            }
 
             // Determine status: 'ok' only if current reading was actually entered
             let status: 'missing' | 'pending' | 'ok' = 'missing';
@@ -302,7 +312,8 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 ? (fixedPrice > 0 ? fixedPrice : difference * pricePerUnit)
                 : 0;
 
-            const meterType = config.distribution_method === 'per_consumption' ? 'apartment' : 'address';
+            const isCommunal = config.distribution_method !== 'per_consumption';
+            const meterType = isCommunal ? 'address' : 'apartment';
 
             console.log(`[useMeterReadings] saveReading:`, {
                 meterId,
@@ -312,14 +323,145 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 pricePerUnit,
                 totalSum,
                 meterType,
+                isCommunal,
                 readingDate,
             });
 
-            // Check if reading already exists for this meter+period
-            const existing = readings.find(r => r.meter_id === meterId);
+            if (isCommunal && config.address_id) {
+                // ===== COMMUNAL METER: distribute to all properties at this address =====
+                return await saveCommunalReading(config, meterId, currentVal, prev, difference, pricePerUnit, fixedPrice, totalSum);
+            } else {
+                // ===== INDIVIDUAL METER: save for this property only =====
+                return await saveIndividualReading(meterId, config, currentVal, prev, difference, pricePerUnit, totalSum, meterType);
+            }
+        } catch (e) {
+            console.error('[useMeterReadings] Error saving reading:', e);
+            return false;
+        }
+    }, [propertyId, meterConfigs, readings, readingDate, year, month]);
 
-            if (existing) {
-                // Update existing reading
+    // Save an individual (per-property) meter reading
+    const saveIndividualReading = useCallback(async (
+        meterId: string,
+        config: MeterConfig,
+        currentVal: number | null,
+        prev: number,
+        difference: number,
+        pricePerUnit: number,
+        totalSum: number,
+        meterType: string,
+    ): Promise<boolean> => {
+        const existing = readings.find(r => r.meter_id === meterId);
+
+        if (existing) {
+            const { error: updateErr } = await supabase
+                .from('meter_readings')
+                .update({
+                    current_reading: currentVal,
+                    previous_reading: prev,
+                    difference: difference,
+                    price_per_unit: pricePerUnit,
+                    total_sum: totalSum,
+                    amount: totalSum,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', existing.id);
+
+            if (updateErr) {
+                console.error('[useMeterReadings] Error updating reading:', updateErr);
+                return false;
+            }
+            console.log(`✅ Updated reading for meter ${meterId} in period ${readingDate}`);
+        } else {
+            const { error: insertErr } = await supabase
+                .from('meter_readings')
+                .insert({
+                    property_id: propertyId!,
+                    meter_id: meterId,
+                    meter_type: meterType,
+                    type: resolveMeterReadingType(config),
+                    reading_date: readingDate,
+                    current_reading: currentVal,
+                    previous_reading: prev,
+                    difference: difference,
+                    price_per_unit: pricePerUnit,
+                    total_sum: totalSum,
+                    amount: totalSum,
+                    notes: `Nuomotojo įvestas rodmuo (${year}-${String(month + 1).padStart(2, '0')})`,
+                });
+
+            if (insertErr) {
+                console.error('[useMeterReadings] Error inserting reading:', insertErr);
+                return false;
+            }
+            console.log(`✅ Inserted reading for meter ${meterId} in period ${readingDate}`);
+        }
+
+        return true;
+    }, [propertyId, readings, readingDate, year, month]);
+
+    // Save a communal meter reading and distribute to all properties at the address
+    const saveCommunalReading = useCallback(async (
+        config: MeterConfig,
+        meterId: string,
+        currentVal: number | null,
+        prev: number,
+        difference: number,
+        pricePerUnit: number,
+        fixedPrice: number,
+        totalSum: number,
+    ): Promise<boolean> => {
+        // 1. Fetch all properties at this address
+        const { data: allProperties, error: propErr } = await supabase
+            .from('properties')
+            .select('id, area')
+            .eq('address_id', config.address_id);
+
+        if (propErr || !allProperties || allProperties.length === 0) {
+            console.error('[useMeterReadings] Cannot fetch properties for communal distribution:', propErr);
+            // Fallback: save for current property only
+            return await saveIndividualReading(meterId, config, currentVal, prev, difference, pricePerUnit, totalSum, 'address');
+        }
+
+        const aptCount = allProperties.length;
+        const totalArea = allProperties.reduce((sum, p) => sum + (Number(p.area) || 0), 0);
+        const readingType = resolveMeterReadingType(config);
+
+        console.log(`[useMeterReadings] Communal distribution: ${aptCount} apartments, totalArea=${totalArea}, method=${config.distribution_method}`);
+
+        // 2. Fetch existing readings for this meter across ALL properties in this period
+        const { data: existingReadings } = await supabase
+            .from('meter_readings')
+            .select('id, property_id')
+            .eq('meter_id', meterId)
+            .gte('reading_date', readingDate)
+            .lte('reading_date', readingDate);
+
+        const existingMap = new Map((existingReadings || []).map(r => [r.property_id, r.id]));
+
+        // 3. Calculate per-apartment share and upsert for each property
+        let allSuccess = true;
+        for (const prop of allProperties) {
+            let aptShare: number;
+
+            if (fixedPrice > 0) {
+                // Fixed price: same for each apartment
+                aptShare = fixedPrice;
+            } else if (config.distribution_method === 'per_area' && totalArea > 0) {
+                // Per area: proportional to apartment area
+                const propArea = Number(prop.area) || 0;
+                aptShare = totalSum * (propArea / totalArea);
+            } else {
+                // Per apartment (default): equal split
+                aptShare = totalSum / aptCount;
+            }
+
+            // Round to 2 decimal places
+            aptShare = Math.round(aptShare * 100) / 100;
+
+            const existingId = existingMap.get(prop.id);
+
+            if (existingId) {
                 const { error: updateErr } = await supabase
                     .from('meter_readings')
                     .update({
@@ -327,49 +469,47 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                         previous_reading: prev,
                         difference: difference,
                         price_per_unit: pricePerUnit,
-                        total_sum: totalSum,
-                        amount: totalSum,
+                        total_sum: aptShare,
+                        amount: aptShare,
                         updated_at: new Date().toISOString(),
                     })
-                    .eq('id', existing.id);
+                    .eq('id', existingId);
 
                 if (updateErr) {
-                    console.error('[useMeterReadings] Error updating reading:', updateErr);
-                    return false;
+                    console.error(`[useMeterReadings] Error updating communal reading for property ${prop.id}:`, updateErr);
+                    allSuccess = false;
                 }
-                console.log(`✅ Updated reading for meter ${meterId} in period ${readingDate}`);
             } else {
-                // Insert new reading
                 const { error: insertErr } = await supabase
                     .from('meter_readings')
                     .insert({
-                        property_id: propertyId,
+                        property_id: prop.id,
                         meter_id: meterId,
-                        meter_type: meterType,
-                        type: resolveMeterReadingType(config),
+                        meter_type: 'address',
+                        type: readingType,
                         reading_date: readingDate,
                         current_reading: currentVal,
                         previous_reading: prev,
                         difference: difference,
                         price_per_unit: pricePerUnit,
-                        total_sum: totalSum,
-                        amount: totalSum,
-                        notes: `Nuomotojo įvestas rodmuo (${year}-${String(month + 1).padStart(2, '0')})`,
+                        total_sum: aptShare,
+                        amount: aptShare,
+                        notes: `Bendras skaitliukas — paskirstyta (${config.distribution_method}, ${year}-${String(month + 1).padStart(2, '0')})`,
                     });
 
                 if (insertErr) {
-                    console.error('[useMeterReadings] Error inserting reading:', insertErr);
-                    return false;
+                    console.error(`[useMeterReadings] Error inserting communal reading for property ${prop.id}:`, insertErr);
+                    allSuccess = false;
                 }
-                console.log(`✅ Inserted reading for meter ${meterId} in period ${readingDate}`);
             }
-
-            return true;
-        } catch (e) {
-            console.error('[useMeterReadings] Error saving reading:', e);
-            return false;
         }
-    }, [propertyId, meterConfigs, readings, readingDate, year, month]);
+
+        if (allSuccess) {
+            console.log(`✅ Communal meter "${config.name}" distributed to ${aptCount} properties`);
+        }
+
+        return allSuccess;
+    }, [propertyId, readingDate, year, month, saveIndividualReading]);
 
     // Refetch readings for current AND previous period (call after save)
     const refetch = useCallback(async () => {

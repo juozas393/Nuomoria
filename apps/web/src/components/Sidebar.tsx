@@ -17,9 +17,20 @@ import {
   QuestionMarkCircleIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
-import { smoothScrollTo } from '../utils/smoothScroll';
 import type { UserWithPermissions } from '../types/user';
 import logoImage from '../assets/logocanv.png';
+import { ROUTE_PRELOAD_MAP } from '../routePreload';
+
+// Track which routes have already been preloaded to avoid duplicate imports
+const preloadedRoutes = new Set<string>();
+const preloadRoute = (page: string) => {
+  if (preloadedRoutes.has(page)) return;
+  const loader = ROUTE_PRELOAD_MAP[page];
+  if (loader) {
+    preloadedRoutes.add(page);
+    loader();
+  }
+};
 
 interface SidebarProps {
   isOpen: boolean;
@@ -62,14 +73,8 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
     onPageChange(page);
     onClose();
 
-    // GitHub-style smooth scroll to top after navigation
-    setTimeout(() => {
-      smoothScrollTo(document.body, {
-        duration: 600,
-        offset: 0,
-        easing: 'ease-out'
-      });
-    }, 100);
+    // Instant scroll to top — no delay for faster perceived navigation
+    window.scrollTo(0, 0);
   }, [onPageChange, onClose]);
 
   // Smooth scroll to active item when sidebar opens
@@ -195,12 +200,14 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
     ];
   }, [isAdmin, isDev, user?.role]);
 
-  // Render navigation item
+  // Render navigation item with preloading on hover
   const renderNavItem = (item: NavItem, isActive: boolean) => (
     <button
       key={item.page}
       data-active={isActive}
       onClick={() => handlePageChange(item.page)}
+      onMouseEnter={() => preloadRoute(item.page)}
+      onFocus={() => preloadRoute(item.page)}
       className={`
         w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-150 group
         ${isActive

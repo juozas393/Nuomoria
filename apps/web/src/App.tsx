@@ -163,166 +163,60 @@ function AppContent() {
             <Route path="/test-modal" element={<TestModal />} />
             <Route path="/pagalba" element={<GuidePage />} />
 
-            {/* Protected routes with AppShell — pathless layout so / stays as LandingPage */}
+            {/* Protected routes with AppShell — Suspense is inside AppShell for content-area-only loading */}
             <Route element={
               <ProtectedRoute>
                 <AppShell />
               </ProtectedRoute>
             }>
 
-              {/* Landlord-only routes — tenants get redirected to /tenant */}
-              <Route path="dashboard" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunamas dashboard..." />}>
-                      <Nuomotojas2Dashboard />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="turtas" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunami objektai..." />}>
-                      <Properties />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="butai" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunami butai..." />}>
-                      <Apartments />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="nuomininkai" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunami nuomininkai..." />}>
-                      <Tenants />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="skaitikliai" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunami skaitliukai..." />}>
-                      <MetersPage />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="saskaitos" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunamos sąskaitos..." />}>
-                      <Invoices />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="analitika" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunama analitika..." />}>
-                      <Analytics />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="remontas" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunama priežiūra..." />}>
-                      <Maintenance />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="profilis" element={
-                <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                  <React.Suspense fallback={<LoadingFallback message="Kraunamas profilis..." />}>
-                    <Profile />
-                  </React.Suspense>
-                </ErrorBoundary>
-              } />
-              <Route path="nustatymai" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunami nustatymai..." />}>
-                      <Settings />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
-              <Route path="vartotojai" element={
-                <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunami vartotojai..." />}>
-                      <Users />
-                    </React.Suspense>
-                  </ErrorBoundary>
-                </RoleGuard>
-              } />
+              {/* Landlord/Admin routes — single RoleGuard for the group */}
+              <Route path="dashboard" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Nuomotojas2Dashboard /></ErrorBoundary>} />
+              <Route path="turtas" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Properties /></ErrorBoundary>} />
+              <Route path="butai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Apartments /></ErrorBoundary>} />
+              <Route path="nuomininkai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Tenants /></ErrorBoundary>} />
+              <Route path="skaitikliai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><MetersPage /></ErrorBoundary>} />
+              <Route path="saskaitos" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Invoices /></ErrorBoundary>} />
+              <Route path="analitika" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Analytics /></ErrorBoundary>} />
+              <Route path="remontas" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Maintenance /></ErrorBoundary>} />
+              <Route path="nustatymai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Settings /></ErrorBoundary>} />
+              <Route path="vartotojai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Users /></ErrorBoundary>} />
 
               {/* Admin-only dashboard */}
               <Route path="admin" element={
                 <RoleGuard allowedRoles={['admin']} redirectTo="/dashboard">
-                  <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                    <React.Suspense fallback={<LoadingFallback message="Kraunama admin panelė..." />}>
-                      <AdminDashboard />
-                    </React.Suspense>
-                  </ErrorBoundary>
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}><AdminDashboard /></ErrorBoundary>
                 </RoleGuard>
               } />
 
-              {/* Guide page - accessible by all roles */}
-              <Route path="pagalba" element={
-                <ErrorBoundary fallback={<ErrorFallbackPage />}>
-                  <React.Suspense fallback={<LoadingFallback message="Kraunamas gidas..." />}>
-                    <GuidePage />
-                  </React.Suspense>
-                </ErrorBoundary>
-              } />
+              {/* Shared routes — accessible by all authenticated roles */}
+              <Route path="profilis" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Profile /></ErrorBoundary>} />
+              <Route path="pagalba" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><GuidePage /></ErrorBoundary>} />
 
               {/* Tenant routes — inside AppShell (sidebar + header) */}
               <Route path="tenant" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <React.Suspense fallback={<LoadingFallback message="Kraunamas nuomininko skydelis..." />}>
-                    <TenantDashboard />
-                  </React.Suspense>
+                  <TenantDashboard />
                 </RoleGuard>
               } />
               <Route path="tenant/settings" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <React.Suspense fallback={<LoadingFallback message="Kraunami nustatymai..." />}>
-                    <TenantSettingsPage />
-                  </React.Suspense>
+                  <TenantSettingsPage />
                 </RoleGuard>
               } />
               <Route path="tenant/meters" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <React.Suspense fallback={<LoadingFallback message="Kraunami skaitikliai..." />}>
-                    <TenantMeters />
-                  </React.Suspense>
+                  <TenantMeters />
                 </RoleGuard>
               } />
               <Route path="tenant/invoices" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <React.Suspense fallback={<LoadingFallback message="Kraunamos sąskaitos..." />}>
-                    <TenantInvoices />
-                  </React.Suspense>
+                  <TenantInvoices />
                 </RoleGuard>
               } />
               <Route path="tenant/contract" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <React.Suspense fallback={<LoadingFallback message="Kraunama sutartis..." />}>
-                    <TenantContractPage />
-                  </React.Suspense>
+                  <TenantContractPage />
                 </RoleGuard>
               } />
             </Route>

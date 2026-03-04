@@ -73,6 +73,50 @@ CREATE POLICY "policy_name" ON table FOR [SELECT|INSERT|UPDATE|DELETE]
 -- Helpers: auth.uid(), app_user_id(), app_user_role(), has_access_to_property(uuid)
 ```
 
+### Tenant Data Flow & Lookup Patterns
+
+**⚠️ CRITICAL: How tenant assignment works (RLS-safe)**
+
+The tenant lifecycle flows through `tenant_invitations`, NOT through `user_addresses` or a `tenant_user_id` column:
+
+```
+1. Landlord creates invitation → tenant_invitations (status='pending', property_id, email)
+2. Tenant accepts (joinByCode) → tenant_invitations (status='accepted', email=real_email)
+3. DB trigger handle_invitation_accepted → updates properties (tenant_name, status='occupied')
+4. DB trigger also creates → user_addresses (user_id, address_id, role_at_address='tenant')
+```
+
+**To find a tenant's user_id from landlord context (RLS-safe):**
+
+```tsx
+// Step 1: Get accepted invitation (landlord has RLS access to own invitations)
+const { data: invitation } = await supabase
+    .from('tenant_invitations')
+    .select('email, full_name')
+    .eq('property_id', propertyId)
+    .eq('status', 'accepted')
+    .order('responded_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+// Step 2: Look up user by email to get user_id
+const { data: userRow } = await supabase
+    .from('users')
+    .select('id')
+    .ilike('email', invitation.email)
+    .maybeSingle();
+// userRow.id = tenant's user_id
+```
+
+**Why other approaches FAIL:**
+| Approach | Why it fails |
+|----------|-------------|
+| `properties.tenant_user_id` | Column does NOT exist on staging |
+| `user_addresses` direct query | RLS blocks landlord from seeing tenant rows |
+| `tenants` table direct query | May not have data OR RLS blocks |
+| RPC `get_tenants_at_address` | Must be deployed as SECURITY DEFINER migration |
+| `tenant_invitations` → email → `users.id` | **✅ WORKS — landlord owns invitations, users readable** |
+
 ---
 
 ## 9. Code Conventions

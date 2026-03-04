@@ -148,6 +148,11 @@ export const MeterTableRow = forwardRef<MeterTableRowRef, MeterTableRowProps>(({
     })();
 
     const costDisplay = (() => {
+        // For communal meters, always use the stored per-apartment cost from DB
+        if (meter.scope === 'communal' && meter.cost !== undefined && meter.cost > 0) {
+            return `${meter.cost.toFixed(2)} €`;
+        }
+        // For individual meters, allow live recalculation from draft
         if (draftValue && meter.previousReading !== null && meter.tariff) {
             const current = parseFloat(draftValue);
             if (!isNaN(current) && current >= meter.previousReading) {

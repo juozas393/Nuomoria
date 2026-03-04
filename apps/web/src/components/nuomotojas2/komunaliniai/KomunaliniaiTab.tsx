@@ -350,16 +350,57 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
             return;
         }
         try {
-            // Find all tenants at this address using SECURITY DEFINER function
-            // (direct user_addresses query is blocked by RLS — landlord can't see tenant rows)
-            const { data: tenantLinks, error: linkErr } = await supabase
-                .rpc('get_tenants_at_address', { p_address_id: addressId });
+            // Find tenant user_id via accepted invitation → user email lookup
+            let tenantUserIds: string[] = [];
 
-            console.log('[KomunaliniaiTab] Tenant lookup result:', { tenantLinks, linkErr });
+            // Step 1: Get accepted invitation for this property (landlord has RLS access to own invitations)
+            const { data: invitation, error: invErr } = await supabase
+                .from('tenant_invitations')
+                .select('email, full_name')
+                .eq('property_id', propertyId)
+                .eq('status', 'accepted')
+                .order('responded_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            if (linkErr || !tenantLinks || tenantLinks.length === 0) {
+            if (!invErr && invitation?.email) {
+                console.log('[KomunaliniaiTab] Found accepted invitation for:', invitation.email);
+
+                // Step 2: Look up user by email to get user_id
+                const { data: userRow } = await supabase
+                    .from('users')
+                    .select('id')
+                    .ilike('email', invitation.email)
+                    .maybeSingle();
+
+                if (userRow?.id) {
+                    tenantUserIds = [userRow.id];
+                    console.log('[KomunaliniaiTab] Found tenant user_id:', userRow.id);
+                } else {
+                    console.log('[KomunaliniaiTab] User not found for email:', invitation.email);
+                }
+            } else {
+                console.log('[KomunaliniaiTab] No accepted invitation found, invErr:', invErr?.message);
+            }
+
+            // Fallback: try tenants table
+            if (tenantUserIds.length === 0) {
+                const { data: directTenants } = await supabase
+                    .from('tenants')
+                    .select('user_id')
+                    .eq('property_id', propertyId)
+                    .not('user_id', 'is', null);
+
+                if (directTenants && directTenants.length > 0) {
+                    tenantUserIds = directTenants.map(t => t.user_id).filter(Boolean);
+                    console.log('[KomunaliniaiTab] Found tenants via tenants table:', tenantUserIds.length);
+                }
+            }
+
+            console.log('[KomunaliniaiTab] Tenant lookup result:', { tenantUserIds, invErr: invErr?.message });
+
+            if (tenantUserIds.length === 0) {
                 console.warn('[KomunaliniaiTab] No tenants found at address', addressId);
-                // Show warning — no tenants to notify
                 setRequestWarning('Šiam butui nepriskirtas nuomininkas. Pirmiausia pridėkite nuomininką.');
                 setTimeout(() => setRequestWarning(null), 5000);
                 return;
@@ -371,8 +412,8 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
 
             const individualMeters = activeMeters.filter(m => m.scope === 'individual' && m.status === 'missing');
 
-            const notifications = (tenantLinks as { user_id: string }[]).map(t => ({
-                user_id: t.user_id,
+            const notifications = tenantUserIds.map(uid => ({
+                user_id: uid,
                 kind: 'meter_reading_request',
                 title: 'Prašome pateikti skaitliukų rodmenis',
                 body: `Nuomotojas prašo pateikti skaitliukų rodmenis už ${periodLabel}. Terminas: ${deadline}. Skaitliukai: ${individualMeters.length}.`,
@@ -394,7 +435,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
 
             setRequestSent(true);
             setTimeout(() => setRequestSent(false), 5000);
-            console.log(`[KomunaliniaiTab] ✅ Sent meter reading request to ${tenantLinks.length} tenant(s)`);
+            console.log(`[KomunaliniaiTab] ✅ Sent meter reading request to ${tenantUserIds.length} tenant(s)`);
         } catch (e) {
             console.error('[KomunaliniaiTab] Error requesting readings:', e);
         }

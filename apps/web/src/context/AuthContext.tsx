@@ -63,7 +63,7 @@ async function ensureUserRow(role?: Role, first_name?: string, last_name?: strin
   const { error } = await supabase.rpc('ensure_user_row', {
     p_role: role ?? null,
     p_first_name: first_name ?? 'User',
-    p_last_name: last_name ?? 'Name',
+    p_last_name: last_name ?? '',
   });
   if (error) throw error;
 }
@@ -170,8 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const fallbackUser: UserWithPermissions = {
               id: sessionData.user.id,
               email: sessionData.user.email ?? '',
-              first_name: sessionData.user.user_metadata?.first_name ?? 'User',
-              last_name: sessionData.user.user_metadata?.last_name ?? 'Name',
+              first_name: sessionData.user.user_metadata?.given_name ?? sessionData.user.user_metadata?.first_name ?? sessionData.user.user_metadata?.full_name?.split(' ')[0] ?? 'User',
+              last_name: sessionData.user.user_metadata?.family_name ?? sessionData.user.user_metadata?.last_name ?? sessionData.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ?? '',
               role: sessionData.user.user_metadata?.role ?? localStorage.getItem('signup.role') ?? 'landlord',
               is_active: true,
               created_at: sessionData.user.created_at ?? new Date().toISOString(),
@@ -226,8 +226,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const fallbackUser: UserWithPermissions = {
               id: sessionData.user.id,
               email: sessionData.user.email ?? '',
-              first_name: sessionData.user.user_metadata?.first_name ?? 'User',
-              last_name: sessionData.user.user_metadata?.last_name ?? 'Name',
+              first_name: sessionData.user.user_metadata?.given_name ?? sessionData.user.user_metadata?.first_name ?? sessionData.user.user_metadata?.full_name?.split(' ')[0] ?? 'User',
+              last_name: sessionData.user.user_metadata?.family_name ?? sessionData.user.user_metadata?.last_name ?? sessionData.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ?? '',
               role: sessionData.user.user_metadata?.role ?? localStorage.getItem('signup.role') ?? 'landlord',
               is_active: true,
               created_at: sessionData.user.created_at ?? new Date().toISOString(),
@@ -267,8 +267,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fallbackUser: UserWithPermissions = {
       id: authUser.id,
       email: authUser.email ?? '',
-      first_name: meta.first_name ?? 'User',
-      last_name: meta.last_name ?? 'Name',
+      first_name: meta.given_name ?? meta.first_name ?? meta.full_name?.split(' ')[0] ?? 'User',
+      last_name: meta.family_name ?? meta.last_name ?? meta.full_name?.split(' ').slice(1).join(' ') ?? '',
       role: fallbackRole as any,
       is_active: true,
       created_at: new Date().toISOString(),
@@ -293,8 +293,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // User profile not found, calling ensure_user_row RPC - logging removed for production
           const { error: rpcErr } = await supabase.rpc('ensure_user_row', {
             p_role: meta.role ?? localStorage.getItem('signup.role') ?? null,
-            p_first_name: meta.first_name ?? 'User',
-            p_last_name: meta.last_name ?? 'Name',
+            p_first_name: meta.given_name ?? meta.first_name ?? meta.full_name?.split(' ')[0] ?? 'User',
+            p_last_name: meta.family_name ?? meta.last_name ?? meta.full_name?.split(' ').slice(1).join(' ') ?? '',
           });
           if (rpcErr) {
             // Security: Don't log sensitive database errors

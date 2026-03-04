@@ -80,7 +80,7 @@ const CheckoutForm = memo<{
           flex items-center justify-center gap-2
           ${isSubmitting
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-teal-500 hover:bg-teal-600 text-white shadow-lg shadow-teal-500/25'
+                        : 'bg-[#2F8481] hover:bg-[#276e6b] text-white shadow-lg shadow-[#2F8481]/25'
                     }
         `}
             >
@@ -184,8 +184,8 @@ export const PayRentModal = memo<PayRentModalProps>(({
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-gray-100">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
-                            <CreditCard className="w-5 h-5 text-teal-600" />
+                        <div className="w-10 h-10 bg-[#2F8481]/10 rounded-xl flex items-center justify-center">
+                            <CreditCard className="w-5 h-5 text-[#2F8481]" />
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-gray-900">Mokėti nuomą</h2>
@@ -203,9 +203,9 @@ export const PayRentModal = memo<PayRentModalProps>(({
                 {/* Body */}
                 <div className="p-5">
                     {/* Amount display */}
-                    <div className="mb-5 p-4 rounded-xl bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-100">
-                        <p className="text-xs text-teal-700 mb-1">Mokėjimo suma</p>
-                        <p className="text-2xl font-bold text-teal-900 tabular-nums">{formatCurrency(amount)}</p>
+                    <div className="mb-5 p-4 rounded-xl bg-[#2F8481]/5 border border-[#2F8481]/15">
+                        <p className="text-xs text-[#2F8481] mb-1">Mokėjimo suma</p>
+                        <p className="text-2xl font-bold text-gray-900 tabular-nums">{formatCurrency(amount)}</p>
                     </div>
 
                     {/* Step: Select payment method */}
@@ -216,7 +216,7 @@ export const PayRentModal = memo<PayRentModalProps>(({
                             <button
                                 onClick={() => startPayment('sepa_debit')}
                                 disabled={isLoading || !stripeConfigured}
-                                className="w-full p-4 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50/50 transition-all text-left flex items-center gap-4 group disabled:opacity-50"
+                                className="w-full p-4 rounded-xl border border-gray-200 hover:border-[#2F8481]/40 hover:bg-[#2F8481]/5 transition-all text-left flex items-center gap-4 group disabled:opacity-50"
                             >
                                 <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
                                     <Banknote className="w-5 h-5 text-blue-600" />
@@ -231,7 +231,7 @@ export const PayRentModal = memo<PayRentModalProps>(({
                             <button
                                 onClick={() => startPayment('card')}
                                 disabled={isLoading || !stripeConfigured}
-                                className="w-full p-4 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50/50 transition-all text-left flex items-center gap-4 group disabled:opacity-50"
+                                className="w-full p-4 rounded-xl border border-gray-200 hover:border-[#2F8481]/40 hover:bg-[#2F8481]/5 transition-all text-left flex items-center gap-4 group disabled:opacity-50"
                             >
                                 <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center group-hover:bg-purple-100 transition-colors">
                                     <CreditCard className="w-5 h-5 text-purple-600" />
@@ -267,7 +267,7 @@ export const PayRentModal = memo<PayRentModalProps>(({
                                 appearance: {
                                     theme: 'stripe',
                                     variables: {
-                                        colorPrimary: '#14b8a6',
+                                        colorPrimary: '#2F8481',
                                         borderRadius: '12px',
                                         fontFamily: 'system-ui, sans-serif',
                                         fontSizeBase: '14px',
@@ -297,7 +297,7 @@ export const PayRentModal = memo<PayRentModalProps>(({
                             </p>
                             <button
                                 onClick={onClose}
-                                className="px-8 py-3 bg-teal-500 text-white font-bold text-sm rounded-xl hover:bg-teal-600 transition-colors active:scale-[0.98]"
+                                className="px-8 py-3 bg-[#2F8481] text-white font-bold text-sm rounded-xl hover:bg-[#276e6b] transition-colors active:scale-[0.98]"
                             >
                                 Uždaryti
                             </button>
@@ -321,7 +321,7 @@ export const PayRentModal = memo<PayRentModalProps>(({
                                 </button>
                                 <button
                                     onClick={onClose}
-                                    className="px-6 py-3 bg-teal-500 text-white font-bold text-sm rounded-xl hover:bg-teal-600 transition-colors"
+                                    className="px-6 py-3 bg-[#2F8481] text-white font-bold text-sm rounded-xl hover:bg-[#276e6b] transition-colors"
                                 >
                                     Uždaryti
                                 </button>

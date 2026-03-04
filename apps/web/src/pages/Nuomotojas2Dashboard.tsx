@@ -76,6 +76,34 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const [isDeletingApartment, setIsDeletingApartment] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
+  // Callback for when property data is updated (e.g., rent saved in PropertyTab)
+  // Must refetch AND update selectedTenant so the modal shows fresh data
+  const handlePropertyUpdated = useCallback(async () => {
+    await refetchProperties();
+    // Re-read the specific property directly from DB to update selectedTenant
+    if (selectedTenant) {
+      const { data: freshProp } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('id', selectedTenant.id)
+        .single();
+      if (freshProp) {
+        setSelectedTenant((prev: any) => ({
+          ...prev,
+          rent: freshProp.rent,
+          monthlyRent: freshProp.rent,
+          deposit: freshProp.deposit_amount,
+          deposit_amount: freshProp.deposit_amount,
+          rooms: freshProp.rooms,
+          area: freshProp.area,
+          floor: freshProp.floor,
+          under_maintenance: freshProp.under_maintenance,
+          property_type: freshProp.property_type,
+          extended_details: freshProp.extended_details || {},
+        }));
+      }
+    }
+  }, [refetchProperties, selectedTenant]);
 
 
   // Derived state with memoization for performance
@@ -999,7 +1027,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                 costPerApartment: meter.costPerApartment
               };
             }) : []}
-            onPropertyUpdated={refetchProperties}
+            onPropertyUpdated={handlePropertyUpdated}
           />
         </React.Suspense>
       )}
@@ -1130,6 +1158,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
           isOpen={showAddApartmentModal}
           onClose={() => setShowAddApartmentModal(false)}
           address={selectedAddressForApartment}
+          addressId={selectedAddressIdForApartment}
           onAdd={async (apartmentData: any) => {
             try {
               // Validate required fields

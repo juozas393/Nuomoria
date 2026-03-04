@@ -616,13 +616,14 @@ const PropertyTab: React.FC<{
   const isOccupied = property.status === 'occupied' || property.status === 'rented';
 
   // â”€â”€ Form state â”€â”€
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState({
     rooms: property.rooms?.toString() || '',
     area: property.area?.toString() || '',
     floor: property.floor?.toString() || '',
     status: property.status || 'vacant',
     under_maintenance: (property as any).under_maintenance ?? false,
-    type: property.type || 'apartment',
+    type: (property as any).property_type || property.type || 'apartment',
     bedrooms: ext.bedrooms?.toString() || '',
     bathrooms: ext.bathrooms?.toString() || '',
     balcony: ext.balcony ?? false,
@@ -637,8 +638,8 @@ const PropertyTab: React.FC<{
     late_fee_grace_days: ext.late_fee_grace_days?.toString() || '5',
     late_fee_amount: ext.late_fee_amount?.toString() || '0',
     notes_internal: ext.notes_internal || '',
-    rent: (property as any).rent?.toString() || '',
-    deposit_amount: (property as any).deposit_amount?.toString() || '',
+    rent: (property as any).rent?.toString() || '0',
+    deposit_amount: (property as any).deposit_amount?.toString() || '0',
   });
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
@@ -667,7 +668,7 @@ const PropertyTab: React.FC<{
       floor: property.floor?.toString() || '',
       status: property.status || 'vacant',
       under_maintenance: (property as any).under_maintenance ?? false,
-      type: property.type || 'apartment',
+      type: (property as any).property_type || property.type || 'apartment',
       bedrooms: newExt.bedrooms?.toString() || '',
       bathrooms: newExt.bathrooms?.toString() || '',
       balcony: newExt.balcony ?? false,
@@ -682,8 +683,8 @@ const PropertyTab: React.FC<{
       late_fee_grace_days: newExt.late_fee_grace_days?.toString() || '5',
       late_fee_amount: newExt.late_fee_amount?.toString() || '0',
       notes_internal: newExt.notes_internal || '',
-      rent: (property as any).rent?.toString() || '',
-      deposit_amount: (property as any).deposit_amount?.toString() || '',
+      rent: (property as any).rent?.toString() || '0',
+      deposit_amount: (property as any).deposit_amount?.toString() || '0',
     });
     // Reset dirty tracking
     initialFormRef.current = {
@@ -692,7 +693,7 @@ const PropertyTab: React.FC<{
       floor: property.floor?.toString() || '',
       status: property.status || 'vacant',
       under_maintenance: (property as any).under_maintenance ?? false,
-      type: property.type || 'apartment',
+      type: (property as any).property_type || property.type || 'apartment',
       bedrooms: newExt.bedrooms?.toString() || '',
       bathrooms: newExt.bathrooms?.toString() || '',
       balcony: newExt.balcony ?? false,
@@ -707,8 +708,8 @@ const PropertyTab: React.FC<{
       late_fee_grace_days: newExt.late_fee_grace_days?.toString() || '5',
       late_fee_amount: newExt.late_fee_amount?.toString() || '0',
       notes_internal: newExt.notes_internal || '',
-      rent: (property as any).rent?.toString() || '',
-      deposit_amount: (property as any).deposit_amount?.toString() || '',
+      rent: (property as any).rent?.toString() || '0',
+      deposit_amount: (property as any).deposit_amount?.toString() || '0',
     };
   }, [property.id]);
 
@@ -720,40 +721,45 @@ const PropertyTab: React.FC<{
     console.log('[PropertyTab] handleSave called', { isDirty, hasOnSave: !!onSaveProperty });
     if (!onSaveProperty || !isDirty) return;
     setIsSaving(true);
+    setSaveError(null);
+    const payload = {
+      rooms: formData.rooms ? parseInt(formData.rooms) : null,
+      area: formData.area ? parseFloat(formData.area) : null,
+      floor: formData.floor ? parseInt(formData.floor) : null,
+      rent: formData.rent ? parseFloat(formData.rent) : 0,
+      deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : 0,
+      under_maintenance: formData.under_maintenance,
+      property_type: formData.type,
+      extended_details: {
+        ...ext,
+        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
+        bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
+        balcony: formData.balcony,
+        storage: formData.storage,
+        parking_type: formData.parking_type,
+        heating_type: formData.heating_type || undefined,
+        furnished: formData.furnished || undefined,
+        pets_allowed: formData.pets_allowed,
+        smoking_allowed: formData.smoking_allowed,
+        payment_due_day: formData.payment_due_day ? parseInt(formData.payment_due_day) : undefined,
+        min_term_months: formData.min_term_months ? parseInt(formData.min_term_months) : undefined,
+        late_fee_grace_days: formData.late_fee_grace_days ? parseInt(formData.late_fee_grace_days) : undefined,
+        late_fee_amount: formData.late_fee_amount ? parseFloat(formData.late_fee_amount) : undefined,
+        notes_internal: formData.notes_internal || undefined,
+      },
+    };
+    console.log('[PropertyTab] Save payload:', JSON.stringify(payload, null, 2));
     try {
-      await onSaveProperty({
-        rooms: formData.rooms ? parseInt(formData.rooms) : null,
-        area: formData.area ? parseFloat(formData.area) : null,
-        floor: formData.floor ? parseInt(formData.floor) : null,
-        rent: formData.rent ? parseFloat(formData.rent) : null,
-        deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : null,
-        under_maintenance: formData.under_maintenance,
-        property_type: formData.type,
-        extended_details: {
-          ...ext,
-          bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
-          bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
-          balcony: formData.balcony,
-          storage: formData.storage,
-          parking_type: formData.parking_type,
-          heating_type: formData.heating_type || undefined,
-          furnished: formData.furnished || undefined,
-          pets_allowed: formData.pets_allowed,
-          smoking_allowed: formData.smoking_allowed,
-          payment_due_day: formData.payment_due_day ? parseInt(formData.payment_due_day) : undefined,
-          min_term_months: formData.min_term_months ? parseInt(formData.min_term_months) : undefined,
-          late_fee_grace_days: formData.late_fee_grace_days ? parseInt(formData.late_fee_grace_days) : undefined,
-          late_fee_amount: formData.late_fee_amount ? parseFloat(formData.late_fee_amount) : undefined,
-          notes_internal: formData.notes_internal || undefined,
-        },
-      });
-      console.log('[PropertyTab] Save payload sent successfully');
-      // Update initialFormRef so isDirty resets correctly
+      await onSaveProperty(payload);
+      console.log('[PropertyTab] ✅ Save completed successfully');
       initialFormRef.current = { ...formData };
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (error) {
-      console.error('Error saving property:', error);
+    } catch (error: any) {
+      console.error('[PropertyTab] ❌ Save error:', error);
+      const msg = error?.message || 'Klaida saugant duomenis';
+      setSaveError(msg);
+      setTimeout(() => setSaveError(null), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -1199,6 +1205,12 @@ const PropertyTab: React.FC<{
             <><Save className="w-4 h-4" />{isDirty ? 'Išsaugoti pakeitimus' : 'Nėra pakeitimų'}</>
           )}
         </button>
+        {saveError && (
+          <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-[11px]">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{saveError}</span>
+          </div>
+        )}
       </div>
 
     </div>
@@ -2645,7 +2657,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   const [isEditPropertyModalOpen, setIsEditPropertyModalOpen] = useState(false);
   const [isUnitDrawerOpen, setIsUnitDrawerOpen] = useState(false);
 
-  // Form states
+  // ── Form state ──
   const [tenantForm, setTenantForm] = useState({ name: '', email: '', phone: '' });
   const [leaseForm, setLeaseForm] = useState({ startDate: '', endDate: '', monthlyRent: '', deposit: '' });
   const [propertyForm, setPropertyForm] = useState({
@@ -2864,27 +2876,26 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     setActiveTab('property');
   }, []);
 
-  // Save handler for ApartmentSettingsModal
+  // Save handler for PropertyTab (Būstas tab)
   const handleDrawerSaveProperty = useCallback(async (updates: any) => {
-    console.log('[handleDrawerSaveProperty] called with', { propertyId: property.id, updates });
     try {
-      const { error, count } = await supabase
+      const res = await supabase
         .from('properties')
         .update(updates)
         .eq('id', property.id)
-        .select('id')
-        .then(res => ({ error: res.error, count: res.data?.length ?? 0 }));
+        .select('id');
 
-      if (error) throw error;
-      if (count === 0) {
-        console.error('[handleDrawerSaveProperty] No rows updated — likely RLS policy blocking');
-        throw new Error('Nepavyko išsaugoti — nėra prieigos teisių');
+      if (res.error) {
+        console.error('[handleDrawerSaveProperty] DB error:', res.error);
+        throw new Error(res.error.message || 'DB klaida saugant');
       }
-      console.log('[handleDrawerSaveProperty] Property updated in DB, calling onPropertyUpdated');
-      // Refresh parent data so UI reflects saved values
+      if (!res.data || res.data.length === 0) {
+        throw new Error('Nepavyko išsaugoti — nėra prieigos teisių arba būstas nerastas');
+      }
+      // Trigger parent to refetch AND update selectedTenant state
       onPropertyUpdated?.();
-    } catch (error) {
-      console.error('Error saving property:', error);
+    } catch (error: any) {
+      console.error('[handleDrawerSaveProperty] Error:', error);
       throw error;
     }
   }, [property.id, onPropertyUpdated]);

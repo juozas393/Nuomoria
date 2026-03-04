@@ -131,23 +131,84 @@ import { supabase } from '../lib/supabase';
 /** Cached user ID — updated on auth state change */
 let _cachedUserId: string | null = null;
 
-// Listen for auth state changes to keep the cached user ID in sync
+/** Run one-time cleanup if needed, then cache the user ID */
+const setUserId = (id: string | null): void => {
+  if (id && id !== _cachedUserId) {
+    _cachedUserId = id;
+    // One-time cleanup: only run if version flag not set for this user
+    const versionKey = `nuomoria_templates_v2_${id}`;
+    if (!localStorage.getItem(versionKey)) {
+      cleanupUnscopedTemplates(id);
+      localStorage.setItem(versionKey, '1');
+    }
+  } else {
+    _cachedUserId = id;
+  }
+};
+
+// Listen for auth state changes
 supabase.auth.onAuthStateChange((_event, session) => {
-  _cachedUserId = session?.user?.id ?? null;
+  setUserId(session?.user?.id ?? null);
 });
 
 // Initialize from current session on module load
 supabase.auth.getSession().then(({ data }) => {
-  _cachedUserId = data.session?.user?.id ?? null;
+  setUserId(data.session?.user?.id ?? null);
 });
 
-/** Get current user ID (synchronous, uses cached value) */
+/** Clean up any templates stored under generic (unscoped) key — they can't be reliably attributed to any user */
+const cleanupUnscopedTemplates = (userId: string): void => {
+  try {
+    // Remove the generic (shared) key — can't know whose templates these are
+    const genericKey = 'nuomoria_custom_meter_templates';
+    localStorage.removeItem(genericKey);
+    localStorage.removeItem('nuomoria_hidden_default_templates');
+    // Also clean user-scoped key if it was polluted by a previous bad migration
+    const userKey = `nuomoria_custom_meter_templates_${userId}`;
+    const hiddenKey = `nuomoria_hidden_default_templates_${userId}`;
+    const existing = localStorage.getItem(userKey);
+    if (existing) {
+      try {
+        const templates = JSON.parse(existing);
+        // If templates contain items that were clearly migrated (before this fix), clean them
+        if (Array.isArray(templates) && templates.length > 0) {
+          // Keep only templates that were created AFTER this fix (user will re-save)
+          // For now, clean everything — user can re-save their own templates
+          localStorage.removeItem(userKey);
+        }
+      } catch { localStorage.removeItem(userKey); }
+    }
+    // Also clean hidden defaults — restore all defaults
+    localStorage.removeItem(hiddenKey);
+  } catch { /* silent */ }
+};
+
+/** Get current user ID (synchronous, uses cached value with fallback) */
 const getCurrentUserId = (): string | null => {
-  return _cachedUserId;
+  if (_cachedUserId) return _cachedUserId;
+  // Fallback: try to extract user ID from Supabase local storage token
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const uid = parsed?.user?.id;
+          if (uid) { _cachedUserId = uid; return uid; }
+        }
+      }
+    }
+  } catch { /* silent */ }
+  return null;
 };
 
 const getCustomTemplatesKey = () => {
   const userId = getCurrentUserId();
+  if (!userId) {
+    // If still no user ID, warn — this shouldn't happen in normal usage
+    console.warn('[meterTemplates] No user ID available for template scoping');
+  }
   return userId ? `nuomoria_custom_meter_templates_${userId}` : 'nuomoria_custom_meter_templates';
 };
 

@@ -3,7 +3,8 @@
  * AddApartmentModal - Premium Design
  * Matches app-wide modal pattern: ModalBackground.png backdrop + CardsBackground.webp on cards
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import { createPortal } from 'react-dom';
 import LtDateInput from '../ui/LtDateInput';
 import {
@@ -32,6 +33,7 @@ interface AddApartmentModalProps {
   onClose: () => void;
   onAdd: (apartmentData: ApartmentData | MultipleApartmentData) => void;
   address?: string;
+  addressId?: string;
 }
 
 export interface ApartmentData {
@@ -84,50 +86,65 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
   isOpen,
   onClose,
   onAdd,
-  address = ''
+  address = '',
+  addressId
 }) => {
   const [currentStep, setCurrentStep] = useState<ModalStep>('single-apartment');
   const [apartmentType, setApartmentType] = useState<'single' | 'multiple'>('single');
 
-  // Default meters for new apartments
-  const defaultMeters: MeterRow[] = [
-    {
-      id: 'meter-1',
-      key: 'cold_water',
-      name: 'Šaltas vanduo',
-      unit: 'm3',
-      rate: 1.32,
-      initialReading: 0,
-      photoRequired: true
-    },
-    {
-      id: 'meter-2',
-      key: 'hot_water',
-      name: 'Karštas vanduo',
-      unit: 'm3',
-      rate: 3.5,
-      initialReading: 0,
-      photoRequired: true
-    },
-    {
-      id: 'meter-3',
-      key: 'electricity',
-      name: 'Elektra',
-      unit: 'kWh',
-      rate: 0.23,
-      initialReading: 0,
-      photoRequired: true
-    },
-    {
-      id: 'meter-4',
-      key: 'heating',
-      name: 'Šildymas',
-      unit: 'kWh',
-      rate: 0.095,
-      initialReading: 0,
-      photoRequired: true
-    }
+  // Hardcoded fallback meters (used only when no address_meters exist)
+  const fallbackMeters: MeterRow[] = [
+    { id: 'meter-1', key: 'cold_water', name: 'Šaltas vanduo', unit: 'm3', rate: 1.32, initialReading: 0, photoRequired: true },
+    { id: 'meter-2', key: 'hot_water', name: 'Karštas vanduo', unit: 'm3', rate: 3.5, initialReading: 0, photoRequired: true },
+    { id: 'meter-3', key: 'electricity', name: 'Elektra', unit: 'kWh', rate: 0.23, initialReading: 0, photoRequired: true },
+    { id: 'meter-4', key: 'heating', name: 'Šildymas', unit: 'kWh', rate: 0.095, initialReading: 0, photoRequired: true }
   ];
+
+  const [defaultMeters, setDefaultMeters] = useState<MeterRow[]>(fallbackMeters);
+
+  // Fetch existing address_meters tariffs when modal opens
+  useEffect(() => {
+    if (!isOpen || !addressId) {
+      setDefaultMeters(fallbackMeters);
+      return;
+    }
+
+    const fetchAddressMeters = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('address_meters')
+          .select('id, name, type, unit, price_per_unit, fixed_price, distribution_method')
+          .eq('address_id', addressId)
+          .order('name');
+
+        if (error || !data || data.length === 0) {
+          setDefaultMeters(fallbackMeters);
+          return;
+        }
+
+        // Map address_meters to MeterRow format
+        const mapped: MeterRow[] = data.map((am, idx) => ({
+          id: `meter-${idx + 1}`,
+          key: am.name.toLowerCase().replace(/\s+/g, '_'),
+          name: am.name,
+          unit: am.unit || 'kWh',
+          rate: Number(am.price_per_unit) || Number(am.fixed_price) || 0,
+          initialReading: 0,
+          photoRequired: false,
+        }));
+
+        setDefaultMeters(mapped);
+        // Also update form data with fetched meters
+        setSingleFormData(prev => ({ ...prev, meters: mapped }));
+        setMultipleFormData(prev => ({ ...prev, meters: mapped }));
+      } catch (e) {
+        console.error('[AddApartmentModal] Error fetching address meters:', e);
+        setDefaultMeters(fallbackMeters);
+      }
+    };
+
+    fetchAddressMeters();
+  }, [isOpen, addressId]);
 
   // Single apartment form data
   const [singleFormData, setSingleFormData] = useState<Omit<ApartmentData, 'type'>>({

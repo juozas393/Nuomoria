@@ -113,6 +113,9 @@ export const MeterRow = forwardRef<MeterRowRef, MeterRowProps>(({
     })();
 
     const cost = (() => {
+        // For communal meters, always use the stored per-apartment cost from DB
+        if (meter.scope === 'communal' && meter.cost && meter.cost > 0) return meter.cost;
+        // For individual meters, recalculate live
         if (consumption !== null && meter.tariff) return consumption * meter.tariff;
         return (meter.cost && meter.cost > 0) ? meter.cost : null;
     })();

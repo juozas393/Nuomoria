@@ -88,7 +88,7 @@ const surface2 = 'bg-white/92 backdrop-blur-[14px] border border-white/80 shadow
 const heading = 'text-[13px] font-bold text-gray-900';
 const subtext = 'text-[11px] text-gray-500';
 const dangerBtn = 'px-4 py-2 bg-red-500 text-white text-[11px] font-bold rounded-lg hover:bg-red-600 transition-all duration-200 active:scale-[0.98]';
-const input = 'w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all';
+const input = 'w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#2F8481]/30 focus:border-[#2F8481] transition-all';
 
 /* ─── Helpers ─── */
 const formatDate = (d: string | null) => {
@@ -456,7 +456,7 @@ const TenantContractPage: React.FC = () => {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-6 h-6 text-teal-500 animate-spin" />
+                    <Loader2 className="w-6 h-6 text-[#2F8481] animate-spin" />
                     <span className="text-[11px] text-gray-400">Kraunama...</span>
                 </div>
             </div>
@@ -519,8 +519,8 @@ const TenantContractPage: React.FC = () => {
             {/* Contract info card */}
             <div className={`${surface2} p-5`}>
                 <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-4 h-4 text-teal-600" />
+                    <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
+                        <FileText className="w-4 h-4 text-[#2F8481]" />
                     </div>
                     <div>
                         <p className={heading}>Sutarties duomenys</p>
@@ -556,13 +556,13 @@ const TenantContractPage: React.FC = () => {
                     <div className={`mt-3 flex items-center gap-2 p-2.5 rounded-lg ${daysUntilEnd <= 0 ? 'bg-gray-50 border border-gray-200' :
                         daysUntilEnd <= 30 ? 'bg-red-50 border border-red-100' :
                             daysUntilEnd <= 90 ? 'bg-amber-50 border border-amber-100' :
-                                'bg-teal-50 border border-teal-100'
+                                'bg-[#2F8481]/10 border border-[#2F8481]/20'
                         }`}>
                         <Calendar className={`w-3.5 h-3.5 ${daysUntilEnd <= 0 ? 'text-gray-500' :
-                            daysUntilEnd <= 30 ? 'text-red-500' : daysUntilEnd <= 90 ? 'text-amber-500' : 'text-teal-500'
+                            daysUntilEnd <= 30 ? 'text-red-500' : daysUntilEnd <= 90 ? 'text-amber-500' : 'text-[#2F8481]'
                             }`} />
                         <span className={`text-[11px] font-medium ${daysUntilEnd <= 0 ? 'text-gray-600' :
-                            daysUntilEnd <= 30 ? 'text-red-700' : daysUntilEnd <= 90 ? 'text-amber-700' : 'text-teal-700'
+                            daysUntilEnd <= 30 ? 'text-red-700' : daysUntilEnd <= 90 ? 'text-amber-700' : 'text-[#2F8481]'
                             }`}>
                             {daysUntilEnd > 0 ? `Iki sutarties pabaigos liko ${daysUntilEnd} d.` : 'Sutartis pasibaigė — taikoma neterminuota sutartis'}
                         </span>
@@ -574,8 +574,8 @@ const TenantContractPage: React.FC = () => {
             {propertyDetails && (
                 <div className={`${surface2} p-5`}>
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                            <Home className="w-4 h-4 text-teal-600" />
+                        <div className="w-8 h-8 bg-[#2F8481]/10 rounded-lg flex items-center justify-center">
+                            <Home className="w-4 h-4 text-[#2F8481]" />
                         </div>
                         <div>
                             <p className={heading}>Būsto informacija</p>
@@ -587,7 +587,7 @@ const TenantContractPage: React.FC = () => {
                     {propertyDetails.address && (
                         <div className={`${surface1} p-3 mb-3`}>
                             <div className="flex items-center gap-2">
-                                <MapPin className="w-3.5 h-3.5 text-teal-500" />
+                                <MapPin className="w-3.5 h-3.5 text-[#2F8481]" />
                                 <span className="text-[12px] font-bold text-gray-900">
                                     {propertyDetails.address.street}, {propertyDetails.address.city}
                                     {propertyDetails.address.zipcode ? `, ${propertyDetails.address.zipcode}` : ''}
@@ -701,12 +701,12 @@ const TenantContractPage: React.FC = () => {
                                 {hasChips && (
                                     <div className="flex flex-wrap gap-1.5">
                                         {ext.balcony && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 text-teal-700 text-[10px] font-medium rounded-full border border-teal-100">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#2F8481]/10 text-[#2F8481] text-[10px] font-medium rounded-full border border-[#2F8481]/20">
                                                 <Maximize2 className="w-3 h-3" /> Balkonas
                                             </span>
                                         )}
                                         {ext.storage && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 text-teal-700 text-[10px] font-medium rounded-full border border-teal-100">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#2F8481]/10 text-[#2F8481] text-[10px] font-medium rounded-full border border-[#2F8481]/20">
                                                 <Layers className="w-3 h-3" /> Sandėliukas
                                             </span>
                                         )}
