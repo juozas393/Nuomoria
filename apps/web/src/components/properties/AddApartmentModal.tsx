@@ -25,6 +25,7 @@ import {
 } from '@heroicons/react/24/outline';
 import MeterTable from '../meters/MeterTable';
 import { MeterRow } from '../../types/meters';
+import { METER_TEMPLATES } from '../../constants/meterTemplates';
 
 const cardsBg = '/images/CardsBackground.webp';
 
@@ -92,13 +93,18 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
   const [currentStep, setCurrentStep] = useState<ModalStep>('single-apartment');
   const [apartmentType, setApartmentType] = useState<'single' | 'multiple'>('single');
 
-  // Hardcoded fallback meters (used only when no address_meters exist)
-  const fallbackMeters: MeterRow[] = [
-    { id: 'meter-1', key: 'cold_water', name: 'Šaltas vanduo', unit: 'm3', rate: 1.32, initialReading: 0, photoRequired: true },
-    { id: 'meter-2', key: 'hot_water', name: 'Karštas vanduo', unit: 'm3', rate: 3.5, initialReading: 0, photoRequired: true },
-    { id: 'meter-3', key: 'electricity', name: 'Elektra', unit: 'kWh', rate: 0.23, initialReading: 0, photoRequired: true },
-    { id: 'meter-4', key: 'heating', name: 'Šildymas', unit: 'kWh', rate: 0.095, initialReading: 0, photoRequired: true }
-  ];
+  // Fallback meters from centralized templates (used only when no address_meters exist)
+  const fallbackMeters: MeterRow[] = METER_TEMPLATES
+    .filter(t => t.type === 'individual') // Only individual meters for apartments
+    .map((t, idx) => ({
+      id: `meter-${idx + 1}`,
+      key: t.id,
+      name: t.name,
+      unit: t.unit,
+      rate: t.defaultPrice || 0,
+      initialReading: 0,
+      photoRequired: t.requiresPhoto || false
+    }));
 
   const [defaultMeters, setDefaultMeters] = useState<MeterRow[]>(fallbackMeters);
 

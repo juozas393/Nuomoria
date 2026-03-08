@@ -97,6 +97,7 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  background-color: #060a0c;
   /* Ultra light scroll optimization */
   scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
@@ -232,6 +233,19 @@ html {
   }
 }
 
+/* Teal gradient text animation — used on login page and tenant dashboard */
+@keyframes loginGradientShift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 @keyframes fadeInContent {
   from {
     opacity: 0;
@@ -286,6 +300,12 @@ html {
   }
 }
 
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Modal centering - Shopify level (no blur) */
 .modal-overlay {
   position: fixed;
@@ -302,12 +322,7 @@ html {
   -webkit-backdrop-filter: none;
 }
 
-/* Remove all blur effects globally */
-* {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  filter: none !important;
-}
+/* Backdrop-filter removed from global selector — now allowed on header/sidebar */
 
 /* Smooth scroll behavior */
 html,
@@ -699,13 +714,13 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
   transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 ::-webkit-scrollbar-corner {
@@ -715,7 +730,7 @@ html {
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 /* Smooth scroll for specific containers */

@@ -547,7 +547,7 @@ const TenantDashboard: React.FC = () => {
 
   return (
     <DashboardErrorBoundary>
-      <div className="min-h-screen bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('/imagesGen/DashboardImage.jpg')` }}>
+      <div className="min-h-screen bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('/imagesGen/DashboardImage.webp')` }}>
         {/* Header */}
         <header className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

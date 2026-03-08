@@ -23,6 +23,7 @@ interface UseBulkEditsReturn {
     errorCount: number;
     hasErrors: boolean;
     getDirtyValues: () => { meterId: string; value: number }[];
+    getClearedMeterIds: (metersWithReadings: string[]) => string[];
 }
 
 // =============================================================================
@@ -85,6 +86,14 @@ export const useBulkEdits = (): UseBulkEditsReturn => {
             }));
     }, [drafts]);
 
+    // Get meter IDs where user cleared the input (draft exists with empty value)
+    // for meters that currently have a DB reading
+    const getClearedMeterIds = useCallback((metersWithReadings: string[]): string[] => {
+        return Object.entries(drafts)
+            .filter(([meterId, draft]) => draft.value === '' && metersWithReadings.includes(meterId))
+            .map(([meterId]) => meterId);
+    }, [drafts]);
+
     return {
         drafts,
         setDraft,
@@ -95,6 +104,7 @@ export const useBulkEdits = (): UseBulkEditsReturn => {
         errorCount,
         hasErrors,
         getDirtyValues,
+        getClearedMeterIds,
     };
 };
 

@@ -82,13 +82,13 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
     setTemplateListVersion(v => v + 1);
   }, []);
 
-  // Filter available templates
+  // Filter available templates — show ALL (including already added) so custom templates are always visible
   const availableTemplates = useMemo(() => {
     return allTemplates.filter((template) =>
-      template.name && !existingMeterNames.includes(template.name) &&
+      template.name &&
       template.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [allTemplates, existingMeterNames, searchTerm]);
+  }, [allTemplates, searchTerm]);
 
   const handleTemplateToggle = useCallback((templateId: string) => {
     if (!allowMultiple) {
@@ -207,6 +207,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
         requiresPhoto: customForm.requiresPhoto,
         description: customForm.description,
       });
+      setTemplateListVersion(v => v + 1);
     }
 
     const metersWithMeta = [{ ...meterData, saveAsTemplate }];
@@ -221,7 +222,7 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
       requiresPhoto: false,
       description: ''
     });
-  }, [customForm, existingMeterNames, onAddMeters]);
+  }, [customForm, existingMeterNames, onAddMeters, saveAsTemplate]);
 
   const isValidCustomForm = useMemo(() => {
     return customForm.name.trim().length > 0 && customForm.price >= 0;
@@ -299,15 +300,18 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
               <div className="space-y-2">
                 {availableTemplates.map((template) => {
                   const isSelected = selectedTemplates.includes(template.id);
+                  const isAlreadyAdded = existingMeterNames.includes(template.name);
                   return (
                     <div
                       key={template.id}
-                      onClick={() => handleTemplateToggle(template.id)}
-                      className={`group relative flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected
-                        ? 'bg-white/95 border-teal-400 shadow-md'
-                        : 'bg-white/90 border-white/20 hover:bg-white/95 hover:shadow-sm'
+                      onClick={() => !isAlreadyAdded && handleTemplateToggle(template.id)}
+                      className={`group relative flex items-center gap-3 p-3 rounded-xl border transition-all ${isAlreadyAdded
+                        ? 'bg-gray-100/80 border-gray-200 opacity-60 cursor-not-allowed'
+                        : isSelected
+                          ? 'bg-white/95 border-teal-400 shadow-md cursor-pointer'
+                          : 'bg-white/90 border-white/20 hover:bg-white/95 hover:shadow-sm cursor-pointer'
                         }`}
-                      style={{ backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                      style={!isAlreadyAdded ? { backgroundImage: `url('${cardsBg}')`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
                     >
                       {/* Left accent bar when selected */}
                       {isSelected && (
@@ -333,6 +337,9 @@ export const UniversalAddMeterModal: React.FC<UniversalAddMeterModalProps> = Rea
                         <div className="min-w-0">
                           <div className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
                             {template.name}
+                            {isAlreadyAdded && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-200 text-gray-500 rounded-full font-medium">Jau pridėtas</span>
+                            )}
                             {template.id.startsWith('custom_') && (
                               <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-600 rounded-full font-medium">Mano</span>
                             )}

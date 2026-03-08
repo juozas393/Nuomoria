@@ -18,7 +18,7 @@ import {
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import type { UserWithPermissions } from '../types/user';
-import logoImage from '../assets/logocanv.png';
+import logoImage from '../assets/logocanvBLACKWithoutBG.png';
 import { ROUTE_PRELOAD_MAP } from '../routePreload';
 
 // Track which routes have already been preloaded to avoid duplicate imports
@@ -187,6 +187,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
         title: 'ADMIN',
         items: [
           { name: 'Admin panelė', page: 'admin', icon: ShieldCheckIcon },
+          { name: 'Našumas', page: 'admin/performance', icon: ChartBarIcon },
           { name: 'Vartotojai', page: 'vartotojai', icon: UserIcon }
         ]
       }] : []),
@@ -211,13 +212,13 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
       className={`
         w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-150 group
         ${isActive
-          ? 'bg-[#2f8481] text-white shadow-[0_1px_3px_rgba(47,132,129,0.3)]'
-          : 'text-gray-700 hover:text-[#2f8481] hover:bg-gray-50'
+          ? 'bg-teal-500/20 text-white shadow-[0_1px_3px_rgba(47,132,129,0.3)]'
+          : 'text-gray-400 hover:text-white hover:bg-white/[0.06]'
         }
       `}
     >
       <div className="flex items-center gap-3">
-        <item.icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-[#2f8481]'}`} />
+        <item.icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-teal-400'}`} />
         <span>{item.name}</span>
       </div>
       {item.badge && (
@@ -225,7 +226,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
           inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
           ${isActive
             ? 'bg-white/20 text-white'
-            : 'bg-gray-100 text-gray-600'
+            : 'bg-white/[0.06] text-gray-400'
           }
         `}>
           {item.badge}
@@ -247,15 +248,21 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
       <div
         ref={sidebarRef}
         className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-lg
+          fixed inset-y-0 left-0 z-50 w-64 shadow-lg
           transform transition-transform duration-300 ease-out
           flex flex-col h-full max-h-screen overflow-hidden
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
+        style={{
+          backgroundColor: 'rgba(6,10,12,0.92)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+        }}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo Header */}
-          <div className="flex-shrink-0 flex items-center justify-center p-3 border-b border-gray-100 bg-white">
+          <div className="flex-shrink-0 flex items-center justify-center p-3 border-b border-white/[0.08] bg-white/[0.03]">
             <img
               src={logoImage}
               alt="Nuomoria"
@@ -266,9 +273,9 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
           </div>
 
           {/* User Info */}
-          <div className="flex-shrink-0 px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+          <div className="flex-shrink-0 px-4 py-3 border-b border-white/[0.08] bg-white/[0.03]">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-[#2f8481]">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-teal-500/20">
                 {(user as any)?.avatar_url ? (
                   <img
                     src={(user as any).avatar_url}
@@ -289,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-white truncate">
                   {(() => {
                     if (!user) return 'Vartotojas';
                     if ((user as any)?.username) return (user as any).username;
@@ -304,7 +311,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
                   <span className="text-xs text-gray-500 truncate">{user?.email}</span>
                 </div>
               </div>
-              <span className="px-2 py-0.5 text-xs font-medium bg-[#2f8481]/10 text-[#2f8481] rounded-md flex-shrink-0">
+              <span className="px-2 py-0.5 text-xs font-medium bg-teal-500/15 text-teal-400 rounded-md flex-shrink-0">
                 {user?.role === 'admin' ? 'Admin' : user?.role === 'landlord' ? 'Nuomotojas' : user?.role === 'tenant' ? 'Nuomininkas' : user?.role || 'User'}
               </span>
             </div>
@@ -313,7 +320,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-3">
             {navigationGroups.map((group, groupIndex) => (
-              <div key={group.title} className={groupIndex > 0 ? 'mt-4 pt-4 border-t border-gray-100 mx-3' : 'px-3'}>
+              <div key={group.title} className={groupIndex > 0 ? 'mt-4 pt-4 border-t border-white/[0.06] mx-3' : 'px-3'}>
                 <h3 className="px-3 mb-2 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
                   {group.title}
                 </h3>
@@ -328,7 +335,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
           </nav>
 
           {/* Footer */}
-          <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="flex-shrink-0 p-4 border-t border-white/[0.08] bg-white/[0.03]">
             <div className="flex items-center gap-3 p-3 bg-[#2F8481] rounded-xl cursor-pointer hover:shadow-md transition-shadow">
               <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
                 <SparklesIcon className="h-4 w-4 text-white" />

@@ -42,6 +42,7 @@ const Apartments = React.lazy(() => import(/* webpackChunkName: "apartments" */ 
 const Settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './pages/Settings'));
 const Users = React.lazy(() => import(/* webpackChunkName: "users" */ './pages/Users'));
 const AdminDashboard = React.lazy(() => import(/* webpackChunkName: "admin" */ './pages/AdminDashboard'));
+const AdminPerformancePage = React.lazy(() => import(/* webpackChunkName: "admin-performance" */ './pages/AdminPerformancePage'));
 
 // Auth pages - load immediately as they're critical
 const SupabaseLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseLogin'));
@@ -59,6 +60,7 @@ const LandingPage = React.lazy(() => import(/* webpackChunkName: "landing" */ '.
 
 // Guide page
 const GuidePage = React.lazy(() => import(/* webpackChunkName: "guide" */ './pages/GuidePage'));
+const PricingPage = React.lazy(() => import(/* webpackChunkName: "pricing" */ './pages/PricingPage'));
 
 // Test pages (for development)
 const TestModal = React.lazy(() => import('./pages/TestModal'));
@@ -162,6 +164,7 @@ function AppContent() {
             <Route path="/auth/old-callback" element={<EmailConfirmation />} />
             <Route path="/test-modal" element={<TestModal />} />
             <Route path="/pagalba" element={<GuidePage />} />
+            <Route path="/kainos" element={<PricingPage />} />
 
             {/* Protected routes with AppShell — Suspense is inside AppShell for content-area-only loading */}
             <Route element={
@@ -186,6 +189,11 @@ function AppContent() {
               <Route path="admin" element={
                 <RoleGuard allowedRoles={['admin']} redirectTo="/dashboard">
                   <ErrorBoundary fallback={<ErrorFallbackPage />}><AdminDashboard /></ErrorBoundary>
+                </RoleGuard>
+              } />
+              <Route path="admin/performance" element={
+                <RoleGuard allowedRoles={['admin']} redirectTo="/dashboard">
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}><AdminPerformancePage /></ErrorBoundary>
                 </RoleGuard>
               } />
 

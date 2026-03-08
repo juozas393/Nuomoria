@@ -5,7 +5,7 @@
  */
 import { supabase } from './supabase';
 
-type ActivityAction = 'VIEW' | 'SUBMIT' | 'LOGIN' | 'EXPORT';
+type ActivityAction = 'VIEW' | 'SUBMIT' | 'LOGIN' | 'EXPORT' | 'INSERT' | 'UPDATE' | 'DELETE';
 
 interface ActivityOptions {
     /** Which table/entity the action relates to */

@@ -17,6 +17,7 @@ import { RecentActivityCard, ActivityItem } from './overview/RecentActivityCard'
 
 // API
 import { getLayouts, saveLayouts } from '../../lib/api/layoutsApi';
+import { getPropertyAuditLog, generateDisplayDescription } from '../../lib/auditLogApi';
 
 // =============================================================================
 // TYPES
@@ -73,6 +74,8 @@ interface OverviewWithLayoutEditorProps {
     onDeletePhoto?: (index: number) => void;
     onReorderPhotos?: (photos: string[]) => void;
     onSetCover?: (index: number) => void;
+    onPropertyUpdated?: () => void;
+    activityRefreshKey?: number;
 }
 
 // =============================================================================
@@ -138,6 +141,8 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
     onDeletePhoto,
     onReorderPhotos,
     onSetCover,
+    onPropertyUpdated,
+    activityRefreshKey = 0,
 }) => {
     const { isEditing } = useLayoutEditor();
 
@@ -182,17 +187,28 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
         },
     ];
 
-    const recentActivities: ActivityItem[] = photos.length > 0 ? [
-        {
-            id: '1',
-            type: 'photo_upload',
-            label: `Įkelta ${photos.length} nuotrauk${photos.length === 1 ? 'a' : 'os'}`,
-            timestamp: new Date(Date.now() - 3600000),
-        },
-    ] : [];
+    // Fetch real audit log activities
+    const [auditActivities, setAuditActivities] = useState<ActivityItem[]>([]);
+    useEffect(() => {
+        if (!property.id) return;
+        getPropertyAuditLog(property.id, 9).then(entries => {
+            console.log('[ActivityFeed] Fetched audit entries for', property.id, ':', entries.length, entries);
+            const items: ActivityItem[] = entries
+                .filter(e => e.action !== 'VIEW')
+                .map(entry => ({
+                    id: entry.id,
+                    type: 'other' as const,
+                    label: entry.description || generateDisplayDescription(entry.changed_fields, entry.old_data, entry.new_data),
+                    timestamp: new Date(entry.created_at),
+                }));
+            setAuditActivities(items);
+        }).catch(err => {
+            console.error('[ActivityFeed] Error fetching audit log:', err);
+        });
+    }, [property.id, activityRefreshKey]);
 
     return (
-        <div className="p-4">
+        <div className="p-4" style={{ transform: 'scale(0.82)', transformOrigin: 'top center', width: 'calc(100% / 0.82)', marginLeft: 'calc((100% - 100% / 0.82) / 2)' }}>
             {/* Edit mode toolbar (sticky top) + Edit button when not editing */}
             <EditModeToolbar />
             {canEditLayout && (
@@ -255,22 +271,18 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
 
                 {/* Checklist */}
                 <div className="h-full">
-                    {!readiness.isComplete ? (
+                    {!readiness.isComplete && (
                         <SetupProgressCard
                             tasks={tasks}
                             readinessPercent={readiness.percent}
                         />
-                    ) : (
-                        <div className="h-full bg-primary-light border border-primary/20 rounded-lg p-3 flex items-center justify-center">
-                            <span className="text-sm font-medium text-primary">✓ Būstas paruoštas</span>
-                        </div>
                     )}
                 </div>
 
                 {/* Activity Card */}
                 <RecentActivityCard
-                    activities={recentActivities}
-                    onViewAll={() => { }}
+                    activities={auditActivities}
+                    onViewAll={() => onNavigateTab?.('documents')}
                 />
             </EditableGrid>
         </div>

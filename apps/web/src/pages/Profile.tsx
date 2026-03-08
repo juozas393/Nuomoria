@@ -28,11 +28,17 @@ const generateInitials = (firstName?: string | null, lastName?: string | null, u
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg ${type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        {type === 'success' ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />}
-      </svg>
-      <span className="text-sm font-medium">{message}</span>
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border ${type === 'success'
+        ? 'bg-[#0f1215]/95 border-emerald-500/20 text-white'
+        : 'bg-[#0f1215]/95 border-red-500/20 text-white'
+      }`}>
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${type === 'success' ? 'bg-emerald-500/15' : 'bg-red-500/15'
+        }`}>
+        <svg className={`w-4 h-4 ${type === 'success' ? 'text-emerald-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          {type === 'success' ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />}
+        </svg>
+      </div>
+      <span className="text-[13px] font-medium text-white/90">{message}</span>
     </div>
   );
 };
@@ -48,6 +54,7 @@ const Profile: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [hasActiveContracts, setHasActiveContracts] = useState(false);
   const [formData, setFormData] = useState({ username: '', first_name: '', last_name: '', phone: '' });
   const [originalData, setOriginalData] = useState({ username: '', first_name: '', last_name: '', phone: '' });
   const [usernameError, setUsernameError] = useState('');
@@ -99,6 +106,15 @@ const Profile: React.FC = () => {
       setProfile(p);
       const fs = { username: p.username, first_name: p.first_name || '', last_name: p.last_name || '', phone: p.phone || '' };
       setFormData(fs); setOriginalData(fs);
+
+      // Check for active contracts (async, non-blocking)
+      Promise.all([
+        supabase.from('tenant_invitations').select('id', { count: 'exact', head: true })
+          .or(`invited_by.eq.${user.id},email.ilike.${p.email}`).in('status', ['accepted', 'pending']),
+        supabase.from('user_addresses').select('id', { count: 'exact', head: true }).eq('user_id', user.id)
+      ]).then(([inv, addr]) => {
+        setHasActiveContracts((inv.count || 0) > 0 || (addr.count || 0) > 0);
+      });
     } catch (e) { console.error(e); setToast({ message: 'Nepavyko užkrauti', type: 'error' }); }
     finally { setLoading(false); }
   };
@@ -174,6 +190,31 @@ const Profile: React.FC = () => {
     setDeletingAccount(true);
 
     try {
+      // Check for active contracts/invitations before allowing deletion
+      const [invitationsRes, addressesRes] = await Promise.all([
+        supabase
+          .from('tenant_invitations')
+          .select('id', { count: 'exact', head: true })
+          .or(`invited_by.eq.${user.id},email.ilike.${profile.email}`)
+          .in('status', ['accepted', 'pending']),
+        supabase
+          .from('user_addresses')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+      ]);
+
+      const activeInvitations = invitationsRes.count || 0;
+      const activeAddresses = addressesRes.count || 0;
+
+      if (activeInvitations > 0 || activeAddresses > 0) {
+        setToast({
+          message: `Negalima ištrinti paskyros: turite aktyvių sutarčių (${activeInvitations} kvietimų, ${activeAddresses} adresų)`,
+          type: 'error'
+        });
+        setDeletingAccount(false);
+        return;
+      }
+
       // Try to delete from profiles table (may fail due to RLS)
       const { error: profileError } = await supabase.from('profiles').delete().eq('id', user.id);
       if (profileError) console.warn('profiles delete failed (RLS?):', profileError.message);
@@ -436,10 +477,16 @@ const Profile: React.FC = () => {
                 <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 <h3 className="text-sm font-medium text-gray-400">Pavojinga zona</h3>
               </div>
+              {hasActiveContracts && (
+                <div className="mb-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <p className="text-xs text-amber-400 font-medium">Turite aktyvių sutarčių — negalite ištrinti paskyros nei keisti rolės, kol jos galioja.</p>
+                </div>
+              )}
               <p className="text-xs text-gray-500 mb-3">Paskyros ištrynimas yra negrįžtamas. Visi duomenys bus prarasti.</p>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="text-sm text-red-600 hover:text-red-700 font-medium"
+                disabled={hasActiveContracts}
+                className={`text-sm font-medium ${hasActiveContracts ? 'text-gray-500 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
               >
                 Ištrinti paskyrą →
               </button>

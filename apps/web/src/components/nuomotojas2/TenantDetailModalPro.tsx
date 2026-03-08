@@ -3,6 +3,7 @@ import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { useFocusTrap } from "../../utils/nuomotojas2Utils";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
+import { trackActivity } from "../../lib/activityTracker";
 
 import { Tenant } from "../../types/tenant";
 import { type Meter } from "../komunaliniai";
@@ -11,6 +12,7 @@ import { getMeterTypeLabel } from '../../constants/meterDistribution';
 import { PremiumOverviewTab } from './PremiumOverviewTab';
 import { OverviewWithLayoutEditor } from './OverviewWithLayoutEditor';
 import { getApartmentMeters } from '../../lib/meterPriceApi';
+import { createTenantHistoryRecord } from '../../lib/tenantHistoryApi';
 import InviteTenantModal from './InviteTenantModal';
 import { KomunaliniaiTab, adaptLegacyMeters } from './komunaliniai';
 import ContractTerminationSection from './ContractTerminationSection';
@@ -618,6 +620,7 @@ const PropertyTab: React.FC<{
   // â”€â”€ Form state â”€â”€
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState({
+    apartment_number: (property as any).apartment_number?.toString() || '',
     rooms: property.rooms?.toString() || '',
     area: property.area?.toString() || '',
     floor: property.floor?.toString() || '',
@@ -640,6 +643,8 @@ const PropertyTab: React.FC<{
     notes_internal: ext.notes_internal || '',
     rent: (property as any).rent?.toString() || '0',
     deposit_amount: (property as any).deposit_amount?.toString() || '0',
+    contract_start: tenant?.contractStart || (property as any).contract_start || '',
+    contract_end: tenant?.contractEnd || (property as any).contract_end || '',
   });
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
@@ -647,7 +652,8 @@ const PropertyTab: React.FC<{
   const isDirty = React.useMemo(() => {
     const i = initialFormRef.current;
     const f = formData;
-    return f.rooms !== i.rooms || f.area !== i.area || f.floor !== i.floor ||
+    return f.apartment_number !== i.apartment_number ||
+      f.rooms !== i.rooms || f.area !== i.area || f.floor !== i.floor ||
       f.status !== i.status || f.under_maintenance !== i.under_maintenance ||
       f.type !== i.type || f.bedrooms !== i.bedrooms ||
       f.bathrooms !== i.bathrooms || f.balcony !== i.balcony || f.storage !== i.storage ||
@@ -656,13 +662,15 @@ const PropertyTab: React.FC<{
       f.smoking_allowed !== i.smoking_allowed || f.payment_due_day !== i.payment_due_day ||
       f.min_term_months !== i.min_term_months || f.late_fee_grace_days !== i.late_fee_grace_days ||
       f.late_fee_amount !== i.late_fee_amount || f.notes_internal !== i.notes_internal ||
-      f.rent !== i.rent || f.deposit_amount !== i.deposit_amount;
+      f.rent !== i.rent || f.deposit_amount !== i.deposit_amount ||
+      f.contract_start !== i.contract_start || f.contract_end !== i.contract_end;
   }, [formData]);
 
   // Reset form when property changes
   React.useEffect(() => {
     const newExt = (property as any).extended_details || {};
     setFormData({
+      apartment_number: (property as any).apartment_number?.toString() || '',
       rooms: property.rooms?.toString() || '',
       area: property.area?.toString() || '',
       floor: property.floor?.toString() || '',
@@ -685,9 +693,12 @@ const PropertyTab: React.FC<{
       notes_internal: newExt.notes_internal || '',
       rent: (property as any).rent?.toString() || '0',
       deposit_amount: (property as any).deposit_amount?.toString() || '0',
+      contract_start: tenant?.contractStart || (property as any).contract_start || '',
+      contract_end: tenant?.contractEnd || (property as any).contract_end || '',
     });
     // Reset dirty tracking
     initialFormRef.current = {
+      apartment_number: (property as any).apartment_number?.toString() || '',
       rooms: property.rooms?.toString() || '',
       area: property.area?.toString() || '',
       floor: property.floor?.toString() || '',
@@ -710,6 +721,8 @@ const PropertyTab: React.FC<{
       notes_internal: newExt.notes_internal || '',
       rent: (property as any).rent?.toString() || '0',
       deposit_amount: (property as any).deposit_amount?.toString() || '0',
+      contract_start: tenant?.contractStart || (property as any).contract_start || '',
+      contract_end: tenant?.contractEnd || (property as any).contract_end || '',
     };
   }, [property.id]);
 
@@ -723,11 +736,14 @@ const PropertyTab: React.FC<{
     setIsSaving(true);
     setSaveError(null);
     const payload = {
+      apartment_number: formData.apartment_number.trim() || (property as any).apartment_number || '',
       rooms: formData.rooms ? parseInt(formData.rooms) : null,
       area: formData.area ? parseFloat(formData.area) : null,
       floor: formData.floor ? parseInt(formData.floor) : null,
       rent: formData.rent ? parseFloat(formData.rent) : 0,
       deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : 0,
+      contract_start: formData.contract_start || null,
+      contract_end: formData.contract_end || null,
       under_maintenance: formData.under_maintenance,
       property_type: formData.type,
       extended_details: {
@@ -755,6 +771,9 @@ const PropertyTab: React.FC<{
       initialFormRef.current = { ...formData };
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
+
+      // Log activity
+      trackActivity('UPDATE', { tableName: 'properties', recordId: property.id, description: 'Atnaujinti būsto duomenys' });
     } catch (error: any) {
       console.error('[PropertyTab] ❌ Save error:', error);
       const msg = error?.message || 'Klaida saugant duomenis';
@@ -765,9 +784,22 @@ const PropertyTab: React.FC<{
     }
   }, [formData, onSaveProperty, isDirty, ext]);
 
-  // Contract helpers
-  const contractEnd = tenant?.contractEnd ? new Date(tenant.contractEnd) : null;
-  const contractStart = tenant?.contractStart ? new Date(tenant.contractStart) : null;
+  // Auto-save: debounce 1.5 seconds after last field change
+  const handleSaveRef = React.useRef(handleSave);
+  handleSaveRef.current = handleSave;
+  React.useEffect(() => {
+    if (!isDirty) return;
+    const timer = setTimeout(() => {
+      handleSaveRef.current();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [formData, isDirty]);
+
+  // Contract helpers — use form values so edits are reflected
+  const contractEndStr = formData.contract_end || tenant?.contractEnd;
+  const contractStartStr = formData.contract_start || tenant?.contractStart;
+  const contractEnd = contractEndStr ? new Date(contractEndStr) : null;
+  const contractStart = contractStartStr ? new Date(contractStartStr) : null;
   const daysUntilEnd = contractEnd ? Math.ceil((contractEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
   const contractExpired = daysUntilEnd !== null && daysUntilEnd < 0;
   const contractEndingSoon = daysUntilEnd !== null && daysUntilEnd >= 0 && daysUntilEnd <= 30;
@@ -798,8 +830,8 @@ const PropertyTab: React.FC<{
   const ltCardInner = 'bg-gray-50/40';
   const ltInput = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[13px] text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none shadow-sm';
   const ltSelect = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[13px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all appearance-none cursor-pointer shadow-sm';
-  const ltInputCompact = 'w-full px-2.5 py-2 bg-gray-50/50 border border-gray-300 rounded-lg text-[12px] font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 focus:bg-white transition-all shadow-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
-  const ltSelectCompact = 'w-full px-2.5 py-2 bg-gray-50/50 border border-gray-300 rounded-lg text-[12px] font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 focus:bg-white transition-all appearance-none cursor-pointer shadow-sm';
+  const ltInputCompact = 'w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-[12px] font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all shadow-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+  const ltSelectCompact = 'w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-[12px] font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all appearance-none cursor-pointer shadow-sm';
   const ltLabel = 'block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1';
   const ltSub = 'text-[11px] text-gray-500';
   const ltTiny = 'text-[9px] text-gray-400 font-medium';
@@ -820,7 +852,7 @@ const PropertyTab: React.FC<{
   );
 
   return (
-    <div className="space-y-4 p-3">
+    <div className="space-y-3 p-2">
 
       {/* ═══ 1. PHOTO GALLERY ═══ */}
       <PhotoGallerySection
@@ -834,19 +866,24 @@ const PropertyTab: React.FC<{
       />
 
       {/* ═══ 2. COMPREHENSIVE PROPERTY CARD ═══ */}
-      <div className={ltCard}>
+      <div className={`${ltCard} relative`} style={{ backgroundImage: 'url(/images/rodikliai_opt.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        {/* White overlay for readability */}
+        <div className="absolute inset-0 z-0 rounded-2xl" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.78) 100%)' }} />
 
         {/* ── SECTION A: Pagrindiniai duomenys ── */}
-        <div className="relative border-b border-gray-200/80 overflow-hidden">
-          <img src="/images/CardsBackground.webp" alt="" className="absolute inset-0 w-full h-full object-cover opacity-[0.35] pointer-events-none" loading="lazy" />
-          <div className="relative px-4 py-3">
-            <div className="flex items-center gap-2.5 mb-3">
+        <div className="relative z-10 border-b border-gray-200/80">
+          <div className="px-3.5 py-2.5">
+            <div className="flex items-center gap-2.5 mb-2">
               <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center">
                 <Home className="w-3.5 h-3.5 text-teal-600" />
               </div>
               <h3 className="text-[13px] font-bold text-gray-900">Pagrindiniai duomenys</h3>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              <div>
+                <label className={ltLabel}>Pavadinimas</label>
+                <input type="text" value={formData.apartment_number} onChange={e => updateField('apartment_number', e.target.value)} placeholder="pvz. 1, Studija A" maxLength={50} className={ltInputCompact} />
+              </div>
               <div>
                 <label className={ltLabel}>Tipas</label>
                 <div className="relative group">
@@ -914,14 +951,14 @@ const PropertyTab: React.FC<{
         </div>
 
         {/* ── SECTION B: Parametrai ir ypatybės ── */}
-        <div className="px-4 py-3 border-b border-gray-200/80">
-          <div className="flex items-center gap-2.5 mb-3">
+        <div className="relative z-10 px-3.5 py-2.5 border-b border-gray-200/80">
+          <div className="flex items-center gap-2.5 mb-2">
             <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center">
               <Settings className="w-3.5 h-3.5 text-teal-600" />
             </div>
             <h3 className="text-[13px] font-bold text-gray-900">Parametrai ir ypatybės</h3>
           </div>
-          <div className="grid grid-cols-3 lg:grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-3 lg:grid-cols-3 gap-2 mb-2">
             <div>
               <label className={ltLabel}>Šildymas</label>
               <div className="relative group">
@@ -983,7 +1020,7 @@ const PropertyTab: React.FC<{
         </div>
 
         {/* ── SECTION C: Nuomos sąlygos ── */}
-        <div className="px-4 py-3 border-b border-gray-200/80">
+        <div className="relative z-10 px-3.5 py-2.5 border-b border-gray-200/80">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center">
@@ -1009,7 +1046,7 @@ const PropertyTab: React.FC<{
               </span>
             )}
           </div>
-          <p className="text-[10px] text-gray-400 mb-3 ml-[38px]">Nustatykite mokėjimo tvarką šiam būstui</p>
+          <p className="text-[10px] text-gray-400 mb-2 ml-[38px]">Nustatykite mokėjimo tvarką šiam būstui</p>
 
           {/* Settings row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1039,7 +1076,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Mokėjimo diena</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.payment_due_day} onChange={e => updateField('payment_due_day', e.target.value)} placeholder="1" min={1} max={28} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.payment_due_day} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('payment_due_day', v); }} onBlur={e => { const n = parseInt(e.target.value) || 1; updateField('payment_due_day', String(Math.min(28, Math.max(1, n)))); }} placeholder="1" min={1} max={28} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">d.</span>
               </div>
               <p className="text-[9px] text-gray-400 mt-1 leading-tight">Kiekvieną mėnesį iki šios dienos nuomininkas turi sumokėti nuomą</p>
@@ -1050,7 +1087,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Min. terminas</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.min_term_months} onChange={e => updateField('min_term_months', e.target.value)} placeholder="12" min={1} className={`${ltInputCompact} pr-10`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.min_term_months} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('min_term_months', v); }} onBlur={e => { const n = parseInt(e.target.value) || 1; updateField('min_term_months', String(Math.min(120, Math.max(1, n)))); }} placeholder="12" min={1} max={120} className={`${ltInputCompact} pr-10`} onWheel={e => (e.target as HTMLInputElement).blur()} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">mėn.</span>
               </div>
               <p className="text-[9px] text-gray-400 mt-1 leading-tight">Trumpiausias galimas nuomos laikotarpis</p>
@@ -1061,7 +1098,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Baudos pradžia</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.late_fee_grace_days} onChange={e => updateField('late_fee_grace_days', e.target.value)} placeholder="5" min={0} max={30} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.late_fee_grace_days} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('late_fee_grace_days', v); }} onBlur={e => { const n = parseInt(e.target.value) || 0; updateField('late_fee_grace_days', String(Math.min(30, Math.max(0, n)))); }} placeholder="5" min={0} max={30} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">d.</span>
               </div>
               <p className="text-[9px] text-gray-400 mt-1 leading-tight">Po kiek dienų nuo mokėjimo termino pradedama skaičiuoti bauda</p>
@@ -1094,23 +1131,29 @@ const PropertyTab: React.FC<{
                   {tenant?.deposit != null ? `${Number(tenant.deposit).toFixed(0)} €` : '—'}
                 </p>
               </div>
-              {contractStart && (
-                <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
-                  <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider">Sutartis nuo</p>
-                  <p className="text-[13px] font-bold text-gray-800 tabular-nums">{formatDate(contractStart)}</p>
-                </div>
-              )}
-              {contractEnd && (
-                <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
-                  <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider">Sutartis iki</p>
-                  <p className={`text-[13px] font-bold tabular-nums ${contractExpired ? 'text-red-600' : contractEndingSoon ? 'text-amber-600' : 'text-gray-800'}`}>
-                    {formatDate(contractEnd)}
-                    {daysUntilEnd !== null && !contractExpired && (
-                      <span className="text-gray-400 font-normal text-[10px] ml-1">({daysUntilEnd}d.)</span>
-                    )}
+              <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
+                <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Sutartis nuo</p>
+                <input
+                  type="date"
+                  value={formData.contract_start ? formData.contract_start.substring(0, 10) : ''}
+                  onChange={e => updateField('contract_start', e.target.value)}
+                  className="w-full px-2 py-1 bg-white border border-gray-200 rounded-lg text-[13px] font-bold text-gray-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all cursor-pointer"
+                />
+              </div>
+              <div className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200/60">
+                <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Sutartis iki</p>
+                <input
+                  type="date"
+                  value={formData.contract_end ? formData.contract_end.substring(0, 10) : ''}
+                  onChange={e => updateField('contract_end', e.target.value)}
+                  className={`w-full px-2 py-1 bg-white border border-gray-200 rounded-lg text-[13px] font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all cursor-pointer ${contractExpired ? 'text-red-600' : contractEndingSoon ? 'text-amber-600' : 'text-gray-800'}`}
+                />
+                {daysUntilEnd !== null && (
+                  <p className={`text-[9px] mt-0.5 ${contractExpired ? 'text-red-500' : contractEndingSoon ? 'text-amber-500' : 'text-gray-400'}`}>
+                    {contractExpired ? `Pasibaigė prieš ${Math.abs(daysUntilEnd)} d.` : `Liko ${daysUntilEnd} d.`}
                   </p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
@@ -1161,7 +1204,7 @@ const PropertyTab: React.FC<{
         </div>
 
         {/* ── SECTION D: Pastabos ── */}
-        <div className="px-4 py-3">
+        <div className="relative z-10 px-3.5 py-2.5">
           <div className="flex items-center gap-2.5 mb-2">
             <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center">
               <Lock className="w-3.5 h-3.5 text-teal-600" />
@@ -1185,33 +1228,29 @@ const PropertyTab: React.FC<{
         </div>
       </div>
 
-      {/* ═══ SAVE — sticky at bottom ═══ */}
-      <div className="sticky bottom-0 z-10 -mx-3 px-3 pt-3 pb-3">
-        <button
-          onClick={handleSave}
-          disabled={isSaving || !isDirty}
-          className={`w-full flex items-center justify-center gap-2 py-3 text-[13px] font-bold rounded-xl transition-all duration-200 shadow-lg ${saveSuccess
-            ? 'bg-emerald-500 text-white ring-1 ring-emerald-400'
-            : isDirty
-              ? 'bg-teal-500 text-white hover:bg-teal-600 active:scale-[0.995] shadow-[0_4px_14px_rgba(20,184,166,0.35)]'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-            }`}
-        >
-          {saveSuccess ? (
-            <><Check className="w-4 h-4" />Išsaugota!</>
-          ) : isSaving ? (
-            <><Save className="w-4 h-4 animate-pulse" />Saugoma...</>
-          ) : (
-            <><Save className="w-4 h-4" />{isDirty ? 'Išsaugoti pakeitimus' : 'Nėra pakeitimų'}</>
-          )}
-        </button>
-        {saveError && (
-          <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-[11px]">
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>{saveError}</span>
+      {/* ═══ AUTO-SAVE STATUS — subtle indicator ═══ */}
+      {(isDirty || isSaving || saveSuccess || saveError) && (
+        <div className="sticky bottom-0 z-10 -mx-3 px-3 pt-2 pb-2">
+          <div className={`flex items-center justify-center gap-2 py-2 px-4 text-[11px] font-semibold rounded-xl transition-all duration-300 ${saveSuccess
+            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+            : saveError
+              ? 'bg-red-50 text-red-600 border border-red-200'
+              : isSaving
+                ? 'bg-teal-50 text-teal-600 border border-teal-200'
+                : 'bg-amber-50 text-amber-600 border border-amber-200'
+            }`}>
+            {saveSuccess ? (
+              <><Check className="w-3.5 h-3.5" />Išsaugota!</>
+            ) : saveError ? (
+              <><AlertTriangle className="w-3.5 h-3.5" />{saveError}</>
+            ) : isSaving ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saugoma...</>
+            ) : (
+              <><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />Automatiškai saugoma...</>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
     </div>
   );
@@ -2072,6 +2111,7 @@ const END_REASON_MAP: Record<string, string> = {
 
 interface HistoryTabProps {
   propertyId: string;
+  activityRefreshKey?: number;
   currentTenant?: {
     name?: string;
     email?: string;
@@ -2083,7 +2123,7 @@ interface HistoryTabProps {
   };
 }
 
-const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) => {
+const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, activityRefreshKey }) => {
   // --- State ---
   const [pastTenants, setPastTenants] = useState<TenantHistoryRecord[]>([]);
   const [docs, setDocs] = useState<PropertyDocument[]>([]);
@@ -2099,6 +2139,10 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
   const [tenantsOpen, setTenantsOpen] = useState(true);
   const [invoicesOpen, setInvoicesOpen] = useState(true);
   const [docsOpen, setDocsOpen] = useState(true);
+  const [showActivityLog, setShowActivityLog] = useState(true);
+
+  // Activity log
+  const [activityLog, setActivityLog] = useState<{ id: string; action: string; description: string; created_at: string }[]>([]);
 
   // --- Fetch all data ---
   const fetchAll = useCallback(async () => {
@@ -2131,10 +2175,35 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
     if (!docsRes.error && docsRes.data) setDocs(docsRes.data as PropertyDocument[]);
     if (!invoicesRes.error && invoicesRes.data) setInvoices(invoicesRes.data as InvoiceRecord[]);
 
+    // Fetch activity log (non-VIEW entries)
+    const { data: auditData } = await supabase
+      .from('audit_log')
+      .select('id, action, description, created_at')
+      .eq('record_id', propertyId)
+      .neq('action', 'VIEW')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (auditData) setActivityLog(auditData);
+
     setIsLoading(false);
   }, [propertyId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Re-fetch activity log when activityRefreshKey changes
+  useEffect(() => {
+    if (activityRefreshKey === undefined || activityRefreshKey === 0) return;
+    supabase
+      .from('audit_log')
+      .select('id, action, description, created_at')
+      .eq('record_id', propertyId)
+      .neq('action', 'VIEW')
+      .order('created_at', { ascending: false })
+      .limit(100)
+      .then(({ data }) => {
+        if (data) setActivityLog(data);
+      });
+  }, [activityRefreshKey, propertyId]);
 
   // --- Upload file ---
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2217,7 +2286,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
     <div className="space-y-5 pb-4">
 
       {/* ─── SECTION 1: Tenant History ─── */}
-      <div className="bg-white/[0.04] border border-white/[0.10] rounded-xl p-4">
+      <div className="bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl p-4">
 
         <div>
           <SectionHeader
@@ -2306,7 +2375,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
       </div>
 
       {/* ─── SECTION 2: Invoice Archive ─── */}
-      <div className="bg-white/[0.04] border border-white/[0.10] rounded-xl p-4">
+      <div className="bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl p-4">
 
         <div>
           <SectionHeader
@@ -2401,7 +2470,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
                               <div className="space-y-1">
                                 {inv.line_items.map((item: any, idx: number) => (
                                   <div key={idx} className="flex items-center justify-between py-1 px-2 bg-gray-100/60 rounded-md">
-                                    <span className="text-[11px] text-gray-600 truncate flex-1">{item.description || 'Paslauga'}</span>
+                                    <span className="text-[11px] text-gray-600 truncate flex-1">{item.label || item.description || 'Paslauga'}</span>
                                     <span className="text-[11px] font-medium text-gray-800 ml-2 tabular-nums">{fmtCurrency(Number(item.amount || 0))}</span>
                                   </div>
                                 ))}
@@ -2420,7 +2489,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
       </div>
 
       {/* ─── SECTION 3: Uploaded Documents ─── */}
-      <div className="bg-white/[0.04] border border-white/[0.10] rounded-xl p-4">
+      <div className="bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl p-4">
 
         <div>
           <SectionHeader
@@ -2499,6 +2568,53 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant }) =>
             </div>
           )}
         </div>
+      </div>
+      {/* Activity Log Section */}
+      <div className={`${ptSurface} mt-4`}>
+        <SectionHeader
+          icon={<Activity className="w-4 h-4 text-blue-400" />}
+          title="Veiklos žurnalas"
+          count={activityLog.length}
+          isOpen={showActivityLog}
+          onToggle={() => setShowActivityLog(v => !v)}
+          iconBg="bg-blue-500/15"
+        />
+        {showActivityLog && (
+          <div className="px-4 pb-4 space-y-2">
+            {activityLog.length === 0 ? (
+              <div className="text-center py-8">
+                <Activity className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-[12px] text-gray-400">Veiklų dar nėra</p>
+                <p className="text-[10px] text-gray-500 mt-1">Veiksmai bus rodomi čia</p>
+              </div>
+            ) : (
+              activityLog.map((entry) => {
+                const date = new Date(entry.created_at);
+                const now = new Date();
+                const diffMs = now.getTime() - date.getTime();
+                const diffMin = Math.floor(diffMs / 60000);
+                const diffH = Math.floor(diffMs / 3600000);
+                const timeStr = diffMin < 1 ? 'Ką tik'
+                  : diffMin < 60 ? `prieš ${diffMin} min.`
+                    : diffH < 24 ? `prieš ${diffH} val.`
+                      : date.toLocaleDateString('lt-LT', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+                const actionIcon = entry.action === 'INSERT' ? '＋' : entry.action === 'DELETE' ? '−' : entry.action === 'UPDATE' ? '↻' : '•';
+                const actionColor = entry.action === 'INSERT' ? 'text-emerald-400' : entry.action === 'DELETE' ? 'text-red-400' : entry.action === 'UPDATE' ? 'text-blue-400' : 'text-gray-400';
+
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.06] transition-colors">
+                    <span className={`text-[14px] font-bold ${actionColor} w-5 text-center flex-shrink-0`}>{actionIcon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-gray-200 truncate">{entry.description}</p>
+                    </div>
+                    <span className="text-[9px] text-gray-500 flex-shrink-0">{timeStr}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2653,6 +2769,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
   // Modal states for actions
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const [isLeaseModalOpen, setIsLeaseModalOpen] = useState(false);
   const [isEditPropertyModalOpen, setIsEditPropertyModalOpen] = useState(false);
   const [isUnitDrawerOpen, setIsUnitDrawerOpen] = useState(false);
@@ -2749,7 +2866,11 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         // Note: This assumes there's a photos column or we store in localStorage for now
         localStorage.setItem(`property_photos_${property.id}`, JSON.stringify(newPhotos));
 
-        console.log('ï¿½S& Photos uploaded successfully:', uploadedUrls.length);
+        console.log('Photos uploaded successfully:', uploadedUrls.length);
+
+        // Log activity
+        trackActivity('INSERT', { tableName: 'property_photos', recordId: property.id, description: `Įkelta ${uploadedUrls.length} nuotr.`, metadata: { count: uploadedUrls.length } });
+        setActivityRefreshKey(k => k + 1);
       }
     } catch (error) {
       console.error('Error uploading photos:', error);
@@ -2775,7 +2896,11 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     const newPhotos = propertyPhotos.filter((_, i) => i !== index);
     setPropertyPhotos(newPhotos);
     localStorage.setItem(`property_photos_${property.id}`, JSON.stringify(newPhotos));
-    console.log('ï¿½xï¸ Photo deleted at index:', index);
+    console.log('Photo deleted at index:', index);
+
+    // Log activity
+    trackActivity('DELETE', { tableName: 'property_photos', recordId: property.id, description: 'Ištrinta nuotrauka' });
+    setActivityRefreshKey(k => k + 1);
   }, [property.id, propertyPhotos]);
 
   // Handle setting a photo as cover (move to first position)
@@ -2786,7 +2911,10 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     newPhotos.unshift(photo);
     setPropertyPhotos(newPhotos);
     localStorage.setItem(`property_photos_${property.id}`, JSON.stringify(newPhotos));
-    console.log('â­ Photo set as cover from index:', index);
+    console.log('Photo set as cover from index:', index);
+
+    // Log activity
+    trackActivity('UPDATE', { tableName: 'property_photos', recordId: property.id, description: 'Pakeistas viršelio nuotrauka' });
   }, [property.id, propertyPhotos]);
 
   // Load photos from localStorage on mount
@@ -3388,6 +3516,18 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
     setIsForceRemoving(true);
     try {
+      // 0. Save tenant history BEFORE clearing data
+      await createTenantHistoryRecord(property.id, {
+        name: tenant.name || (property as any).tenant_name || '',
+        email: tenant.email || (property as any).email || null,
+        phone: tenant.phone || (property as any).phone || null,
+        rent: (property as any).rent || null,
+        contractStart: tenant.contractStart || (property as any).contract_start || null,
+        contractEnd: tenant.contractEnd || (property as any).contract_end || null,
+        endReason: 'moved_out',
+        notes: 'Nuomininkas pašalintas rankiniu būdu',
+      });
+
       // 1. Set all accepted invitations for this property to 'terminated'
       const { error: invError } = await supabase
         .from('tenant_invitations')
@@ -3536,7 +3676,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
           {/* Content */}
           <div className="overflow-y-auto p-6" style={{ willChange: 'scroll-position', transform: 'translateZ(0)' }}>
-            {activeTab === 'overview' && (
+            <div style={{ display: activeTab === 'overview' ? 'block' : 'none' }}>
               <OverviewWithLayoutEditor
                 property={{
                   ...property,
@@ -3574,15 +3714,22 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                 onReorderPhotos={handleReorderPhotos}
                 onSetCover={handleSetCover}
                 onPropertyUpdated={onPropertyUpdated}
+                activityRefreshKey={activityRefreshKey}
               />
-            )}
-            {activeTab === 'property' && <PropertyTab property={property} photos={propertyPhotos} tenant={tenant ? { name: tenant.name, monthlyRent: tenant.monthlyRent ? parseFloat(String(tenant.monthlyRent)) : undefined, deposit: tenant.deposit ? parseFloat(String(tenant.deposit)) : undefined, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, phone: tenant.phone, email: tenant.email } : undefined} onEditProperty={handleEditProperty} onSaveProperty={handleDrawerSaveProperty} onUploadPhoto={handleUploadPhoto} onDeletePhoto={handleDeletePhoto} onReorderPhotos={handleReorderPhotos} onSetCover={handleSetCover} />}
+            </div>
+            <div style={{ display: activeTab === 'property' ? 'block' : 'none' }}>
+              <PropertyTab property={property} photos={propertyPhotos} tenant={tenant ? { name: tenant.name, monthlyRent: tenant.monthlyRent ? parseFloat(String(tenant.monthlyRent)) : undefined, deposit: tenant.deposit ? parseFloat(String(tenant.deposit)) : undefined, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, phone: tenant.phone, email: tenant.email } : undefined} onEditProperty={handleEditProperty} onSaveProperty={handleDrawerSaveProperty} onUploadPhoto={handleUploadPhoto} onDeletePhoto={handleDeletePhoto} onReorderPhotos={handleReorderPhotos} onSetCover={handleSetCover} />
+            </div>
 
-            {activeTab === 'meters' && (
+            <div style={{ display: activeTab === 'meters' ? 'block' : 'none' }}>
               <KomunaliniaiTab
                 propertyId={property.id}
                 addressId={property.address_id}
                 meters={adaptLegacyMeters(meterData)}
+                rent={property.rent || 0}
+                tenantName={tenant.name || ''}
+                apartmentNumber={property.apartment_number || tenant.apartmentNumber || ''}
+                paymentDueDay={(property as any).extended_details?.payment_due_day}
                 onAddMeter={() => setShowAddMeter(true)}
                 onCollectReadings={() => handleRequestMissing(meterData.filter(m => m.needsPhoto || m.needsReading).map(m => m.id))}
                 onSaveReadings={async (readings) => {
@@ -3671,21 +3818,24 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                   }
                 }}
               />
-            )}
-            {activeTab === 'documents' && (
+            </div>
+            <div style={{ display: activeTab === 'documents' ? 'block' : 'none' }}>
               <>
-                <HistoryTab propertyId={property.id} currentTenant={{ name: tenant.name, email: tenant.email, phone: tenant.phone, monthlyRent: tenant.monthlyRent, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, status: tenant.status }} />
-                {/* Contract termination section */}
+                {/* Contract termination section — above history */}
                 {tenant && (
-                  <div className="mt-4">
+                  <div className="mb-4">
                     <ContractTerminationSection
                       propertyId={property.id}
-                      onTerminationChange={onPropertyUpdated}
+                      onTerminationChange={() => {
+                        onPropertyUpdated?.();
+                        setActivityRefreshKey(k => k + 1);
+                      }}
                     />
                   </div>
                 )}
+                <HistoryTab propertyId={property.id} activityRefreshKey={activityRefreshKey} currentTenant={{ name: tenant.name, email: tenant.email, phone: tenant.phone, monthlyRent: tenant.monthlyRent, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, status: tenant.status }} />
               </>
-            )}
+            </div>
           </div>
         </div>
 
@@ -3755,6 +3905,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           onClose={() => setIsTenantModalOpen(false)}
           propertyId={property.id}
           propertyLabel={property.address || `Butas ${property.id}`}
+          onSuccess={() => setActivityRefreshKey(k => k + 1)}
         />
 
         {/* Add Meter Modal */}

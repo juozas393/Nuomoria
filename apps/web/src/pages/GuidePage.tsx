@@ -79,7 +79,7 @@ const FAQ_ITEMS: FAQItem[] = [
     { q: 'Kuo skiriasi skaitiklių paskirstymo metodai?', a: 'Per butą \u2014 visiems po lygiai. Per žmogų \u2014 dalijama pagal gyventojų skaičių. Per suvartojimą \u2014 kiekvienas moka pagal savo skaitiklio rodmenį. Detalesnius pavyzdžius rasite \u201eSkaitikliai ir sąskaitos\u201c skiltyje.', role: 'all' },
     { q: 'Kaip sukurti sąskaitą nuomininkui?', a: 'Sąskaitų skiltyje spauskite \u201e+ Nauja sąskaita\u201c, pasirinkite butą ir laikotarpį. Sistema automatiškai paims skaitiklių rodmenis ir apskaičiuos sumą pagal nustatytus tarifus.', role: 'landlord' },
     { q: 'Kaip pateikti remonto užklausą?', a: 'Remonto skiltyje spauskite \u201e+ Nauja užklausa\u201c, aprašykite gedimą ir pridėkite nuotraukas. Nuomotojas gaus pranešimą ir galės sekti taisymo eigą.', role: 'tenant' },
-    { q: 'Ar galiu pakeisti savo rolę?', a: 'Taip! Nustatymuose rasite rolės keitimo galimybę. Galite perjungti tarp nuomotojo ir nuomininko rolių bet kada.', role: 'all' },
+    { q: 'Ar galiu pakeisti savo rolę?', a: 'Taip! Profilio nustatymuose galite perjungti tarp nuomotojo ir nuomininko rolių. Tai naudinga, jei patys nuomojate butą ir kartu valdote kitą turtą.', role: 'all' },
     { q: 'Kaip veikia žinučių sistema?', a: 'Spauskite žinučių ikoną šoniniame meniu arba prie nuomininko/nuomotojo vardo. Žinutės saugomos ir prieinamos bet kada. Gausite pranešimą apie kiekvieną naują žinutę.', role: 'all' },
     { q: 'Ar Nuomoria veikia telefone?', a: 'Taip! Nuomoria pilnai pritaikyta telefonams, planšetėms ir kompiuteriams. Dizainas automatiškai prisitaiko prie ekrano dydžio.', role: 'all' },
     { q: 'Pamiršau įvesti skaitiklių rodmenis \u2014 ką daryti?', a: 'Sistema siunčia priminimus prieš terminą. Jei terminas praėjo \u2014 parašykite nuomotojui per žinučių sistemą, jis gali leisti pavėluotą įvedimą.', role: 'tenant' },
@@ -87,10 +87,10 @@ const FAQ_ITEMS: FAQItem[] = [
 ];
 
 const WHATS_NEW = [
-    { date: '2026-02', title: 'Rolės keitimas', desc: 'Galimybė perjungti tarp nuomotojo ir nuomininko rolių.' },
-    { date: '2026-01', title: 'Analitikos eksportas', desc: 'Duomenų eksportavimas CSV formatu iš analitikos skilties.' },
-    { date: '2025-12', title: 'Žinučių sistema', desc: 'Integruotos žinutės tarp nuomotojo ir nuomininko.' },
-    { date: '2025-11', title: 'Remonto užklausos', desc: 'Nuotraukų pridėjimas prie remonto užklausų.' },
+    { date: '2026-03', title: 'Nuomininkų portalas', desc: 'Nuomininkai gali patys siųsti skaitliukų rodmenis ir matyti sąskaitas.' },
+    { date: '2026-02', title: 'Skaitliukų automatizacija', desc: 'Automatinis suvartojimo skaičiavimas ir sąskaitų generavimas pagal rodmenis.' },
+    { date: '2026-01', title: 'Žinučių sistema', desc: 'Integruotos žinutės tarp nuomotojo ir nuomininko.' },
+    { date: '2025-12', title: 'Pakvietimų kodai', desc: 'Nuomininkų pakvietimas per unikalius 6 skaitmenų kodus.' },
 ];
 
 /* ═══════════════════════════════════════════════
@@ -123,26 +123,25 @@ function SidebarNav({ sections, active, onSelect }: {
 }) {
     return (
         <nav className="hidden lg:block sticky top-24 w-56 flex-shrink-0 self-start">
-            <div className="bg-gray-950/70 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-4 shadow-2xl shadow-black/30">
+            <div className="bg-gray-900/70 backdrop-blur-xl border border-white/[0.10] rounded-2xl p-4">
                 <p className="text-[10px] font-bold text-white/50 uppercase tracking-[0.15em] mb-4 px-2 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
                     Turinys
                 </p>
                 <div className="space-y-0.5">
                     {sections.map(s => {
-                        const Icon = s.icon;
+                        const SIcon = s.icon;
                         const isActive = active === s.id;
                         return (
                             <button
                                 key={s.id}
                                 onClick={() => onSelect(s.id)}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 text-left group relative ${isActive
-                                    ? 'bg-teal-500/[0.12] text-teal-300'
-                                    : 'text-white/60 hover:text-white hover:bg-white/[0.04]'
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left text-[13px] font-medium ${isActive
+                                    ? 'bg-teal-500/[0.12] text-teal-400 border-l-2 border-teal-500 pl-2'
+                                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.05]'
                                     }`}
                             >
-                                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-teal-400" />}
-                                <Icon className={`w-4 h-4 flex-shrink-0 transition-colors ${isActive ? 'text-teal-400' : 'text-white/40 group-hover:text-white/70'}`} />
+                                <SIcon className={`w-4 h-4 flex-shrink-0 transition-colors ${isActive ? 'text-teal-400' : 'text-white/40 group-hover:text-white/70'}`} />
                                 <span className="truncate">{s.label}</span>
                             </button>
                         );
@@ -241,7 +240,7 @@ function TimelineFlow({ steps }: {
                 return (
                     <React.Fragment key={i}>
                         <div className="flex flex-col items-center text-center w-[7.5rem] group">
-                            <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-2.5 group-hover:border-teal-500/40 group-hover:bg-teal-500/20 transition-all duration-300">
+                            <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/15 flex items-center justify-center mb-2.5 group-hover:border-teal-500/30 group-hover:bg-teal-500/15 transition-all duration-300">
                                 <Icon className="w-5 h-5 text-teal-400" />
                             </div>
                             <span className="text-[13px] font-semibold text-white leading-tight">{s.label}</span>
@@ -304,12 +303,11 @@ function ExpandableCard({ icon: Icon, title, children, gradient = 'from-teal-500
     gradient?: string;
 }) {
     return (
-        <div className="bg-gray-950/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl overflow-hidden relative">
-            {/* Subtle top-edge accent */}
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-teal-500/30" />
+        <div className="bg-gray-900/70 backdrop-blur-xl border border-white/[0.10] rounded-2xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-teal-500/20" />
             <div className="flex items-center gap-3.5 p-5 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-xl bg-teal-500/15 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5 text-teal-400" />
                 </div>
                 <span className="flex-1 text-[15px] font-bold text-white tracking-tight">{title}</span>
             </div>
@@ -323,11 +321,11 @@ function ExpandableCard({ icon: Icon, title, children, gradient = 'from-teal-500
 /** Meter calculation visual */
 function MeterCalculation() {
     return (
-        <div className="bg-gray-950/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 my-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-teal-500/30" />
+        <div className="bg-gray-900/70 backdrop-blur-xl border border-white/[0.10] rounded-2xl p-6 my-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-teal-500/20" />
             <h4 className="text-sm font-bold text-white mb-5 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center">
-                    <CalculatorIcon className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 rounded-lg bg-teal-500/15 flex items-center justify-center">
+                    <CalculatorIcon className="w-4 h-4 text-teal-400" />
                 </div>
                 Skaičiavimo pavyzdys
             </h4>
@@ -367,11 +365,11 @@ function MeterCalculation() {
 /** What's New */
 function WhatsNew() {
     return (
-        <div className="bg-gray-950/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-violet-500/30" />
+        <div className="bg-gray-900/70 backdrop-blur-xl border border-white/[0.10] rounded-2xl p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-violet-500/20" />
             <h4 className="text-sm font-bold text-white mb-5 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center">
-                    <SparklesIcon className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center">
+                    <SparklesIcon className="w-4 h-4 text-violet-400" />
                 </div>
                 Kas naujo
             </h4>
@@ -408,7 +406,7 @@ function StepCard({ step, icon: Icon, title, description, isLast = false }: {
             {!isLast && (
                 <div className="absolute left-5 top-12 w-[2px] h-[calc(100%-1rem)] bg-teal-500/20" />
             )}
-            <div className="relative z-10 flex-shrink-0 w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center text-white font-bold text-sm">
+            <div className="relative z-10 flex-shrink-0 w-10 h-10 rounded-xl bg-teal-500/15 border border-teal-500/20 flex items-center justify-center text-teal-400 font-bold text-sm">
                 {step}
             </div>
             <div className="pb-7 flex-1 pt-0.5">
@@ -454,15 +452,15 @@ function SectionHeading({ icon: Icon, title, subtitle, gradient = 'from-teal-500
     return (
         <div className="mb-8">
             <div className="flex items-center gap-4 mb-3">
-                <div className="w-12 h-12 rounded-2xl bg-teal-500 flex items-center justify-center">
-                    <Icon className="w-5.5 h-5.5 text-white" />
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/20 flex items-center justify-center">
+                    <Icon className="w-5.5 h-5.5 text-teal-400" />
                 </div>
                 <div>
                     <h2 className="text-2xl font-extrabold text-white tracking-tight">{title}</h2>
                     <p className="text-sm text-white/60 mt-1">{subtitle}</p>
                 </div>
             </div>
-            <div className="h-[2px] bg-teal-500/20 rounded-full" />
+            <div className="h-[2px] bg-teal-500/10 rounded-full" />
         </div>
     );
 }
@@ -494,7 +492,7 @@ function RelatedTopics({ links }: { links: { label: string; sectionId: string }[
 /** Dark glass card wrapper */
 function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
     return (
-        <div className={`bg-gray-950/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 hover:border-white/[0.12] transition-colors duration-300 ${className}`}>
+        <div className={`bg-gray-900/70 backdrop-blur-xl border border-white/[0.10] rounded-2xl p-6 hover:border-white/[0.15] transition-colors duration-300 ${className}`}>
             {children}
         </div>
     );
@@ -527,14 +525,14 @@ export default function GuidePage() {
     /** Sections visible for the current role filter.
      *  When a specific role is selected, only that role's sections are shown. */
     const filteredSections = useMemo(() =>
-        SECTIONS.filter(s => role === 'all' ? true : s.role === role),
+        SECTIONS.filter(s => role === 'all' ? true : s.role === role || s.role === 'all'),
         [role]
     );
 
     /** FAQ items visible for the current role filter.
      *  When a specific role is selected, only that role's FAQs are shown. */
     const filteredFAQ = useMemo(() =>
-        FAQ_ITEMS.filter(f => role === 'all' ? true : f.role === role),
+        FAQ_ITEMS.filter(f => role === 'all' ? true : f.role === role || f.role === 'all'),
         [role]
     );
 
@@ -549,18 +547,20 @@ export default function GuidePage() {
 
     /** Whether a section/content block with the given role should be shown.
      *  When a specific role is selected, only that role's sections appear (no generic 'all' sections). */
-    const shouldShow = (sectionRole: Role) => role === 'all' ? true : sectionRole === role;
+    const shouldShow = (sectionRole: Role) => role === 'all' ? true : sectionRole === role || sectionRole === 'all';
 
     return (
-        <div className="min-h-screen bg-black relative">
-            {/* Full-page B/W city background */}
-            <div className="fixed inset-0 z-0">
+        <div className="min-h-screen bg-gray-950 relative">
+            {/* Full-page background */}
+            <div className="absolute inset-0 z-0">
                 <img
-                    src="/images/HelpCenterBackground_bw.webp"
+                    src="/images/pagalba_opt.webp"
                     alt=""
-                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    className="w-full h-full object-cover sticky top-0"
                 />
-                <div className="absolute inset-0 bg-black/70" />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(3,6,8,0.78) 0%, rgba(3,6,8,0.55) 40%, rgba(3,6,8,0.92) 100%)' }} />
+                <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 25% 50%, rgba(16,185,170,0.06) 0%, transparent 50%)' }} />
             </div>
             {/* ──── Hero ──── */}
             <div className="relative z-10 overflow-hidden">
@@ -569,14 +569,15 @@ export default function GuidePage() {
                         <div>
                             <button
                                 onClick={() => navigate(-1)}
-                                className="group inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] border border-white/[0.1] text-white/70 hover:text-white hover:bg-white/[0.1] hover:border-white/[0.18] text-xs font-semibold tracking-wide transition-all duration-200 mb-5"
+                                className="group inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 border border-white/30 text-white/90 hover:text-white hover:bg-white/30 text-xs font-semibold tracking-wide transition-all duration-200 mb-4"
                             >
                                 <ArrowLeftIcon className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
                                 Grįžti
                             </button>
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-teal-300 text-[11px] font-semibold tracking-[0.1em] uppercase mb-5">
-                                <BookOpenIcon className="w-3.5 h-3.5" />
-                                Pagalbos centras
+                            <div className="block">
+                                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 border border-white/30 text-white text-[11px] font-semibold tracking-[0.1em] uppercase mb-5">
+                                    Pagalbos centras
+                                </span>
                             </div>
                             <h1 className="text-4xl lg:text-5xl font-extrabold text-white tracking-tight mb-4">
                                 Nuomoria gidas
@@ -590,7 +591,6 @@ export default function GuidePage() {
                         </div>
                     </div>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
             </div>
 
             {/* ──── Layout: Sidebar + Content ──── */}
@@ -757,7 +757,7 @@ export default function GuidePage() {
                                 <div className="space-y-3 text-sm text-white/70">
                                     <p>Sekite pajamas, išlaidas ir kitas metrikas per interaktyvius grafikus.</p>
                                     <div className="flex flex-wrap gap-2 mt-2">
-                                        {['Pajamų grafikas', 'Laikotarpių palyginimas', 'Filtravimas pagal objektą', 'CSV eksportas'].map(f => (
+                                        {['Pajamų grafikas', 'Laikotarpių palyginimas', 'Filtravimas pagal objektą'].map(f => (
                                             <span key={f} className="px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-xs font-medium text-cyan-400">{f}</span>
                                         ))}
                                     </div>
@@ -798,9 +798,9 @@ export default function GuidePage() {
                                 ].map((f, i) => {
                                     const FIcon = f.icon;
                                     return (
-                                        <div key={i} className="bg-gray-950/90 backdrop-blur-md border border-white/[0.08] rounded-xl p-5 hover:border-white/[0.15] transition-colors duration-200">
-                                            <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center mb-3">
-                                                <FIcon className="w-4.5 h-4.5 text-white" />
+                                        <div key={i} className="bg-gray-900/70 backdrop-blur-md border border-white/[0.10] rounded-xl p-5 hover:border-white/[0.18] transition-colors duration-200">
+                                            <div className="w-10 h-10 rounded-xl bg-teal-500/15 flex items-center justify-center mb-3">
+                                                <FIcon className="w-4.5 h-4.5 text-teal-400" />
                                             </div>
                                             <h4 className="font-semibold text-white text-sm mb-1">{f.title}</h4>
                                             <p className="text-[13px] text-white/70 leading-relaxed">{f.desc}</p>
@@ -972,12 +972,12 @@ export default function GuidePage() {
 
                     {/* ──── Footer ──── */}
                     <footer className="pt-10 pb-4">
-                        <div className="bg-gray-950/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 relative overflow-hidden">
+                        <div className="bg-gray-900/70 backdrop-blur-xl border border-white/[0.10] rounded-2xl p-6 relative overflow-hidden">
                             <div className="absolute top-0 left-0 right-0 h-[2px] bg-teal-500/25" />
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-teal-500 flex items-center justify-center">
-                                        <BuildingOfficeIcon className="w-4.5 h-4.5 text-white" />
+                                    <div className="w-9 h-9 rounded-xl bg-teal-500/15 flex items-center justify-center">
+                                        <BuildingOfficeIcon className="w-4.5 h-4.5 text-teal-400" />
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-white">Nuomoria</p>

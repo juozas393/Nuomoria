@@ -91,8 +91,9 @@ const InvoiceRow = memo<{
   expanded: boolean;
   onToggle: () => void;
   onMarkPaid: () => void;
+  onCancel: () => void;
   onDelete: () => void;
-}>(({ invoice, expanded, onToggle, onMarkPaid, onDelete }) => {
+}>(({ invoice, expanded, onToggle, onMarkPaid, onCancel, onDelete }) => {
   const daysUntil = getDaysUntilDue(invoice.due_date);
   const isOverdue = daysUntil < 0 && invoice.status !== 'paid' && invoice.status !== 'cancelled';
   const address = (invoice.property as any)?.addresses;
@@ -219,10 +220,16 @@ const InvoiceRow = memo<{
               {/* Actions */}
               <div className="flex items-center gap-2 pt-2">
                 {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-                  <button onClick={onMarkPaid} className={btnPrimary}>
-                    <Check className="w-3.5 h-3.5" />
-                    Pažymėti apmokėta
-                  </button>
+                  <>
+                    <button onClick={onMarkPaid} className={btnPrimary}>
+                      <Check className="w-3.5 h-3.5" />
+                      Pažymėti apmokėta
+                    </button>
+                    <button onClick={onCancel} className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200 rounded-lg transition-all">
+                      <X className="w-3.5 h-3.5" />
+                      Atšaukti sąskaitą
+                    </button>
+                  </>
                 )}
                 <button onClick={onDelete} className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all">
                   <Trash2 className="w-3 h-3" />
@@ -885,6 +892,12 @@ const Invoices: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  const handleCancel = useCallback(async (invoiceId: string) => {
+    if (!confirm('Ar tikrai norite atšaukti šią sąskaitą? Nuomininkui ji bus pažymėta kaip „Atšaukta".')) return;
+    await updateInvoiceStatus(invoiceId, 'cancelled');
+    loadData();
+  }, [loadData]);
+
   const handleDelete = useCallback(async (invoiceId: string) => {
     if (!confirm('Ar tikrai norite ištrinti šią sąskaitą?')) return;
     await deleteInvoice(invoiceId);
@@ -1053,6 +1066,7 @@ const Invoices: React.FC = () => {
           <option value="paid">Apmokėta</option>
           <option value="partial">Dalinai</option>
           <option value="overdue">Pradelsta</option>
+          <option value="cancelled">Atšaukta</option>
         </select>
       </div>
 
@@ -1082,6 +1096,7 @@ const Invoices: React.FC = () => {
               expanded={expandedId === invoice.id}
               onToggle={() => setExpandedId(expandedId === invoice.id ? null : invoice.id)}
               onMarkPaid={() => handleMarkPaid(invoice.id, invoice.amount)}
+              onCancel={() => handleCancel(invoice.id)}
               onDelete={() => handleDelete(invoice.id)}
             />
           ))}

@@ -97,7 +97,7 @@ const GoogleLogin: React.FC = () => {
             <div className="relative z-10 min-h-screen flex">
                 {/* Left side - Marketing content */}
                 <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-12 xl:px-20">
-                    <h1 className="text-4xl xl:text-5xl font-bold text-white mb-4 leading-tight">
+                    <h1 className="text-4xl xl:text-5xl font-bold text-white mb-4 leading-[1.2] overflow-visible pb-1">
                         Valdykite nuomą
                         <br />
                         <span className="text-[#4DB6AC]">paprastai</span>

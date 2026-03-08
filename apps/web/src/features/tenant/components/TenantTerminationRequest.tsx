@@ -25,6 +25,8 @@ interface TerminationData {
     termination_requested_at: string | null;
     termination_confirmed_at: string | null;
     termination_requested_by: string | null;
+    deposit_return_amount: number | null;
+    deposit_deductions: Array<{ reason: string; amount: number }> | null;
 }
 
 interface PropertyFinancials {
@@ -59,7 +61,7 @@ const STATUS_CONFIG: Record<string, { label: string; dotColor: string; textColor
 };
 
 /* ─── Deposit Mini Preview (light theme) ─── */
-const DepositPreview = memo<{ calc: DepositCalculation; deposit: number }>(({ calc, deposit }) => {
+const DepositPreview = memo<{ calc: DepositCalculation; deposit: number; contractEnd?: string | null }>(({ calc, deposit, contractEnd }) => {
     const bgClass = calc.isFullReturn
         ? 'bg-emerald-50/80 border-emerald-200'
         : calc.isFullForfeit
@@ -74,6 +76,12 @@ const DepositPreview = memo<{ calc: DepositCalculation; deposit: number }>(({ ca
                 <span className="text-[11px] font-bold text-gray-800">Depozito skaičiavimas</span>
             </div>
             <div className="space-y-1.5 ml-5">
+                {contractEnd && (
+                    <div className="flex justify-between">
+                        <span className="text-[10px] text-gray-500">Sutarties pabaiga:</span>
+                        <span className="text-[10px] font-medium text-gray-700">{formatDate(contractEnd)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between">
                     <span className="text-[10px] text-gray-500">Scenarijus:</span>
                     <span className="text-[10px] font-medium text-gray-700">{calc.scenarioLabel}</span>
@@ -126,7 +134,7 @@ const TenantTerminationRequest = memo<TenantTerminationRequestProps>(({ property
                 // Fetch invitation
                 const { data: inv, error } = await supabase
                     .from('tenant_invitations')
-                    .select('id, termination_status, termination_date, termination_reason, termination_requested_at, termination_confirmed_at, termination_requested_by')
+                    .select('id, termination_status, termination_date, termination_reason, termination_requested_at, termination_confirmed_at, termination_requested_by, deposit_return_amount, deposit_deductions')
                     .eq('property_id', propertyId)
                     .eq('status', 'accepted')
                     .maybeSingle();
@@ -142,6 +150,8 @@ const TenantTerminationRequest = memo<TenantTerminationRequestProps>(({ property
                         termination_requested_at: inv.termination_requested_at,
                         termination_confirmed_at: inv.termination_confirmed_at,
                         termination_requested_by: inv.termination_requested_by,
+                        deposit_return_amount: inv.deposit_return_amount ?? null,
+                        deposit_deductions: inv.deposit_deductions ?? null,
                     });
 
                     // Fetch property financials
@@ -385,12 +395,40 @@ const TenantTerminationRequest = memo<TenantTerminationRequestProps>(({ property
                                     </div>
                                 )}
 
-                                {/* Deposit calculation — matching landlord style */}
-                                {statusDepositCalc && financials && data.termination_status !== 'terminated' && (
-                                    <div className="mt-3">
-                                        <DepositPreview calc={statusDepositCalc} deposit={financials.deposit_amount} />
+                                {/* Deposit info — show landlord-confirmed amount when available */}
+                                {data.deposit_return_amount != null && financials && (data.termination_status === 'confirmed' || data.termination_status === 'landlord_requested') ? (
+                                    <div className="mt-3 p-3 rounded-lg border bg-emerald-50/80 border-emerald-200 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Euro className="w-3.5 h-3.5 text-emerald-600" />
+                                            <span className="text-[11px] font-bold text-gray-800">Depozito grąžinimas</span>
+                                        </div>
+                                        <div className="space-y-1.5 ml-5">
+                                            <div className="flex justify-between">
+                                                <span className="text-[10px] text-gray-500">Depozitas:</span>
+                                                <span className="text-[10px] font-medium text-gray-800">{formatCurrency(financials.deposit_amount)}</span>
+                                            </div>
+                                            {data.deposit_deductions && data.deposit_deductions.length > 0 && (
+                                                <>
+                                                    <div className="text-[10px] text-gray-500 font-medium">Išskaitymai:</div>
+                                                    {data.deposit_deductions.map((d, i) => (
+                                                        <div key={i} className="flex justify-between">
+                                                            <span className="text-[10px] text-gray-500 ml-2">• {d.reason || 'Be priežasties'}</span>
+                                                            <span className="text-[10px] font-medium text-red-500">−{formatCurrency(d.amount)}</span>
+                                                        </div>
+                                                    ))}
+                                                </>
+                                            )}
+                                            <div className="flex justify-between pt-1.5 border-t border-emerald-200">
+                                                <span className="text-[11px] font-bold text-gray-700">Grąžinama suma:</span>
+                                                <span className="text-[13px] font-bold text-emerald-600">{formatCurrency(data.deposit_return_amount)}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
+                                ) : statusDepositCalc && financials && data.termination_status !== 'terminated' ? (
+                                    <div className="mt-3">
+                                        <DepositPreview calc={statusDepositCalc} deposit={financials.deposit_amount} contractEnd={financials.contract_end} />
+                                    </div>
+                                ) : null}
 
                                 {/* Waiting notice + cancel */}
                                 {data.termination_status === 'tenant_requested' && (
@@ -446,7 +484,7 @@ const TenantTerminationRequest = memo<TenantTerminationRequestProps>(({ property
 
                             {/* Live deposit calculation preview */}
                             {formDepositCalc && financials && (
-                                <DepositPreview calc={formDepositCalc} deposit={financials.deposit_amount} />
+                                <DepositPreview calc={formDepositCalc} deposit={financials.deposit_amount} contractEnd={financials.contract_end} />
                             )}
 
                             <div>

@@ -199,7 +199,7 @@ const MeterTable = React.memo<Props>(({ value, onChange, allowDuplicatesByKey = 
                   <input
                     type="number"
                     min={0}
-                    step={0.01}
+                    step="any"
                     className="w-full rounded-lg border border-gray-200/70 bg-white/70 px-2 py-1 text-[11px] text-gray-800 caret-gray-900 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-400 transition-all placeholder-gray-400 tabular-nums"
                     value={row.rate}
                     onChange={e => update(row.id, { rate: number(e.target.value) })}
@@ -210,7 +210,7 @@ const MeterTable = React.memo<Props>(({ value, onChange, allowDuplicatesByKey = 
                   <input
                     type="number"
                     min={0}
-                    step={0.01}
+                    step="any"
                     className="w-full rounded-lg border border-gray-200/70 bg-white/70 px-2 py-1 text-[11px] text-gray-800 caret-gray-900 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-400 transition-all placeholder-gray-400 tabular-nums"
                     value={row.initialReading}
                     onChange={e => update(row.id, { initialReading: number(e.target.value) })}

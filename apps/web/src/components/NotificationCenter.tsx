@@ -378,12 +378,12 @@ export const NotificationBell: React.FC<{ onClick: () => void }> = React.memo(({
   return (
     <button
       onClick={onClick}
-      className="relative p-2 rounded-xl text-gray-500 hover:text-[#2F8481] hover:bg-[#2F8481]/5 active:scale-95 transition-all duration-200"
+      className="relative p-2 rounded-xl text-gray-400 hover:text-teal-400 hover:bg-white/[0.06] active:scale-95 transition-all duration-200"
       aria-label="Pranešimai"
     >
       <BellIcon className="w-5 h-5" />
       {unreadCount > 0 && (
-        <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full ring-2 ring-white">
+        <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full ring-2 ring-[#0a1a19]">
           {unreadCount > 9 ? '9+' : unreadCount}
         </span>
       )}

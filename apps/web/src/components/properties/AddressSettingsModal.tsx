@@ -35,6 +35,7 @@ interface LocalMeter {
   collectionMode: 'landlord_only' | 'tenant_photo';
   landlordReadingEnabled: boolean;
   tenantPhotoEnabled: boolean;
+  supplier?: string;
 }
 
 interface AddressSettingsModalProps {
@@ -95,6 +96,12 @@ const DEFAULT_SETTINGS = {
     bankAccount: '',
     recipientName: '',
     paymentPurposeTemplate: '',
+    paymentMethods: {
+      bankTransfer: { enabled: false, iban: '', bankName: '', recipientName: '' },
+      paysera: { enabled: false, account: '' },
+      revolut: { enabled: false, tag: '' },
+      stripe: { enabled: false },
+    },
   },
   notificationSettings: {
     rentReminderEnabled: true,
@@ -454,7 +461,7 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
           // Load address meters
           const { data: meters, error: metersError } = await supabase
             .from('address_meters')
-            .select('id, name, type, unit, price_per_unit, fixed_price, distribution_method, description, is_active, requires_photo, collection_mode, landlord_reading_enabled, tenant_photo_enabled')
+            .select('id, name, type, unit, price_per_unit, fixed_price, distribution_method, description, is_active, requires_photo, collection_mode, landlord_reading_enabled, tenant_photo_enabled, supplier')
             .eq('address_id', resolvedAddressId)
             .eq('is_active', true);
 
@@ -474,7 +481,8 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
               is_inherited: false,
               collectionMode: meter.collection_mode || 'landlord_only',
               landlordReadingEnabled: meter.landlord_reading_enabled ?? true,
-              tenantPhotoEnabled: meter.tenant_photo_enabled ?? false
+              tenantPhotoEnabled: meter.tenant_photo_enabled ?? false,
+              supplier: meter.supplier || undefined,
             }));
             setAddressMeters(convertedMeters);
             setInitialMeters(JSON.parse(JSON.stringify(convertedMeters)));
@@ -624,7 +632,8 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
         requires_photo: meter.requires_photo,
         collection_mode: meter.collectionMode,
         landlord_reading_enabled: meter.landlordReadingEnabled,
-        tenant_photo_enabled: meter.tenantPhotoEnabled
+        tenant_photo_enabled: meter.tenantPhotoEnabled,
+        supplier: meter.supplier || null,
       };
 
       if (meter.id.startsWith('temp_')) {
@@ -1205,29 +1214,130 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
                     </div>
                   </Card>
 
-                  <Card title="Gavėjo duomenys" icon={<Wallet className="w-4 h-4 text-[#2F8481]" />}>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField label="Banko sąskaita (IBAN)" className="col-span-2" helperText="Sąskaita, į kurią nuomininkai perves mokėjimus">
-                        <InputField
-                          value={settings.financialSettings.bankAccount || ''}
-                          onChange={(v) => updateSettings('financialSettings', { bankAccount: v })}
-                          placeholder="LT00 0000 0000 0000 0000"
-                        />
-                      </FormField>
-                      <FormField label="Gavėjo vardas" helperText="Vardas arba įmonės pavadinimas, kuris rodomas sąskaitoje">
-                        <InputField
-                          value={settings.financialSettings.recipientName || ''}
-                          onChange={(v) => updateSettings('financialSettings', { recipientName: v })}
-                          placeholder="Vardas Pavardė arba įmonė"
-                        />
-                      </FormField>
-                      <FormField label="Mokėjimo paskirtis" helperText="Tekstas, kuris bus įrašytas kaip mokėjimo paskirtis">
-                        <InputField
-                          value={settings.financialSettings.paymentPurposeTemplate || ''}
-                          onChange={(v) => updateSettings('financialSettings', { paymentPurposeTemplate: v })}
-                          placeholder="Nuomos mokestis už {period}"
-                        />
-                      </FormField>
+                  <Card title="Mokėjimo būdai" icon={<Wallet className="w-4 h-4 text-[#2F8481]" />}>
+                    <p className="text-[11px] text-gray-400 mb-4 leading-relaxed">Nurodykite mokėjimo būdus, kuriuos nuomininkai matys sąskaitoje. Galite įjungti kelis variantus.</p>
+                    <div className="space-y-3">
+                      {/* Bank Transfer */}
+                      <ToggleRow
+                        label="Banko pavedimas"
+                        description="Swedbank, SEB, Luminor, Šiaulių bankas ir kt."
+                        checked={settings.financialSettings.paymentMethods?.bankTransfer?.enabled ?? false}
+                        onChange={(v) => {
+                          const pm = { ...settings.financialSettings.paymentMethods };
+                          pm.bankTransfer = { ...(pm.bankTransfer || {}), enabled: v };
+                          // Auto-migrate existing bankAccount/recipientName if enabling for first time
+                          if (v && !pm.bankTransfer.iban && settings.financialSettings.bankAccount) {
+                            pm.bankTransfer.iban = settings.financialSettings.bankAccount;
+                            pm.bankTransfer.recipientName = settings.financialSettings.recipientName || '';
+                          }
+                          updateSettings('financialSettings', { paymentMethods: pm });
+                        }}
+                      >
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField label="IBAN" className="col-span-2">
+                            <InputField
+                              value={settings.financialSettings.paymentMethods?.bankTransfer?.iban || ''}
+                              onChange={(v) => {
+                                const pm = { ...settings.financialSettings.paymentMethods };
+                                pm.bankTransfer = { ...(pm.bankTransfer || {}), iban: v };
+                                updateSettings('financialSettings', { paymentMethods: pm, bankAccount: v });
+                              }}
+                              placeholder="LT00 0000 0000 0000 0000"
+                            />
+                          </FormField>
+                          <FormField label="Banko pavadinimas">
+                            <InputField
+                              value={settings.financialSettings.paymentMethods?.bankTransfer?.bankName || ''}
+                              onChange={(v) => {
+                                const pm = { ...settings.financialSettings.paymentMethods };
+                                pm.bankTransfer = { ...(pm.bankTransfer || {}), bankName: v };
+                                updateSettings('financialSettings', { paymentMethods: pm });
+                              }}
+                              placeholder="Swedbank"
+                            />
+                          </FormField>
+                          <FormField label="Gavėjo vardas">
+                            <InputField
+                              value={settings.financialSettings.paymentMethods?.bankTransfer?.recipientName || ''}
+                              onChange={(v) => {
+                                const pm = { ...settings.financialSettings.paymentMethods };
+                                pm.bankTransfer = { ...(pm.bankTransfer || {}), recipientName: v };
+                                updateSettings('financialSettings', { paymentMethods: pm, recipientName: v });
+                              }}
+                              placeholder="Vardas Pavardė"
+                            />
+                          </FormField>
+                          <FormField label="Mokėjimo paskirtis" className="col-span-2">
+                            <InputField
+                              value={settings.financialSettings.paymentPurposeTemplate || ''}
+                              onChange={(v) => updateSettings('financialSettings', { paymentPurposeTemplate: v })}
+                              placeholder="Nuomos mokestis už {period}"
+                            />
+                          </FormField>
+                        </div>
+                      </ToggleRow>
+
+                      {/* Paysera */}
+                      <ToggleRow
+                        label="Paysera"
+                        description="Mokėjimas per Paysera platformą"
+                        checked={settings.financialSettings.paymentMethods?.paysera?.enabled ?? false}
+                        onChange={(v) => {
+                          const pm = { ...settings.financialSettings.paymentMethods };
+                          pm.paysera = { ...(pm.paysera || {}), enabled: v };
+                          updateSettings('financialSettings', { paymentMethods: pm });
+                        }}
+                      >
+                        <FormField label="Paysera el. paštas arba tel. numeris" helperText="Paysera paskyros identifikatorius, kurį nuomininkas matys">
+                          <InputField
+                            value={settings.financialSettings.paymentMethods?.paysera?.account || ''}
+                            onChange={(v) => {
+                              const pm = { ...settings.financialSettings.paymentMethods };
+                              pm.paysera = { ...(pm.paysera || {}), account: v };
+                              updateSettings('financialSettings', { paymentMethods: pm });
+                            }}
+                            placeholder="el.pastas@gmail.com arba +37060000000"
+                          />
+                        </FormField>
+                      </ToggleRow>
+
+                      {/* Revolut */}
+                      <ToggleRow
+                        label="Revolut"
+                        description="Mokėjimas per Revolut programėlę"
+                        checked={settings.financialSettings.paymentMethods?.revolut?.enabled ?? false}
+                        onChange={(v) => {
+                          const pm = { ...settings.financialSettings.paymentMethods };
+                          pm.revolut = { ...(pm.revolut || {}), enabled: v };
+                          updateSettings('financialSettings', { paymentMethods: pm });
+                        }}
+                      >
+                        <FormField label="Revolut vartotojo vardas" helperText="Jūsų @revolut vardas (be @). Nuomininkas galės pervesti per revolut.me nuorodą">
+                          <InputField
+                            value={settings.financialSettings.paymentMethods?.revolut?.tag || ''}
+                            onChange={(v) => {
+                              const pm = { ...settings.financialSettings.paymentMethods };
+                              pm.revolut = { ...(pm.revolut || {}), tag: v.replace('@', '') };
+                              updateSettings('financialSettings', { paymentMethods: pm });
+                            }}
+                            placeholder="vardasp"
+                          />
+                        </FormField>
+                      </ToggleRow>
+
+                      {/* Stripe (cards) */}
+                      <ToggleRow
+                        label="Kortelės (Stripe)"
+                        description="Visa, Mastercard — nuomininkas moka kortele tiesiogiai"
+                        checked={settings.financialSettings.paymentMethods?.stripe?.enabled ?? false}
+                        onChange={(v) => {
+                          const pm = { ...settings.financialSettings.paymentMethods };
+                          pm.stripe = { ...(pm.stripe || {}), enabled: v };
+                          updateSettings('financialSettings', { paymentMethods: pm });
+                        }}
+                      >
+                        <p className="text-[11px] text-gray-400">Stripe mokėjimai veikia automatiškai per jūsų prijungtą Stripe paskyrą. Konfigūruokite Stripe nustatymuose.</p>
+                      </ToggleRow>
                     </div>
                   </Card>
 
@@ -1351,6 +1461,23 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
                     <MetersTable
                       meters={addressMeters}
                       onMetersChange={handleMetersChange}
+                      onMeterUpdate={async (id, updates) => {
+                        try {
+                          const dbUpdates: Record<string, any> = {};
+                          if ('supplier' in updates) dbUpdates.supplier = updates.supplier || null;
+                          if ('price_per_unit' in updates) dbUpdates.price_per_unit = updates.price_per_unit;
+                          if ('fixed_price' in updates) dbUpdates.fixed_price = updates.fixed_price;
+                          if ('distribution_method' in updates) dbUpdates.distribution_method = updates.distribution_method;
+                          if ('name' in updates) dbUpdates.name = updates.name;
+                          if ('type' in updates) dbUpdates.type = updates.type;
+                          if ('unit' in updates) dbUpdates.unit = updates.unit;
+                          if (Object.keys(dbUpdates).length > 0) {
+                            await supabase.from('address_meters').update(dbUpdates).eq('id', id);
+                          }
+                        } catch (e) {
+                          console.error('[AddressSettingsModal] onMeterUpdate error:', e);
+                        }
+                      }}
                     />
                   </Card>
 

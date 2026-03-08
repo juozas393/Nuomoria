@@ -166,7 +166,7 @@ export const MinimalOverviewTab: React.FC<MinimalOverviewTabProps> = ({
     const completedCount = rentReadyTasks.filter(t => t.complete).length;
     const progress = Math.round((completedCount / rentReadyTasks.length) * 100);
 
-    // Activity events (mock for now - would come from database)
+    // Activity events from real tenant data
     const activityEvents: ActivityEvent[] = useMemo(() => {
         const events: ActivityEvent[] = [];
 

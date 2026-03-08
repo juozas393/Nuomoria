@@ -24,9 +24,15 @@ import {
     Cigarette,
     BedDouble,
     Layers,
+    Receipt,
+    ChevronDown,
+    Zap,
+    Droplets,
+    Thermometer,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { logAuditEvent } from '../../lib/auditLogApi';
 import { calculateDepositReturn, getDepositRules, type DepositCalculation } from '../../utils/depositCalculator';
 import LtDateInput from '../../components/ui/LtDateInput';
 
@@ -124,7 +130,7 @@ const TerminationStatusBadge = memo<{ status: string | null }>(({ status }) => {
 TerminationStatusBadge.displayName = 'TerminationStatusBadge';
 
 /* ─── Deposit Preview Component ─── */
-const DepositPreview = memo<{ calc: DepositCalculation; deposit: number }>(({ calc, deposit }) => {
+const DepositPreview = memo<{ calc: DepositCalculation; deposit: number; contractEnd?: string | null }>(({ calc, deposit, contractEnd }) => {
     const bgClass = calc.isFullReturn
         ? 'bg-emerald-50 border-emerald-200'
         : calc.isFullForfeit
@@ -145,6 +151,12 @@ const DepositPreview = memo<{ calc: DepositCalculation; deposit: number }>(({ ca
             </div>
 
             <div className="space-y-1.5">
+                {contractEnd && (
+                    <div className="flex justify-between text-[11px]">
+                        <span className="text-gray-500">Sutarties pabaiga:</span>
+                        <span className="font-medium text-gray-800">{formatDate(contractEnd)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between text-[11px]">
                     <span className="text-gray-500">Scenarijus:</span>
                     <span className="font-medium text-gray-800">{calc.scenarioLabel}</span>
@@ -238,6 +250,227 @@ const DepositRulesSection = memo(() => {
     );
 });
 DepositRulesSection.displayName = 'DepositRulesSection';
+
+/* ─── Invoice History Section ─── */
+interface InvoiceRow {
+    id: string;
+    invoice_number: string;
+    invoice_date: string;
+    due_date: string;
+    amount: number;
+    rent_amount: number;
+    utilities_amount: number | null;
+    late_fee: number | null;
+    status: string;
+    paid_date: string | null;
+    period_start: string | null;
+    period_end: string | null;
+    line_items: Array<{ label: string; amount: number; type?: string; consumption?: number; unit?: string }> | null;
+}
+
+const MONTHS_LT_SHORT = ['Sau', 'Vas', 'Kov', 'Bal', 'Geg', 'Bir', 'Lie', 'Rgp', 'Rgs', 'Spa', 'Lap', 'Gru'];
+
+const invoiceStatusCfg: Record<string, { label: string; dot: string; text: string; bg: string }> = {
+    paid: { label: 'Apmokėta', dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    pending: { label: 'Laukiama', dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    overdue: { label: 'Pradelsta', dot: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50 border-red-200' },
+};
+
+const getLineItemIcon = (label: string) => {
+    const l = label.toLowerCase();
+    if (l.includes('nuoma') || l.includes('rent')) return { Icon: Home, color: 'text-teal-500' };
+    if (l.includes('elektr')) return { Icon: Zap, color: 'text-amber-500' };
+    if (l.includes('karšt')) return { Icon: Flame, color: 'text-orange-500' };
+    if (l.includes('šalt') || l.includes('vanduo')) return { Icon: Droplets, color: 'text-blue-500' };
+    if (l.includes('šild')) return { Icon: Thermometer, color: 'text-red-500' };
+    if (l.includes('duj')) return { Icon: Flame, color: 'text-amber-600' };
+    return { Icon: Receipt, color: 'text-gray-500' };
+};
+
+const InvoiceHistorySection = memo<{ propertyId: string }>(({ propertyId }) => {
+    const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetch = async () => {
+            setIsLoading(true);
+            const { data, error } = await supabase
+                .from('invoices')
+                .select('id, invoice_number, invoice_date, due_date, amount, rent_amount, utilities_amount, late_fee, status, paid_date, period_start, period_end, line_items')
+                .eq('property_id', propertyId)
+                .order('invoice_date', { ascending: false });
+
+            if (!error && data) setInvoices(data as InvoiceRow[]);
+            setIsLoading(false);
+        };
+        fetch();
+    }, [propertyId]);
+
+    const paidCount = invoices.filter(i => i.status === 'paid').length;
+    const pendingCount = invoices.filter(i => i.status === 'pending').length;
+    const overdueCount = invoices.filter(i => i.status === 'overdue').length;
+
+    if (isLoading) {
+        return (
+            <div className={`${surface2} p-5`}>
+                <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 text-teal-500 animate-spin" />
+                    <span className={subtext}>Kraunama sąskaitų istorija...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (invoices.length === 0) {
+        return (
+            <div className={`${surface2} p-5`}>
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <Receipt className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <p className={heading}>Sąskaitų istorija</p>
+                </div>
+                <p className={subtext}>Dar nėra sugeneruotų sąskaitų.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`${surface2} p-5`}>
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
+                    <Receipt className="w-4 h-4 text-teal-600" />
+                </div>
+                <div className="flex-1">
+                    <p className={heading}>Sąskaitų istorija</p>
+                    <p className={subtext}>Visos gautos sąskaitos ir jų statusai</p>
+                </div>
+            </div>
+
+            {/* Summary chips */}
+            <div className="flex gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                    Iš viso: {invoices.length}
+                </span>
+                {paidCount > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Apmokėta: {paidCount}
+                    </span>
+                )}
+                {pendingCount > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Laukiama: {pendingCount}
+                    </span>
+                )}
+                {overdueCount > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold rounded-full bg-red-50 text-red-700 border border-red-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        Pradelsta: {overdueCount}
+                    </span>
+                )}
+            </div>
+
+            {/* Invoice list */}
+            <div className="space-y-2">
+                {invoices.map((inv) => {
+                    const sc = invoiceStatusCfg[inv.status] || invoiceStatusCfg.pending;
+                    const ps = inv.period_start ? new Date(inv.period_start) : null;
+                    const periodLabel = ps ? `${MONTHS_LT_SHORT[ps.getMonth()]} ${ps.getFullYear()}` : '';
+                    const isExpanded = expandedId === inv.id;
+                    const lineItems = Array.isArray(inv.line_items) ? inv.line_items : [];
+
+                    return (
+                        <div key={inv.id} className={`${surface1} overflow-hidden`}>
+                            {/* Row */}
+                            <button
+                                onClick={() => setExpandedId(isExpanded ? null : inv.id)}
+                                className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50/50 transition-colors"
+                            >
+                                {/* Period */}
+                                <div className="w-12 text-center flex-shrink-0">
+                                    {periodLabel ? (
+                                        <>
+                                            <p className="text-[12px] font-bold text-gray-900 leading-tight">{MONTHS_LT_SHORT[ps!.getMonth()]}</p>
+                                            <p className="text-[9px] text-gray-400">{ps!.getFullYear()}</p>
+                                        </>
+                                    ) : (
+                                        <p className="text-[10px] text-gray-400">—</p>
+                                    )}
+                                </div>
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-medium text-gray-800 truncate">
+                                        Nr. {inv.invoice_number}
+                                    </p>
+                                    <p className="text-[9px] text-gray-400">
+                                        Mokėti iki: {new Date(inv.due_date).toLocaleDateString('lt-LT')}
+                                        {inv.paid_date && ` · Apmokėta: ${new Date(inv.paid_date).toLocaleDateString('lt-LT')}`}
+                                    </p>
+                                </div>
+
+                                {/* Amount */}
+                                <div className="text-right flex-shrink-0">
+                                    <p className="text-[12px] font-bold text-gray-900 tabular-nums">
+                                        {formatCurrency(inv.amount + (inv.late_fee || 0))}
+                                    </p>
+                                </div>
+
+                                {/* Status */}
+                                <span className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-semibold rounded-full border ${sc.bg} flex-shrink-0`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                                    <span className={sc.text}>{sc.label}</span>
+                                </span>
+
+                                {/* Chevron */}
+                                {lineItems.length > 0 && (
+                                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                                )}
+                            </button>
+
+                            {/* Expanded line items */}
+                            {isExpanded && lineItems.length > 0 && (
+                                <div className="px-3 pb-3 pt-1 border-t border-gray-100">
+                                    <div className="space-y-1.5">
+                                        {lineItems.map((item, idx) => {
+                                            const { Icon, color } = getLineItemIcon(item.label);
+                                            return (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <Icon className={`w-3 h-3 ${color} flex-shrink-0`} />
+                                                    <span className="text-[10px] text-gray-600 flex-1 truncate">
+                                                        {item.label}
+                                                        {item.consumption != null && item.unit ? ` (${item.consumption} ${item.unit})` : ''}
+                                                    </span>
+                                                    <span className="text-[10px] font-medium text-gray-800 tabular-nums">
+                                                        {formatCurrency(item.amount)}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                        {(inv.late_fee ?? 0) > 0 && (
+                                            <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                                                <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />
+                                                <span className="text-[10px] text-red-600 flex-1">Vėlavimo mokestis</span>
+                                                <span className="text-[10px] font-bold text-red-600 tabular-nums">
+                                                    {formatCurrency(inv.late_fee!)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
+InvoiceHistorySection.displayName = 'InvoiceHistorySection';
 
 /* ─── Main Component ─── */
 const TenantContractPage: React.FC = () => {
@@ -377,6 +610,13 @@ const TenantContractPage: React.FC = () => {
                 });
             }
 
+            // Log audit BEFORE state updates to ensure it completes
+            const returnAmt = depositCalc?.returnAmount ?? 0;
+            await logAuditEvent(contract.property_id, 'tenant_invitations', 'UPDATE',
+                `Nuomininkas prašo nutraukti sutartį. Data: ${formatDate(terminationDate)}, depozito grąžinimas: ${formatCurrency(returnAmt)}${terminationReason ? `, priežastis: ${terminationReason}` : ''}`,
+                { date: terminationDate, deposit_return: returnAmt, reason: terminationReason }
+            );
+
             // Refresh data
             setContract(prev => prev ? {
                 ...prev,
@@ -442,6 +682,12 @@ const TenantContractPage: React.FC = () => {
                 termination_requested_at: null,
                 termination_confirmed_at: null,
             } : null);
+
+            // Log audit
+            await logAuditEvent(contract.property_id, 'tenant_invitations', 'UPDATE',
+                'Nuomininkas atšaukė sutarties nutraukimo prašymą',
+            );
+
             setSuccess('Nutraukimo prašymas atšauktas.');
         } catch (err) {
             setError('Klaida — bandykite dar kartą');
@@ -651,10 +897,15 @@ const TenantContractPage: React.FC = () => {
                     {(() => {
                         const ext = propertyDetails.extended_details || {};
                         const heatingLabels: Record<string, string> = {
+                            centrinis: 'Centrinis', dujinis: 'Dujinis', elektra: 'Elektrinis',
+                            grindinis: 'Grindinis', kita: 'Kita',
+                            // Legacy English keys fallback
                             central: 'Centrinis', individual: 'Individualus', electric: 'Elektrinis',
                             gas: 'Dujinis', other: 'Kitas',
                         };
                         const furnishedLabels: Record<string, string> = {
+                            full: 'Pilnai įrengtas', partial: 'Dalinai įrengtas', none: 'Be baldų',
+                            // Legacy English keys fallback
                             furnished: 'Įrengtas', partially: 'Dalinai įrengtas', unfurnished: 'Neįrengtas',
                         };
                         const parkingLabels: Record<string, string> = {
@@ -803,7 +1054,7 @@ const TenantContractPage: React.FC = () => {
                     {/* Deposit preview for pending request */}
                     {pendingDepositCalc && (
                         <div className="mt-3">
-                            <DepositPreview calc={pendingDepositCalc} deposit={contract.deposit || 0} />
+                            <DepositPreview calc={pendingDepositCalc} deposit={contract.deposit || 0} contractEnd={contract.contract_end} />
                         </div>
                     )}
 
@@ -926,7 +1177,7 @@ const TenantContractPage: React.FC = () => {
 
                                 {/* Deposit preview */}
                                 {depositCalc && (
-                                    <DepositPreview calc={depositCalc} deposit={contract.deposit || 0} />
+                                    <DepositPreview calc={depositCalc} deposit={contract.deposit || 0} contractEnd={contract.contract_end} />
                                 )}
 
                                 {/* Reason */}
@@ -976,6 +1227,11 @@ const TenantContractPage: React.FC = () => {
                         </>
                     )}
                 </div>
+            )}
+
+            {/* Invoice History */}
+            {contract.property_id && (
+                <InvoiceHistorySection propertyId={contract.property_id} />
             )}
 
             {/* Deposit rules info section */}

@@ -86,18 +86,141 @@ const FaqItem: React.FC<{ q: string; a: string }> = ({ q, a }) => {
 // ─────────────────────────────────────────────
 // Animated counter
 // ─────────────────────────────────────────────
-const AnimatedStat: React.FC<{ value: string; label: string; delay?: number }> = ({ value, label, delay = 0 }) => {
+const AnimatedStat: React.FC<{ value: string; label: string; description?: string; delay?: number }> = ({ value, label, description, delay = 0 }) => {
     const { ref, isVisible } = useScrollReveal();
     return (
-        <div ref={ref} className="text-center p-4 lg:p-5 rounded-xl transition-all duration-200 hover:bg-white/[0.03]" style={{
+        <div ref={ref} className="relative text-center p-5 lg:p-6 rounded-2xl transition-all duration-300 hover:scale-[1.03] group" style={{
             opacity: isVisible ? 1 : 0,
             transform: isVisible ? 'translateY(0)' : 'translateY(16px)',
             transition: `all 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}s`,
-            backgroundColor: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            backgroundColor: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
         }}>
-            <div className="text-[28px] lg:text-[38px] font-bold tracking-[-0.03em] landing-gradient-text">{value}</div>
-            <div className="text-[11px] lg:text-[12px] mt-1 font-medium tracking-[0.05em] uppercase" style={{ color: 'rgba(255,255,255,0.40)' }}>{label}</div>
+            {/* Top accent line */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-[2px] rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(58,176,158,0.5), transparent)' }} />
+            <div className="text-[32px] lg:text-[42px] font-bold tracking-[-0.03em] landing-gradient-text font-display leading-none">{value}</div>
+            <div className="text-[11px] lg:text-[12px] mt-2 font-semibold tracking-[0.08em] uppercase text-white/50">{label}</div>
+            {description && <div className="text-[9px] lg:text-[10px] mt-1.5 text-white/25 leading-relaxed">{description}</div>}
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────
+// Terminal Diagnostics — animated hero card
+// ─────────────────────────────────────────────
+const TerminalDiagnostics: React.FC = () => {
+    const [step, setStep] = useState(0);
+    const totalSteps = 10; // total animation beats
+
+    useEffect(() => {
+        // Staggered timeline: each step reveals a new line
+        const delays = [600, 1200, 1800, 2600, 3200, 3800, 4400, 5000, 5800, 6800];
+        const timers = delays.map((d, i) => setTimeout(() => setStep(i + 1), d));
+        return () => timers.forEach(clearTimeout);
+    }, []);
+
+    const mono = { fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace" };
+    const checkMark = <span className="text-teal-400">✓</span>;
+    const warningMark = <span className="text-amber-400">⚠</span>;
+
+    const scanLines = [
+        { text: 'Tikrinami adresai ir butai ...', delay: 0 },
+        { text: 'Analizuojami nuomininkai ...', delay: 1 },
+        { text: 'Skaičiuojami skaitliukai ir rodmenys ...', delay: 2 },
+        { text: 'Tikrinamos sąskaitos ir mokėjimai ...', delay: 3 },
+    ];
+
+    const stats = [
+        { key: 'ADDRESSES', value: '4', color: 'text-teal-400' },
+        { key: 'APARTMENTS', value: '18', color: 'text-teal-400' },
+        { key: 'TENANTS', value: '15', color: 'text-teal-400' },
+        { key: 'METERS', value: '47', color: 'text-teal-400' },
+        { key: 'INVOICES', value: '142', color: 'text-teal-400' },
+        { key: 'OCCUPANCY', value: '94%', color: 'text-emerald-400' },
+        { key: 'OVERDUE', value: '2', color: 'text-amber-400' },
+        { key: 'REVENUE_MONTHLY', value: '€4,280', color: 'text-teal-400' },
+    ];
+
+    return (
+        <div className="relative rounded-2xl overflow-hidden backdrop-blur-xl" style={{
+            background: 'rgba(10,15,18,0.92)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.50), 0 8px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)',
+        }}>
+            {/* ── macOS-style title bar ── */}
+            <div className="flex items-center gap-2 px-4 py-2.5" style={{
+                background: 'rgba(255,255,255,0.04)',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+            }}>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+                    <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+                    <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+                </div>
+                <span className="flex-1 text-center text-[11px] font-semibold text-white/40" style={mono}>
+                    nuomoria — diagnostika
+                </span>
+            </div>
+
+            {/* ── Terminal body ── */}
+            <div className="px-5 py-4 space-y-3 min-h-[320px]" style={mono}>
+                {/* Scan lines */}
+                {scanLines.map((line, i) => (
+                    <div
+                        key={i}
+                        className="flex items-center gap-2 text-[12px] transition-all duration-500"
+                        style={{ opacity: step > i ? 1 : 0, transform: step > i ? 'translateY(0)' : 'translateY(6px)' }}
+                    >
+                        <span className="text-white/30">→</span>
+                        <span className="text-white/70">{line.text}</span>
+                        {step > i && <span className="ml-1">{checkMark}</span>}
+                    </div>
+                ))}
+
+                {/* Divider */}
+                {step >= 5 && (
+                    <div className="border-t border-white/[0.08] my-3 transition-opacity duration-500" style={{ opacity: step >= 5 ? 1 : 0 }} />
+                )}
+
+                {/* Stats grid */}
+                {step >= 5 && (
+                    <div className="space-y-1.5">
+                        {stats.map((s, i) => {
+                            const statVisible = step >= 5 + Math.floor(i / 2);
+                            return (
+                                <div
+                                    key={s.key}
+                                    className="flex items-center justify-between text-[12px] transition-all duration-400"
+                                    style={{ opacity: statVisible ? 1 : 0 }}
+                                >
+                                    <span className="text-white/35 tracking-wider">{s.key}</span>
+                                    <span className={`font-bold tabular-nums ${s.color}`}>{s.value}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Verdict */}
+                {step >= totalSteps && (
+                    <>
+                        <div className="border-t border-white/[0.08] my-3" />
+                        <div className="flex items-start gap-2 text-[12px]" style={{
+                            opacity: 1,
+                            animation: 'landingFadeIn 0.6s ease forwards',
+                        }}>
+                            <span className="text-teal-400 font-bold">$</span>
+                            <span className="text-white/60">status:</span>
+                            <span className="text-emerald-400 font-semibold">all systems operational</span>
+                        </div>
+                        {/* Blinking cursor */}
+                        <div className="flex items-center gap-2 text-[12px] mt-1">
+                            <span className="text-teal-400 font-bold">$</span>
+                            <span className="w-2.5 h-4 bg-teal-400 animate-pulse rounded-sm" />
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 };
@@ -110,12 +233,12 @@ const LandingPage: React.FC = () => {
     const { isAuthenticated, loading, user } = useAuth();
     const featuresRef = useRef<HTMLDivElement>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [analyticsTab, setAnalyticsTab] = useState<'overview' | 'revenue' | 'time'>('overview');
 
-    // If authenticated, redirect based on role
-    if (!loading && isAuthenticated) {
-        if (user?.role === 'tenant') return <Navigate to="/tenant" replace />;
-        return <Navigate to="/dashboard" replace />;
-    }
+    // Determine dashboard link for authenticated users
+    const dashboardPath = !loading && isAuthenticated
+        ? (user?.role === 'tenant' ? '/tenant' : '/dashboard')
+        : null;
 
     const scrollToFeatures = () => {
         featuresRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -181,7 +304,7 @@ const LandingPage: React.FC = () => {
 
     const landlordBenefits = [
         { icon: Clock, text: 'Sutaupykite valandas kiekvieną mėnesį automatizuodami sąskaitų kūrimą' },
-        { icon: Eye, text: 'Matykite visų objektų būklę viename dashboard\'e' },
+        { icon: Eye, text: 'Matykite visų objektų būklę vienoje suvestinėje' },
         { icon: TrendingUp, text: 'Stebėkite pajamas ir vėluojančius mokėjimus realiu laiku' },
         { icon: Key, text: 'Pakvieskite nuomininkus su unikalių pakvietimo kodu' },
         { icon: Bell, text: 'Gaukite pranešimus apie mokėjimus ir skaitliukų rodmenis' },
@@ -191,7 +314,7 @@ const LandingPage: React.FC = () => {
     const tenantBenefits = [
         { icon: Wallet, text: 'Peržiūrėkite sąskaitas ir mokėjimo istoriją bet kada' },
         { icon: Gauge, text: 'Įveskite skaitliukų rodmenis tiesiai iš telefono' },
-        { icon: Mail, text: 'Bendraujkite su nuomotoju tiesiogiai platformoje' },
+        { icon: Mail, text: 'Bendraukite su nuomotoju tiesiogiai platformoje' },
         { icon: CalendarDays, text: 'Matykite sutarties pradžią, pabaigą ir depozito informaciją' },
     ];
 
@@ -221,35 +344,43 @@ const LandingPage: React.FC = () => {
             number: '04',
             icon: Settings2,
             title: 'Valdykite viską',
-            description: 'Kurkite sąskaitas, stebėkite mokėjimus, peržiūrėkite skaitliukų rodmenis ir bendraujkite su nuomininkais — viskas vienoje vietoje.',
+            description: 'Kurkite sąskaitas, stebėkite mokėjimus, peržiūrėkite skaitliukų rodmenis ir bendraukite su nuomininkais — viskas vienoje vietoje.',
             detail: 'Pilnas valdymo centras',
         },
     ];
 
     const faqs = [
         {
-            q: 'Ar Nuomoria yra nemokama?',
-            a: 'Taip, šiuo metu Nuomoria yra visiškai nemokama. Galite naudotis visomis funkcijomis be jokių apribojimų ar paslėptų mokesčių.',
+            q: 'Ar Nuomoria tikrai nemokama? Kokia yra kainodara?',
+            a: 'Taip, Nuomoria yra 100% nemokama — be paslėptų mokesčių, be prenumeratos, be limitų. Visos funkcijos prieinamos nuo pat pirmosios dienos. Ateityje gali atsirasti premium planas su papildomomis funkcijomis, bet dabartinės galimybės liks nemokamos visam laikui.',
         },
         {
-            q: 'Kaip nuomininkai prisijungia prie sistemos?',
-            a: 'Nuomotojas sugeneruoja unikalų pakvietimo kodą kiekvienam nuomininkui. Nuomininkas prisiregistruoja su Google paskyra ir įveda šį kodą — po to iš karto mato savo butą, sąskaitas ir skaitliukus.',
+            q: 'Valdau kelis daugiabučius — ar galiu viską matyti vienoje vietoje?',
+            a: 'Taip. Galite pridėti neribotą kiekį adresų ir kiekviename adrese — neribotą kiekį butų. Dashboard\'e matysite visų objektų bendrą vaizdą: pajamas, užimtumą, vėluojančius mokėjimus ir skaitliukų būseną.',
         },
         {
-            q: 'Ar mano duomenys yra saugūs?',
-            a: 'Taip, naudojame Supabase ir Google OAuth — pirmaujančias saugumo technologijas. Visi duomenys šifruojami, o prieiga kontroliuojama eilučių lygio saugumo politikomis (RLS).',
+            q: 'Kaip nuomininkas prisijungia? Ar jam reikia instaliuoti programėlę?',
+            a: 'Ne, jokios programėlės nereikia. Jūs sugeneruojate unikalų pakvietimo kodą ir jį perduodate nuomininkui. Nuomininkas prisijungia su Google paskyra, įveda kodą ir iš karto mato savo butą, sąskaitas bei gali siųsti skaitliukų rodmenis tiesiai iš naršyklės.',
         },
         {
-            q: 'Kiek objektų galiu pridėti?',
-            a: 'Neribotą kiekį. Galite pridėti tiek adresų ir butų, kiek reikia. Kiekvienam butui galite priskirti skaitliukus, nuomininkus ir stebėti mokėjimus.',
+            q: 'Kaip veikia skaitliukų rodmenų surinkimas?',
+            a: 'Nuomininkas pats įveda rodmenis per savo paskyrą — jums nereikia skambinti ar siųsti SMS. Sistema automatiškai apskaičiuoja suvartojimą, patikrina ar rodmenys logiški, ir paruošia duomenis sąskaitos generavimui.',
         },
         {
-            q: 'Ar sistema veikia mobiliajame telefone?',
-            a: 'Taip, Nuomoria yra pilnai responsive — puikiai veikia tiek kompiuteryje, tiek telefone ar planšetėje. Nuomininkai gali įvesti skaitliukų rodmenis tiesiog iš telefono.',
+            q: 'Ar galiu generuoti sąskaitas automatiškai?',
+            a: 'Taip. Sistema sujungia mėnesinę nuomos kainą su komunaliniais mokesčiais pagal skaitliukų rodmenis. Jūs galite peržiūrėti sugeneruotą sąskaitą, koreguoti jei reikia, ir siųsti nuomininkui. Visa istorija saugoma automatiškai.',
         },
         {
-            q: 'Kaip veikia automatinės sąskaitos?',
-            a: 'Sistema automatiškai apskaičiuoja komunalinius mokesčius pagal skaitliukų rodmenis ir prideda juos prie mėnesinės nuomos kainos. Galite peržiūrėti ir patvirtinti kiekvieną sąskaitą prieš ją siunčiant nuomininkui.',
+            q: 'Ar mano ir nuomininkų duomenys saugūs?',
+            a: 'Absoliučiai. Naudojame Google OAuth autentifikaciją ir Supabase infrastruktūrą su eilučių lygio saugumu (RLS) — kiekvienas vartotojas mato tik savo duomenis. Jokių slaptažodžių — tik saugi Google paskyra.',
+        },
+        {
+            q: 'Ar sistema veikia telefone?',
+            a: 'Taip, Nuomoria pilnai pritaikyta mobiliesiems įrenginiams. Tiek nuomotojas, tiek nuomininkas gali naudotis visomis funkcijomis iš telefono naršyklės — be jokios papildomos programėlės.',
+        },
+        {
+            q: 'Ką daryti jei turiu klausimų ar reikia pagalbos?',
+            a: 'Sistemoje rasite išsamų pagalbos centrą su instrukcijomis kiekvienam žingsniui. Taip pat galite susisiekti su mumis tiesiogiai — atsakysime per 24 valandas.',
         },
     ];
 
@@ -306,7 +437,7 @@ const LandingPage: React.FC = () => {
             <section className="relative pt-16 pb-8 lg:pb-0 lg:min-h-[82vh] flex flex-col">
                 {/* Background image — full view */}
                 <div className="absolute inset-0 overflow-hidden">
-                    <img src="/images/ImageIntroduction.jpg" alt="" className="w-full h-full object-cover object-bottom" />
+                    <img src="/images/ImageIntroduction.webp" alt="" className="w-full h-full object-cover object-bottom" />
                 </div>
                 {/* Dark overlay for readability */}
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(3,6,8,0.78) 0%, rgba(3,6,8,0.55) 40%, rgba(3,6,8,0.92) 100%)' }} />
@@ -325,9 +456,9 @@ const LandingPage: React.FC = () => {
                                 Nuomos valdymo platforma Lietuvai
                             </div>
 
-                            <h1 className="text-[32px] lg:text-[50px] font-bold leading-[1.10] tracking-[-0.03em] mb-5">
+                            <h1 className="text-[32px] lg:text-[50px] font-extrabold leading-[1.10] tracking-[-0.03em] mb-5 font-display">
                                 Viskas ko reikia{' '}
-                                <span className="landing-gradient-text">nuomos valdymui</span>
+                                <span className="landing-gradient-text font-accent italic">nuomos valdymui </span>
                                 {' '}vienoje vietoje
                             </h1>
 
@@ -358,65 +489,17 @@ const LandingPage: React.FC = () => {
                             </p>
                         </div>
 
-                        {/* RIGHT — Quick feature highlights */}
-                        <div className="space-y-3 lg:pl-4">
-                            {[
-                                {
-                                    icon: Receipt,
-                                    title: 'Automatinės sąskaitos',
-                                    desc: 'Sistema automatiškai sugeneruoja mėnesines sąskaitas su nuoma ir komunaliniais mokesčiais.',
-                                    iconBg: 'bg-teal-500/15',
-                                    iconColor: 'text-teal-400',
-                                    stat: 'Sutaupykite ~3 val./mėn.',
-                                },
-                                {
-                                    icon: Gauge,
-                                    title: 'Skaitliukų valdymas',
-                                    desc: 'Nuomininkai patys įveda rodmenis, sistema apskaičiuoja suvartojimą ir kainą.',
-                                    iconBg: 'bg-amber-500/15',
-                                    iconColor: 'text-amber-400',
-                                    stat: 'Nereikia rinkti SMS',
-                                },
-                                {
-                                    icon: Users,
-                                    title: 'Nuomininkų portalas',
-                                    desc: 'Kiekvienas nuomininkas mato sąskaitas, sutartį ir gali bendrauti tiesiogiai.',
-                                    iconBg: 'bg-blue-500/15',
-                                    iconColor: 'text-blue-400',
-                                    stat: 'Skaidrus bendravimas',
-                                },
-                                {
-                                    icon: BarChart3,
-                                    title: 'Realaus laiko analitika',
-                                    desc: 'Stebėkite pajamas, vėluojančius mokėjimus ir turto efektyvumą.',
-                                    iconBg: 'bg-emerald-500/15',
-                                    iconColor: 'text-emerald-400',
-                                    stat: 'Visi duomenys vienoje vietoje',
-                                },
-                            ].map((item, i) => (
-                                <div key={item.title}
-                                    className="group flex items-start gap-3.5 p-3.5 rounded-xl transition-all duration-200 hover:bg-white/[0.04]"
-                                    style={{
-                                        backgroundColor: 'rgba(255,255,255,0.02)',
-                                        border: '1px solid rgba(255,255,255,0.06)',
-                                        opacity: 0,
-                                        animation: `landingFadeIn 0.6s cubic-bezier(0.16,1,0.3,1) ${0.4 + i * 0.1}s forwards`,
-                                    }}
-                                >
-                                    <div className={`w-9 h-9 rounded-lg ${item.iconBg} border border-white/[0.08] flex items-center justify-center flex-shrink-0`}>
-                                        <item.icon className={`w-4 h-4 ${item.iconColor}`} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <h3 className="text-[13px] font-bold text-white/90">{item.title}</h3>
-                                            <span className="text-[9px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 hidden lg:block"
-                                                style={{ backgroundColor: 'rgba(47,132,129,0.10)', color: 'rgba(58,176,158,0.70)' }}
-                                            >{item.stat}</span>
-                                        </div>
-                                        <p className="text-[11px] leading-[1.6]" style={{ color: 'rgba(255,255,255,0.40)' }}>{item.desc}</p>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="relative lg:pl-4 flex items-center justify-center">
+                            <div className="relative w-full max-w-[520px] landing-float-1" style={{
+                                opacity: 0,
+                                animation: 'landingFadeIn 1s cubic-bezier(0.16,1,0.3,1) 0.4s forwards',
+                            }}>
+                                {/* Ambient glow */}
+                                <div className="absolute -inset-8 rounded-3xl blur-3xl" style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(47,132,129,0.14) 0%, transparent 65%)' }} />
+
+                                {/* ══ Terminal Card ══ */}
+                                <TerminalDiagnostics />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -429,77 +512,274 @@ const LandingPage: React.FC = () => {
                 <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,132,129,0.15) 50%, transparent 95%)' }} />
                 <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,132,129,0.08) 50%, transparent 95%)' }} />
                 <div className="max-w-[900px] mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                    <AnimatedStat value="100%" label="Nemokama" delay={0} />
-                    <AnimatedStat value="24/7" label="Prieiga" delay={0.1} />
-                    <AnimatedStat value="∞" label="Objektų" delay={0.2} />
-                    <AnimatedStat value="< 1 min" label="Registracija" delay={0.3} />
+                    <AnimatedStat value="100%" label="Nemokama" description="Visos funkcijos be mokesčių" delay={0} />
+                    <AnimatedStat value="24/7" label="Prieiga" description="Valdykite bet kada, bet kur" delay={0.1} />
+                    <AnimatedStat value="∞" label="Objektų" description="Neribotas butų skaičius" delay={0.2} />
+                    <AnimatedStat value="< 1 min" label="Registracija" description="Prisijunkite su Google" delay={0.3} />
                 </div>
             </section>
 
             {/* ═══════════════════════════════════════════════
-          PROBLEM → SOLUTION
+          PROBLEM + ANALYTICS — Combined Row
       ═══════════════════════════════════════════════ */}
-            <section className="py-20 lg:py-28 px-6 lg:px-16">
-                <div className="max-w-[1000px] mx-auto">
-                    <RevealSection className="text-center mb-16">
+            <section className="py-16 lg:py-24 px-6 lg:px-16">
+                <div className="max-w-[1200px] mx-auto">
+                    <RevealSection className="text-center mb-12">
                         <p className="text-[12px] font-semibold tracking-[0.15em] uppercase mb-3" style={{ color: 'rgba(58,176,158,0.80)' }}>
                             Problema ir sprendimas
                         </p>
-                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-5">
+                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4 font-display">
                             Nuomos valdymas neturi būti sudėtingas
                         </h2>
                         <p className="text-[14px] lg:text-[16px] leading-[1.8] max-w-[650px] mx-auto" style={{ color: 'rgba(255,255,255,0.50)' }}>
                             Excel lentelės, SMS žinutės nuomininkams, rankiniai skaičiavimai — tai atima brangų laiką.
-                            Nuomoria viską centralizuoja ir automatizuoja, kad jūs galėtumėte susitelkti ties tuo, kas svarbu.
+                            Nuomoria viską centralizuoja ir automatizuoja.
                         </p>
                     </RevealSection>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Before */}
-                        <RevealSection delay={0.1}>
-                            <div className="rounded-2xl p-6 lg:p-7 h-full relative overflow-hidden" style={{ backgroundColor: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.10)' }}>
-                                <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: 'linear-gradient(90deg, rgba(239,68,68,0.4) 0%, rgba(239,68,68,0.1) 100%)' }} />
-                                <div className="text-[12px] font-bold tracking-[0.1em] uppercase mb-5 text-red-400/80">Be Nuomoria</div>
-                                <ul className="space-y-3.5">
-                                    {[
-                                        'Sąskaitas reikia kurti rankiniu būdu kiekvieną mėnesį',
-                                        'Skaitliukų rodmenys ateina SMS ar žodžiu',
-                                        'Komunaliniai skaičiuojami Excel\'e',
-                                        'Mokėjimų sekimas — chaotiškas',
-                                        'Nuomininkai skambina dėl kiekvienos smulkmenos',
-                                    ].map((item) => (
-                                        <li key={item} className="flex items-start gap-3 text-[13px] leading-[1.6]" style={{ color: 'rgba(255,255,255,0.50)' }}>
-                                            <div className="w-5 h-5 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                <Minus className="w-3 h-3 text-red-400" />
-                                            </div>
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </RevealSection>
+                    {/* 2-column grid: Problem cards left, Analytics right */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+                        {/* LEFT — Before / After cards */}
+                        <div className="space-y-5">
+                            <RevealSection delay={0.1}>
+                                <div className="rounded-2xl p-6 h-full relative overflow-hidden" style={{ backgroundColor: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.10)' }}>
+                                    <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: 'linear-gradient(90deg, rgba(239,68,68,0.4) 0%, rgba(239,68,68,0.1) 100%)' }} />
+                                    <div className="text-[11px] font-bold tracking-[0.1em] uppercase mb-4 text-red-400/80">Be Nuomoria</div>
+                                    <ul className="space-y-3">
+                                        {[
+                                            'Sąskaitas reikia kurti rankiniu būdu kiekvieną mėnesį',
+                                            'Skaitliukų rodmenys ateina SMS ar žodžiu',
+                                            'Komunaliniai skaičiuojami Excel\'e',
+                                            'Mokėjimų sekimas — chaotiškas',
+                                            'Nuomininkai skambina dėl kiekvienos smulkmenos',
+                                        ].map((item) => (
+                                            <li key={item} className="flex items-start gap-2.5 text-[12px] leading-[1.6]" style={{ color: 'rgba(255,255,255,0.50)' }}>
+                                                <div className="w-[18px] h-[18px] rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                    <Minus className="w-2.5 h-2.5 text-red-400" />
+                                                </div>
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </RevealSection>
+                            <RevealSection delay={0.2}>
+                                <div className="rounded-2xl p-6 h-full relative overflow-hidden" style={{ backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
+                                    <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.4) 0%, rgba(16,185,129,0.1) 100%)' }} />
+                                    <div className="text-[11px] font-bold tracking-[0.1em] uppercase mb-4 text-emerald-400/80">Su Nuomoria</div>
+                                    <ul className="space-y-3">
+                                        {[
+                                            'Sąskaitos generuojamos automatiškai pagal parametrus',
+                                            'Nuomininkai patys įveda rodmenis savo paskyroje',
+                                            'Sistema apskaičiuoja komunalinius automatiškai',
+                                            'Visi mokėjimai matomi suvestinėje su būsenomis',
+                                            'Integruota komunikacijos sistema',
+                                        ].map((item) => (
+                                            <li key={item} className="flex items-start gap-2.5 text-[12px] leading-[1.6]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                                                <div className="w-[18px] h-[18px] rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                    <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                                </div>
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </RevealSection>
+                        </div>
 
-                        {/* After */}
-                        <RevealSection delay={0.2}>
-                            <div className="rounded-2xl p-6 lg:p-7 h-full relative overflow-hidden" style={{ backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
-                                <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl" style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.4) 0%, rgba(16,185,129,0.1) 100%)' }} />
-                                <div className="text-[12px] font-bold tracking-[0.1em] uppercase mb-5 text-emerald-400/80">Su Nuomoria</div>
-                                <ul className="space-y-3.5">
-                                    {[
-                                        'Sąskaitos generuojamos automatiškai pagal nustatytus parametrus',
-                                        'Nuomininkai patys įveda rodmenis savo paskyroje',
-                                        'Sistema apskaičiuoja komunalinius pagal tarifus automatiškai',
-                                        'Visi mokėjimai matomi dashboard\'e su statusais',
-                                        'Integruota komunikacijos sistema — viskas vienoje vietoje',
-                                    ].map((item) => (
-                                        <li key={item} className="flex items-start gap-3 text-[13px] leading-[1.6]" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                                            <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                <Check className="w-3 h-3 text-emerald-400" />
+                        {/* RIGHT — Analytics Panel */}
+                        <RevealSection delay={0.15}>
+                            <div className="relative rounded-2xl overflow-hidden backdrop-blur-xl" style={{
+                                background: 'rgba(13,20,24,0.82)',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                boxShadow: '0 25px 60px rgba(0,0,0,0.45), 0 8px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)',
+                            }}>
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-5 py-3" style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+                                        <span className="text-[12px] font-bold text-white/90" style={{ fontFamily: 'Outfit, sans-serif' }}>Nuomoria Analytics</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        {(['overview', 'revenue', 'time'] as const).map(tab => (
+                                            <button
+                                                key={tab}
+                                                onClick={() => setAnalyticsTab(tab)}
+                                                className={`px-3 py-1 rounded-md text-[9px] font-semibold transition-all duration-200 cursor-pointer ${analyticsTab === tab ? 'text-teal-300' : 'text-white/40 hover:text-white/60'}`}
+                                                style={analyticsTab === tab ? { background: 'rgba(58,176,158,0.18)' } : {}}
+                                            >
+                                                {tab === 'overview' ? 'Apžvalga' : tab === 'revenue' ? 'Pajamos' : 'Laikas'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{ minHeight: '340px' }}>
+                                    {/* TAB: Apžvalga */}
+                                    {analyticsTab === 'overview' && (
+                                        <div style={{ animation: 'landingFadeIn 0.3s ease forwards' }}>
+                                            <div className="grid grid-cols-3 gap-2.5 px-4 pt-4 pb-3">
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Pajamos / mėn.</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold text-white tabular-nums" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>€4,280</span>
+                                                        <span className="text-[9px] font-semibold text-teal-400">+8%</span>
+                                                    </div>
+                                                    <svg viewBox="0 0 120 20" className="w-full mt-1.5 opacity-50"><polyline points="0,14 15,12 30,10 45,13 60,9 75,6 90,4 105,2 120,0" stroke="#3AB09E" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+                                                </div>
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Užimtumas</div>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[20px] font-extrabold text-white" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>94%</span>
+                                                        <svg viewBox="0 0 36 36" className="w-9 h-9"><circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3.5" /><circle cx="18" cy="18" r="14" fill="none" stroke="#3AB09E" strokeWidth="3.5" strokeDasharray="82.6 87.96" strokeLinecap="round" transform="rotate(-90 18 18)" /></svg>
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(58,176,158,0.10)', border: '1px solid rgba(58,176,158,0.20)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Sutaupytas laikas</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold text-teal-400" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>75%</span>
+                                                    </div>
+                                                    <div className="text-[7px] font-medium text-white/30 mt-0.5" style={{ fontFamily: 'Outfit' }}>val./savaitę: 8h → 2h</div>
+                                                </div>
                                             </div>
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
+                                            <div className="px-4 pb-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[9px] font-semibold text-white/60" style={{ fontFamily: 'Outfit' }}>Valandos per savaitę</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-sm" style={{ background: 'rgba(239,68,68,0.55)' }} /><span className="text-[7px] text-white/40" style={{ fontFamily: 'Outfit' }}>Rankinis</span></div>
+                                                        <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-sm bg-teal-500" /><span className="text-[7px] text-white/40" style={{ fontFamily: 'Outfit' }}>Nuomoria</span></div>
+                                                    </div>
+                                                </div>
+                                                <svg viewBox="0 0 480 200" className="w-full" preserveAspectRatio="none">
+                                                    {[0, 50, 100, 150].map(y => (<line key={y} x1="0" y1={y} x2="480" y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />))}
+                                                    {[{ x: 10, r: 150, t: 140 }, { x: 68, r: 148, t: 110 }, { x: 126, r: 145, t: 80 }, { x: 184, r: 150, t: 55 }, { x: 242, r: 148, t: 40 }, { x: 300, r: 145, t: 30 }, { x: 358, r: 150, t: 24 }, { x: 416, r: 148, t: 20 }].map((b, i) => (
+                                                        <g key={i}><rect x={b.x} y={190 - b.r} width="22" height={b.r} rx="3" fill="rgba(239,68,68,0.45)" /><rect x={b.x + 26} y={190 - b.t} width="22" height={b.t} rx="3" fill="#3AB09E" /></g>
+                                                    ))}
+                                                    <path d="M37,50 C96,80 156,110 216,135 C276,150 336,160 396,166 C436,168 456,170 469,170" stroke="#3AB09E" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeDasharray="5 4" opacity="0.5" />
+                                                </svg>
+                                                <div className="flex justify-between px-1 mt-1">
+                                                    {['Sau', 'Vas', 'Kov', 'Bal', 'Geg', 'Bir', 'Lie', 'Rgp'].map(m => (<span key={m} className="text-[7px] text-white/30 w-[50px] text-center" style={{ fontFamily: 'Outfit' }}>{m}</span>))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* TAB: Pajamos */}
+                                    {analyticsTab === 'revenue' && (
+                                        <div style={{ animation: 'landingFadeIn 0.3s ease forwards' }}>
+                                            <div className="grid grid-cols-3 gap-2.5 px-4 pt-4 pb-3">
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Metinės pajamos</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold text-white tabular-nums" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>€51,360</span>
+                                                    </div>
+                                                    <div className="text-[7px] font-medium text-teal-400/60 mt-0.5" style={{ fontFamily: 'Outfit' }}>12 mėn. prognozė</div>
+                                                </div>
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Vid. nuoma</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold text-white tabular-nums" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>€535</span>
+                                                        <span className="text-[9px] font-semibold text-teal-400">/ butas</span>
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(58,176,158,0.10)', border: '1px solid rgba(58,176,158,0.20)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Surinkta</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold text-teal-400" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>97%</span>
+                                                    </div>
+                                                    <div className="text-[7px] font-medium text-white/30 mt-0.5" style={{ fontFamily: 'Outfit' }}>mokėjimų laiku</div>
+                                                </div>
+                                            </div>
+                                            <div className="px-4 pb-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[9px] font-semibold text-white/60" style={{ fontFamily: 'Outfit' }}>Pajamų dinamika (€)</span>
+                                                </div>
+                                                <svg viewBox="0 0 480 200" className="w-full" preserveAspectRatio="none">
+                                                    {[0, 50, 100, 150].map(y => (<line key={y} x1="0" y1={y} x2="480" y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />))}
+                                                    <defs><linearGradient id="revGrad2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3AB09E" stopOpacity="0.25" /><stop offset="100%" stopColor="#3AB09E" stopOpacity="0.02" /></linearGradient></defs>
+                                                    <path d="M0,160 C40,155 80,140 120,132 C160,125 200,118 240,105 C280,92 320,80 360,72 C400,65 440,55 480,48 L480,200 L0,200 Z" fill="url(#revGrad2)" />
+                                                    <path d="M0,160 C40,155 80,140 120,132 C160,125 200,118 240,105 C280,92 320,80 360,72 C400,65 440,55 480,48" stroke="#3AB09E" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+                                                    {[{ x: 0, y: 160 }, { x: 120, y: 132 }, { x: 240, y: 105 }, { x: 360, y: 72 }, { x: 480, y: 48 }].map((p, i) => (
+                                                        <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="rgba(20,30,35,0.8)" stroke="#3AB09E" strokeWidth="2" />
+                                                    ))}
+                                                </svg>
+                                                <div className="flex justify-between px-1 mt-1">
+                                                    {['€3,200', '€3,800', '€4,100', '€4,280', '€4,650'].map((v, i) => (<span key={i} className="text-[7px] text-teal-400/40 tabular-nums" style={{ fontFamily: 'Outfit' }}>{v}</span>))}
+                                                </div>
+                                                <div className="flex justify-between px-1 mt-0.5">
+                                                    {['Bal', 'Bir', 'Rgp', 'Spa', 'Gru'].map(m => (<span key={m} className="text-[7px] text-white/30" style={{ fontFamily: 'Outfit' }}>{m}</span>))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* TAB: Laikas */}
+                                    {analyticsTab === 'time' && (
+                                        <div style={{ animation: 'landingFadeIn 0.3s ease forwards' }}>
+                                            <div className="grid grid-cols-3 gap-2.5 px-4 pt-4 pb-3">
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Be Nuomoria</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em', color: 'rgba(239,68,68,0.7)' }}>8.5h</span>
+                                                        <span className="text-[8px] text-white/20" style={{ fontFamily: 'Outfit' }}>/sav.</span>
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(58,176,158,0.05)', border: '1px solid rgba(58,176,158,0.12)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Su Nuomoria</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold text-teal-400" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>2.1h</span>
+                                                        <span className="text-[8px] text-white/20" style={{ fontFamily: 'Outfit' }}>/sav.</span>
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <div className="text-[8px] font-medium text-white/50 mb-1.5" style={{ fontFamily: 'Outfit' }}>Sutaupyta</div>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[20px] font-extrabold text-white" style={{ fontFamily: 'Outfit', letterSpacing: '-0.02em' }}>6.4h</span>
+                                                        <span className="text-[9px] font-semibold text-teal-400">−75%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="px-4 pb-3">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-[9px] font-semibold text-white/50" style={{ fontFamily: 'Outfit' }}>Valandos per savaitę pagal užduotį</span>
+                                                </div>
+                                                <div className="space-y-2.5">
+                                                    {[
+                                                        { task: 'Sąskaitų generavimas', beforeH: '2.5h', afterH: '0.2h', before: 85, after: 7 },
+                                                        { task: 'Skaitiklių surinkimas', beforeH: '1.8h', afterH: '0.5h', before: 62, after: 17 },
+                                                        { task: 'Mokėjimų sekimas', beforeH: '1.5h', afterH: '0.3h', before: 52, after: 10 },
+                                                        { task: 'Komunikacija', beforeH: '1.5h', afterH: '0.6h', before: 52, after: 21 },
+                                                        { task: 'Dokumentų tvarkymas', beforeH: '1.2h', afterH: '0.5h', before: 41, after: 17 },
+                                                    ].map((item, i) => (
+                                                        <div key={i}>
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-[8px] text-white/50" style={{ fontFamily: 'Outfit' }}>{item.task}</span>
+                                                                <span className="text-[7px] text-white/30 tabular-nums" style={{ fontFamily: 'Outfit' }}>{item.beforeH} → <span className="text-teal-400">{item.afterH}</span></span>
+                                                            </div>
+                                                            <div className="flex gap-1 h-[6px]">
+                                                                <div className="rounded-full" style={{ width: `${item.before}%`, background: 'rgba(239,68,68,0.35)', transition: 'width 0.5s' }} />
+                                                                <div className="rounded-full bg-teal-500" style={{ width: `${item.after}%`, transition: 'width 0.5s' }} />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="flex items-center gap-4 mt-3">
+                                                    <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(239,68,68,0.45)' }} /><span className="text-[7px] text-white/35" style={{ fontFamily: 'Outfit' }}>Rankinis</span></div>
+                                                    <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-teal-500" /><span className="text-[7px] text-white/35" style={{ fontFamily: 'Outfit' }}>Nuomoria</span></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Bottom insight bar */}
+                                <div className="px-5 py-2.5" style={{ background: 'rgba(58,176,158,0.06)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                                    <p className="text-[8px] text-white/40 text-center" style={{ fontFamily: 'Outfit' }}>
+                                        {analyticsTab === 'overview' && <>Automatinės sąskaitos · Skaitiklių surinkimas vienu paspaudimu · <span className="text-teal-400 font-semibold">Viskas vienoje vietoje</span></>}
+                                        {analyticsTab === 'revenue' && <>Mokėjimų priminimai · Vėlavimo delspinigiai · <span className="text-teal-400 font-semibold">Niekada nepraleiskite mokėjimo</span></>}
+                                        {analyticsTab === 'time' && <>Nuomininkai patys siunčia rodmenis · Sąskaitos generuojamos automatiškai · <span className="text-teal-400 font-semibold">Jūs tik stebite</span></>}
+                                    </p>
+                                </div>
                             </div>
                         </RevealSection>
                     </div>
@@ -517,7 +797,7 @@ const LandingPage: React.FC = () => {
                         <p className="text-[12px] font-semibold tracking-[0.15em] uppercase mb-3" style={{ color: 'rgba(58,176,158,0.80)' }}>
                             Galimybės
                         </p>
-                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4">
+                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4 font-display">
                             Visi įrankiai vienoje platformoje
                         </h2>
                         <p className="text-[14px] lg:text-[16px] max-w-[550px] mx-auto" style={{ color: 'rgba(255,255,255,0.50)' }}>
@@ -556,18 +836,18 @@ const LandingPage: React.FC = () => {
                         ))}
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* ═══════════════════════════════════════════════
           FOR LANDLORDS & TENANTS
       ═══════════════════════════════════════════════ */}
-            <section className="py-20 lg:py-28 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            < section className="py-20 lg:py-28 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                 <div className="max-w-[1100px] mx-auto">
                     <RevealSection className="text-center mb-16">
                         <p className="text-[12px] font-semibold tracking-[0.15em] uppercase mb-3" style={{ color: 'rgba(58,176,158,0.80)' }}>
                             Kam skirta
                         </p>
-                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4">
+                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4 font-display">
                             Tinka ir nuomotojams, ir nuomininkams
                         </h2>
                     </RevealSection>
@@ -630,18 +910,18 @@ const LandingPage: React.FC = () => {
                         </RevealSection>
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* ═══════════════════════════════════════════════
           HOW IT WORKS
       ═══════════════════════════════════════════════ */}
-            <section id="how-it-works" className="relative py-20 lg:py-28 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            < section id="how-it-works" className="relative py-20 lg:py-28 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                 <div className="max-w-[1000px] mx-auto">
                     <RevealSection className="text-center mb-16">
                         <p className="text-[12px] font-semibold tracking-[0.15em] uppercase mb-3" style={{ color: 'rgba(58,176,158,0.80)' }}>
                             Kaip tai veikia
                         </p>
-                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4">
+                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4 font-display">
                             Pradėkite per 4 paprastus žingsnius
                         </h2>
                         <p className="text-[14px] lg:text-[16px] max-w-[480px] mx-auto" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -676,12 +956,12 @@ const LandingPage: React.FC = () => {
                         ))}
                     </div>
                 </div>
-            </section>
+            </section >
 
             {/* ═══════════════════════════════════════════════
           SECURITY & TRUST
       ═══════════════════════════════════════════════ */}
-            <section className="py-16 lg:py-20 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            < section className="py-16 lg:py-20 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                 <div className="max-w-[900px] mx-auto">
                     <RevealSection>
                         <div className="rounded-2xl p-7 lg:p-10 text-center relative overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -689,7 +969,7 @@ const LandingPage: React.FC = () => {
                             <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/15 flex items-center justify-center mx-auto mb-5 shadow-[0_0_24px_rgba(47,132,129,0.1)]">
                                 <Shield className="w-6 h-6 text-teal-400" />
                             </div>
-                            <h3 className="text-[18px] lg:text-[22px] font-bold mb-3">Duomenų saugumas — mūsų prioritetas</h3>
+                            <h3 className="text-[18px] lg:text-[22px] font-bold mb-3 font-display">Duomenų saugumas — mūsų prioritetas</h3>
                             <p className="text-[13px] lg:text-[14px] leading-[1.8] max-w-[550px] mx-auto mb-8" style={{ color: 'rgba(255,255,255,0.45)' }}>
                                 Nuomoria naudoja pirmaujančias saugumo technologijas, kad Jūsų ir Jūsų nuomininkų duomenys būtų visada apsaugoti.
                             </p>
@@ -711,18 +991,18 @@ const LandingPage: React.FC = () => {
                         </div>
                     </RevealSection>
                 </div>
-            </section>
+            </section >
 
             {/* ═══════════════════════════════════════════════
           FAQ
       ═══════════════════════════════════════════════ */}
-            <section id="faq" className="py-20 lg:py-28 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            < section id="faq" className="py-20 lg:py-28 px-6 lg:px-16 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                 <div className="max-w-[700px] mx-auto">
                     <RevealSection className="text-center mb-12">
                         <p className="text-[12px] font-semibold tracking-[0.15em] uppercase mb-3" style={{ color: 'rgba(58,176,158,0.80)' }}>
                             D.U.K.
                         </p>
-                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4">
+                        <h2 className="text-[28px] lg:text-[40px] font-bold tracking-[-0.02em] mb-4 font-display">
                             Dažniausiai užduodami klausimai
                         </h2>
                     </RevealSection>
@@ -735,18 +1015,18 @@ const LandingPage: React.FC = () => {
                         </div>
                     </RevealSection>
                 </div>
-            </section>
+            </section >
 
             {/* ═══════════════════════════════════════════════
           FINAL CTA
       ═══════════════════════════════════════════════ */}
-            <section className="relative py-24 lg:py-32 px-6 lg:px-16" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(47,132,129,0.03) 50%, transparent 100%)' }}>
+            < section className="relative py-24 lg:py-32 px-6 lg:px-16" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(47,132,129,0.03) 50%, transparent 100%)' }}>
                 <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,132,129,0.12) 50%, transparent 95%)' }} />
                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(47,132,129,0.06) 0%, transparent 55%)' }} />
                 <div className="relative max-w-[650px] mx-auto text-center">
                     <RevealSection>
-                        <img src={smallLogoWhite} alt="Nuomoria" className="h-14 w-14 object-contain mx-auto mb-6 opacity-25" />
-                        <h2 className="text-[26px] lg:text-[38px] font-bold tracking-[-0.02em] mb-4">
+                        <img src={smallLogoWhite} alt="Nuomoria" className="h-20 w-20 object-contain mx-auto mb-6 opacity-40" />
+                        <h2 className="text-[26px] lg:text-[38px] font-bold tracking-[-0.02em] mb-4 font-display">
                             Pasiruošę supaprastinti nuomos valdymą?
                         </h2>
                         <p className="text-[14px] lg:text-[16px] leading-[1.7] mb-8" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -766,12 +1046,12 @@ const LandingPage: React.FC = () => {
                         </p>
                     </RevealSection>
                 </div>
-            </section>
+            </section >
 
             {/* ═══════════════════════════════════════════════
           FOOTER
       ═══════════════════════════════════════════════ */}
-            <footer className="relative py-10 px-6 lg:px-16">
+            < footer className="relative py-10 px-6 lg:px-16" >
                 <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.06) 50%, transparent 95%)' }} />
                 <div className="max-w-[1100px] mx-auto">
                     <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
@@ -799,12 +1079,12 @@ const LandingPage: React.FC = () => {
                         </p>
                     </div>
                 </div>
-            </footer>
+            </footer >
 
             {/* ═══════════════════════════════════════════════
           STYLES
       ═══════════════════════════════════════════════ */}
-            <style>{`
+            < style > {`
         @keyframes landingFadeIn {
           from { opacity: 0; transform: translateY(24px); }
           to { opacity: 1; transform: translateY(0); }
@@ -820,14 +1100,32 @@ const LandingPage: React.FC = () => {
           -webkit-text-fill-color: transparent;
           background-clip: text;
           animation: landingGradientShift 4s ease-in-out infinite;
+          display: inline-block;
+          padding: 0.05em 0.15em 0.2em 0.1em;
+          margin: -0.05em -0.15em -0.2em -0.1em;
         }
         @keyframes landingGradientShift {
           0%, 100% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
         }
         html { scroll-behavior: smooth; }
-      `}</style>
-        </div>
+
+        @keyframes landingFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        .landing-float-1 { animation: landingFloat 5s ease-in-out infinite; }
+        .landing-float-2 { animation: landingFloat 6s ease-in-out 1s infinite; }
+        .landing-float-3 { animation: landingFloat 5.5s ease-in-out 0.5s infinite; }
+        .landing-float-4 { animation: landingFloat 4.5s ease-in-out 1.5s infinite; }
+
+        @keyframes donutDraw {
+          from { stroke-dasharray: 0 163.36; }
+          to { stroke-dasharray: 130 163.36; }
+        }
+        .landing-donut-fill { animation: donutDraw 1.5s ease-out 1s forwards; stroke-dasharray: 0 163.36; }
+      `}</style >
+        </div >
     );
 };
 

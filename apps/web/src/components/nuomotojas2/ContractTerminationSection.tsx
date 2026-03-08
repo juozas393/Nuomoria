@@ -14,6 +14,8 @@ import {
     Trash2,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { logAuditEvent } from '../../lib/auditLogApi';
+import { createTenantHistoryRecord } from '../../lib/tenantHistoryApi';
 import { calculateDepositReturn, type DepositCalculation } from '../../utils/depositCalculator';
 import LtDateInput from '../ui/LtDateInput';
 
@@ -75,7 +77,7 @@ const StatusBadge = memo<{ status: string }>(({ status }) => {
 StatusBadge.displayName = 'StatusBadge';
 
 /* ─── Deposit Mini Preview (dark glass themed) ─── */
-const DepositMiniPreview = memo<{ calc: DepositCalculation; deposit: number }>(({ calc, deposit }) => {
+const DepositMiniPreview = memo<{ calc: DepositCalculation; deposit: number; contractEnd?: string | null }>(({ calc, deposit, contractEnd }) => {
     const bgClass = calc.isFullReturn
         ? 'bg-emerald-500/10 border-emerald-500/20'
         : calc.isFullForfeit
@@ -91,6 +93,12 @@ const DepositMiniPreview = memo<{ calc: DepositCalculation; deposit: number }>((
                 <span className="text-[12px] font-bold text-white">Depozito skaičiavimas</span>
             </div>
             <div className="space-y-2 ml-6">
+                {contractEnd && (
+                    <div className="flex justify-between">
+                        <span className="text-[11px] text-gray-400">Sutarties pabaiga:</span>
+                        <span className="text-[11px] font-medium text-white">{formatDate(contractEnd)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between">
                     <span className="text-[11px] text-gray-400">Scenarijus:</span>
                     <span className="text-[11px] font-medium text-white">{calc.scenarioLabel}</span>
@@ -262,38 +270,70 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
         setIsSubmitting(true);
         setActionMsg('');
         try {
+            // Calculate final return amount
+            const baseReturn = requestDepositCalc?.returnAmount ?? 0;
+            const finalReturn = customReturnAmount ?? Math.max(0, baseReturn - deductionsTotal);
+
             const { error } = await supabase
                 .from('tenant_invitations')
                 .update({
                     termination_status: 'confirmed',
                     termination_confirmed_at: new Date().toISOString(),
+                    deposit_return_amount: finalReturn,
+                    deposit_deductions: deductions.filter(d => d.amount > 0).length > 0
+                        ? deductions.filter(d => d.amount > 0)
+                        : null,
                 })
                 .eq('id', data.invitation_id);
 
             if (error) {
                 setActionMsg(`Klaida: ${error.message}`);
             } else {
-                // Notify tenant
+                // Notify tenant with actual deposit return info
                 if (data.tenant_user_id) {
-                    const depositInfo = requestDepositCalc
-                        ? ` Depozito grąžinimas: ${formatCurrency(requestDepositCalc.returnAmount)} (${requestDepositCalc.scenarioLabel}).`
+                    const depositInfo = (data.deposit ?? 0) > 0
+                        ? ` Depozito grąžinimas: ${formatCurrency(finalReturn)} iš ${formatCurrency(data.deposit || 0)}.`
+                        : '';
+
+                    const deductionDetails = deductions.length > 0
+                        ? ` Išskaitymai: ${deductions.filter(d => d.amount > 0).map(d => `${d.reason || 'Be priežasties'} (${formatCurrency(d.amount)})`).join(', ')}.`
                         : '';
 
                     await supabase.from('notifications').insert({
                         user_id: data.tenant_user_id,
                         kind: 'contract_termination_confirmed',
                         title: 'Sutarties nutraukimas patvirtintas',
-                        body: `Nuomotojas patvirtino jūsų prašymą nutraukti sutartį. Išsikėlimo data: ${formatDate(data.termination_date)}.${depositInfo}`,
+                        body: `Nuomotojas patvirtino jūsų prašymą nutraukti sutartį. Išsikėlimo data: ${formatDate(data.termination_date)}.${depositInfo}${deductionDetails}`,
                         data: {
                             property_id: propertyId,
                             invitation_id: data.invitation_id,
-                            deposit_return: requestDepositCalc?.returnAmount ?? 0,
-                            deposit_deduction: requestDepositCalc?.deductionAmount ?? 0,
+                            deposit_return: finalReturn,
+                            deposit_total: data.deposit || 0,
+                            deductions: deductions.filter(d => d.amount > 0),
                         },
                     });
                 }
                 setData(prev => prev ? { ...prev, termination_status: 'confirmed', termination_confirmed_at: new Date().toISOString() } : null);
                 setActionMsg('Nutraukimas patvirtintas');
+                // Log audit with old/new data for proper diff display
+                const oldAuditData = {
+                    termination_status: data.termination_status,
+                    deposit_amount: data.deposit || 0,
+                    deposit_return_amount: null,
+                    termination_confirmed_at: null,
+                };
+                const newAuditData = {
+                    termination_status: 'confirmed',
+                    deposit_amount: data.deposit || 0,
+                    deposit_return_amount: finalReturn,
+                    termination_confirmed_at: new Date().toISOString(),
+                };
+                await logAuditEvent(propertyId, 'tenant_invitations', 'UPDATE',
+                    `Sutarties nutraukimas patvirtintas. Depozitas: ${formatCurrency(data.deposit || 0)}, grąžinama: ${formatCurrency(finalReturn)}${deductionsTotal > 0 ? `, išskaitymai: ${formatCurrency(deductionsTotal)}` : ''}. Data: ${formatDate(data.termination_date)}`,
+                    newAuditData,
+                    oldAuditData,
+                    ['termination_status', 'deposit_return_amount', 'termination_confirmed_at'],
+                );
                 onTerminationChange?.();
             }
         } catch {
@@ -301,7 +341,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
         } finally {
             setIsSubmitting(false);
         }
-    }, [data, propertyId, onTerminationChange, requestDepositCalc]);
+    }, [data, propertyId, onTerminationChange, requestDepositCalc, customReturnAmount, deductionsTotal, deductions]);
 
     // Reject tenant request
     const handleRejectTermination = useCallback(async () => {
@@ -347,6 +387,11 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     termination_confirmed_at: null,
                 } : null);
                 setActionMsg('Prašymas atmestas');
+                // Log audit
+                await logAuditEvent(propertyId, 'tenant_invitations', 'UPDATE',
+                    `Sutarties nutraukimo prašymas atmestas (${data.tenant_email})`,
+                    { tenant_email: data.tenant_email }
+                );
                 onTerminationChange?.();
             }
         } catch {
@@ -363,6 +408,8 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
         setActionMsg('');
         try {
             const user = (await supabase.auth.getUser()).data.user;
+            const adjustedReturn = Math.max(0, (landlordDepositCalc?.returnAmount ?? 0) - deductionsTotal);
+            const finalReturn = customReturnAmount ?? adjustedReturn;
             const { error } = await supabase
                 .from('tenant_invitations')
                 .update({
@@ -371,7 +418,10 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     termination_reason: landlordReason || null,
                     termination_requested_at: new Date().toISOString(),
                     termination_requested_by: user?.id || null,
-                    termination_deductions: deductions.length > 0 ? deductions.filter(d => d.reason && d.amount > 0) : null,
+                    deposit_return_amount: finalReturn,
+                    deposit_deductions: deductions.filter(d => d.reason && d.amount > 0).length > 0
+                        ? deductions.filter(d => d.reason && d.amount > 0)
+                        : null,
                 })
                 .eq('id', data.invitation_id);
 
@@ -403,6 +453,25 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                 } : null);
                 setShowLandlordTerminate(false);
                 setActionMsg('Nutraukimas inicijuotas');
+                // Log audit with old/new data for proper diff display
+                const oldAuditData = {
+                    termination_status: null,
+                    deposit_amount: data.deposit || 0,
+                    deposit_return_amount: null,
+                    termination_date: null,
+                };
+                const newAuditData = {
+                    termination_status: 'landlord_requested',
+                    deposit_amount: data.deposit || 0,
+                    deposit_return_amount: finalReturn,
+                    termination_date: landlordDate,
+                };
+                await logAuditEvent(propertyId, 'tenant_invitations', 'UPDATE',
+                    `Nuomotojas inicijavo sutarties nutraukimą. Data: ${formatDate(landlordDate)}, depozitas: ${formatCurrency(data.deposit || 0)}, grąžinama: ${formatCurrency(finalReturn)}${landlordReason ? `, priežastis: ${landlordReason}` : ''}`,
+                    newAuditData,
+                    oldAuditData,
+                    ['termination_status', 'deposit_return_amount', 'termination_date'],
+                );
                 onTerminationChange?.();
             }
         } catch {
@@ -410,7 +479,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
         } finally {
             setIsSubmitting(false);
         }
-    }, [data, landlordDate, landlordReason, propertyId, onTerminationChange, landlordDepositCalc]);
+    }, [data, landlordDate, landlordReason, propertyId, onTerminationChange, landlordDepositCalc, customReturnAmount, deductionsTotal, deductions]);
 
     // Complete termination — remove tenant from apartment
     const handleCompletetermination = useCallback(async () => {
@@ -434,6 +503,27 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                 .eq('id', data.invitation_id);
 
             if (invError) throw invError;
+
+            // 1.5. Save tenant history BEFORE clearing data
+            // Fetch current property data for history record
+            const { data: currentProp } = await supabase
+                .from('properties')
+                .select('tenant_name, email, phone, rent, contract_start, contract_end')
+                .eq('id', propertyId)
+                .maybeSingle();
+
+            if (currentProp && currentProp.tenant_name) {
+                await createTenantHistoryRecord(propertyId, {
+                    name: currentProp.tenant_name,
+                    email: data.tenant_email || currentProp.email || null,
+                    phone: currentProp.phone || null,
+                    rent: currentProp.rent || null,
+                    contractStart: currentProp.contract_start || null,
+                    contractEnd: data.termination_date || currentProp.contract_end || null,
+                    endReason: data.termination_requested_by ? 'mutual' : 'moved_out',
+                    notes: data.termination_reason || undefined,
+                });
+            }
 
             // 2. Set property status to vacant and clear tenant data
             const today = new Date().toISOString().split('T')[0];
@@ -476,6 +566,11 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                 termination_confirmed_at: new Date().toISOString(),
             } : null);
             setActionMsg('Nuomininkas pašalintas — butas laisvas');
+            // Log audit
+            await logAuditEvent(propertyId, 'tenant_invitations', 'UPDATE',
+                `Nuomininkas pašalintas (${data.tenant_email}). Butas pažymėtas kaip laisvas. Data: ${formatDate(data.termination_date)}`,
+                { tenant_email: data.tenant_email, date: data.termination_date }
+            );
             onTerminationChange?.();
         } catch {
             setActionMsg('Klaida — bandykite dar kartą');
@@ -515,6 +610,10 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                 termination_confirmed_at: null,
             } : null);
             setActionMsg('Nutraukimas atšauktas');
+            // Log audit
+            await logAuditEvent(propertyId, 'tenant_invitations', 'UPDATE',
+                'Sutarties nutraukimas atšauktas',
+            );
             onTerminationChange?.();
         } catch {
             setActionMsg('Klaida — bandykite dar kartą');
@@ -590,7 +689,85 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
 
                     {/* Deposit calculation */}
                     {requestDepositCalc && (
-                        <DepositMiniPreview calc={requestDepositCalc} deposit={data.deposit || 0} />
+                        <DepositMiniPreview calc={requestDepositCalc} deposit={data.deposit || 0} contractEnd={data.contract_end} />
+                    )}
+
+                    {/* Custom deductions for confirm flow */}
+                    {(data.deposit ?? 0) > 0 && (
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-medium text-gray-400">Papildomi išskaitymai</span>
+                                <button
+                                    onClick={addDeduction}
+                                    className="flex items-center gap-1 px-2 py-1 bg-white/[0.06] border border-white/[0.10] text-[10px] font-medium text-gray-300 rounded-lg hover:bg-white/[0.10] hover:text-white transition-all active:scale-[0.98]"
+                                >
+                                    <Plus className="w-3 h-3" />
+                                    Pridėti
+                                </button>
+                            </div>
+                            {deductions.length === 0 && (
+                                <p className="text-[10px] text-gray-500 italic">Nėra papildomų išskaitymų (pvz., valymas, remontai, čiužinio keitimas)</p>
+                            )}
+                            {deductions.map((d, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={d.reason}
+                                        onChange={(e) => updateDeduction(i, 'reason', e.target.value)}
+                                        placeholder="Priežastis (pvz., čiužinio keitimas)"
+                                        className={`flex-1 ${ptInput} !py-1.5 !text-[11px]`}
+                                    />
+                                    <div className="relative w-24">
+                                        <input
+                                            type="number"
+                                            value={d.amount || ''}
+                                            onChange={(e) => updateDeduction(i, 'amount', parseFloat(e.target.value) || 0)}
+                                            placeholder="0"
+                                            min="0"
+                                            step="0.01"
+                                            className={`${ptInput} !py-1.5 !text-[11px] !pr-6 text-right`}
+                                        />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-500">€</span>
+                                    </div>
+                                    <button
+                                        onClick={() => removeDeduction(i)}
+                                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/15 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Final editable return amount for confirm flow */}
+                    {requestDepositCalc && (data.deposit ?? 0) > 0 && (
+                        <div className="p-3 rounded-xl border bg-white/[0.04] border-white/[0.08] space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-gray-300">Grąžinama depozito suma</span>
+                                <button
+                                    onClick={() => setCustomReturnAmount(null)}
+                                    className="text-[9px] text-teal-400 hover:text-teal-300 transition-colors"
+                                >
+                                    Atstatyti rekomenduojamą
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    value={customReturnAmount ?? adjustedRequestReturn}
+                                    onChange={(e) => setCustomReturnAmount(Math.max(0, Math.min(data.deposit || 0, parseFloat(e.target.value) || 0)))}
+                                    min="0"
+                                    max={data.deposit || 0}
+                                    step="0.01"
+                                    className={`${ptInput} !pr-8 text-right !text-[13px] !font-bold`}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+                            </div>
+                            <p className="text-[9px] text-gray-500">
+                                Rekomenduojama: {formatCurrency(requestDepositCalc.returnAmount)}{deductionsTotal > 0 ? ` − ${formatCurrency(deductionsTotal)} išskaitymai = ${formatCurrency(adjustedRequestReturn)}` : ''}
+                            </p>
+                        </div>
                     )}
 
                     {/* Actions: Confirm + Reject */}
@@ -716,7 +893,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
 
                             {/* Deposit preview for landlord-initiated */}
                             {landlordDepositCalc && (
-                                <DepositMiniPreview calc={landlordDepositCalc} deposit={data.deposit || 0} />
+                                <DepositMiniPreview calc={landlordDepositCalc} deposit={data.deposit || 0} contractEnd={data.contract_end} />
                             )}
 
                             {/* Custom deductions */}

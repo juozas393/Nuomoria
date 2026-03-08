@@ -21,6 +21,7 @@ interface MeterConfig {
     collection_mode: string | null;
     landlord_reading_enabled: boolean | null;
     tenant_photo_enabled: boolean | null;
+    supplier: string | null;
 }
 
 interface MeterReading {
@@ -40,6 +41,7 @@ interface MeterReading {
     notes: string | null;
     created_at: string;
     updated_at: string;
+    photo_urls: string[] | null;
 }
 
 export interface MeterHistoryEntry {
@@ -98,6 +100,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
     const [prevMonthReadings, setPrevMonthReadings] = useState<MeterReading[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [areaInfo, setAreaInfo] = useState<{ apartmentArea: number; totalArea: number; totalApartments: number } | null>(null);
 
     const { start: periodStart, end: periodEnd } = useMemo(() => getMonthRange(year, month), [year, month]);
     const readingDate = periodStart; // Use first of month as the reading_date for saves
@@ -124,6 +127,30 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
 
         fetchConfigs();
     }, [addressId]);
+
+    // Fetch area data for distribution proportion display
+    useEffect(() => {
+        if (!addressId || !propertyId) return;
+
+        const fetchAreaInfo = async () => {
+            const { data: allProps } = await supabase
+                .from('properties')
+                .select('id, area')
+                .eq('address_id', addressId);
+
+            if (allProps && allProps.length > 0) {
+                const currentProp = allProps.find(p => p.id === propertyId);
+                const totalArea = allProps.reduce((sum, p) => sum + (Number(p.area) || 0), 0);
+                setAreaInfo({
+                    apartmentArea: Number(currentProp?.area) || 0,
+                    totalArea,
+                    totalApartments: allProps.length,
+                });
+            }
+        };
+
+        fetchAreaInfo();
+    }, [addressId, propertyId]);
 
     // Fetch readings for the selected period AND previous period
     useEffect(() => {
@@ -205,22 +232,36 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             const fixedPrice = config.fixed_price || 0;
             const isCommunal = config.distribution_method !== 'per_consumption';
 
-            // For communal meters, use the stored per-apartment share from DB
-            // (already distributed by saveCommunalReading)
+            // For communal meters, always recalculate using live proportion
+            // (stored total_sum may be stale if apartment area changed)
             // For individual meters, calculate from consumption × price
             let cost: number | null;
-            if (isCommunal && reading && (reading.total_sum != null || reading.amount != null)) {
-                cost = reading.total_sum || reading.amount || 0;
-            } else if (fixedPrice > 0) {
+            if (fixedPrice > 0) {
                 cost = fixedPrice;
             } else {
-                cost = consumption !== null ? consumption * pricePerUnit : null;
+                const rawCost = consumption !== null ? consumption * pricePerUnit : null;
+                // Apply distribution proportion for communal meters
+                if (rawCost !== null && isCommunal && areaInfo) {
+                    if (config.distribution_method === 'per_area' && areaInfo.totalArea > 0) {
+                        cost = Math.round(rawCost * (areaInfo.apartmentArea / areaInfo.totalArea) * 100) / 100;
+                    } else if (config.distribution_method === 'per_apartment' && areaInfo.totalApartments > 0) {
+                        cost = Math.round(rawCost / areaInfo.totalApartments * 100) / 100;
+                    } else {
+                        cost = rawCost;
+                    }
+                } else if (isCommunal && reading && (reading.total_sum != null || reading.amount != null)) {
+                    // Fallback to stored DB value only when no areaInfo available
+                    cost = Number(reading.total_sum) || Number(reading.amount) || 0;
+                } else {
+                    cost = rawCost;
+                }
             }
 
-            // Determine status: 'ok' only if current reading was actually entered
+            // Determine status: 'pending' when reading exists (not yet approved by landlord)
+            // Only becomes 'ok' when landlord explicitly approves via the approve button
             let status: 'missing' | 'pending' | 'ok' = 'missing';
             if (reading && reading.current_reading != null) {
-                status = 'ok';
+                status = 'pending';
             }
 
             // Category detection
@@ -248,10 +289,15 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 fixedPrice: fixedPrice > 0 ? fixedPrice : undefined,
                 consumption,
                 cost,
-                photoUrl: null,
+                photoUrl: reading?.photo_urls?.[0] ?? null,
+                supplier: config.supplier || null,
+                distributionMethod: config.distribution_method || null,
+                apartmentArea: areaInfo?.apartmentArea ?? null,
+                totalArea: areaInfo?.totalArea ?? null,
+                totalApartments: areaInfo?.totalApartments ?? null,
             } as MeterData;
         });
-    }, [meterConfigs, readings, prevMonthReadings]);
+    }, [meterConfigs, readings, prevMonthReadings, areaInfo]);
 
     // Fetch history for a specific meter
     const fetchMeterHistory = useCallback(async (meterId: string, limit = 12): Promise<MeterHistoryEntry[]> => {
@@ -511,6 +557,53 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
         return allSuccess;
     }, [propertyId, readingDate, year, month, saveIndividualReading]);
 
+    // Delete a reading for the current period (allows re-entry)
+    const deleteReading = useCallback(async (meterId: string): Promise<boolean> => {
+        if (!propertyId) return false;
+
+        try {
+            const config = meterConfigs.find(c => c.id === meterId);
+            const isCommunal = config && config.distribution_method !== 'per_consumption';
+
+            if (isCommunal && config?.address_id) {
+                // For communal meters, delete all distributed readings across ALL properties
+                const { error: delErr } = await supabase
+                    .from('meter_readings')
+                    .delete()
+                    .eq('meter_id', meterId)
+                    .gte('reading_date', periodStart)
+                    .lte('reading_date', periodEnd);
+
+                if (delErr) {
+                    console.error('[useMeterReadings] Error deleting communal readings:', delErr);
+                    return false;
+                }
+                console.log(`✅ Deleted communal readings for meter ${meterId} in period ${periodStart}–${periodEnd}`);
+            } else {
+                // Individual meter — delete ALL readings for this meter+property in this period
+                // (handles duplicates: e.g. null entry on 1st + real entry on 7th)
+                const { error: delErr } = await supabase
+                    .from('meter_readings')
+                    .delete()
+                    .eq('meter_id', meterId)
+                    .eq('property_id', propertyId)
+                    .gte('reading_date', periodStart)
+                    .lte('reading_date', periodEnd);
+
+                if (delErr) {
+                    console.error('[useMeterReadings] Error deleting reading:', delErr);
+                    return false;
+                }
+                console.log(`✅ Deleted all readings for meter ${meterId}, property ${propertyId} in period ${periodStart}–${periodEnd}`);
+            }
+
+            return true;
+        } catch (e) {
+            console.error('[useMeterReadings] Error in deleteReading:', e);
+            return false;
+        }
+    }, [propertyId, meterConfigs, periodStart, periodEnd]);
+
     // Refetch readings for current AND previous period (call after save)
     const refetch = useCallback(async () => {
         if (!propertyId) {
@@ -563,6 +656,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
         readingDate,
         fetchMeterHistory,
         saveReading,
+        deleteReading,
         refetch,
     };
 }

@@ -29,6 +29,7 @@ export interface TenantRental {
     floor?: number;
     propertyType?: string;
     apartmentNumber?: string;
+    extendedDetails?: Record<string, any>;
 }
 
 export interface TenantInvoice {
@@ -91,6 +92,9 @@ export interface ContractDetails {
     endDate: string;
     utilitiesIncluded: boolean;
     hasContractDocument: boolean;
+    latePaymentFee?: number;
+    gracePeriodDays?: number;
+    minContractDuration?: number;
 }
 
 export interface CustomContact {
@@ -129,6 +133,11 @@ export interface PropertyInfo {
     totalFloors?: number;
     heatingType?: string;
     buildingType?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    furnished?: string;
+    parkingType?: string;
+    amenities?: string[];
 }
 
 export interface PaymentInfo {
@@ -136,6 +145,19 @@ export interface PaymentInfo {
     recipientName?: string;
     paymentPurpose?: string;
     paymentDay?: number;
+}
+
+export interface TerminatedRentalInfo {
+    invitationId: string;
+    propertyLabel?: string;
+    address?: string;
+    terminatedAt?: string;
+    terminationDate?: string;
+    terminationReason?: string;
+    deposit: number;
+    depositReturn: number;
+    depositDeductions: Array<{ reason: string; amount: number }> | null;
+    landlordEmail?: string;
 }
 
 export interface TenantDashboardData {
@@ -154,6 +176,7 @@ export interface TenantDashboardData {
     propertyInfo: PropertyInfo | null;
     paymentInfo: PaymentInfo | null;
     stripeEnabled: boolean;
+    terminatedRentals: TerminatedRentalInfo[];
 
     // State
     loading: boolean;
@@ -205,6 +228,8 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
     const [documentsCount, setDocumentsCount] = useState(0);
     const [dbNotifications, setDbNotifications] = useState<TenantNotification[]>([]);
     const [addressSettingsMap, setAddressSettingsMap] = useState<Record<string, { contact_info: any; building_info: any; financial_settings: any }>>({});
+    const [amenitiesMap, setAmenitiesMap] = useState<Record<string, string[]>>({});
+    const [terminatedRentals, setTerminatedRentals] = useState<TerminatedRentalInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -258,7 +283,8 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                                 id, address_id, apartment_number, rent,
                                 deposit_amount, deposit_paid, deposit_paid_amount,
                                 contract_start, contract_end, area, rooms, floor,
-                                property_type, status, owner_id,
+                                floors_total, property_type, status, owner_id,
+                                extended_details,
                                 addresses:address_id ( id, full_address )
                             `)
                             .in('id', propertyIds),
@@ -310,8 +336,10 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                                 area: prop.area,
                                 rooms: prop.rooms,
                                 floor: prop.floor,
+                                floorsTotal: prop.floors_total,
                                 propertyType: prop.property_type,
                                 apartmentNumber: prop.apartment_number,
+                                extendedDetails: prop.extended_details || {},
                             };
                         });
                     }
@@ -331,7 +359,7 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                 const propertyIds = rentalData.map(r => r.id);
                 const uniqueAddressIds = [...new Set(rentalData.map(r => r.addressId).filter(Boolean))];
 
-                const [settingsResult, invoiceResult, notifResult] = await Promise.all([
+                const [settingsResult, invoiceResult, notifResult, amenitiesResult] = await Promise.all([
                     // Address settings
                     uniqueAddressIds.length > 0
                         ? supabase.from('address_settings').select('address_id, contact_info, building_info, financial_settings').in('address_id', uniqueAddressIds)
@@ -340,6 +368,8 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                     supabase.from('invoices').select('*').in('property_id', propertyIds).order('due_date', { ascending: false }).limit(10),
                     // Notifications
                     supabase.from('notifications').select('*').eq('user_id', userId).eq('is_read', false).order('created_at', { ascending: false }).limit(10),
+                    // Amenities per property
+                    supabase.from('property_amenities').select('property_id, amenity_id, amenities:amenity_id(id, name)').in('property_id', propertyIds),
                 ]);
 
                 // Process address settings
@@ -358,33 +388,49 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                 // Process invoices
                 if (invoiceResult.data) {
                     const now = new Date();
-                    const mapped: TenantInvoice[] = invoiceResult.data.map((inv: any) => {
-                        const dueDate = new Date(inv.due_date);
-                        let status: 'paid' | 'pending' | 'overdue' = 'pending';
-                        if (inv.status === 'paid') status = 'paid';
-                        else if (dueDate < now) status = 'overdue';
+                    const mapped: TenantInvoice[] = invoiceResult.data
+                        .filter((inv: any) => inv.status !== 'cancelled')
+                        .map((inv: any) => {
+                            const dueDate = new Date(inv.due_date);
+                            let status: 'paid' | 'pending' | 'overdue' = 'pending';
+                            if (inv.status === 'paid') status = 'paid';
+                            else if (dueDate < now) status = 'overdue';
 
-                        const rental = rentalData.find(r => r.id === inv.property_id);
-                        const period = inv.invoice_date?.substring(0, 7) || '';
+                            const rental = rentalData.find(r => r.id === inv.property_id);
+                            const period = inv.invoice_date?.substring(0, 7) || '';
 
-                        return {
-                            id: inv.id,
-                            rentalId: inv.property_id,
-                            rentalLabel: rental ? `${rental.address}, ${rental.unitLabel}` : undefined,
-                            period,
-                            periodLabel: period ? formatPeriodLabel(period) : '',
-                            amount: inv.amount,
-                            dueDate: inv.due_date,
-                            status,
-                            paidAt: inv.paid_date,
-                        };
-                    });
+                            return {
+                                id: inv.id,
+                                rentalId: inv.property_id,
+                                rentalLabel: rental ? `${rental.address}, ${rental.unitLabel}` : undefined,
+                                period,
+                                periodLabel: period ? formatPeriodLabel(period) : '',
+                                amount: inv.amount,
+                                dueDate: inv.due_date,
+                                status,
+                                paidAt: inv.paid_date,
+                            };
+                        });
                     setInvoices(mapped);
                 }
 
                 // Maintenance & documents — tables don't exist yet
                 setMaintenanceCount({ open: 0, inProgress: 0 });
                 setDocumentsCount(0);
+
+                // Process amenities
+                if (amenitiesResult.data) {
+                    const aMap: Record<string, string[]> = {};
+                    amenitiesResult.data.forEach((row: any) => {
+                        const pid = row.property_id;
+                        const name = row.amenities?.name;
+                        if (name) {
+                            if (!aMap[pid]) aMap[pid] = [];
+                            aMap[pid].push(name);
+                        }
+                    });
+                    setAmenitiesMap(aMap);
+                }
 
                 // Process notifications
                 if (notifResult.data && notifResult.data.length > 0) {
@@ -427,6 +473,57 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                 }
             }
 
+            // Fetch terminated invitations with deposit info (regardless of active rentals)
+            if (userEmail) {
+                try {
+                    const { data: terminatedInvs } = await supabase
+                        .from('tenant_invitations')
+                        .select('id, property_id, property_label, deposit, deposit_return_amount, deposit_deductions, termination_date, termination_reason, termination_confirmed_at, invited_by_email')
+                        .eq('status', 'terminated')
+                        .not('deposit_return_amount', 'is', null)
+                        .order('termination_confirmed_at', { ascending: false })
+                        .limit(5);
+
+                    if (terminatedInvs && terminatedInvs.length > 0) {
+                        // Filter to this user's email
+                        const myTerminated = terminatedInvs; // RLS should handle this
+
+                        // Fetch addresses for terminated properties
+                        const termPropIds = myTerminated.map(t => t.property_id).filter(Boolean);
+                        let termAddressMap: Record<string, string> = {};
+                        if (termPropIds.length > 0) {
+                            const { data: termProps } = await supabase
+                                .from('properties')
+                                .select('id, addresses:address_id(full_address)')
+                                .in('id', termPropIds);
+                            if (termProps) {
+                                termAddressMap = Object.fromEntries(
+                                    termProps.map((p: any) => [p.id, p.addresses?.full_address || ''])
+                                );
+                            }
+                        }
+
+                        const terminated: TerminatedRentalInfo[] = myTerminated.map((inv: any) => ({
+                            invitationId: inv.id,
+                            propertyLabel: inv.property_label || undefined,
+                            address: termAddressMap[inv.property_id] || undefined,
+                            terminatedAt: inv.termination_confirmed_at || undefined,
+                            terminationDate: inv.termination_date || undefined,
+                            terminationReason: inv.termination_reason || undefined,
+                            deposit: inv.deposit || 0,
+                            depositReturn: inv.deposit_return_amount || 0,
+                            depositDeductions: inv.deposit_deductions || null,
+                            landlordEmail: inv.invited_by_email || undefined,
+                        }));
+                        setTerminatedRentals(terminated);
+                    } else {
+                        setTerminatedRentals([]);
+                    }
+                } catch {
+                    // Non-critical
+                }
+            }
+
         } catch (err: any) {
             console.error('Error fetching tenant dashboard data:', err);
             setError(err.message || 'Nepavyko gauti duomenų');
@@ -463,13 +560,35 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
         const currentMonthInv = relevantInvoices[0];
 
         if (!currentMonthInv) {
-            // All paid or no invoices
             const rental = selectedRental || rentals[0];
+            const allPaidInvoices = filteredInvoices.filter(inv => inv.status === 'paid');
+            const hasPaidInvoices = allPaidInvoices.length > 0;
+
+            if (hasPaidInvoices) {
+                // All invoices are paid — show 'paid'
+                return {
+                    amount: rental?.rentAmount || 0,
+                    status: 'paid',
+                    nextDueDate: undefined,
+                    daysUntilDue: null,
+                };
+            }
+
+            // No invoices at all — show 'pending' with next due date
+            const paymentDay = rental?.paymentDay || 1;
+            const now = new Date();
+            let nextDue = new Date(now.getFullYear(), now.getMonth(), paymentDay);
+            if (nextDue <= now) {
+                nextDue = new Date(now.getFullYear(), now.getMonth() + 1, paymentDay);
+            }
+            const nextDueStr = nextDue.toISOString().split('T')[0];
+            const days = daysUntil(nextDueStr);
+
             return {
                 amount: rental?.rentAmount || 0,
-                status: 'paid',
-                nextDueDate: undefined,
-                daysUntilDue: null,
+                status: 'pending',
+                nextDueDate: nextDueStr,
+                daysUntilDue: days >= 0 ? days : null,
             };
         }
 
@@ -567,18 +686,28 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
     const contractDetails = useMemo((): ContractDetails | null => {
         const rental = selectedRental || rentals[0];
         if (!rental) return null;
+        const settings = addressSettingsMap[rental.addressId];
+        const fs = settings?.financial_settings || {};
+        const ext = rental.extendedDetails || {};
 
         return {
             monthlyRent: rental.rentAmount,
             deposit: rental.depositAmount,
             depositPaid: rental.depositPaid,
-            paymentDay: rental.paymentDay,
+            // Guard: if payment_due_day > 31, it's invalid data (e.g. rent amount stored by mistake)
+            paymentDay: (ext.payment_due_day != null && ext.payment_due_day >= 1 && ext.payment_due_day <= 31)
+                ? ext.payment_due_day
+                : (rental.paymentDay >= 1 && rental.paymentDay <= 31 ? rental.paymentDay : 1),
             startDate: rental.contractStart,
             endDate: rental.contractEnd,
-            utilitiesIncluded: false, // Not tracked in current schema
+            utilitiesIncluded: false,
             hasContractDocument: documentsCount > 0,
+            // Per-property extended_details override → fallback to address_level settings
+            latePaymentFee: ext.late_fee_amount ?? fs.latePaymentFee ?? undefined,
+            gracePeriodDays: ext.late_fee_grace_days ?? fs.gracePeriodDays ?? undefined,
+            minContractDuration: ext.min_term_months ?? fs.defaultContractDuration ?? undefined,
         };
-    }, [selectedRental, rentals, documentsCount]);
+    }, [selectedRental, rentals, documentsCount, addressSettingsMap]);
 
     // Computed: Contacts (from address_settings + landlord)
     const contacts = useMemo((): ContactsInfo => {
@@ -629,18 +758,39 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
         if (!rental) return null;
         const settings = addressSettingsMap[rental.addressId];
         const bi = settings?.building_info || {};
+        const ext = (rental as any).extendedDetails || {};
+
+        // Amenities from property_amenities table, fallback to extended_details booleans
+        let amenities = amenitiesMap[rental.id] || [];
+        if (amenities.length === 0) {
+            // Build amenities list from extended_details booleans
+            const extAmenities: string[] = [];
+            if (ext.balcony) extAmenities.push('Balkonas');
+            if (ext.storage) extAmenities.push('Sandėliukas');
+            if (ext.pets_allowed) extAmenities.push('Gyvūnai');
+            if (ext.smoking_allowed) extAmenities.push('Rūkymas');
+            if (ext.terrace) extAmenities.push('Terasa');
+            if (ext.elevator) extAmenities.push('Liftas');
+            if (ext.parking_spot) extAmenities.push('Parkavimo vieta');
+            amenities = extAmenities;
+        }
 
         return {
             propertyType: rental.propertyType,
             apartmentNumber: rental.apartmentNumber,
-            rooms: rental.rooms,
-            area: rental.area,
-            floor: rental.floor,
-            totalFloors: bi.totalFloors || undefined,
-            heatingType: bi.heatingType || undefined,
-            buildingType: bi.buildingType || undefined,
+            rooms: rental.rooms ?? 0,
+            area: rental.area ?? 0,
+            floor: rental.floor ?? undefined,
+            totalFloors: (rental as any).floorsTotal ?? bi.totalFloors ?? undefined,
+            heatingType: ext.heating_type || ext.heatingType || bi.heatingType || undefined,
+            buildingType: ext.building_type || ext.buildingType || bi.buildingType || undefined,
+            bedrooms: ext.bedrooms ?? 0,
+            bathrooms: ext.bathrooms ?? 0,
+            furnished: ext.furnished || undefined,
+            parkingType: ext.parking_type || ext.parkingType || undefined,
+            amenities: amenities.length > 0 ? amenities : undefined,
         };
-    }, [selectedRental, rentals, addressSettingsMap]);
+    }, [selectedRental, rentals, addressSettingsMap, amenitiesMap]);
 
     // Computed: Payment info (from address_settings.financial_settings)
     const paymentInfo = useMemo((): PaymentInfo | null => {
@@ -656,7 +806,7 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
             bankAccount: (fs.bankAccount || '').trim() || undefined,
             recipientName: (fs.recipientName || '').trim() || undefined,
             paymentPurpose: (fs.paymentPurposeTemplate || '').trim() || undefined,
-            paymentDay: fs.paymentDay || undefined,
+            paymentDay: (fs.paymentDay != null && fs.paymentDay >= 1 && fs.paymentDay <= 31) ? fs.paymentDay : undefined,
         };
     }, [selectedRental, rentals, addressSettingsMap]);
 
@@ -683,6 +833,7 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
         contacts,
         propertyInfo,
         paymentInfo,
+        terminatedRentals,
         stripeEnabled,
         loading,
         error,

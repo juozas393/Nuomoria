@@ -137,6 +137,7 @@ const TenantMeters: React.FC = () => {
   const [uploadingPhotos, setUploadingPhotos] = useState<Record<string, boolean>>({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // ─── Data fetching ────────────────────────────────────────────────────────
@@ -180,27 +181,58 @@ const TenantMeters: React.FC = () => {
         const { data: am, error: e } = await supabase.from('address_meters')
           .select('id, address_id, name, type, unit, price_per_unit, fixed_price, distribution_method, requires_photo, is_active, collection_mode, created_at')
           .eq('address_id', addressId).eq('is_active', true);
-        if (e || !am || am.length === 0) { setIsLoading(false); return; }
-        setMeterConfigs(am);
 
+        // Get notification data regardless
         const { data: nd } = await supabase.from('notifications').select('data')
           .eq('user_id', user.id).eq('kind', 'meter_reading_request').eq('is_read', false)
           .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
         const nids = nd?.data?.meters?.map((m: any) => m.id) || [];
         const deadline = nd?.data?.deadline || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
-        const show = nids.length > 0 ? am.filter((m: any) => nids.includes(m.id)) : am.filter((m: any) => m.type === 'individual');
-        const ids = show.map((m: any) => m.id);
-        const { data: prev } = await supabase.from('meter_readings').select('meter_id, current_reading').in('meter_id', ids).order('reading_date', { ascending: false });
-        const latest: Record<string, number> = {};
-        prev?.forEach((r: any) => { if (!(r.meter_id in latest)) latest[r.meter_id] = r.current_reading ?? 0; });
 
-        setReadings(show.map((c: any) => ({
-          id: c.id, meterType: mapMeterType(c.name) as MeterReading['meterType'], meterConfigId: c.id,
-          previousReading: latest[c.id] ?? 0, currentReading: 0, date: new Date().toISOString().split('T')[0],
-          photos: [], status: 'pending', submissionDeadline: deadline, meterNumber: c.name, location: c.name,
-          requirePhoto: c.requires_photo ?? false,
-        })));
+        // If address_meters query succeeded and has data, use it
+        if (!e && am && am.length > 0) {
+          setMeterConfigs(am);
+          const show = nids.length > 0 ? am.filter((m: any) => nids.includes(m.id)) : am.filter((m: any) => m.type === 'individual');
+          const ids = show.map((m: any) => m.id);
+          const { data: prev } = await supabase.from('meter_readings').select('meter_id, current_reading, previous_reading').in('meter_id', ids).order('reading_date', { ascending: false });
+          const latest: Record<string, number> = {};
+          prev?.forEach((r: any) => { if (!(r.meter_id in latest)) latest[r.meter_id] = r.current_reading ?? r.previous_reading ?? 0; });
+
+          setReadings(show.map((c: any) => ({
+            id: c.id, meterType: mapMeterType(c.name) as MeterReading['meterType'], meterConfigId: c.id,
+            previousReading: latest[c.id] ?? 0, currentReading: 0, date: new Date().toISOString().split('T')[0],
+            photos: [], status: 'pending', submissionDeadline: deadline, meterNumber: c.name, location: c.name,
+            requirePhoto: c.requires_photo ?? false,
+          })));
+        }
+        // Fallback: use notification's embedded meter list when address_meters is blocked by RLS
+        else if (nd?.data?.meters && nd.data.meters.length > 0) {
+          const notifMeters = nd.data.meters;
+          setMeterConfigs(notifMeters.map((m: any) => ({
+            id: m.id, address_id: addressId, name: m.name, type: 'individual' as const,
+            unit: m.unit || 'kWh', price_per_unit: 0, requires_photo: false,
+            collection_mode: 'manual', created_at: new Date().toISOString(),
+          })));
+
+          // Try to fetch previous readings (may also be blocked by RLS, so graceful fallback)
+          const ids = notifMeters.map((m: any) => m.id);
+          let latest: Record<string, number> = {};
+          try {
+            const { data: prev } = await supabase.from('meter_readings').select('meter_id, current_reading, previous_reading').in('meter_id', ids).order('reading_date', { ascending: false });
+            prev?.forEach((r: any) => { if (!(r.meter_id in latest)) latest[r.meter_id] = r.current_reading ?? r.previous_reading ?? 0; });
+          } catch { /* RLS may block */ }
+
+          setReadings(notifMeters.map((m: any) => ({
+            id: m.id, meterType: mapMeterType(m.name) as MeterReading['meterType'], meterConfigId: m.id,
+            previousReading: latest[m.id] ?? 0, currentReading: 0, date: new Date().toISOString().split('T')[0],
+            photos: [], status: 'pending', submissionDeadline: deadline, meterNumber: m.name, location: m.name,
+            requirePhoto: false,
+          })));
+        } else {
+          setIsLoading(false);
+          return;
+        }
       } catch { /* silent */ } finally { setIsLoading(false); }
     };
     fetch();
@@ -217,6 +249,7 @@ const TenantMeters: React.FC = () => {
     if (r.currentReading > 0 && r.currentReading < r.previousReading) errors.push('Rodmuo negali b\u016Bti mažesnis');
     if (r.requirePhoto && r.photos.length === 0) errors.push('Nuotrauka privaloma');
     const c = r.currentReading - r.previousReading;
+    if (r.currentReading > 0 && c === 0) warnings.push('Suvartojimas 0 — ar tikrai teisingas rodmuo?');
     if (c > 0 && c < info.minReasonable) warnings.push('Ne\u012Fprastai mažas suvartojimas');
     if (c > info.maxReasonable) warnings.push('Ne\u012Fprastai didelis suvartojimas');
     return { isValid: errors.length === 0, errors, warnings };
@@ -255,13 +288,18 @@ const TenantMeters: React.FC = () => {
     setReadings(p => p.map(m => m.id === id ? { ...m, photos: m.photos.filter((_, i) => i !== idx) } : m));
   }, []);
 
-  const handleSubmit = useCallback(async () => {
+  const handlePreSubmit = useCallback(() => {
     setHasAttemptedSubmit(true);
     setSubmitError(null);
     if (readings.some(r => !validate(r).isValid)) {
       setSubmitError('Ištaisykite klaidas prieš pateikdami rodmenis');
       return;
     }
+    setShowConfirm(true);
+  }, [readings, validate]);
+
+  const handleSubmit = useCallback(async () => {
+    setShowConfirm(false);
     setIsSubmitting(true);
     try {
       const rows = readings.map(r => {
@@ -304,6 +342,18 @@ const TenantMeters: React.FC = () => {
       setReadings(p => p.map(m => ({ ...m, status: 'approved' as const })));
       setIsSubmitting(false);
       setShowSuccess(true);
+
+      // Log to audit for admin panel
+      try {
+        const { data: authUser } = await supabase.auth.getUser();
+        const period = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        await supabase.from('audit_log').insert({
+          user_id: user?.id, user_email: authUser?.user?.email || user?.email,
+          action: 'SUBMIT', table_name: 'meter_readings', record_id: propertyId,
+          description: `Pateikė ${readings.length} skaitiklių rodmenis už ${period}`,
+          new_data: { meter_count: readings.length, period, meters: readings.map(r => ({ name: r.meterNumber, previous: r.previousReading, current: r.currentReading })) },
+        });
+      } catch { /* non-blocking */ }
     } catch { setSubmitError('Klaida. Bandykite dar kartą.'); setIsSubmitting(false); }
   }, [readings, meterConfigs, propertyId, addressId, user, validate]);
 
@@ -422,7 +472,7 @@ const TenantMeters: React.FC = () => {
                 const consumption = meter.currentReading - meter.previousReading;
                 const v = validate(meter);
                 const daysLeft = getDaysLeft(meter.submissionDeadline);
-                const showErrors = hasAttemptedSubmit && v.errors.length > 0;
+                const showErrors = (hasAttemptedSubmit || (meter.currentReading > 0 && meter.currentReading < meter.previousReading)) && v.errors.length > 0;
 
                 return (
                   <div key={meter.id} className="rounded-xl overflow-hidden border border-gray-200/20 shadow-sm" style={cardStyle}>
@@ -463,18 +513,13 @@ const TenantMeters: React.FC = () => {
                       {/* Input row */}
                       <div className="px-4 pb-3 space-y-2.5">
                         <div className="grid grid-cols-2 gap-3">
-                          {/* Previous */}
+                          {/* Previous — read-only, from landlord */}
                           <div>
                             <label className="text-[9px] font-medium text-gray-400 mb-1 block">{'Ankstesnis'}</label>
                             <div className="relative">
-                              <input
-                                type="number"
-                                value={meter.previousReading || ''}
-                                onChange={e => { const val = parseFloat(e.target.value) || 0; setReadings(p => p.map(r => r.id === meter.id ? { ...r, previousReading: val } : r)); }}
-                                disabled={showSuccess}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[13px] text-gray-500 placeholder-gray-400 focus:ring-1 focus:ring-[#2F8481]/40 focus:border-[#2F8481]/40 transition-all disabled:opacity-30"
-                                placeholder="0" min="0" step="0.01"
-                              />
+                              <div className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-[13px] text-gray-500 tabular-nums">
+                                {meter.previousReading || 0}
+                              </div>
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">{info.unit}</span>
                             </div>
                           </div>
@@ -566,7 +611,7 @@ const TenantMeters: React.FC = () => {
             {!showSuccess && (
               <div className="mt-6">
                 <button
-                  onClick={handleSubmit}
+                  onClick={handlePreSubmit}
                   disabled={isSubmitting}
                   className="w-full py-3 bg-[#2F8481] hover:bg-[#276e6b] text-white text-[12px] font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#2F8481]/20 flex items-center justify-center gap-2"
                 >
@@ -576,6 +621,57 @@ const TenantMeters: React.FC = () => {
                     <><Send className="w-4 h-4" /> {'Pateikti rodmenis'} ({readyCount}/{readings.length})</>
                   )}
                 </button>
+              </div>
+            )}
+
+            {/* ── Confirmation modal ── */}
+            {showConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="px-5 pt-5 pb-3">
+                    <h3 className="text-[14px] font-bold text-gray-900 mb-1">Patvirtinkite rodmenis</h3>
+                    <p className="text-[11px] text-gray-500">Ar tikrai viskas teisinga?</p>
+                  </div>
+                  <div className="px-5 pb-4 space-y-2">
+                    {readings.map(r => {
+                      const info = METER_TYPE_INFO[r.meterType];
+                      const Icon = info?.icon || Gauge;
+                      const c = r.currentReading - r.previousReading;
+                      return (
+                        <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl">
+                          <div className={`w-7 h-7 rounded-lg ${info?.solidBg || 'bg-gray-400'} flex items-center justify-center`}>
+                            <Icon className="w-3.5 h-3.5 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-gray-800 truncate">{r.meterNumber}</p>
+                            <p className="text-[9px] text-gray-400">{r.previousReading} → {r.currentReading} {info?.unit}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-[12px] font-bold tabular-nums ${c > 0 ? 'text-gray-800' : c === 0 ? 'text-amber-500' : 'text-red-500'}`}>
+                              {c > 0 ? '+' : ''}{c} {info?.unit}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-3 px-5 pb-5">
+                    <button
+                      onClick={() => setShowConfirm(false)}
+                      className="flex-1 py-2.5 bg-gray-100 text-gray-700 text-[11px] font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                    >
+                      Atšaukti
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      className="flex-1 py-2.5 bg-[#2F8481] text-white text-[11px] font-bold rounded-xl hover:bg-[#276e6b] transition-colors active:scale-[0.98] flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Patvirtinti ir siųsti
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </>

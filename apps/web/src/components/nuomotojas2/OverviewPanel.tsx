@@ -171,7 +171,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = ({
             id: '1',
             type: 'photo_upload',
             label: `Įkelta ${photos.length} nuotrauk${photos.length === 1 ? 'a' : 'os'}`,
-            timestamp: new Date(Date.now() - 3600000), // 1 hour ago placeholder
+            timestamp: new Date(), // Current time — will show "Ką tik" until real timestamps from Storage are integrated
         },
     ] : [];
 

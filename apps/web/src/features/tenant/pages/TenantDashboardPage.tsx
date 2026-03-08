@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useTenantDashboardData } from '../hooks/useTenantDashboardData';
@@ -45,6 +45,7 @@ import {
     KeyRound,
     Loader2,
     X,
+    Sparkles,
 } from 'lucide-react';
 import { tenantInvitationApi } from '../../../lib/database';
 
@@ -56,6 +57,7 @@ import { tenantInvitationApi } from '../../../lib/database';
 
 const TenantDashboardPage: React.FC = () => {
     const { user } = useAuth();
+    const burstRef = useRef<(() => void) | null>(null);
     const navigate = useNavigate();
     const [contractOpen, setContractOpen] = useState(false);
     const [selectorOpen, setSelectorOpen] = useState(false);
@@ -65,6 +67,18 @@ const TenantDashboardPage: React.FC = () => {
     const [isJoining, setIsJoining] = useState(false);
     const [joinError, setJoinError] = useState<string | null>(null);
     const [joinSuccess, setJoinSuccess] = useState(false);
+    const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null);
+    const [dismissedDeposits, setDismissedDeposits] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('dismissed-deposits') || '[]'); } catch { return []; }
+    });
+
+    const dismissDeposit = (invitationId: string) => {
+        setDismissedDeposits(prev => {
+            const next = [...prev, invitationId];
+            localStorage.setItem('dismissed-deposits', JSON.stringify(next));
+            return next;
+        });
+    };
 
     const dashboard = useTenantDashboardData(user?.id || '');
     const {
@@ -91,7 +105,10 @@ const TenantDashboardPage: React.FC = () => {
         loading,
         error,
         selectRental,
+        terminatedRentals,
     } = dashboard;
+
+    const visibleTerminated = (terminatedRentals || []).filter(tr => !dismissedDeposits.includes(tr.invitationId));
 
     const handleJoinByCode = async () => {
         if (!joinCode.trim()) return;
@@ -120,7 +137,7 @@ const TenantDashboardPage: React.FC = () => {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    const formatCurrency = (amount: number) => `${amount} €`;
+    const formatCurrency = (amount: number) => new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(amount);
 
     // Card background — CardsBackground.webp matching landlord
     const cardBgStyle: React.CSSProperties = {
@@ -134,11 +151,7 @@ const TenantDashboardPage: React.FC = () => {
 
     // Action handlers
     const handlePayRent = () => {
-        if (stripeEnabled) {
-            setPayModalOpen(true);
-        } else {
-            navigate('/tenant/invoices');
-        }
+        navigate('/tenant/invoices');
     };
 
     const handleViewInvoice = () => {
@@ -167,8 +180,14 @@ const TenantDashboardPage: React.FC = () => {
         return (
             <div
                 className="min-h-full relative overflow-hidden bg-cover bg-center bg-fixed"
-                style={{ backgroundImage: `url('/imagesGen/DashboardImage.jpg')` }}
+                style={{ backgroundImage: `url('/imagesGen/DashboardImage.webp')` }}
             >
+                <div
+                    className="absolute inset-0 pointer-events-none z-[1]"
+                    style={{
+                        background: 'linear-gradient(180deg, rgba(3,20,18,0.55) 0%, rgba(6,30,28,0.40) 40%, rgba(16,185,170,0.08) 70%, rgba(3,20,18,0.50) 100%)',
+                    }}
+                />
                 <ParticleDrift />
                 <div className="relative z-10 flex items-center justify-center min-h-screen">
                     <div className="text-center">
@@ -185,10 +204,18 @@ const TenantDashboardPage: React.FC = () => {
     return (
         <div
             className="min-h-full relative overflow-hidden bg-cover bg-center bg-fixed"
-            style={{ backgroundImage: `url('/imagesGen/DashboardImage.jpg')` }}
+            style={{ backgroundImage: `url('/imagesGen/DashboardImage.webp')` }}
         >
+            {/* Dark teal gradient overlay — matching landlord dashboard */}
+            <div
+                className="absolute inset-0 pointer-events-none z-[1]"
+                style={{
+                    background: 'linear-gradient(180deg, rgba(3,20,18,0.55) 0%, rgba(6,30,28,0.40) 40%, rgba(16,185,170,0.08) 70%, rgba(3,20,18,0.50) 100%)',
+                }}
+            />
+
             {/* Particle drift background — matching landlord */}
-            <ParticleDrift />
+            <ParticleDrift onBurstRef={(fn) => { burstRef.current = fn; }} />
 
             {/* Content wrapper */}
             <div className="relative z-10 min-h-full">
@@ -196,12 +223,30 @@ const TenantDashboardPage: React.FC = () => {
                     {/* Page Header */}
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-200/80 flex items-center justify-center">
-                                <Home className="w-5 h-5 text-[#2F8481]" />
-                            </div>
+                            <button
+                                onClick={() => burstRef.current?.()}
+                                className="w-10 h-10 bg-white/[0.06] rounded-xl border border-white/[0.10] flex items-center justify-center text-teal-400 hover:bg-teal-500/20 hover:text-teal-300 active:scale-90 transition-all duration-200"
+                                title="✨"
+                            >
+                                <Sparkles className="w-5 h-5" />
+                            </button>
                             <div>
-                                <h1 className="text-lg font-bold text-gray-900 leading-tight">Sveiki, {userName.split(' ')[0]}</h1>
-                                <p className="text-xs text-gray-500">
+                                <h1 className="text-lg font-bold text-white leading-tight">
+                                    Sveiki,{' '}
+                                    <span
+                                        style={{
+                                            background: 'linear-gradient(135deg, #3AB09E 0%, #5ECEC0 50%, #2F8481 100%)',
+                                            backgroundSize: '200% 200%',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent',
+                                            backgroundClip: 'text',
+                                            animation: 'loginGradientShift 4s ease-in-out infinite',
+                                        }}
+                                    >
+                                        {userName.split(' ')[0]}
+                                    </span>
+                                </h1>
+                                <p className="text-xs text-white/60">
                                     {hasRentals
                                         ? `${rentals.length} ${rentals.length === 1 ? 'aktyvus būstas' : 'aktyvūs būstai'}`
                                         : 'Nuomininko skydelis'
@@ -225,17 +270,17 @@ const TenantDashboardPage: React.FC = () => {
                                 <div className="relative">
                                     <button
                                         onClick={() => setSelectorOpen(!selectorOpen)}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm hover:bg-white border border-gray-200/80 shadow-sm transition-colors"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.06] backdrop-blur-sm hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
                                     >
-                                        <MapPin className="w-4 h-4 text-[#2F8481]" />
-                                        <span className="text-sm font-medium truncate max-w-[200px] text-gray-700">
+                                        <MapPin className="w-4 h-4 text-teal-400" />
+                                        <span className="text-sm font-medium truncate max-w-[200px] text-white/80">
                                             {selectedRentalId === 'all'
                                                 ? 'Visi būstai'
                                                 : selectedRental
                                                     ? `${selectedRental.address}`
                                                     : 'Pasirinkite'}
                                         </span>
-                                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${selectorOpen ? 'rotate-180' : ''}`} />
+                                        <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${selectorOpen ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     {selectorOpen && (
@@ -289,7 +334,7 @@ const TenantDashboardPage: React.FC = () => {
                     {/* Main Content Card — dark building container like landlord */}
                     <div
                         className="relative rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25),0_2px_8px_rgba(0,0,0,0.15)] p-4 bg-cover bg-center border border-white/[0.08] overflow-hidden mb-8"
-                        style={{ backgroundImage: `url('/imagesGen/tenantdashboard.jpg')` }}
+                        style={{ backgroundImage: `url('/imagesGen/tenantdashboard.webp')` }}
                     >
                         {/* Dark overlay for readability */}
                         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50 rounded-2xl" />
@@ -413,6 +458,100 @@ const TenantDashboardPage: React.FC = () => {
                                         </p>
                                     </div>
                                 </section>
+
+                                {/* Deposit Return Info for terminated rentals */}
+                                {visibleTerminated.length > 0 && (
+                                    <section className={`${cardBase} p-6`} style={cardBgStyle}>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shadow-sm">
+                                                <Wallet className="w-5 h-5 text-amber-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold text-gray-900 text-[15px]">Depozito grąžinimas</h3>
+                                                <p className="text-xs text-gray-500">Ankstesnių nuomų depozito informacija</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {visibleTerminated.map((tr) => {
+                                                const formatCurr = (amount: number) =>
+                                                    new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(amount);
+                                                const deducted = tr.deposit - tr.depositReturn;
+
+                                                return (
+                                                    <div key={tr.invitationId} className="relative p-4 rounded-xl border border-gray-100 bg-gray-50/50 space-y-3 group">
+                                                        <button
+                                                            onClick={() => dismissDeposit(tr.invitationId)}
+                                                            className="absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                                            title="Pašalinti"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        {/* Address */}
+                                                        {(tr.address || tr.propertyLabel) && (
+                                                            <div className="flex items-center gap-2">
+                                                                <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                                                <span className="text-[13px] font-medium text-gray-800 truncate">
+                                                                    {tr.address || tr.propertyLabel}
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Deposit breakdown */}
+                                                        <div className="space-y-1.5">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-[12px] text-gray-500">Sumokėtas depozitas:</span>
+                                                                <span className="text-[13px] font-semibold text-gray-800">{formatCurr(tr.deposit)}</span>
+                                                            </div>
+                                                            {deducted > 0 && (
+                                                                <div className="flex justify-between items-center">
+                                                                    <span className="text-[12px] text-gray-500">Išskaičiuota:</span>
+                                                                    <span className="text-[13px] font-semibold text-red-600">−{formatCurr(deducted)}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex justify-between items-center pt-1.5 border-t border-gray-200">
+                                                                <span className="text-[12px] font-medium text-gray-700">Grąžinama suma:</span>
+                                                                <span className={`text-[15px] font-bold ${tr.depositReturn > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                                    {formatCurr(tr.depositReturn)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Deductions details */}
+                                                        {tr.depositDeductions && tr.depositDeductions.length > 0 && (
+                                                            <div className="pt-2 border-t border-gray-100">
+                                                                <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Išskaitymų detalės</p>
+                                                                {tr.depositDeductions.map((d, i) => (
+                                                                    <div key={i} className="flex justify-between items-center py-0.5">
+                                                                        <span className="text-[11px] text-gray-600">{d.reason || 'Be priežasties'}</span>
+                                                                        <span className="text-[11px] font-medium text-red-500">−{formatCurr(d.amount)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Termination date & contact */}
+                                                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                                                            {tr.terminationDate && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Calendar className="w-3 h-3 text-gray-400" />
+                                                                    <span className="text-[11px] text-gray-500">
+                                                                        Nutraukta: {new Date(tr.terminationDate).toLocaleDateString('lt-LT')}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {tr.landlordEmail && (
+                                                                <span className="text-[11px] text-gray-400 truncate ml-2">
+                                                                    {tr.landlordEmail}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                )}
                             </div>
                         ) : (
                             <div className="relative z-10 space-y-4">
@@ -462,7 +601,7 @@ const TenantDashboardPage: React.FC = () => {
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                             <div className="text-white">
                                                 <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
-                                                    {selectedRentalId === 'all' ? 'Bendra nuoma' : 'Mėnesio nuoma'}
+                                                    {hero.status === 'paid' ? 'Mėnesio nuoma' : selectedRentalId === 'all' ? 'Bendra mokėtina suma' : 'Mokėtina suma'}
                                                 </p>
                                                 <div className="flex items-baseline gap-3 mb-2">
                                                     <span className="text-4xl sm:text-5xl font-bold">{formatCurrency(hero.amount)}</span>
@@ -613,39 +752,78 @@ const TenantDashboardPage: React.FC = () => {
                                 <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     {/* Payments Table */}
                                     <div className={`${cardBase} p-6`} style={cardBgStyle}>
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <div className="w-1.5 h-5 bg-[#2F8481] rounded-full" />
-                                            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Artimiausi mokėjimai</h2>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-5 bg-[#2F8481] rounded-full" />
+                                                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Sąskaitos</h2>
+                                            </div>
+                                            <button
+                                                onClick={() => navigate('/tenant/invoices')}
+                                                className="text-xs text-[#2F8481] hover:text-[#267370] font-medium transition-colors"
+                                            >
+                                                Visos sąskaitos →
+                                            </button>
                                         </div>
                                         {upcomingInvoices.length > 0 ? (
-                                            <div className="space-y-3">
+                                            <div className="space-y-2.5">
                                                 {upcomingInvoices.map((payment) => (
-                                                    <div key={payment.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${payment.status === 'paid' ? 'bg-emerald-100' : payment.status === 'overdue' ? 'bg-red-100' : 'bg-amber-100'
-                                                                }`}>
-                                                                {payment.status === 'paid' ? <Check className="w-4 h-4 text-emerald-600" /> :
-                                                                    payment.status === 'overdue' ? <AlertCircle className="w-4 h-4 text-red-600" /> :
-                                                                        <Clock className="w-4 h-4 text-amber-600" />}
-                                                            </div>
-                                                            <div>
-                                                                <div className="font-medium text-sm text-gray-900">{payment.periodLabel}</div>
-                                                                <div className="text-xs text-gray-500">
-                                                                    {formatCurrency(payment.amount)}
-                                                                    {selectedRentalId === 'all' && payment.rentalLabel && (
-                                                                        <span className="ml-1">• {payment.rentalLabel}</span>
-                                                                    )}
+                                                    <div
+                                                        key={payment.id}
+                                                        className={`p-3.5 rounded-xl border transition-all duration-200 hover:shadow-sm ${payment.status === 'overdue'
+                                                            ? 'bg-red-50/60 border-red-200/60'
+                                                            : payment.status === 'paid'
+                                                                ? 'bg-emerald-50/40 border-emerald-200/60'
+                                                                : 'bg-gray-50/80 border-gray-200/60'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${payment.status === 'paid'
+                                                                    ? 'bg-emerald-100'
+                                                                    : payment.status === 'overdue'
+                                                                        ? 'bg-red-100'
+                                                                        : 'bg-amber-100'
+                                                                    }`}>
+                                                                    {payment.status === 'paid'
+                                                                        ? <Check className="w-4 h-4 text-emerald-600" />
+                                                                        : payment.status === 'overdue'
+                                                                            ? <AlertCircle className="w-4 h-4 text-red-600" />
+                                                                            : <Clock className="w-4 h-4 text-amber-600" />}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-semibold text-sm text-gray-900">{payment.periodLabel}</div>
+                                                                    <div className="text-xs text-gray-500">
+                                                                        Iki: {(() => {
+                                                                            const d = new Date(payment.dueDate);
+                                                                            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                                                        })()}
+                                                                        {selectedRentalId === 'all' && payment.rentalLabel && (
+                                                                            <span className="ml-1">• {payment.rentalLabel}</span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${payment.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-                                                                payment.status === 'overdue' ? 'bg-red-100 text-red-700' :
-                                                                    'bg-amber-100 text-amber-700'
-                                                                }`}>
-                                                                {payment.status === 'paid' ? 'Apmokėta' : payment.status === 'overdue' ? 'Vėluoja' : 'Laukia'}
-                                                            </span>
-                                                            <button className="text-[#2F8481] hover:underline text-sm font-medium transition-colors">Atidaryti</button>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="text-right">
+                                                                    <div className="text-sm font-bold text-gray-900">{formatCurrency(payment.amount)}</div>
+                                                                    <span className={`text-[10px] font-medium ${payment.status === 'paid'
+                                                                        ? 'text-emerald-600'
+                                                                        : payment.status === 'overdue'
+                                                                            ? 'text-red-600'
+                                                                            : 'text-amber-600'
+                                                                        }`}>
+                                                                        {payment.status === 'paid' ? 'Apmokėta' : payment.status === 'overdue' ? 'Vėluoja' : 'Laukia'}
+                                                                    </span>
+                                                                </div>
+                                                                {payment.status !== 'paid' && (
+                                                                    <button
+                                                                        onClick={() => navigate('/tenant/invoices')}
+                                                                        className="px-3 py-1.5 bg-[#2F8481] hover:bg-[#267370] text-white text-xs font-semibold rounded-lg transition-all active:scale-[0.97]"
+                                                                    >
+                                                                        Mokėti
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -667,15 +845,12 @@ const TenantDashboardPage: React.FC = () => {
                                         {notifications.length > 0 ? (
                                             <div className="space-y-3">
                                                 {notifications.map((notif) => {
-                                                    const isClickable = !!notif.link;
-                                                    const Wrapper = isClickable ? 'button' : 'div';
+                                                    const isExpanded = expandedNotifId === notif.id;
                                                     return (
-                                                        <Wrapper
+                                                        <div
                                                             key={notif.id}
-                                                            onClick={isClickable ? () => navigate(notif.link!) : undefined}
-                                                            className={`flex gap-3 p-3 rounded-xl w-full text-left ${isClickable
-                                                                ? 'bg-teal-50/70 border border-teal-200/60 hover:bg-teal-100/80 cursor-pointer transition-all duration-200 hover:shadow-sm active:scale-[0.99]'
-                                                                : 'bg-gray-50'
+                                                            onClick={() => setExpandedNotifId(isExpanded ? null : notif.id)}
+                                                            className={`flex gap-3 p-3 rounded-xl w-full text-left cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-gray-100 border border-gray-200' : 'bg-gray-50 hover:bg-gray-100'
                                                                 }`}
                                                         >
                                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${notif.type === 'meter_reading_request' ? 'bg-teal-100' :
@@ -690,15 +865,21 @@ const TenantDashboardPage: React.FC = () => {
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="font-medium text-sm text-gray-900">{notif.title}</div>
-                                                                <div className="text-xs text-gray-500 line-clamp-1">{notif.message}</div>
+                                                                <div className={`text-xs text-gray-500 ${isExpanded ? '' : 'line-clamp-1'}`}>{notif.message}</div>
                                                                 <div className="text-xs text-gray-400 mt-1">{notif.relativeTime}</div>
+                                                                {isExpanded && notif.link && (
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); navigate(notif.link!); }}
+                                                                        className="mt-2 text-xs font-medium text-[#2F8481] hover:underline"
+                                                                    >
+                                                                        Atidaryti →
+                                                                    </button>
+                                                                )}
                                                             </div>
-                                                            {isClickable && (
-                                                                <div className="flex items-center flex-shrink-0">
-                                                                    <ChevronRight className="w-4 h-4 text-[#2F8481]" />
-                                                                </div>
-                                                            )}
-                                                        </Wrapper>
+                                                            <div className="flex items-center flex-shrink-0">
+                                                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                            </div>
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
@@ -710,6 +891,63 @@ const TenantDashboardPage: React.FC = () => {
                                         )}
                                     </div>
                                 </section>
+
+                                {/* Previous deposit return info (for tenants with active rental + old terminated ones) */}
+                                {visibleTerminated.length > 0 && (
+                                    <section className={`${cardBase} p-6`} style={cardBgStyle}>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="w-1.5 h-5 bg-amber-400 rounded-full" />
+                                            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Ankstesnių nuomų depozitai</h2>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {visibleTerminated.map((tr) => {
+                                                const fmtC = (a: number) => new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(a);
+                                                const ded = tr.deposit - tr.depositReturn;
+                                                return (
+                                                    <div key={tr.invitationId} className="relative p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 space-y-2 group">
+                                                        <button
+                                                            onClick={() => dismissDeposit(tr.invitationId)}
+                                                            className="absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                                            title="Pašalinti"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        {(tr.address || tr.propertyLabel) && (
+                                                            <div className="flex items-center gap-2">
+                                                                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                                                                <span className="text-[12px] font-medium text-gray-700 truncate">{tr.address || tr.propertyLabel}</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[12px] text-gray-500">Depozitas: {fmtC(tr.deposit)}</span>
+                                                            {ded > 0 && <span className="text-[11px] text-red-500">−{fmtC(ded)} išskaičiuota</span>}
+                                                        </div>
+                                                        <div className="flex items-center justify-between pt-1.5 border-t border-gray-200">
+                                                            <span className="text-[12px] font-medium text-gray-700">Grąžinama:</span>
+                                                            <span className={`text-[14px] font-bold ${tr.depositReturn > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmtC(tr.depositReturn)}</span>
+                                                        </div>
+                                                        {tr.depositDeductions && tr.depositDeductions.length > 0 && (
+                                                            <div className="pt-1.5 border-t border-gray-100 space-y-0.5">
+                                                                {tr.depositDeductions.map((d, i) => (
+                                                                    <div key={i} className="flex justify-between">
+                                                                        <span className="text-[11px] text-gray-500">{d.reason || 'Išskaitymas'}</span>
+                                                                        <span className="text-[11px] text-red-500">−{fmtC(d.amount)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {tr.terminationDate && (
+                                                            <div className="flex items-center gap-1.5 pt-1">
+                                                                <Calendar className="w-3 h-3 text-gray-400" />
+                                                                <span className="text-[10px] text-gray-400">Nutraukta: {new Date(tr.terminationDate).toLocaleDateString('lt-LT')}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                )}
 
                                 {/* Sutarties Informacija — Accordion */}
                                 {contractDetails && (
@@ -756,6 +994,42 @@ const TenantDashboardPage: React.FC = () => {
                                                 )}
                                             </div>
                                         )}
+                                    </section>
+                                )}
+
+                                {/* Nuomos sąlygos */}
+                                {contractDetails && (
+                                    <section className={`${cardBase} p-6`} style={cardBgStyle}>
+                                        <div className="flex items-center gap-2 mb-5">
+                                            <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
+                                                <AlertCircle className="w-5 h-5 text-amber-500" />
+                                            </div>
+                                            <h2 className="text-lg font-semibold text-gray-900">Nuomos sąlygos</h2>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            <div className="p-3 rounded-xl bg-gray-50/80">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Calendar className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-xs text-gray-500">Min. sutarties terminas</span>
+                                                </div>
+                                                <div className="text-sm font-semibold text-gray-900">{contractDetails.minContractDuration ? `${contractDetails.minContractDuration} mėn.` : '—'}</div>
+                                            </div>
+                                            <div className="p-3 rounded-xl bg-gray-50/80">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Clock className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-xs text-gray-500">Baudos pradžia</span>
+                                                </div>
+                                                <div className="text-sm font-semibold text-gray-900">{contractDetails.gracePeriodDays != null ? `Po ${contractDetails.gracePeriodDays} d. vėlavimo` : '—'}</div>
+                                            </div>
+                                            <div className="p-3 rounded-xl bg-gray-50/80">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <AlertTriangle className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-xs text-gray-500">Vėlavimo bauda</span>
+                                                </div>
+                                                <div className="text-sm font-semibold text-gray-900">{contractDetails.latePaymentFee != null && contractDetails.latePaymentFee > 0 ? `${contractDetails.latePaymentFee}%` : '—'}</div>
+                                            </div>
+                                        </div>
                                     </section>
                                 )}
 
@@ -919,48 +1193,109 @@ const TenantDashboardPage: React.FC = () => {
                                                 {
                                                     icon: Building,
                                                     label: 'Tipas',
-                                                    value: propertyInfo.propertyType === 'house' ? 'Namas'
-                                                        : propertyInfo.propertyType === 'room' ? 'Kambarys'
-                                                            : 'Butas',
+                                                    value: propertyInfo.propertyType === 'apartment' ? 'Butas'
+                                                        : propertyInfo.propertyType === 'house' ? 'Namas'
+                                                            : propertyInfo.propertyType === 'room' ? 'Kambarys'
+                                                                : propertyInfo.propertyType === 'commercial' ? 'Komercinis'
+                                                                    : propertyInfo.propertyType || '—',
                                                     show: true,
                                                 },
                                                 {
                                                     icon: DoorOpen,
                                                     label: 'Buto nr.',
                                                     value: propertyInfo.apartmentNumber || '—',
-                                                    show: !!propertyInfo.apartmentNumber,
+                                                    show: true,
                                                 },
                                                 {
                                                     icon: Layers,
                                                     label: 'Kambariai',
-                                                    value: propertyInfo.rooms ? String(propertyInfo.rooms) : '—',
-                                                    show: !!propertyInfo.rooms,
+                                                    value: String(propertyInfo.rooms ?? 0),
+                                                    show: true,
+                                                },
+                                                {
+                                                    icon: Layers,
+                                                    label: 'Miegamieji',
+                                                    value: String(propertyInfo.bedrooms ?? 0),
+                                                    show: true,
+                                                },
+                                                {
+                                                    icon: Layers,
+                                                    label: 'Vonios',
+                                                    value: String(propertyInfo.bathrooms ?? 0),
+                                                    show: true,
                                                 },
                                                 {
                                                     icon: Maximize2,
                                                     label: 'Plotas',
                                                     value: propertyInfo.area ? `${propertyInfo.area} m²` : '—',
-                                                    show: !!propertyInfo.area && propertyInfo.area > 0,
+                                                    show: true,
                                                 },
                                                 {
                                                     icon: Building,
                                                     label: 'Aukštas',
-                                                    value: propertyInfo.floor
+                                                    value: propertyInfo.floor != null
                                                         ? propertyInfo.totalFloors
                                                             ? `${propertyInfo.floor} / ${propertyInfo.totalFloors}`
                                                             : String(propertyInfo.floor)
                                                         : '—',
-                                                    show: !!propertyInfo.floor,
+                                                    show: true,
+                                                },
+                                                {
+                                                    icon: Building,
+                                                    label: 'Pastato tipas',
+                                                    value: (() => {
+                                                        const bt = propertyInfo.buildingType?.toLowerCase();
+                                                        if (!bt) return '—';
+                                                        if (bt === 'apartment' || bt === 'daugiabutis') return 'Daugiabutis';
+                                                        if (bt === 'house' || bt === 'namas') return 'Namas';
+                                                        if (bt === 'commercial' || bt === 'komercinis') return 'Komercinis';
+                                                        if (bt === 'townhouse') return 'Sublokuotas';
+                                                        if (bt === 'cottage') return 'Kotedžas';
+                                                        return propertyInfo.buildingType;
+                                                    })(),
+                                                    show: true,
                                                 },
                                                 {
                                                     icon: Thermometer,
                                                     label: 'Šildymas',
-                                                    value: propertyInfo.heatingType === 'central' ? 'Centralinis'
-                                                        : propertyInfo.heatingType === 'individual' ? 'Individualus'
-                                                            : propertyInfo.heatingType === 'gas' ? 'Dujinis'
-                                                                : propertyInfo.heatingType === 'electric' ? 'Elektrinis'
-                                                                    : propertyInfo.heatingType || '—',
-                                                    show: !!propertyInfo.heatingType,
+                                                    value: (() => {
+                                                        const ht = propertyInfo.heatingType?.toLowerCase();
+                                                        if (!ht) return '—';
+                                                        if (ht === 'central' || ht === 'centrinis') return 'Centralinis';
+                                                        if (ht === 'individual' || ht === 'individualus') return 'Individualus';
+                                                        if (ht === 'gas' || ht === 'dujinis') return 'Dujinis';
+                                                        if (ht === 'electric' || ht === 'elektrinis') return 'Elektrinis';
+                                                        return propertyInfo.heatingType;
+                                                    })(),
+                                                    show: true,
+                                                },
+                                                {
+                                                    icon: Home,
+                                                    label: 'Įrengimas',
+                                                    value: (() => {
+                                                        const f = propertyInfo.furnished;
+                                                        if (!f) return '—';
+                                                        if (f === 'full') return 'Pilnai įrengtas';
+                                                        if (f === 'partial') return 'Dalinai įrengtas';
+                                                        if (f === 'none') return 'Neįrengtas';
+                                                        return f;
+                                                    })(),
+                                                    show: true,
+                                                },
+                                                {
+                                                    icon: Building,
+                                                    label: 'Parkavimas',
+                                                    value: (() => {
+                                                        const p = propertyInfo.parkingType;
+                                                        if (!p || p === 'none') return 'Nėra';
+                                                        if (p === 'garage') return 'Garažas';
+                                                        if (p === 'outdoor') return 'Lauko aikštelė';
+                                                        if (p === 'underground') return 'Požeminė aikštelė';
+                                                        if (p === 'yard') return 'Kiemas';
+                                                        if (p === 'street') return 'Gatvėje';
+                                                        return p;
+                                                    })(),
+                                                    show: true,
                                                 },
                                             ].filter(item => item.show).map((item, i) => (
                                                 <div key={i} className="p-3 rounded-xl bg-gray-50/80">
@@ -972,6 +1307,21 @@ const TenantDashboardPage: React.FC = () => {
                                                 </div>
                                             ))}
                                         </div>
+
+                                        {/* Amenities */}
+                                        {propertyInfo.amenities && propertyInfo.amenities.length > 0 && (
+                                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                                <div className="text-xs text-gray-500 mb-2">Ypatybės</div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {propertyInfo.amenities.map((amenity) => (
+                                                        <span key={amenity} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#E8F5F4] text-[#2F8481] border border-[#2F8481]/10">
+                                                            <Check className="w-3 h-3" />
+                                                            {amenity}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </section>
                                 )}
 

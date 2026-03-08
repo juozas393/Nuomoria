@@ -1067,8 +1067,15 @@ export const tenantInvitationApi = {
       .eq('property_id', invitation.property_id)
       .eq('status', 'pending');
 
-    // Calculate expiry (7 days from now — matches email text "Kodas galioja 7 dienas")
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Calculate expiry (1 day from now)
+    const expiresAt = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Auto-set 1-year contract from today if not explicitly provided
+    const today = new Date();
+    const oneYearLater = new Date(today);
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+    const contractStart = invitation.contract_start || today.toISOString().substring(0, 10);
+    const contractEnd = invitation.contract_end || oneYearLater.toISOString().substring(0, 10);
 
     const { data, error } = await supabase
       .from('tenant_invitations')
@@ -1077,7 +1084,9 @@ export const tenantInvitationApi = {
         invited_by: userData?.user?.id,
         invited_by_email: userData?.user?.email,
         status: 'pending',
-        expires_at: expiresAt
+        expires_at: expiresAt,
+        contract_start: contractStart,
+        contract_end: contractEnd
       }])
       .select()
       .single();

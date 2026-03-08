@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 // Lazy load heavy components for better performance
 const AddAddressModal = React.lazy(() => import('../components/properties/AddAddressModal'));
@@ -13,7 +13,7 @@ if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
 } else {
   setTimeout(() => { tenantModalImport(); }, 1000);
 }
-import { PlusIcon, Cog6ToothIcon, TrashIcon, BuildingOfficeIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, Cog6ToothIcon, TrashIcon, BuildingOfficeIcon, PencilSquareIcon, SparklesIcon } from '@heroicons/react/24/outline';
 // VirtualizedList removed for stability - using optimized regular rendering
 import { useAuth } from '../context/AuthContext';
 import { useProperties, useAddresses, useStats } from '../context/DataContext';
@@ -28,7 +28,7 @@ import { Tenant } from '../types/tenant';
 // Context Panel imports removed - using modal instead
 // Optimized image loading
 // Background image path (optimized - modern cityscape)
-const addressImage = '/imagesGen/DashboardImage.jpg';
+const addressImage = '/imagesGen/DashboardImage.webp';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatCurrency } from '../utils/format';
 import MessagingPanel from '../components/MessagingPanel';
@@ -51,7 +51,7 @@ interface Address {
 
 const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const { user } = useAuth();
-
+  const burstRef = useRef<(() => void) | null>(null);
   // Performance monitoring removed to prevent reload loops
 
   // Optimized data hooks with RBAC
@@ -75,6 +75,63 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   const [showDeleteApartmentModal, setShowDeleteApartmentModal] = useState(false);
   const [isDeletingApartment, setIsDeletingApartment] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [terminationMap, setTerminationMap] = useState<Record<string, string>>({});
+  const [metersSubmittedSet, setMetersSubmittedSet] = useState<Set<string>>(new Set());
+
+  // Load termination statuses for all properties
+  React.useEffect(() => {
+    if (!properties || properties.length === 0) return;
+    const propIds = properties.map((p: any) => p.id).filter(Boolean);
+    if (propIds.length === 0) return;
+
+    const loadTerminations = async () => {
+      const { data } = await supabase
+        .from('tenant_invitations')
+        .select('property_id, termination_status')
+        .in('property_id', propIds)
+        .eq('status', 'accepted')
+        .not('termination_status', 'is', null);
+
+      if (data && data.length > 0) {
+        const map: Record<string, string> = {};
+        data.forEach((d: any) => { if (d.property_id && d.termination_status) map[d.property_id] = d.termination_status; });
+        setTerminationMap(map);
+      } else {
+        setTerminationMap({});
+      }
+    };
+    loadTerminations();
+  }, [properties]);
+
+  // Load current-month meter readings status (lightweight — only property_id needed)
+  React.useEffect(() => {
+    if (!properties || properties.length === 0) return;
+    const propIds = properties.map((p: any) => p.id).filter(Boolean);
+    if (propIds.length === 0) return;
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const loadMeterStatus = async () => {
+      const { data } = await supabase
+        .from('meter_readings')
+        .select('property_id')
+        .in('property_id', propIds)
+        .gte('reading_date', monthStart)
+        .lte('reading_date', monthEnd)
+        .not('current_reading', 'is', null)
+        .eq('meter_type', 'apartment');
+
+      if (data && data.length > 0) {
+        setMetersSubmittedSet(new Set(data.map((d: any) => d.property_id)));
+      } else {
+        setMetersSubmittedSet(new Set());
+      }
+    };
+
+    loadMeterStatus();
+  }, [properties]);
 
   // Callback for when property data is updated (e.g., rent saved in PropertyTab)
   // Must refetch AND update selectedTenant so the modal shows fresh data
@@ -99,6 +156,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
           floor: freshProp.floor,
           under_maintenance: freshProp.under_maintenance,
           property_type: freshProp.property_type,
+          property_status: freshProp.status || 'vacant',
           extended_details: freshProp.extended_details || {},
         }));
       }
@@ -126,6 +184,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       address: typeof property.address === 'string' ? property.address : property.address?.full_address || '',
       address_id: property.address?.id,
       status: (property.tenant_name && property.tenant_name !== 'Laisvas' ? 'active' : 'vacant') as 'active' | 'vacant' | 'expired' | 'pending' | 'moving_out',
+      // Keep the real DB property status for PropertyTab (occupied/vacant)
+      property_status: property.status || 'vacant',
       contractStart: property.contract_start,
       contractEnd: property.contract_end,
       moveInDate: property.contract_start,
@@ -153,7 +213,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       last_payment_date: property.last_payment_date || '',
       move_out_notice_date: property.move_out_notice_date || '',
       planned_move_out_date: property.planned_move_out_date || '',
-      meters_submitted: property.meter_readings && property.meter_readings.length > 0,
+      meters_submitted: metersSubmittedSet.has(property.id),
       meters_due_date: property.meters_due_date || '',
       property_type: property.property_type || 'apartment',
       heating_type: property.heating_type || 'central',
@@ -165,9 +225,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
       deposit_amount: property.deposit_amount ?? null,
       extended_details: property.extended_details || {},
       under_maintenance: property.under_maintenance ?? false,
-      floor: property.floor || 0
+      floor: property.floor || 0,
+      termination_status: terminationMap[property.id] || null
     }));
-  }, [properties]);
+  }, [properties, terminationMap, metersSubmittedSet]);
 
   // Filter tenants based on selected address
   const tenants = useMemo(() => {
@@ -565,8 +626,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
   }, []);
 
   const handleSettingsClick = useCallback((address: string, addressId?: string) => {
-    // Find the address object from properties
-    const addressObj = properties?.find(property =>
+    // Find address from addresses array directly (works even if address has 0 properties)
+    const addressObj = addresses?.find(a =>
+      a.id === addressId || a.full_address === address
+    ) || properties?.find(property =>
       property.address?.id === addressId ||
       property.address?.full_address === address ||
       property.address === address
@@ -574,7 +637,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
     if (addressObj) {
       setSelectedAddress(addressObj);
-      setSelectedAddressId(addressId);
+      setSelectedAddressId(addressId || addressObj.id);
 
       // Load address settings
       const settings = getAddressSettings(address);
@@ -582,15 +645,23 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
       setShowAddressSettingsModal(true);
     }
-  }, [properties]);
+  }, [addresses, properties]);
 
   return (
     <div
       className="min-h-full relative overflow-hidden bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: `url('/imagesGen/DashboardImage.jpg')` }}
+      style={{ backgroundImage: `url('/imagesGen/DashboardImage.webp')` }}
     >
+      {/* Subtle teal ambient glow — matching Introduction page */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[1]"
+        style={{
+          background: 'linear-gradient(180deg, rgba(3,20,18,0.55) 0%, rgba(6,30,28,0.40) 40%, rgba(16,185,170,0.08) 70%, rgba(3,20,18,0.50) 100%)',
+        }}
+      />
+
       {/* Particle drift background — snowfall-style effect */}
-      <ParticleDrift />
+      <ParticleDrift onBurstRef={(fn) => { burstRef.current = fn; }} />
 
       {/* Content wrapper */}
       <div className="relative z-10 min-h-full">
@@ -598,11 +669,18 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold text-gray-900">Pagrindinis dashboard</h1>
-              <div className="text-gray-500 text-sm">
+              <h1 className="text-3xl font-bold text-white">Pagrindinis skydelis</h1>
+              <div className="text-gray-400 text-sm">
                 {addressCount} adresai • {propertyCount} butai
               </div>
             </div>
+            <button
+              onClick={() => burstRef.current?.()}
+              className="p-2.5 rounded-xl bg-white/[0.06] border border-white/[0.10] text-teal-400 hover:bg-teal-500/20 hover:text-teal-300 active:scale-90 transition-all duration-200"
+              title="Spausk savo rizika"
+            >
+              <SparklesIcon className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Main Content - dark building background */}
@@ -711,15 +789,22 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                               <div className="relative z-10 p-2 flex flex-col gap-1.5">
                                 {addressTenants.map((tenant) => {
                                   const isVacant = tenant.status === 'vacant';
-                                  const statusConfig = tenant.status === 'active'
-                                    ? { label: 'Aktyvus', dotColor: 'bg-emerald-500', textColor: 'text-emerald-700' }
-                                    : tenant.status === 'expired'
-                                      ? { label: 'Baigėsi', dotColor: 'bg-red-500', textColor: 'text-red-700' }
-                                      : tenant.status === 'moving_out'
-                                        ? { label: 'Išsikrausto', dotColor: 'bg-amber-500', textColor: 'text-amber-700' }
-                                        : isVacant
-                                          ? { label: 'Laisvas', dotColor: 'bg-gray-400', textColor: 'text-gray-500' }
-                                          : { label: 'Laukia', dotColor: 'bg-blue-500', textColor: 'text-blue-700' };
+                                  const termStatus = (tenant as any).termination_status;
+                                  const statusConfig = termStatus === 'tenant_requested'
+                                    ? { label: 'Nutraukimas', dotColor: 'bg-red-500 animate-pulse', textColor: 'text-red-600 font-bold' }
+                                    : termStatus === 'landlord_requested'
+                                      ? { label: 'Nutraukimas', dotColor: 'bg-red-500 animate-pulse', textColor: 'text-red-600 font-bold' }
+                                      : termStatus === 'confirmed'
+                                        ? { label: 'Patvirtinta', dotColor: 'bg-amber-500', textColor: 'text-amber-600 font-semibold' }
+                                        : tenant.status === 'active'
+                                          ? { label: 'Aktyvus', dotColor: 'bg-emerald-500', textColor: 'text-emerald-700' }
+                                          : tenant.status === 'expired'
+                                            ? { label: 'Baigėsi', dotColor: 'bg-red-500', textColor: 'text-red-700' }
+                                            : tenant.status === 'moving_out'
+                                              ? { label: 'Išsikrausto', dotColor: 'bg-amber-500', textColor: 'text-amber-700' }
+                                              : isVacant
+                                                ? { label: 'Laisvas', dotColor: 'bg-gray-400', textColor: 'text-gray-500' }
+                                                : { label: 'Laukia', dotColor: 'bg-blue-500', textColor: 'text-blue-700' };
 
                                   return (
                                     <div
@@ -744,11 +829,23 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                         <div className="text-[13px] font-semibold text-gray-900 truncate">
                                           {isVacant ? `Butas ${tenant.apartmentNumber}` : tenant.name}
                                         </div>
-                                        <div className="text-[11px] text-gray-500 truncate mt-0.5">
-                                          {isVacant
-                                            ? [tenant.rooms ? tenant.rooms + ' kamb.' : null, tenant.area ? tenant.area + ' m²' : null].filter(Boolean).join(' • ') || 'Laisvas butas'
-                                            : `Butas ${tenant.apartmentNumber}${tenant.rooms ? ' • ' + tenant.rooms + ' kamb.' : ''}${tenant.area ? ' • ' + tenant.area + ' m²' : ''}`
-                                          }
+                                        <div className="text-[11px] text-gray-500 truncate mt-0.5 flex items-center gap-2">
+                                          <span>
+                                            {isVacant
+                                              ? [tenant.rooms ? tenant.rooms + ' kamb.' : null, tenant.area ? tenant.area + ' m²' : null].filter(Boolean).join(' • ') || 'Laisvas butas'
+                                              : `Butas ${tenant.apartmentNumber}${tenant.rooms ? ' • ' + tenant.rooms + ' kamb.' : ''}${tenant.area ? ' • ' + tenant.area + ' m²' : ''}`
+                                            }
+                                          </span>
+                                          {!isVacant && (
+                                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold whitespace-nowrap ${(tenant as any).meters_submitted
+                                              ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                              }`}>
+                                              <span className={`w-1 h-1 rounded-full ${(tenant as any).meters_submitted ? 'bg-teal-500' : 'bg-amber-500'
+                                                }`} />
+                                              {(tenant as any).meters_submitted ? 'Rodmenys ✓' : 'Laukia rodmenų'}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
 
@@ -993,7 +1090,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
               area: selectedTenant.area || 0,
               floor: (selectedTenant as any).floor || 0,
               type: (selectedTenant as any).property_type || 'apartment',
-              status: selectedTenant.status,
+              status: (selectedTenant as any).property_status || selectedTenant.status,
               rent: (selectedTenant as any).rent || selectedTenant.monthlyRent || 0,
               deposit_amount: (selectedTenant as any).deposit_amount ?? selectedTenant.deposit ?? null,
               extended_details: (selectedTenant as any).extended_details || {},
@@ -1171,40 +1268,33 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                 if (!apartmentData.apartmentNumber?.trim()) {
                   throw new Error('Buto numeris yra privalomas');
                 }
-                if (!apartmentData.tenantName?.trim()) {
-                  throw new Error('Nuomininko vardas yra privalomas');
-                }
-                if (!apartmentData.contractStart) {
-                  throw new Error('Sutarties pradžios data yra privaloma');
-                }
-                if (!apartmentData.contractEnd) {
-                  throw new Error('Sutarties pabaigos data yra privaloma');
-                }
 
                 // Create single apartment in database
+                const insertData: Record<string, any> = {
+                  address_id: selectedAddressIdForApartment,
+                  apartment_number: apartmentData.apartmentNumber.trim(),
+                  tenant_name: apartmentData.tenantName?.trim() || '',
+                  phone: apartmentData.tenantPhone?.trim() || '',
+                  email: apartmentData.tenantEmail?.trim() || '',
+                  rent: apartmentData.monthlyRent || 0,
+                  area: apartmentData.area || 0,
+                  rooms: apartmentData.rooms || 0,
+                  deposit_amount: apartmentData.deposit || 0,
+                  deposit_paid_amount: 0,
+                  deposit_paid: false,
+                  deposit_returned: false,
+                  deposit_deductions: 0,
+                  status: apartmentData.tenantName?.trim() ? 'occupied' : 'vacant',
+                  auto_renewal_enabled: false,
+                  notification_count: 0,
+                  original_contract_duration_months: 12
+                };
+                if (apartmentData.contractStart) insertData.contract_start = apartmentData.contractStart;
+                if (apartmentData.contractEnd) insertData.contract_end = apartmentData.contractEnd;
+
                 const { data, error } = await supabase
                   .from('properties')
-                  .insert({
-                    address_id: selectedAddressIdForApartment,
-                    apartment_number: apartmentData.apartmentNumber.trim(),
-                    tenant_name: apartmentData.tenantName.trim(),
-                    phone: apartmentData.tenantPhone?.trim() || '',
-                    email: apartmentData.tenantEmail?.trim() || '',
-                    rent: apartmentData.monthlyRent || 0,
-                    area: apartmentData.area || 0,
-                    rooms: apartmentData.rooms || 0,
-                    contract_start: apartmentData.contractStart,
-                    contract_end: apartmentData.contractEnd,
-                    deposit_amount: apartmentData.deposit || 0,
-                    deposit_paid_amount: 0,
-                    deposit_paid: false,
-                    deposit_returned: false,
-                    deposit_deductions: 0,
-                    status: apartmentData.tenantName?.trim() ? 'occupied' : 'vacant',
-                    auto_renewal_enabled: false,
-                    notification_count: 0,
-                    original_contract_duration_months: 12
-                  })
+                  .insert(insertData)
                   .select();
 
                 if (error) {
@@ -1227,13 +1317,14 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                   const metersToInsert = apartmentData.meters.map((meter: any) => ({
                     property_id: propertyId,
                     name: meter.name,
-                    type: 'individual', // Default to individual for apartment meters
+                    type: 'individual',
                     unit: meter.unit,
-                    price_per_unit: meter.rate,
-                    initial_reading: meter.initialReading || 0,
-                    require_photo: meter.photoRequired || false,
-                    status: 'active',
-                    notes: meter.note || ''
+                    price_per_unit: meter.rate || 0,
+                    distribution_method: 'per_consumption',
+                    requires_photo: meter.photoRequired || false,
+                    is_active: true,
+                    is_custom: false,
+                    description: meter.note || ''
                   }));
 
                   const { error: metersError } = await supabase
@@ -1255,39 +1346,33 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                   if (!apt.apartmentNumber?.trim()) {
                     throw new Error(`Buto ${i + 1}: numeris yra privalomas`);
                   }
-                  if (!apt.tenantName?.trim()) {
-                    throw new Error(`Buto ${i + 1}: nuomininko vardas yra privalomas`);
-                  }
-                  if (!apt.contractStart) {
-                    throw new Error(`Buto ${i + 1}: sutarties pradžios data yra privaloma`);
-                  }
-                  if (!apt.contractEnd) {
-                    throw new Error(`Buto ${i + 1}: sutarties pabaigos data yra privaloma`);
-                  }
                 }
 
                 // Create multiple apartments in database
-                const apartmentsToInsert = apartmentData.apartments.map((apt: any) => ({
-                  address_id: selectedAddressIdForApartment,
-                  apartment_number: apt.apartmentNumber.trim(),
-                  tenant_name: apt.tenantName.trim(),
-                  phone: apt.tenantPhone?.trim() || '',
-                  email: apt.tenantEmail?.trim() || '',
-                  rent: apt.monthlyRent || 0,
-                  area: apt.area || 0,
-                  rooms: apt.rooms || 0,
-                  contract_start: apt.contractStart,
-                  contract_end: apt.contractEnd,
-                  deposit_amount: apt.deposit || 0,
-                  deposit_paid_amount: 0,
-                  deposit_paid: false,
-                  deposit_returned: false,
-                  deposit_deductions: 0,
-                  status: apt.tenantName?.trim() ? 'occupied' : 'vacant',
-                  auto_renewal_enabled: false,
-                  notification_count: 0,
-                  original_contract_duration_months: 12
-                }));
+                const apartmentsToInsert = apartmentData.apartments.map((apt: any) => {
+                  const aptData: Record<string, any> = {
+                    address_id: selectedAddressIdForApartment,
+                    apartment_number: apt.apartmentNumber.trim(),
+                    tenant_name: apt.tenantName?.trim() || '',
+                    phone: apt.tenantPhone?.trim() || '',
+                    email: apt.tenantEmail?.trim() || '',
+                    rent: apt.monthlyRent || 0,
+                    area: apt.area || 0,
+                    rooms: apt.rooms || 0,
+                    deposit_amount: apt.deposit || 0,
+                    deposit_paid_amount: 0,
+                    deposit_paid: false,
+                    deposit_returned: false,
+                    deposit_deductions: 0,
+                    status: apt.tenantName?.trim() ? 'occupied' : 'vacant',
+                    auto_renewal_enabled: false,
+                    notification_count: 0,
+                    original_contract_duration_months: 12
+                  };
+                  if (apt.contractStart) aptData.contract_start = apt.contractStart;
+                  if (apt.contractEnd) aptData.contract_end = apt.contractEnd;
+                  return aptData;
+                });
 
                 const { data, error } = await supabase
                   .from('properties')
@@ -1317,13 +1402,14 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                     const propertyMeters = apartmentData.meters.map((meter: any) => ({
                       property_id: property.id,
                       name: meter.name,
-                      type: 'individual', // Default to individual for apartment meters
+                      type: 'individual',
                       unit: meter.unit,
-                      price_per_unit: meter.rate,
-                      initial_reading: meter.initialReading || 0,
-                      require_photo: meter.photoRequired || false,
-                      status: 'active',
-                      notes: meter.note || ''
+                      price_per_unit: meter.rate || 0,
+                      distribution_method: 'per_consumption',
+                      requires_photo: meter.photoRequired || false,
+                      is_active: true,
+                      is_custom: false,
+                      description: meter.note || ''
                     }));
 
                     metersToInsert.push(...propertyMeters);
@@ -1347,8 +1433,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
               await refreshData();
 
             } catch (error) {
-              // Error adding apartment(s) - logging removed for production
-              alert('Klaida pridedant butą(us)');
+              const msg = error instanceof Error ? error.message : 'Nežinoma klaida';
+              alert(`Klaida pridedant butą(us): ${msg}`);
             }
           }}
         />

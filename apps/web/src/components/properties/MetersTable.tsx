@@ -55,7 +55,7 @@ import { ReadingsInbox } from './ReadingsInbox';
 import { MetersPanel, Meter as ModernMeter } from './MetersPanel';
 import { IconSelector } from './IconSelector';
 import { UniversalAddMeterModal } from '../meters/UniversalAddMeterModal';
-import { fmtPriceLt, getUnitLabel } from '../../constants/meterTemplates';
+import { fmtPriceLt, getUnitLabel, METER_TEMPLATES, fmtTariff } from '../../constants/meterTemplates';
 import {
   getAllowedDistributions,
   getDefaultDistribution,
@@ -89,6 +89,7 @@ interface LocalMeter {
   collectionMode: 'landlord_only' | 'tenant_photo'; // New field for collection mode
   landlordReadingEnabled: boolean;
   tenantPhotoEnabled: boolean;
+  supplier?: string; // Optional utility supplier/provider name
 }
 
 interface MetersTableProps {
@@ -1347,28 +1348,43 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     setSelectedMeterId(newMeter.id);
   };
 
-  // Quick add preset meters
-  const presetMeters = [
-    { name: 'Šaltas vanduo', icon: Droplets, unit: 'm3' as const, price: 1.32 },
-    { name: 'Karštas vanduo', icon: Droplets, unit: 'm3' as const, price: 3.50 },
-    { name: 'Elektra', icon: Zap, unit: 'kWh' as const, price: 0.23 },
-    { name: 'Šildymas', icon: Flame, unit: 'kWh' as const, price: 0.095 },
-  ];
+  // Quick add preset meters — from centralized METER_TEMPLATES
+  const iconMap: Record<string, React.FC<{ className?: string }>> = {
+    droplet: Droplets,
+    bolt: Zap,
+    flame: Flame,
+    gauge: Gauge,
+    trash: Trash2,
+    fan: Fan,
+    elevator: ArrowUpDown,
+    wifi: Wifi
+  };
+
+  const presetMeters = METER_TEMPLATES.map(t => ({
+    name: t.name,
+    icon: iconMap[t.icon] || Gauge,
+    unit: t.unit,
+    price: t.defaultPrice || 0,
+    type: t.type,
+    distribution: t.distribution,
+    requiresPhoto: t.requiresPhoto || false
+  }));
 
   const handleAddPreset = (preset: typeof presetMeters[0]) => {
     const newMeter: LocalMeter = {
       id: `meter_${Date.now()}`,
       name: preset.name,
-      type: 'individual',
+      type: preset.type,
       unit: preset.unit,
-      price_per_unit: preset.price,
-      distribution_method: 'per_consumption',
+      price_per_unit: preset.unit === 'Kitas' ? 0 : preset.price,
+      fixed_price: preset.unit === 'Kitas' ? preset.price : undefined,
+      distribution_method: preset.distribution as DistributionMethod,
       description: '',
       is_active: true,
-      requires_photo: true,
-      collectionMode: 'tenant_photo',
-      landlordReadingEnabled: true,
-      tenantPhotoEnabled: true,
+      requires_photo: preset.requiresPhoto,
+      collectionMode: preset.requiresPhoto ? 'tenant_photo' : 'landlord_only',
+      landlordReadingEnabled: !preset.requiresPhoto,
+      tenantPhotoEnabled: preset.requiresPhoto,
     };
     onMetersChange([...meters, newMeter]);
     setSelectedMeterId(newMeter.id);
@@ -1509,7 +1525,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                       >
                         <preset.icon className="w-4 h-4 text-gray-400" />
                         {preset.name}
-                        <span className="ml-auto text-[11px] text-gray-400">{preset.price.toFixed(2)} €</span>
+                        <span className="ml-auto text-[11px] text-gray-400">{fmtTariff(preset.price)} €</span>
                       </button>
                     ))}
                     <div className="border-t border-gray-100 mt-1 pt-1">
@@ -1589,7 +1605,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                         </div>
                         {/* Row 2: Summary - clearer typography */}
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[12px] leading-snug">
-                          <span className="font-bold text-gray-900">{(meter.unit === 'Kitas' ? (meter.fixed_price ?? 0) : (meter.price_per_unit ?? 0)).toFixed(2)} €/{meter.unit}</span>
+                          <span className="font-bold text-gray-900">{fmtTariff(meter.unit === 'Kitas' ? (meter.fixed_price ?? 0) : (meter.price_per_unit ?? 0))} €/{meter.unit}</span>
                           <span className="text-gray-300 text-[10px]">•</span>
                           <span className="text-gray-600 font-medium">Paskirstymas: <span className="text-gray-900">{getAllocationShort(meter.distribution_method)}</span></span>
                           <span className="text-gray-300 text-[10px]">•</span>
@@ -1846,6 +1862,37 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                       : 'Savininkas suveda ir deklaruoja rodmenis.'}
                   </p>
                 </div>
+              </div>
+
+              {/* Card 5: Supplier */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wide">Tiekėjas</h4>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 p-1 flex items-center shadow-sm">
+                  <input
+                    type="text"
+                    value={selectedMeter.supplier || ''}
+                    onChange={(e) => {
+                      const newSupplier = e.target.value;
+                      const updated = meters.map(m =>
+                        m.id === selectedMeter.id ? { ...m, supplier: newSupplier } : m
+                      );
+                      onMetersChange(updated);
+                      // Save to DB in background
+                      if (onMeterUpdate) {
+                        Promise.resolve().then(() => {
+                          onMeterUpdate(selectedMeter.id, { supplier: newSupplier });
+                        });
+                      }
+                    }}
+                    placeholder="Pvz. Vilniaus energija arba www.ve.lt"
+                    className="flex-1 px-3 py-2 text-[13px] text-gray-900 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-400"
+                  />
+                </div>
+                <p className="text-[11px] font-medium text-gray-500 mt-2">
+                  Neprivaloma. Tiekėjo pavadinimas arba svetainė.
+                </p>
               </div>
 
               {/* Danger Zone */}

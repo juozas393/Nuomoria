@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, createRef } from 'react';
-import { Calendar, MoreHorizontal, Download, Settings, Send, CheckCircle, Plus, Gauge, TrendingUp, Clock, ChevronDown, Loader2, Bell, AlertTriangle } from 'lucide-react';
+import { Calendar, MoreHorizontal, Download, Settings, Send, CheckCircle, Plus, Gauge, TrendingUp, Clock, ChevronDown, Loader2, Bell, AlertTriangle, FileText } from 'lucide-react';
 import { RodmenysModule, StatusFilter, MeterCategory, MeterScope } from './WorkSurface';
 import { MeterRow, MeterData, MeterRowRef } from './MeterRow';
 import { BulkActionBar } from './BulkActionBar';
 import { useBulkEdits, useMetersFilters } from './hooks/useBulkEdits';
 import { useMeterReadings } from './useMeterReadings';
 import { MeterHistoryPanel } from './MeterHistoryPanel';
+import { InvoiceGeneratorModal } from './InvoiceGeneratorModal';
 import { supabase } from '../../../lib/supabase';
 
 // =============================================================================
@@ -17,6 +18,10 @@ interface KomunaliniaiTabProps {
     addressId?: string;
     meters: MeterData[];
     dueDate?: Date;
+    rent?: number;
+    tenantName?: string;
+    apartmentNumber?: string;
+    paymentDueDay?: number; // per-apartment override from extended_details
     onAddMeter?: () => void;
     onCollectReadings?: () => void;
     onExport?: () => void;
@@ -38,39 +43,53 @@ const PageHeader: React.FC<{
     missing: number; pending: number;
     onCollect?: () => void; onReview?: () => void; onAdd?: () => void; onExport?: () => void; onSettings?: () => void;
     onRequestReadings?: () => void; isRequestingSent?: boolean; isRequestWarning?: boolean;
-}> = ({ year, month, onPeriod, missing, pending, onCollect, onReview, onAdd, onExport, onSettings, onRequestReadings, isRequestingSent, isRequestWarning }) => {
+    lastRequestSentAt?: string | null;
+}> = ({ year, month, onPeriod, missing, pending, onCollect, onReview, onAdd, onExport, onSettings, onRequestReadings, isRequestingSent, isRequestWarning, lastRequestSentAt }) => {
     const [showPicker, setShowPicker] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
 
+    const formatSentTime = (isoDate: string) => {
+        const d = new Date(isoDate);
+        const now = new Date();
+        const diffMs = now.getTime() - d.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        if (diffMins < 1) return 'ką tik';
+        if (diffMins < 60) return `prieš ${diffMins} min.`;
+        if (diffHours < 24) return `prieš ${diffHours} val.`;
+        return d.toLocaleDateString('lt-LT', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    };
+
     const cta = useMemo(() => {
         if (isRequestingSent) return { label: 'Išsiųsta!', count: 0, icon: CheckCircle, onClick: undefined, sent: true };
+        if (lastRequestSentAt && missing > 0) return { label: 'Siųsti dar kartą', count: missing, icon: Send, onClick: onRequestReadings, sent: false, alreadySent: true };
         if (missing > 0) return { label: 'Prašyti rodmenų', count: missing, icon: Send, onClick: onRequestReadings, sent: false };
         if (pending > 0) return { label: 'Peržiūrėti', count: pending, icon: CheckCircle, onClick: onReview, sent: false };
         return { label: 'Pridėti', count: 0, icon: Plus, onClick: onAdd, sent: false };
-    }, [missing, pending, onCollect, onReview, onAdd, isRequestingSent]);
+    }, [missing, pending, onCollect, onReview, onAdd, isRequestingSent, lastRequestSentAt]);
 
     return (
-        <div className="px-6 py-5 flex items-center gap-5 bg-white border-b border-slate-200">
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Komunaliniai</h1>
+        <div className="px-6 py-5 flex items-center gap-5 border-b border-white/[0.08]">
+            <h1 className="text-xl font-bold text-white tracking-tight">Komunaliniai</h1>
 
             {/* Period selector */}
             <div className="relative">
                 <button
                     onClick={() => setShowPicker(!showPicker)}
-                    className="flex items-center gap-2.5 h-10 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors duration-150"
+                    className="flex items-center gap-2.5 h-10 px-4 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.12] rounded-xl transition-colors duration-150"
                 >
-                    <Calendar className="w-4 h-4 text-slate-500" />
-                    <span className="font-semibold text-gray-700">{MONTHS[month]} {year}</span>
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showPicker ? 'rotate-180' : ''}`} />
+                    <Calendar className="w-4 h-4 text-white/50" />
+                    <span className="font-semibold text-white/80">{MONTHS[month]} {year}</span>
+                    <ChevronDown className={`w-4 h-4 text-white/40 transition-transform duration-200 ${showPicker ? 'rotate-180' : ''}`} />
                 </button>
                 {showPicker && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowPicker(false)} />
-                        <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-5 z-50 min-w-[320px]">
+                        <div className="absolute top-full left-0 mt-2 bg-[#1a1f25] backdrop-blur-xl rounded-2xl shadow-xl border border-white/[0.12] p-5 z-50 min-w-[320px]">
                             <div className="flex items-center justify-between mb-4">
-                                <button onClick={() => onPeriod(year - 1, month)} className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 font-bold transition-colors">←</button>
-                                <span className="font-bold text-gray-900 text-lg">{year}</span>
-                                <button onClick={() => onPeriod(year + 1, month)} className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 font-bold transition-colors">→</button>
+                                <button onClick={() => onPeriod(year - 1, month)} className="w-9 h-9 flex items-center justify-center hover:bg-white/[0.08] rounded-lg text-white/50 font-bold transition-colors">←</button>
+                                <span className="font-bold text-white text-lg">{year}</span>
+                                <button onClick={() => onPeriod(year + 1, month)} className="w-9 h-9 flex items-center justify-center hover:bg-white/[0.08] rounded-lg text-white/50 font-bold transition-colors">→</button>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 {MONTHS.map((m, i) => (
@@ -79,7 +98,7 @@ const PageHeader: React.FC<{
                                         onClick={() => { onPeriod(year, i); setShowPicker(false); }}
                                         className={`px-4 py-2.5 text-sm font-semibold rounded-xl transition-colors duration-150 ${i === month
                                             ? 'bg-teal-600 text-white shadow-sm'
-                                            : 'text-gray-600 hover:bg-slate-100'
+                                            : 'text-white/60 hover:bg-white/[0.08]'
                                             }`}
                                     >
                                         {m}
@@ -95,9 +114,9 @@ const PageHeader: React.FC<{
 
             {/* Warning indicator */}
             {missing > 0 && (
-                <div className="hidden lg:flex items-center gap-2.5 px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-xl">
-                    <Clock className="w-4 h-4 text-orange-600" />
-                    <span className="text-sm font-bold text-orange-700">{missing} laukia įvesties</span>
+                <div className="hidden lg:flex items-center gap-2.5 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                    <Clock className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm font-bold text-amber-300">{missing} laukia įvesties</span>
                 </div>
             )}
 
@@ -105,28 +124,36 @@ const PageHeader: React.FC<{
             <div className="relative">
                 <button
                     onClick={() => setShowMenu(!showMenu)}
-                    className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors duration-150"
+                    className="w-10 h-10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] rounded-xl transition-colors duration-150"
                 >
                     <MoreHorizontal className="w-5 h-5" />
                 </button>
                 {showMenu && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                        <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-50 min-w-[220px]">
-                            <button onClick={() => { onExport?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-slate-50 flex items-center gap-3 font-medium transition-colors">
-                                <Download className="w-4 h-4 text-slate-400" />Eksportuoti
+                        <div className="absolute top-full right-0 mt-2 bg-[#1a1f25] backdrop-blur-xl rounded-xl shadow-xl border border-white/[0.12] py-1.5 z-50 min-w-[220px]">
+                            <button onClick={() => { onExport?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-white/70 hover:bg-white/[0.06] flex items-center gap-3 font-medium transition-colors">
+                                <Download className="w-4 h-4 text-white/40" />Eksportuoti
                             </button>
-                            <button onClick={() => { onSettings?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-slate-50 flex items-center gap-3 font-medium transition-colors">
-                                <Settings className="w-4 h-4 text-slate-400" />Nustatymai
+                            <button onClick={() => { onSettings?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-white/70 hover:bg-white/[0.06] flex items-center gap-3 font-medium transition-colors">
+                                <Settings className="w-4 h-4 text-white/40" />Nustatymai
                             </button>
-                            <hr className="my-1.5 border-slate-100" />
-                            <button onClick={() => { onAdd?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-teal-600 hover:bg-teal-50 flex items-center gap-3 font-bold transition-colors">
+                            <hr className="my-1.5 border-white/[0.08]" />
+                            <button onClick={() => { onAdd?.(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm text-teal-400 hover:bg-teal-500/10 flex items-center gap-3 font-bold transition-colors">
                                 <Plus className="w-4 h-4" />Pridėti skaitliuką
                             </button>
                         </div>
                     </>
                 )}
             </div>
+
+            {/* Sent time indicator */}
+            {lastRequestSentAt && !isRequestingSent && (
+                <div className="hidden lg:flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[11px] font-medium text-emerald-300">Išsiųsta {formatSentTime(lastRequestSentAt)}</span>
+                </div>
+            )}
 
             {/* Main CTA */}
             <button
@@ -180,13 +207,25 @@ const EmptyState: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => (
 // MAIN COMPONENT
 // =============================================================================
 
-export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, addressId, meters, dueDate, onAddMeter, onCollectReadings, onExport, onSettings, onSaveReadings, onSavePreviousReadings }) => {
+export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, addressId, meters, dueDate, rent, tenantName, apartmentNumber, paymentDueDay, onAddMeter, onCollectReadings, onExport, onSettings, onSaveReadings, onSavePreviousReadings }) => {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
     const [isSaving, setIsSaving] = useState(false);
     const [requestSent, setRequestSent] = useState(false);
+
+    // Abnormal reading confirmation (landlord says "I verified this is correct")
+    const [confirmedAbnormal, setConfirmedAbnormal] = useState<Set<string>>(new Set());
+    // Invoice modal state
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [requestWarning, setRequestWarning] = useState<string | null>(null);
+    const [lastRequestSentAt, setLastRequestSentAt] = useState<string | null>(null);
+    // Confirmation modal before saving abnormal readings
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    // Confirmation modal before sending reading request
+    const [showSendConfirm, setShowSendConfirm] = useState(false);
+    // Confirmation modal before generating invoice with missing readings
+    const [showInvoiceConfirm, setShowInvoiceConfirm] = useState(false);
 
     // History panel state
     const [historyMeter, setHistoryMeter] = useState<{ id: string; name: string; unit: string } | null>(null);
@@ -194,24 +233,53 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
     // Hook for period-aware meter data
     const hook = useMeterReadings(propertyId, addressId, year, month);
 
-    // Fetch meterReadingEndDay from address_settings (end of reading period = due date)
+    // Fetch meterReadingEndDay + paymentDay from address_settings
     const [meterReadingDay, setMeterReadingDay] = useState<number | null>(null);
+    const [addressPaymentDay, setAddressPaymentDay] = useState<number | null>(null);
     useEffect(() => {
         if (!addressId) return;
         let cancelled = false;
         supabase
             .from('address_settings')
-            .select('notification_settings')
+            .select('notification_settings, financial_settings')
             .eq('address_id', addressId)
             .maybeSingle()
             .then(({ data }) => {
-                if (!cancelled && data?.notification_settings) {
-                    const endDay = data.notification_settings.meterReadingEndDay || data.notification_settings.meterReadingDay;
-                    if (endDay) setMeterReadingDay(endDay);
+                if (!cancelled) {
+                    if (data?.notification_settings) {
+                        const endDay = data.notification_settings.meterReadingEndDay || data.notification_settings.meterReadingDay;
+                        if (endDay) setMeterReadingDay(endDay);
+                    }
+                    if (data?.financial_settings?.paymentDay) {
+                        setAddressPaymentDay(data.financial_settings.paymentDay);
+                    }
                 }
             });
         return () => { cancelled = true; };
     }, [addressId]);
+
+    // Check if meter reading request was already sent for this period
+    useEffect(() => {
+        if (!propertyId) return;
+        let cancelled = false;
+        const periodStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+        supabase
+            .from('notifications')
+            .select('created_at')
+            .eq('kind', 'meter_reading_request')
+            .filter('data->>property_id', 'eq', propertyId)
+            .filter('data->>period', 'eq', periodStr)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => {
+                if (!cancelled) {
+                    setLastRequestSentAt(data?.created_at || null);
+                    if (data?.created_at) setRequestSent(true);
+                }
+            });
+        return () => { cancelled = true; };
+    }, [propertyId, year, month]);
 
     // State for meter status overrides (for approve/reject workflow)
     const [meterOverrides, setMeterOverrides] = useState<Record<string, Partial<MeterData>>>({});
@@ -264,7 +332,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         [baseMeters, meterOverrides]
     );
 
-    const { setDraft, clearAllDrafts, getDraft, dirtyCount, errorCount, hasErrors, getDirtyValues } = useBulkEdits();
+    const { setDraft, clearDraft, clearAllDrafts, getDraft, dirtyCount, errorCount, hasErrors, getDirtyValues, getClearedMeterIds } = useBulkEdits();
     const { attentionFilter, setAttentionFilter, searchQuery, setSearchQuery, categoryFilter, setCategoryFilter, scopeFilter, setScopeFilter, applyFilters } = useMetersFilters();
 
     const counts = useMemo(() => {
@@ -311,14 +379,23 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         console.log(`[KomunaliniaiTab] Approved meter ${meterId} with reading ${reading}`);
     }, []);
 
-    // Reject reading - changes status back to 'missing', clears readings and photo
-    const handleReject = useCallback((meterId: string) => {
+    // Reject reading - delete from DB, change local status back to 'missing'
+    const handleReject = useCallback(async (meterId: string) => {
+        // Delete reading from DB first
+        try {
+            await hook.deleteReading(meterId);
+        } catch (e) {
+            console.error('[KomunaliniaiTab] Failed to delete reading on reject:', e);
+        }
+        // Update local state
         setMeterOverrides(prev => ({
             ...prev,
             [meterId]: { status: 'missing', currentReading: null, photoUrl: null }
         }));
-        console.log(`[KomunaliniaiTab] Rejected meter ${meterId}`);
-    }, []);
+        // Refetch to sync
+        hook.refetch();
+        console.log(`[KomunaliniaiTab] Rejected meter ${meterId} — deleted from DB`);
+    }, [hook]);
 
     // Update previous reading
     const handlePreviousReadingChange = useCallback((meterId: string, value: number) => {
@@ -332,19 +409,51 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         console.log(`[KomunaliniaiTab] Updated previous reading for meter ${meterId} to ${value}`);
     }, []);
 
-    // History panel handler
-    const handleRowAction = useCallback((meterId: string, action: string) => {
+    // History panel handler + delete reading + confirm abnormal
+    const handleRowAction = useCallback(async (meterId: string, action: string) => {
         if (action === 'history') {
             const meter = activeMeters.find(m => m.id === meterId);
             if (meter) {
                 setHistoryMeter({ id: meter.id, name: meter.name, unit: meter.unit });
             }
+        } else if (action === 'confirm') {
+            // Landlord confirms abnormal reading is correct
+            setConfirmedAbnormal(prev => new Set(prev).add(meterId));
+        } else if (action === 'delete') {
+            // Delete the current period reading from DB
+            const success = await hook.deleteReading(meterId);
+            if (success) {
+                // Properly clear the draft entry (remove it entirely, not set to '')
+                clearDraft(meterId);
+                // Force meter state to 'missing' with cleared values via overrides
+                setMeterOverrides(prev => ({
+                    ...prev,
+                    [meterId]: { status: 'missing' as const, currentReading: null, consumption: null, cost: null }
+                }));
+                // Refetch to get clean state from DB
+                await hook.refetch();
+                // After refetch, clear the override so fresh DB state takes over
+                setMeterOverrides(prev => {
+                    const next = { ...prev };
+                    delete next[meterId];
+                    return next;
+                });
+                console.log(`[KomunaliniaiTab] ✅ Deleted reading for meter ${meterId}`);
+            } else {
+                console.error(`[KomunaliniaiTab] ❌ Failed to delete reading for meter ${meterId}`);
+            }
         }
-    }, [activeMeters]);
+    }, [activeMeters, hook, clearDraft]);
 
-    // Request readings from tenants — sends notification to all tenants at this address
-    const handleRequestReadings = useCallback(async () => {
-        console.log('[KomunaliniaiTab] handleRequestReadings called, addressId:', addressId, 'propertyId:', propertyId);
+    // Request readings from tenants — show confirmation modal first
+    const handleRequestReadings = useCallback(() => {
+        setShowSendConfirm(true);
+    }, []);
+
+    // Actual send logic — called from send confirmation modal
+    const executeSendReadings = useCallback(async () => {
+        setShowSendConfirm(false);
+        console.log('[KomunaliniaiTab] executeSendReadings, addressId:', addressId, 'propertyId:', propertyId);
         if (!addressId) {
             console.warn('[KomunaliniaiTab] No addressId — cannot send notifications');
             return;
@@ -353,7 +462,6 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
             // Find tenant user_id via accepted invitation → user email lookup
             let tenantUserIds: string[] = [];
 
-            // Step 1: Get accepted invitation for this property (landlord has RLS access to own invitations)
             const { data: invitation, error: invErr } = await supabase
                 .from('tenant_invitations')
                 .select('email, full_name')
@@ -364,9 +472,6 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 .maybeSingle();
 
             if (!invErr && invitation?.email) {
-                console.log('[KomunaliniaiTab] Found accepted invitation for:', invitation.email);
-
-                // Step 2: Look up user by email to get user_id
                 const { data: userRow } = await supabase
                     .from('users')
                     .select('id')
@@ -375,12 +480,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
 
                 if (userRow?.id) {
                     tenantUserIds = [userRow.id];
-                    console.log('[KomunaliniaiTab] Found tenant user_id:', userRow.id);
-                } else {
-                    console.log('[KomunaliniaiTab] User not found for email:', invitation.email);
                 }
-            } else {
-                console.log('[KomunaliniaiTab] No accepted invitation found, invErr:', invErr?.message);
             }
 
             // Fallback: try tenants table
@@ -393,14 +493,10 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
 
                 if (directTenants && directTenants.length > 0) {
                     tenantUserIds = directTenants.map(t => t.user_id).filter(Boolean);
-                    console.log('[KomunaliniaiTab] Found tenants via tenants table:', tenantUserIds.length);
                 }
             }
 
-            console.log('[KomunaliniaiTab] Tenant lookup result:', { tenantUserIds, invErr: invErr?.message });
-
             if (tenantUserIds.length === 0) {
-                console.warn('[KomunaliniaiTab] No tenants found at address', addressId);
                 setRequestWarning('Šiam butui nepriskirtas nuomininkas. Pirmiausia pridėkite nuomininką.');
                 setTimeout(() => setRequestWarning(null), 5000);
                 return;
@@ -409,7 +505,6 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
             const MONTHS = ['Sausis', 'Vasaris', 'Kovas', 'Balandis', 'Gegužė', 'Birželis', 'Liepa', 'Rugpjūtis', 'Rugsėjis', 'Spalis', 'Lapkritis', 'Gruodis'];
             const periodLabel = `${MONTHS[month]} ${year}`;
             const deadline = new Date(year, month + 1, 0).toISOString().split('T')[0];
-
             const individualMeters = activeMeters.filter(m => m.scope === 'individual' && m.status === 'missing');
 
             const notifications = tenantUserIds.map(uid => ({
@@ -426,7 +521,6 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 },
             }));
 
-            console.log('[KomunaliniaiTab] Inserting notifications:', notifications);
             const { error } = await supabase.from('notifications').insert(notifications);
             if (error) {
                 console.error('[KomunaliniaiTab] Failed to send notifications:', error);
@@ -434,8 +528,20 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
             }
 
             setRequestSent(true);
+            setLastRequestSentAt(new Date().toISOString());
             setTimeout(() => setRequestSent(false), 5000);
-            console.log(`[KomunaliniaiTab] ✅ Sent meter reading request to ${tenantUserIds.length} tenant(s)`);
+
+            // Log to audit
+            try {
+                const { data: authUser } = await supabase.auth.getUser();
+                const period = `${year}-${String(month + 1).padStart(2, '0')}`;
+                await supabase.from('audit_log').insert({
+                    user_id: authUser?.user?.id, user_email: authUser?.user?.email,
+                    action: 'SUBMIT', table_name: 'notifications', record_id: propertyId,
+                    description: `Išsiuntė rodmenų prašymą ${tenantUserIds.length} nuomininkui(-ams) už ${period}`,
+                    new_data: { tenant_count: tenantUserIds.length, period, meter_count: individualMeters.length },
+                });
+            } catch { /* non-blocking */ }
         } catch (e) {
             console.error('[KomunaliniaiTab] Error requesting readings:', e);
         }
@@ -453,16 +559,21 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 previousReading: override.previousReading as number
             }));
 
+        // Detect meters where user cleared the input (need to delete from DB)
+        const metersWithReadings = activeMeters.filter(m => m.status !== 'missing' && m.currentReading != null).map(m => m.id);
+        const clearedMeterIds = getClearedMeterIds(metersWithReadings);
+
         console.log(`[KomunaliniaiTab] handleSave called:`, {
             dirtyCount: dirtyValues.length,
             prevCount: prevReadingUpdates.length,
+            clearedCount: clearedMeterIds.length,
             addressId,
             hookMetersLen: hook.meters.length,
             period: `${year}-${month + 1}`,
         });
 
-        if (dirtyValues.length === 0 && prevReadingUpdates.length === 0) {
-            console.log('[KomunaliniaiTab] Nothing to save, aborting');
+        if (dirtyValues.length === 0 && prevReadingUpdates.length === 0 && clearedMeterIds.length === 0) {
+            console.log('[KomunaliniaiTab] Nothing to save or delete, aborting');
             return;
         }
 
@@ -515,9 +626,17 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                     console.log(`[KomunaliniaiTab] ${success ? '✅' : '❌'} meter ${meterId}`);
                 }
 
+                // Delete cleared meters from DB (previous_reading is carry-forward from prior month)
+                for (const meterId of clearedMeterIds) {
+                    if (!metersToSave.has(meterId)) {
+                        console.log(`[KomunaliniaiTab] Deleting cleared meter ${meterId}`);
+                        await hook.deleteReading(meterId);
+                    }
+                }
+
                 // Refetch to get updated data from DB
                 await hook.refetch();
-                console.log(`[KomunaliniaiTab] Refetch complete. Saved ${savedCount}/${metersToSave.size} meters`);
+                console.log(`[KomunaliniaiTab] Refetch complete. Saved ${savedCount}/${metersToSave.size}, deleted ${clearedMeterIds.length}`);
 
                 // Clear all local state — hook.meters now has fresh DB data
                 clearAllDrafts();
@@ -543,7 +662,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                         updates[meterId] = {
                             ...(prev[meterId] || {}),
                             currentReading: value,
-                            status: 'ok'
+                            status: 'pending'
                         };
                     }
                     // Clear saved previousReading entries
@@ -566,29 +685,78 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         } finally {
             setIsSaving(false);
         }
-    }, [onSaveReadings, onSavePreviousReadings, getDirtyValues, getDraft, clearAllDrafts, meterOverrides, addressId, hook, activeMeters, year, month]);
+    }, [onSaveReadings, onSavePreviousReadings, getDirtyValues, getDraft, clearAllDrafts, getClearedMeterIds, meterOverrides, addressId, hook, activeMeters, year, month]);
+
+    // Auto-save: debounce 1.5s after changes
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const handleSaveRef = useRef(handleSave);
+    handleSaveRef.current = handleSave;
+
+    // Count cleared meters that need deletion (for auto-save trigger)
+    const clearedCount = useMemo(() => {
+        const metersWithReadings = activeMeters.filter(m => m.status !== 'missing' && m.currentReading != null).map(m => m.id);
+        return getClearedMeterIds(metersWithReadings).length;
+    }, [activeMeters, getClearedMeterIds]);
+
+    useEffect(() => {
+        const totalDirty = dirtyCount + prevDirtyCount + clearedCount;
+        if (totalDirty === 0 || hasErrors || isSaving) return;
+
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+            // Check for abnormal readings among dirty meters (adaptive thresholds)
+            const dirtyValues = getDirtyValues();
+            const BASE_THRESHOLDS: Record<string, number> = { vanduo: 50, elektra: 500, sildymas: 1000, dujos: 200 };
+            const hasAbnormal = dirtyValues.some(({ meterId, value }) => {
+                const meter = activeMeters.find(m => m.id === meterId);
+                if (!meter || confirmedAbnormal.has(meterId)) return false;
+                const prev = meter.previousReading ?? 0;
+                const consumption = value - prev;
+                let threshold = BASE_THRESHOLDS[meter.category] ?? 500;
+                // Adaptive: check localStorage for previously confirmed consumption
+                try {
+                    const stored = localStorage.getItem(`nuomoria_confirmed_consumption_${meterId}`);
+                    if (stored) {
+                        const confirmedVal = parseFloat(stored);
+                        if (!isNaN(confirmedVal) && confirmedVal > 0) threshold = Math.max(threshold, confirmedVal * 1.5);
+                    }
+                } catch { /* noop */ }
+                return consumption > threshold;
+            });
+
+            if (hasAbnormal) {
+                setShowConfirmModal(true);
+            } else {
+                handleSaveRef.current();
+            }
+        }, 1000);
+
+        return () => {
+            if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        };
+    }, [dirtyCount, prevDirtyCount, clearedCount, hasErrors, isSaving, getDirtyValues, activeMeters, confirmedAbnormal]);
 
     // Loading state when hook is fetching
     if (hook.isLoading && activeMeters.length === 0) {
         return (
-            <div className="flex flex-col h-full bg-white">
-                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} />
+            <div className="flex flex-col h-full -m-6">
+                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} lastRequestSentAt={lastRequestSentAt} />
                 {requestSent && (
-                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl animate-in fade-in duration-300">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                        <span className="text-sm font-semibold text-emerald-700">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in fade-in duration-300">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-emerald-300">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
                     </div>
                 )}
                 {requestWarning && (
-                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl animate-in fade-in duration-300">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                        <span className="text-sm font-semibold text-amber-700">{requestWarning}</span>
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl animate-in fade-in duration-300">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-amber-300">{requestWarning}</span>
                     </div>
                 )}
                 <div className="flex-1 flex items-center justify-center py-24">
                     <div className="text-center">
                         <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto mb-3" />
-                        <p className="text-sm text-slate-500">Kraunami rodmenys...</p>
+                        <p className="text-sm text-white/50">Kraunami rodmenys...</p>
                     </div>
                 </div>
             </div>
@@ -598,18 +766,18 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
     // Only show empty state if we have NO meters AND no mock data
     if (activeMeters.length === 0) {
         return (
-            <div className="flex flex-col h-full bg-white">
-                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} />
+            <div className="flex flex-col h-full -m-6">
+                <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={0} pending={0} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} lastRequestSentAt={lastRequestSentAt} />
                 {requestSent && (
-                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                        <span className="text-sm font-semibold text-emerald-700">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-emerald-300">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
                     </div>
                 )}
                 {requestWarning && (
-                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                        <span className="text-sm font-semibold text-amber-700">{requestWarning}</span>
+                    <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-amber-300">{requestWarning}</span>
                     </div>
                 )}
                 <EmptyState onAdd={onAddMeter} />
@@ -618,18 +786,18 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-100/80">
-            <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={counts.missing} pending={counts.pending} onCollect={handleRequestReadings} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} />
+        <div className="flex flex-col h-full -m-6">
+            <PageHeader year={year} month={month} onPeriod={handlePeriod} missing={counts.missing} pending={counts.pending} onCollect={handleRequestReadings} onAdd={onAddMeter} onExport={onExport} onSettings={onSettings} onRequestReadings={handleRequestReadings} isRequestingSent={requestSent} isRequestWarning={!!requestWarning} lastRequestSentAt={lastRequestSentAt} />
             {requestSent && (
-                <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <span className="text-sm font-semibold text-emerald-700">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
+                <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                    <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-emerald-300">Pranešimas nuomininkams išsiųstas sėkmingai!</span>
                 </div>
             )}
             {requestWarning && (
-                <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    <span className="text-sm font-semibold text-amber-700">{requestWarning}</span>
+                <div className="mx-6 mt-3 flex items-center gap-2.5 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-amber-300">{requestWarning}</span>
                 </div>
             )}
 
@@ -647,18 +815,18 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                     {filteredMeters.length > 0 ? (
                         <table className="w-full">
                             {/* Executive table header (Rule 18.4) */}
-                            <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
+                            <thead className="sticky top-0 z-10 bg-white/60 backdrop-blur-sm border-b border-gray-200/50">
                                 <tr>
-                                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Skaitiklis</th>
-                                    <th className="w-28 px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Būsena</th>
-                                    <th className="w-24 px-4 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ankst.</th>
-                                    <th className="w-32 px-4 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dabartinis</th>
-                                    <th className="w-28 px-4 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Suvart.</th>
-                                    <th className="w-24 px-4 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Kaina</th>
+                                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Skaitiklis</th>
+                                    <th className="w-28 px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Būsena</th>
+                                    <th className="w-24 px-4 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Ankst.</th>
+                                    <th className="w-32 px-4 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Dabartinis</th>
+                                    <th className="w-28 px-4 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Suvart.</th>
+                                    <th className="w-24 px-4 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Kaina</th>
                                     <th className="w-10 px-2 py-3"></th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-gray-100">
                                 {filteredMeters.map((meter) => (
                                     <MeterRow
                                         key={meter.id}
@@ -672,6 +840,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                                         onPreviousReadingChange={handlePreviousReadingChange}
                                         onApprove={handleApprove}
                                         onReject={handleReject}
+                                        isAbnormalConfirmed={confirmedAbnormal.has(meter.id)}
                                         onRowAction={(action) => handleRowAction(meter.id, action)}
                                     />
                                 ))}
@@ -690,7 +859,241 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 </RodmenysModule>
             </div>
 
-            <BulkActionBar dirtyCount={dirtyCount + prevDirtyCount} hasErrors={hasErrors} errorCount={errorCount} onSave={handleSave} onDiscard={clearAllDrafts} isSaving={isSaving} />
+            {/* Generate Invoice Button — show when readings exist */}
+            {activeMeters.length > 0 && activeMeters.some(m => m.status !== 'missing') && (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200/30 bg-white/[0.02]">
+                    <div className="text-[11px] text-gray-400">
+                        {activeMeters.filter(m => m.status !== 'missing').length} / {activeMeters.length} rodmenų pateikta
+                    </div>
+                    <button
+                        onClick={() => {
+                            const submittedCount = activeMeters.filter(m => m.status !== 'missing').length;
+                            const totalCount = activeMeters.length;
+                            const missingCount = totalCount - submittedCount;
+                            if (missingCount > 0) {
+                                setShowInvoiceConfirm(true);
+                                return;
+                            }
+                            setShowInvoiceModal(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-500 text-white text-[12px] font-bold rounded-lg hover:bg-teal-600 transition-colors active:scale-[0.98] shadow-sm"
+                    >
+                        <FileText className="w-3.5 h-3.5" />
+                        Generuoti sąskaitą
+                    </button>
+                </div>
+            )}
+
+            {/* Auto-save indicator (replaces manual BulkActionBar) */}
+            {isSaving && (
+                <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white/[0.04] border-t border-white/[0.08]">
+                    <Loader2 className="w-3.5 h-3.5 text-teal-400 animate-spin" />
+                    <span className="text-[12px] font-medium text-white/50">Saugoma...</span>
+                </div>
+            )}
+
+            {/* ═══ CONFIRMATION MODAL ═══ */}
+            {showConfirmModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center" onClick={() => setShowConfirmModal(false)}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="px-5 py-4 border-b border-gray-100 bg-amber-50">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-[14px] font-bold text-gray-900">Patikrinkite rodmenis</h3>
+                                    <p className="text-[11px] text-gray-500">Rasti neįprasti skaičiai — ar tikrai teisingi?</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Readings list */}
+                        <div className="px-5 py-3 max-h-[300px] overflow-y-auto">
+                            {(() => {
+                                const dirtyValues = getDirtyValues();
+                                const THRESHOLDS: Record<string, number> = { vanduo: 50, elektra: 500, sildymas: 1000, dujos: 200 };
+                                return dirtyValues.map(({ meterId, value }) => {
+                                    const meter = activeMeters.find(m => m.id === meterId);
+                                    if (!meter) return null;
+                                    const prev = meter.previousReading ?? 0;
+                                    const consumption = value - prev;
+                                    const threshold = THRESHOLDS[meter.category] ?? 500;
+                                    const abnormal = consumption > threshold && !confirmedAbnormal.has(meterId);
+                                    const cost = meter.tariff ? consumption * meter.tariff : null;
+                                    return (
+                                        <div key={meterId} className={`flex items-center justify-between py-2 border-b border-gray-100 last:border-0 ${abnormal ? 'bg-red-50/50 -mx-5 px-5 rounded-lg' : ''}`}>
+                                            <div className="flex items-center gap-2">
+                                                {abnormal && <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                                                <div>
+                                                    <p className="text-[12px] font-semibold text-gray-800">{meter.name}</p>
+                                                    <p className="text-[10px] text-gray-400">
+                                                        {prev} → {value} = <span className={abnormal ? 'text-red-600 font-bold' : ''}>{consumption} {meter.unit}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`text-[13px] font-bold tabular-nums ${abnormal ? 'text-red-600' : 'text-gray-800'}`}>
+                                                    {cost !== null ? `${cost.toFixed(2)} €` : '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
+                            <button
+                                onClick={() => setShowConfirmModal(false)}
+                                className="flex-1 py-2.5 text-[12px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                            >
+                                Atšaukti
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowConfirmModal(false);
+                                    // Confirm all abnormal meters, persist to localStorage, and save
+                                    const dirtyValues = getDirtyValues();
+                                    const BASE_THRESHOLDS: Record<string, number> = { vanduo: 50, elektra: 500, sildymas: 1000, dujos: 200 };
+                                    const abnormalEntries = dirtyValues
+                                        .filter(({ meterId, value }) => {
+                                            const meter = activeMeters.find(m => m.id === meterId);
+                                            if (!meter) return false;
+                                            const consumption = value - (meter.previousReading ?? 0);
+                                            let threshold = BASE_THRESHOLDS[meter.category] ?? 500;
+                                            try {
+                                                const stored = localStorage.getItem(`nuomoria_confirmed_consumption_${meterId}`);
+                                                if (stored) {
+                                                    const cv = parseFloat(stored);
+                                                    if (!isNaN(cv) && cv > 0) threshold = Math.max(threshold, cv * 1.5);
+                                                }
+                                            } catch { /* noop */ }
+                                            return consumption > threshold;
+                                        })
+                                        .map(({ meterId, value }) => {
+                                            const meter = activeMeters.find(m => m.id === meterId);
+                                            return { meterId, consumption: value - (meter?.previousReading ?? 0) };
+                                        });
+                                    // Persist confirmed consumption to localStorage
+                                    try {
+                                        for (const { meterId, consumption } of abnormalEntries) {
+                                            localStorage.setItem(`nuomoria_confirmed_consumption_${meterId}`, String(consumption));
+                                        }
+                                    } catch { /* noop */ }
+                                    setConfirmedAbnormal(prev => {
+                                        const next = new Set(prev);
+                                        abnormalEntries.forEach(({ meterId }) => next.add(meterId));
+                                        return next;
+                                    });
+                                    handleSaveRef.current();
+                                }}
+                                className="flex-1 py-2.5 text-[12px] font-bold text-white bg-teal-500 rounded-xl hover:bg-teal-600 transition-colors active:scale-[0.98]"
+                            >
+                                Patvirtinti ir išsaugoti
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══ SEND REQUEST CONFIRMATION MODAL ═══ */}
+            {showSendConfirm && (() => {
+                const missingIndividual = activeMeters.filter(m => m.scope === 'individual' && m.status === 'missing');
+                const allFilled = missingIndividual.length === 0;
+                return (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center" onClick={() => setShowSendConfirm(false)}>
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="px-5 py-4 border-b border-gray-100 bg-teal-50">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-teal-100 flex items-center justify-center">
+                                        <Send className="w-4 h-4 text-teal-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[14px] font-bold text-gray-900">Prašyti rodmenų</h3>
+                                        <p className="text-[11px] text-gray-500">
+                                            {allFilled ? 'Visi individualūs skaitliukai užpildyti' : `${missingIndividual.length} skaitliukai laukia rodmenų`}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-5 py-3">
+                                {allFilled ? (
+                                    <p className="text-[12px] text-gray-500 py-2">Nuomininkas jau pateikė visus individualius rodmenis. Ar vis tiek norite siųsti priminimą?</p>
+                                ) : (
+                                    <div className="space-y-1.5">
+                                        <p className="text-[11px] text-gray-400 mb-2">Nuomininkui bus išsiųstas prašymas pateikti:</p>
+                                        {missingIndividual.map(m => (
+                                            <div key={m.id} className="flex items-center gap-2 py-1.5 px-3 bg-gray-50 rounded-lg">
+                                                <Gauge className="w-3.5 h-3.5 text-teal-500" />
+                                                <span className="text-[12px] font-medium text-gray-700">{m.name}</span>
+                                                <span className="text-[10px] text-gray-400 ml-auto">{m.unit}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
+                                <button onClick={() => setShowSendConfirm(false)} className="flex-1 py-2.5 text-[12px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                                    Atšaukti
+                                </button>
+                                <button onClick={executeSendReadings} className="flex-1 py-2.5 text-[12px] font-bold text-white bg-teal-500 rounded-xl hover:bg-teal-600 transition-colors active:scale-[0.98] inline-flex items-center justify-center gap-1.5">
+                                    <Send className="w-3.5 h-3.5" />Siųsti
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* ═══ INVOICE MISSING READINGS MODAL ═══ */}
+            {showInvoiceConfirm && (() => {
+                const submitted = activeMeters.filter(m => m.status !== 'missing');
+                const missing = activeMeters.filter(m => m.status === 'missing');
+                return (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center" onClick={() => setShowInvoiceConfirm(false)}>
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="px-5 py-4 border-b border-gray-100 bg-amber-50">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[14px] font-bold text-gray-900">Ne visi rodmenys pateikti</h3>
+                                        <p className="text-[11px] text-gray-500">{submitted.length} iš {activeMeters.length} skaitliukų turi rodmenis</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-5 py-3">
+                                <p className="text-[11px] text-gray-400 mb-2">Trūksta rodmenų:</p>
+                                <div className="space-y-1.5">
+                                    {missing.map(m => (
+                                        <div key={m.id} className="flex items-center gap-2 py-1.5 px-3 bg-amber-50/50 rounded-lg border border-amber-100">
+                                            <Gauge className="w-3.5 h-3.5 text-amber-500" />
+                                            <span className="text-[12px] font-medium text-gray-700">{m.name}</span>
+                                            <span className="text-[10px] text-amber-500 ml-auto">{m.scope === 'individual' ? 'Individualus' : 'Bendras'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-3">Sąskaita bus generuojama tik su esamais duomenimis.</p>
+                            </div>
+                            <div className="flex gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
+                                <button onClick={() => setShowInvoiceConfirm(false)} className="flex-1 py-2.5 text-[12px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                                    Atšaukti
+                                </button>
+                                <button onClick={() => { setShowInvoiceConfirm(false); setShowInvoiceModal(true); }} className="flex-1 py-2.5 text-[12px] font-bold text-white bg-teal-500 rounded-xl hover:bg-teal-600 transition-colors active:scale-[0.98] inline-flex items-center justify-center gap-1.5">
+                                    <FileText className="w-3.5 h-3.5" />Tęsti
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Meter History Panel */}
             <MeterHistoryPanel
@@ -700,6 +1103,29 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 isOpen={historyMeter !== null}
                 onClose={() => setHistoryMeter(null)}
                 fetchHistory={hook.fetchMeterHistory}
+            />
+
+            {/* Invoice Generator Modal */}
+            <InvoiceGeneratorModal
+                isOpen={showInvoiceModal}
+                onClose={() => setShowInvoiceModal(false)}
+                propertyId={propertyId}
+                addressId={addressId}
+                apartmentNumber={apartmentNumber || ''}
+                tenantName={tenantName || ''}
+                rent={rent || 0}
+                paymentDueDay={paymentDueDay || addressPaymentDay || 15}
+                meters={activeMeters.filter(m => m.status !== 'missing').map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    category: m.category,
+                    consumption: m.consumption ?? null,
+                    cost: m.cost ?? null,
+                    unit: m.unit,
+                    tariff: m.tariff,
+                }))}
+                year={year}
+                month={month}
             />
         </div>
     );

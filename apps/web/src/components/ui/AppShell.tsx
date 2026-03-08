@@ -113,9 +113,9 @@ export const AppShell: React.FC = React.memo(() => {
     }
   }, [navigate]);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
     setUserMenuOpen(false);
-    logout();
+    await logout();
     navigate('/login');
   }, [logout, navigate]);
 
@@ -138,7 +138,7 @@ export const AppShell: React.FC = React.memo(() => {
   const PageIcon = pageMeta.icon;
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#060a0c]">
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -153,10 +153,15 @@ export const AppShell: React.FC = React.memo(() => {
         {/* ═══ HEADER ═══ */}
         <header
           className={`
-            relative z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200/60
-            transition-[margin-left] duration-300 ease-out
+            relative z-30 transition-[margin-left] duration-300 ease-out
             ${sidebarOpen ? 'lg:ml-64' : 'ml-0'}
           `}
+          style={{
+            backgroundColor: 'rgba(6,10,12,0.85)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}
         >
           {/* Main bar */}
           <div className="flex items-center justify-between h-16 px-4 lg:px-6">
@@ -165,7 +170,7 @@ export const AppShell: React.FC = React.memo(() => {
               {/* Menu toggle — clean + animated */}
               <button
                 onClick={toggleSidebar}
-                className="relative w-9 h-9 rounded-xl flex items-center justify-center text-gray-500 hover:text-[#2F8481] hover:bg-[#2F8481]/5 active:scale-95 transition-all duration-200"
+                className="relative w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-teal-400 hover:bg-white/[0.06] active:scale-95 transition-all duration-200"
                 aria-label={sidebarOpen ? 'Uždaryti meniu' : 'Atidaryti meniu'}
               >
                 <div className="relative w-5 h-5">
@@ -184,14 +189,14 @@ export const AppShell: React.FC = React.memo(() => {
 
               {/* Page icon + title */}
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#2F8481]/8 flex items-center justify-center" style={{ backgroundColor: 'rgba(47,132,129,0.08)' }}>
-                  <PageIcon className="w-[18px] h-[18px] text-[#2F8481]" />
+                <div className="w-8 h-8 rounded-lg bg-white/[0.08] flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                  <PageIcon className="w-[18px] h-[18px] text-teal-400" />
                 </div>
                 <div>
-                  <h1 className="text-[15px] font-semibold text-gray-900 leading-tight">
+                  <h1 className="text-[15px] font-semibold text-white leading-tight">
                     {pageMeta.label}
                   </h1>
-                  <p className="text-[11px] text-gray-400 font-medium leading-tight mt-0.5 hidden sm:block">
+                  <p className="text-[11px] text-gray-500 font-medium leading-tight mt-0.5 hidden sm:block">
                     {roleLabel} · Nuomoria
                   </p>
                 </div>
@@ -209,7 +214,7 @@ export const AppShell: React.FC = React.memo(() => {
               </div>
 
               {/* Divider */}
-              <div className="w-px h-6 bg-gray-200/80 mx-2 hidden sm:block" />
+              <div className="w-px h-6 bg-white/[0.10] mx-2 hidden sm:block" />
 
               {/* User */}
               <div className="relative" ref={userMenuRef}>
@@ -219,8 +224,8 @@ export const AppShell: React.FC = React.memo(() => {
                     flex items-center gap-2.5 py-1.5 pl-1.5 pr-3 rounded-xl
                     transition-all duration-200
                     ${userMenuOpen
-                      ? 'bg-gray-100/80 ring-1 ring-gray-200/60'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-white/[0.08] ring-1 ring-white/[0.10]'
+                      : 'hover:bg-white/[0.05]'
                     }
                   `}
                 >
@@ -238,11 +243,11 @@ export const AppShell: React.FC = React.memo(() => {
                   </div>
 
                   <div className="hidden sm:flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-gray-700 max-w-[130px] truncate">
+                    <span className="text-sm font-medium text-white/90 max-w-[130px] truncate">
                       {displayName}
                     </span>
                     <svg
-                      className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`}
+                      className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`}
                       fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

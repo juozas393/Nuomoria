@@ -11,73 +11,52 @@ export type MeterTemplate = {
   defaultPrice?: number;
   distribution: DistributionMethod;
   requiresPhoto?: boolean;
+  /** If true, this meter is added by default when creating a new address */
+  isDefault?: boolean;
 };
 
 export const METER_TEMPLATES: MeterTemplate[] = [
-  {
-    id: 'water_cold',
-    name: 'Šaltas vanduo',
-    description: 'Šalto vandens tiekimas ir nuotekos',
-    icon: 'droplet',
-    type: 'individual',
-    unit: 'm3',
-    defaultPrice: 1.32,
-    distribution: 'per_consumption',
-    requiresPhoto: true
-  },
-  {
-    id: 'water_hot',
-    name: 'Karštas vanduo',
-    description: 'Karšto vandens tiekimas',
-    icon: 'droplet',
-    type: 'individual',
-    unit: 'm3',
-    defaultPrice: 3.50,
-    distribution: 'per_consumption',
-    requiresPhoto: true
-  },
-  {
-    id: 'electricity_ind',
-    name: 'Elektra',
-    description: 'Buto elektros suvartojimas',
-    icon: 'bolt',
-    type: 'individual',
-    unit: 'kWh',
-    defaultPrice: 0.23,
-    distribution: 'per_consumption',
-    requiresPhoto: true
-  },
+  // ── Bendri (communal) ──────────────────────────
   {
     id: 'heating',
     name: 'Šildymas',
-    description: 'Centrinis šildymas pagal plotą',
+    description: 'Centrinis šildymas paskirstomas pagal buto plotą',
     icon: 'flame',
-    type: 'individual',
+    type: 'communal',
     unit: 'kWh',
     defaultPrice: 0.095,
     distribution: 'per_area',
-    requiresPhoto: true
+    isDefault: true
   },
   {
-    id: 'gas',
-    name: 'Dujos',
-    description: 'Gamtinių dujų suvartojimas',
-    icon: 'flame',
-    type: 'individual',
-    unit: 'm3',
-    defaultPrice: 0.99,
-    distribution: 'per_consumption',
-    requiresPhoto: true
+    id: 'staircase_lighting',
+    name: 'Laiptinės apšvietimas',
+    description: 'Bendrų patalpų elektros suvartojimas',
+    icon: 'bolt',
+    type: 'communal',
+    unit: 'kWh',
+    defaultPrice: 0.23,
+    distribution: 'per_apartment'
   },
   {
-    id: 'maintenance',
-    name: 'Techninė apžiūra',
-    description: 'Namo techninė priežiūra ir apžiūra',
+    id: 'elevator',
+    name: 'Liftas',
+    description: 'Lifto priežiūra ir elektra',
     icon: 'gauge',
     type: 'communal',
     unit: 'Kitas',
-    defaultPrice: 0,
+    defaultPrice: 5.00,
     distribution: 'per_apartment'
+  },
+  {
+    id: 'maintenance',
+    name: 'Namo priežiūra',
+    description: 'Namo techninė priežiūra ir administravimas',
+    icon: 'gauge',
+    type: 'communal',
+    unit: 'Kitas',
+    defaultPrice: 0.30,
+    distribution: 'per_area'
   },
   {
     id: 'trash',
@@ -88,6 +67,54 @@ export const METER_TEMPLATES: MeterTemplate[] = [
     unit: 'Kitas',
     defaultPrice: 5.00,
     distribution: 'fixed_split'
+  },
+  // ── Individualūs ──────────────────────────────
+  {
+    id: 'water_cold',
+    name: 'Šaltas vanduo',
+    description: 'Šalto vandens tiekimas ir nuotekos',
+    icon: 'droplet',
+    type: 'individual',
+    unit: 'm3',
+    defaultPrice: 1.32,
+    distribution: 'per_consumption',
+    requiresPhoto: true,
+    isDefault: true
+  },
+  {
+    id: 'water_hot',
+    name: 'Karštas vanduo',
+    description: 'Karšto vandens tiekimas',
+    icon: 'droplet',
+    type: 'individual',
+    unit: 'm3',
+    defaultPrice: 3.50,
+    distribution: 'per_consumption',
+    requiresPhoto: true,
+    isDefault: true
+  },
+  {
+    id: 'electricity_ind',
+    name: 'Elektra',
+    description: 'Buto elektros suvartojimas',
+    icon: 'bolt',
+    type: 'individual',
+    unit: 'kWh',
+    defaultPrice: 0.23,
+    distribution: 'per_consumption',
+    requiresPhoto: true,
+    isDefault: true
+  },
+  {
+    id: 'gas',
+    name: 'Dujos',
+    description: 'Gamtinių dujų suvartojimas',
+    icon: 'flame',
+    type: 'individual',
+    unit: 'm3',
+    defaultPrice: 0.65,
+    distribution: 'per_consumption',
+    requiresPhoto: true
   }
 ];
 
@@ -97,6 +124,12 @@ export const unitSuffix = (u: 'm3' | 'kWh' | 'GJ' | 'Kitas') =>
 
 export const fmtPriceLt = (v: number, u: 'm3' | 'kWh' | 'GJ' | 'Kitas') =>
   `${v.toLocaleString('lt-LT', { minimumFractionDigits: 2 })} ${unitSuffix(u)}`;
+
+/** Smart tariff formatting: >= 1€ → 2 decimals, < 1€ → 3 decimals (rounded) */
+export const fmtTariff = (v: number): string => {
+  const digits = v >= 1 ? 2 : 3;
+  return v.toLocaleString('lt-LT', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+};
 
 export const getUnitLabel = (unit: string) => {
   switch (unit) {

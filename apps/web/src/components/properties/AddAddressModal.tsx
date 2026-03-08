@@ -19,6 +19,7 @@ import {
 import { MetersTable } from './MetersTable';
 import { geocodeAddress, parseAddressComponents, searchAddressSuggestions, reverseGeocode, type AddressSuggestion } from '../../utils/geocoding';
 import { type DistributionMethod } from '../../constants/meterDistribution';
+import { METER_TEMPLATES } from '../../constants/meterTemplates';
 import { supabase } from '../../lib/supabase';
 import { addressApi } from '../../lib/database';
 import { sendNotificationNew } from '../../utils/notificationSystem';
@@ -167,6 +168,7 @@ interface CommunalMeter {
   collectionMode: 'landlord_only' | 'tenant_photo';
   landlordReadingEnabled: boolean;
   tenantPhotoEnabled: boolean;
+  supplier?: string;
 }
 
 interface AddAddressModalProps {
@@ -242,61 +244,23 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
   const watchedValues = watch();
 
-  // Default communal meters
-  const DEFAULT_METERS: Omit<CommunalMeter, 'id'>[] = [
-    {
-      name: 'Šaltas vanduo',
-      type: 'individual',
-      unit: 'm3',
-      price_per_unit: 1.32,
-      distribution_method: 'per_consumption',
-      description: 'Šalto vandens tiekimas ir nuotekos',
+  // Default meters — only isDefault templates from centralized METER_TEMPLATES
+  const DEFAULT_METERS: Omit<CommunalMeter, 'id'>[] = METER_TEMPLATES
+    .filter(t => t.isDefault)
+    .map(t => ({
+      name: t.name,
+      type: t.type,
+      unit: t.unit,
+      price_per_unit: t.unit === 'Kitas' ? 0 : (t.defaultPrice || 0),
+      fixed_price: t.unit === 'Kitas' ? (t.defaultPrice || 0) : undefined,
+      distribution_method: t.distribution as DistributionMethod,
+      description: t.description || '',
       is_active: true,
-      requires_photo: true,
-      collectionMode: 'tenant_photo',
+      requires_photo: t.requiresPhoto || false,
+      collectionMode: (t.requiresPhoto ? 'tenant_photo' : 'landlord_only') as 'landlord_only' | 'tenant_photo',
       landlordReadingEnabled: true,
-      tenantPhotoEnabled: true
-    },
-    {
-      name: 'Karštas vanduo',
-      type: 'individual',
-      unit: 'm3',
-      price_per_unit: 3.5,
-      distribution_method: 'per_consumption',
-      description: 'Karšto vandens tiekimas',
-      is_active: true,
-      requires_photo: true,
-      collectionMode: 'tenant_photo',
-      landlordReadingEnabled: true,
-      tenantPhotoEnabled: true
-    },
-    {
-      name: 'Elektra',
-      type: 'individual',
-      unit: 'kWh',
-      price_per_unit: 0.23,
-      distribution_method: 'per_consumption',
-      description: 'Buto elektros suvartojimas',
-      is_active: true,
-      requires_photo: true,
-      collectionMode: 'tenant_photo',
-      landlordReadingEnabled: true,
-      tenantPhotoEnabled: true
-    },
-    {
-      name: 'Šildymas',
-      type: 'individual',
-      unit: 'kWh',
-      price_per_unit: 0.095,
-      distribution_method: 'per_area',
-      description: 'Centrinis šildymas pagal plotą',
-      is_active: true,
-      requires_photo: false,
-      collectionMode: 'landlord_only',
-      landlordReadingEnabled: true,
-      tenantPhotoEnabled: false
-    }
-  ];
+      tenantPhotoEnabled: t.requiresPhoto || false
+    }));
 
   // Normalize address for comparison - handles Lithuanian diacritics and common abbreviations
   const normalizeAddress = (address: string): string => {
@@ -549,67 +513,13 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
         console.warn('⚠️ Could not fetch smart defaults, using hardcoded:', err);
       }
 
-      // Fallback: hardcoded defaults for first-time users
-      const defaultMeters: CommunalMeter[] = [
-        {
-          id: 'meter-1',
-          name: 'Šaltas vanduo',
-          type: 'individual',
-          unit: 'm3',
-          price_per_unit: 1.32,
-          distribution_method: 'per_consumption',
-          description: 'Šalto vandens tiekimas ir nuotekos',
-          is_active: true,
-          requires_photo: true,
-          collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: true
-        },
-        {
-          id: 'meter-2',
-          name: 'Karštas vanduo',
-          type: 'individual',
-          unit: 'm3',
-          price_per_unit: 3.5,
-          distribution_method: 'per_consumption',
-          description: 'Karšto vandens tiekimas',
-          is_active: true,
-          requires_photo: true,
-          collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: true
-        },
-        {
-          id: 'meter-3',
-          name: 'Elektra',
-          type: 'individual',
-          unit: 'kWh',
-          price_per_unit: 0.23,
-          distribution_method: 'per_consumption',
-          description: 'Buto elektros suvartojimas',
-          is_active: true,
-          requires_photo: true,
-          collectionMode: 'tenant_photo',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: true
-        },
-        {
-          id: 'meter-4',
-          name: 'Šildymas',
-          type: 'individual',
-          unit: 'kWh',
-          price_per_unit: 0.095,
-          distribution_method: 'per_area',
-          description: 'Centrinis šildymas pagal plotą',
-          is_active: true,
-          requires_photo: false,
-          collectionMode: 'landlord_only',
-          landlordReadingEnabled: true,
-          tenantPhotoEnabled: false
-        }
-      ];
+      // Fallback: use centralized DEFAULT_METERS for first-time users
+      const defaultMetersWithIds: CommunalMeter[] = DEFAULT_METERS.map((m, i) => ({
+        ...m,
+        id: `meter-${i + 1}`
+      }));
 
-      setCommunalMeters(defaultMeters);
+      setCommunalMeters(defaultMetersWithIds);
     };
 
     // Small delay to ensure state is cleared
@@ -1061,50 +971,48 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
       {/* Duplicate Address Warning Modal */}
       {showDuplicateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-[#0f1215] border border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            {/* Top accent */}
+            <div className="h-[2px] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500" />
             <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                  </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
                 </div>
-                <div className="ml-3">
-                  <h3 className="text-lg font-semibold text-[#0B0F10]">Panašus adresas rastas</h3>
-                </div>
+                <h3 className="text-[15px] font-bold text-white">Panašus adresas rastas</h3>
               </div>
 
-              <div className="mb-6">
-                <p className="text-sm text-neutral-600 mb-3">
+              <div className="mb-5">
+                <p className="text-[13px] text-white/60 mb-3">
                   Šis adresas jau egzistuoja sistemoje:
                 </p>
-                <div className="bg-neutral-50 rounded-lg p-3 max-h-32 overflow-y-auto border border-neutral-200">
+                <div className="bg-white/[0.04] rounded-xl p-3 max-h-32 overflow-y-auto border border-white/[0.08]">
                   {similarAddresses.map((address, index) => (
-                    <div key={index} className="text-sm text-neutral-700 py-1 border-b border-neutral-200 last:border-b-0">
+                    <div key={index} className="text-[13px] text-white/70 py-1.5 border-b border-white/[0.06] last:border-b-0">
                       • {address}
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-amber-600 mt-2">
+                <p className="text-[11px] text-amber-400/80 mt-2.5 leading-relaxed">
                   Negalite sukurti dviejų identiškų adresų. Jei reikia pridėti naują butą prie esamo adreso, naudokite &quot;Pridėti butą&quot; funkciją.
                 </p>
               </div>
 
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowDuplicateModal(false)}
-                  className="px-4 py-2 text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors text-sm font-medium"
+                  className="px-4 py-2 text-white/70 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] rounded-xl transition-colors text-[13px] font-medium"
                 >
                   Atšaukti
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDuplicateModal(false)}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] rounded-lg transition-colors text-sm font-medium"
+                  className="px-5 py-2 bg-teal-500 text-white hover:bg-teal-600 rounded-xl transition-all duration-200 text-[13px] font-bold active:scale-[0.98]"
                 >
                   Suprantu
                 </button>
@@ -1116,40 +1024,31 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
 
       {/* Success Message */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-lg font-semibold text-[#0B0F10]">Sėkmingai!</h3>
-                </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-[#0f1215] border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            {/* Top accent */}
+            <div className="h-[2px] bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500" />
+            <div className="p-6 text-center">
+              {/* Success icon */}
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">
+                <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
               </div>
-
-              <div className="mb-6">
-                <p className="text-sm text-neutral-600">
-                  {successMessage}
-                </p>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    handleClose();
-                  }}
-                  className="px-4 py-2 bg-[#2F8481] text-white hover:bg-[#2a7875] rounded-lg transition-colors text-sm font-medium"
-                >
-                  Gerai
-                </button>
-              </div>
+              <h3 className="text-[15px] font-bold text-white mb-2">Sėkmingai!</h3>
+              <p className="text-[13px] text-white/60 leading-relaxed mb-6">
+                {successMessage}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccess(false);
+                  handleClose();
+                }}
+                className="px-6 py-2.5 bg-teal-500 text-white text-[13px] font-bold rounded-xl hover:bg-teal-600 transition-all duration-200 active:scale-[0.98]"
+              >
+                Gerai
+              </button>
             </div>
           </div>
         </div>
@@ -1811,6 +1710,34 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                       if (!hasCoordinates && !hasPostalCode) {
                         alert('Jei nerandamos koordinatės, privalote įvesti pašto kodą.');
                         return;
+                      }
+                    }
+
+                    // Kontaktų validacija (3 žingsnis)
+                    if (currentStep === 2) {
+                      const mgmtType = watchedValues.contacts?.managementType;
+
+                      if (mgmtType === 'Bendrija') {
+                        const hasPhone = !!watchedValues.contacts?.chairmanPhone?.trim();
+                        const hasEmail = !!watchedValues.contacts?.chairmanEmail?.trim();
+                        if (!hasPhone && !hasEmail) {
+                          alert('Bendrijos kontaktams reikia nurodyti bent telefono numerį arba el. paštą.');
+                          return;
+                        }
+                      }
+
+                      if (mgmtType === 'Administravimo įmonė') {
+                        const hasCompanyName = !!watchedValues.contacts?.companyName?.trim();
+                        if (!hasCompanyName) {
+                          alert('Reikia nurodyti administravimo įmonės pavadinimą.');
+                          return;
+                        }
+                        const hasPhone = !!watchedValues.contacts?.companyPhone?.trim();
+                        const hasEmail = !!watchedValues.contacts?.companyEmail?.trim();
+                        if (!hasPhone && !hasEmail) {
+                          alert('Administravimo įmonės kontaktams reikia nurodyti bent telefono numerį arba el. paštą.');
+                          return;
+                        }
                       }
                     }
 
