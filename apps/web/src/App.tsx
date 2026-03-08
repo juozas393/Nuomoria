@@ -8,6 +8,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleGuard } from './components/RoleGuard';
 import ErrorBoundary from './components/ErrorBoundary';
 import ErrorFallbackPage from './components/ErrorFallbackPage';
+import { PasswordGate } from './components/PasswordGate';
 
 // Import global CSS
 import './index.css';
@@ -279,15 +280,17 @@ function App() {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <DataProvider>
-          <DensityProvider>
-            <AppContent />
-          </DensityProvider>
-        </DataProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+    <PasswordGate>
+      <ErrorBoundary>
+        <AuthProvider>
+          <DataProvider>
+            <DensityProvider>
+              <AppContent />
+            </DensityProvider>
+          </DataProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </PasswordGate>
   );
 }
 
