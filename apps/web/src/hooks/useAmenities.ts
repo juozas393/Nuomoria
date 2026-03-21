@@ -112,7 +112,7 @@ export function useAmenities({
                     }
                 } catch {
                     // Property amenities table might not have data yet
-                    console.warn('[useAmenities] Could not load property amenities, using JSONB fallback');
+                    if (import.meta.env.DEV) console.warn('[useAmenities] Could not load property amenities, using JSONB fallback');
                     if (!cancelled && initialKeysRef.current.length > 0) {
                         const keyToId = new Map(amenities.map(a => [a.key, a.id]));
                         const ids = initialKeysRef.current
@@ -125,7 +125,7 @@ export function useAmenities({
                 // Mark as loaded
                 hasLoadedRef.current = true;
             } catch (err) {
-                console.error('[useAmenities] Error loading data:', err);
+                if (import.meta.env.DEV) console.error('[useAmenities] Error loading data:', err);
                 if (!cancelled) {
                     setError('Nepavyko užkrauti patogumų sąrašo');
                 }
@@ -218,7 +218,7 @@ export function useAmenities({
                 next.delete(amenity.id);
                 // Optimistic: remove from DB
                 removePropertyAmenity(propertyId, amenity.id).catch(err => {
-                    console.error('[useAmenities] Failed to remove amenity:', err);
+                    if (import.meta.env.DEV) console.error('[useAmenities] Failed to remove amenity:', err);
                     // Rollback
                     setSelectedAmenityIds(p => new Set([...p, amenity.id]));
                 });
@@ -226,7 +226,7 @@ export function useAmenities({
                 next.add(amenity.id);
                 // Optimistic: add to DB
                 addPropertyAmenity(propertyId, amenity.id).catch(err => {
-                    console.error('[useAmenities] Failed to add amenity:', err);
+                    if (import.meta.env.DEV) console.error('[useAmenities] Failed to add amenity:', err);
                     // Rollback
                     setSelectedAmenityIds(p => {
                         const rollback = new Set(p);
@@ -276,7 +276,7 @@ export function useAmenities({
 
             return newAmenity;
         } catch (err) {
-            console.error('[useAmenities] Error creating amenity:', err);
+            if (import.meta.env.DEV) console.error('[useAmenities] Error creating amenity:', err);
             setError('Nepavyko sukurti naujo patogumo');
             return null;
         } finally {

@@ -1,9 +1,11 @@
-﻿import React, { useRef, useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { useFocusTrap } from "../../utils/nuomotojas2Utils";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { trackActivity } from "../../lib/activityTracker";
+import { resolveCardBgImage } from '../../context/CardBgContext';
+import { useAgentPermissions } from '../../hooks/useAgentPermissions';
 
 import { Tenant } from "../../types/tenant";
 import { type Meter } from "../komunaliniai";
@@ -27,6 +29,7 @@ interface PropertyInfo {
   id: string;
   address?: string;
   address_id?: string;
+  apartment_number?: string;
   rooms?: number;
   area?: number;
   floor?: number;
@@ -574,11 +577,12 @@ const OverviewTab: React.FC<{
 // Glass surfaces
 const ptSurface = 'bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl overflow-hidden';
 const ptSurfaceHero = 'bg-white/[0.10] backdrop-blur-lg border border-white/[0.15] rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.12)] overflow-hidden';
-const cardBgStyle: React.CSSProperties = {
-  backgroundImage: `linear-gradient(135deg, rgba(15,20,25,0.88) 0%, rgba(20,25,30,0.85) 50%, rgba(15,20,25,0.88) 100%), url('/images/CardsBackground.webp')`,
+const makeCardBgStyle = (imageUrl?: string): React.CSSProperties => ({
+  backgroundImage: `linear-gradient(135deg, rgba(15,20,25,0.88) 0%, rgba(20,25,30,0.85) 50%, rgba(15,20,25,0.88) 100%), url('${imageUrl || '/images/CardsBackground.webp'}')`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
-};
+});
+const cardBgStyle = makeCardBgStyle();
 
 // Typography
 const ptHeading = 'text-[13px] font-bold text-white';
@@ -614,6 +618,11 @@ const PropertyTab: React.FC<{
   onReorderPhotos?: (photos: string[]) => void;
   onSetCover?: (index: number) => void;
 }> = ({ property, photos = [], tenant, onEditProperty, onSaveProperty, onUploadPhoto, onDeletePhoto, onReorderPhotos, onSetCover }) => {
+  const { permissions: agentPerms, isAgent } = useAgentPermissions();
+  const canEdit = !isAgent || agentPerms.can_edit_property;
+  const canEditName = !isAgent;
+  const canManagePhotos = !isAgent || agentPerms.can_upload_photos;
+
   const ext = (property as any).extended_details || {};
   const isOccupied = property.status === 'occupied' || property.status === 'rented';
 
@@ -731,7 +740,7 @@ const PropertyTab: React.FC<{
   };
 
   const handleSave = React.useCallback(async () => {
-    console.log('[PropertyTab] handleSave called', { isDirty, hasOnSave: !!onSaveProperty });
+    if (import.meta.env.DEV) console.log('[PropertyTab] handleSave called', { isDirty, hasOnSave: !!onSaveProperty });
     if (!onSaveProperty || !isDirty) return;
     setIsSaving(true);
     setSaveError(null);
@@ -764,10 +773,10 @@ const PropertyTab: React.FC<{
         notes_internal: formData.notes_internal || undefined,
       },
     };
-    console.log('[PropertyTab] Save payload:', JSON.stringify(payload, null, 2));
+    if (import.meta.env.DEV) console.log('[PropertyTab] Save payload:', JSON.stringify(payload, null, 2));
     try {
       await onSaveProperty(payload);
-      console.log('[PropertyTab] ✅ Save completed successfully');
+      if (import.meta.env.DEV) console.log('[PropertyTab] ✅ Save completed successfully');
       initialFormRef.current = { ...formData };
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
@@ -775,7 +784,7 @@ const PropertyTab: React.FC<{
       // Log activity
       trackActivity('UPDATE', { tableName: 'properties', recordId: property.id, description: 'Atnaujinti būsto duomenys' });
     } catch (error: any) {
-      console.error('[PropertyTab] ❌ Save error:', error);
+      if (import.meta.env.DEV) console.error('[PropertyTab] ❌ Save error:', error);
       const msg = error?.message || 'Klaida saugant duomenis';
       setSaveError(msg);
       setTimeout(() => setSaveError(null), 5000);
@@ -828,10 +837,10 @@ const PropertyTab: React.FC<{
   // ── Premium light theme tokens ──
   const ltCard = 'bg-white border border-gray-200/80 rounded-2xl shadow-sm overflow-hidden';
   const ltCardInner = 'bg-gray-50/40';
-  const ltInput = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[13px] text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none shadow-sm';
-  const ltSelect = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[13px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all appearance-none cursor-pointer shadow-sm';
-  const ltInputCompact = 'w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-[12px] font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all shadow-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
-  const ltSelectCompact = 'w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-[12px] font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all appearance-none cursor-pointer shadow-sm';
+  const ltInput = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[13px] text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none shadow-sm disabled:opacity-60 disabled:bg-gray-50/50 disabled:cursor-not-allowed';
+  const ltSelect = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-[13px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-60 disabled:bg-gray-50/50 disabled:cursor-not-allowed';
+  const ltInputCompact = 'w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-[12px] font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all shadow-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:opacity-60 disabled:bg-gray-50/50 disabled:cursor-not-allowed';
+  const ltSelectCompact = 'w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-[12px] font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-60 disabled:bg-gray-50/50 disabled:cursor-not-allowed';
   const ltLabel = 'block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1';
   const ltSub = 'text-[11px] text-gray-500';
   const ltTiny = 'text-[9px] text-gray-400 font-medium';
@@ -851,6 +860,17 @@ const PropertyTab: React.FC<{
     </div>
   );
 
+  // Photo gallery background style (same as main card)
+  const photoBgUrl = resolveCardBgImage(property);
+  const photoBgStyle: React.CSSProperties | undefined = React.useMemo(() => {
+    if (!photoBgUrl || photoBgUrl === '/images/CardsBackground.webp') return undefined;
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.78) 100%), url('${photoBgUrl}')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    };
+  }, [photoBgUrl]);
+
   return (
     <div className="space-y-3 p-2">
 
@@ -858,15 +878,16 @@ const PropertyTab: React.FC<{
       <PhotoGallerySection
         photos={photos}
         propertyId={property.id}
-        onUploadPhoto={onUploadPhoto}
-        onDeletePhoto={onDeletePhoto}
-        onReorderPhotos={onReorderPhotos}
-        onSetCover={onSetCover}
+        onUploadPhoto={canManagePhotos ? onUploadPhoto : undefined}
+        onDeletePhoto={canManagePhotos ? onDeletePhoto : undefined}
+        onReorderPhotos={canManagePhotos ? onReorderPhotos : undefined}
+        onSetCover={canManagePhotos ? onSetCover : undefined}
         isVacant={!isOccupied}
+        bgStyle={photoBgStyle}
       />
 
       {/* ═══ 2. COMPREHENSIVE PROPERTY CARD ═══ */}
-      <div className={`${ltCard} relative`} style={{ backgroundImage: 'url(/images/rodikliai_opt.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <div className={`${ltCard} relative`} style={{ backgroundImage: `url(${resolveCardBgImage(property)})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         {/* White overlay for readability */}
         <div className="absolute inset-0 z-0 rounded-2xl" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.78) 100%)' }} />
 
@@ -882,12 +903,12 @@ const PropertyTab: React.FC<{
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
               <div>
                 <label className={ltLabel}>Pavadinimas</label>
-                <input type="text" value={formData.apartment_number} onChange={e => updateField('apartment_number', e.target.value)} placeholder="pvz. 1, Studija A" maxLength={50} className={ltInputCompact} />
+                <input type="text" value={formData.apartment_number} onChange={e => updateField('apartment_number', e.target.value)} placeholder="pvz. 1, Studija A" maxLength={50} className={ltInputCompact} disabled={!canEditName} />
               </div>
               <div>
                 <label className={ltLabel}>Tipas</label>
                 <div className="relative group">
-                  <select value={formData.type} onChange={e => updateField('type', e.target.value)} className={ltSelectCompact}>
+                  <select value={formData.type} onChange={e => updateField('type', e.target.value)} className={ltSelectCompact} disabled={!canEdit}>
                     <option value="apartment">Butas</option>
                     <option value="house">Namas</option>
                     <option value="studio">Studija</option>
@@ -912,8 +933,9 @@ const PropertyTab: React.FC<{
               <div className="flex items-center gap-2 col-span-full mt-1">
                 <button
                   type="button"
-                  onClick={() => updateField('under_maintenance', !formData.under_maintenance)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${formData.under_maintenance ? 'bg-amber-500' : 'bg-gray-200'}`}
+                  onClick={() => canEdit && updateField('under_maintenance', !formData.under_maintenance)}
+                  disabled={!canEdit}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${!canEdit ? 'opacity-60 cursor-not-allowed ' : ''}${formData.under_maintenance ? 'bg-amber-500' : 'bg-gray-200'}`}
                 >
                   <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${formData.under_maintenance ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </button>
@@ -923,12 +945,12 @@ const PropertyTab: React.FC<{
               </div>
               <div>
                 <label className={ltLabel}>Kambariai</label>
-                <input type="number" inputMode="numeric" value={formData.rooms} onChange={e => updateField('rooms', e.target.value)} placeholder="—" min={1} className={ltInputCompact} onWheel={preventWheel} />
+                <input type="number" inputMode="numeric" value={formData.rooms} onChange={e => updateField('rooms', e.target.value)} placeholder="—" min={1} className={ltInputCompact} onWheel={preventWheel} disabled={!canEdit} />
               </div>
               <div>
                 <label className={ltLabel}>Plotas</label>
                 <div className="relative">
-                  <input type="number" inputMode="numeric" value={formData.area} onChange={e => updateField('area', e.target.value)} placeholder="—" className={`${ltInputCompact} pr-8`} onWheel={preventWheel} />
+                  <input type="number" inputMode="numeric" value={formData.area} onChange={e => updateField('area', e.target.value)} placeholder="—" className={`${ltInputCompact} pr-8`} onWheel={preventWheel} disabled={!canEdit} />
                   <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">m²</span>
                 </div>
               </div>
@@ -936,15 +958,15 @@ const PropertyTab: React.FC<{
             <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 mt-2">
               <div>
                 <label className={ltLabel}>Aukštas</label>
-                <input type="number" inputMode="numeric" value={formData.floor} onChange={e => updateField('floor', e.target.value)} placeholder="—" min={0} className={ltInputCompact} onWheel={preventWheel} />
+                <input type="number" inputMode="numeric" value={formData.floor} onChange={e => updateField('floor', e.target.value)} placeholder="—" min={0} className={ltInputCompact} onWheel={preventWheel} disabled={!canEdit} />
               </div>
               <div>
                 <label className={ltLabel}>Miegamieji</label>
-                <input type="number" inputMode="numeric" value={formData.bedrooms} onChange={e => updateField('bedrooms', e.target.value)} placeholder="—" min={0} className={ltInputCompact} onWheel={preventWheel} />
+                <input type="number" inputMode="numeric" value={formData.bedrooms} onChange={e => updateField('bedrooms', e.target.value)} placeholder="—" min={0} className={ltInputCompact} onWheel={preventWheel} disabled={!canEdit} />
               </div>
               <div>
                 <label className={ltLabel}>Vonios</label>
-                <input type="number" inputMode="numeric" value={formData.bathrooms} onChange={e => updateField('bathrooms', e.target.value)} placeholder="—" min={0} className={ltInputCompact} onWheel={preventWheel} />
+                <input type="number" inputMode="numeric" value={formData.bathrooms} onChange={e => updateField('bathrooms', e.target.value)} placeholder="—" min={0} className={ltInputCompact} onWheel={preventWheel} disabled={!canEdit} />
               </div>
             </div>
           </div>
@@ -962,7 +984,7 @@ const PropertyTab: React.FC<{
             <div>
               <label className={ltLabel}>Šildymas</label>
               <div className="relative group">
-                <select value={formData.heating_type} onChange={e => updateField('heating_type', e.target.value)} className={ltSelectCompact}>
+                <select value={formData.heating_type} onChange={e => updateField('heating_type', e.target.value)} className={ltSelectCompact} disabled={!canEdit}>
                   <option value="">Nepasirinkta</option>
                   <option value="centrinis">Centrinis</option>
                   <option value="dujinis">Dujinis</option>
@@ -976,7 +998,7 @@ const PropertyTab: React.FC<{
             <div>
               <label className={ltLabel}>Įrengimas</label>
               <div className="relative group">
-                <select value={formData.furnished} onChange={e => updateField('furnished', e.target.value)} className={ltSelectCompact}>
+                <select value={formData.furnished} onChange={e => updateField('furnished', e.target.value)} className={ltSelectCompact} disabled={!canEdit}>
                   <option value="">Nepasirinkta</option>
                   <option value="full">Pilnai įrengtas</option>
                   <option value="partial">Dalinai įrengtas</option>
@@ -988,7 +1010,7 @@ const PropertyTab: React.FC<{
             <div>
               <label className={ltLabel}>Parkavimas</label>
               <div className="relative group">
-                <select value={formData.parking_type} onChange={e => updateField('parking_type', e.target.value)} className={ltSelectCompact}>
+                <select value={formData.parking_type} onChange={e => updateField('parking_type', e.target.value)} className={ltSelectCompact} disabled={!canEdit}>
                   <option value="none">Nėra</option>
                   <option value="street">Gatvėje</option>
                   <option value="yard">Kieme</option>
@@ -1004,8 +1026,9 @@ const PropertyTab: React.FC<{
               <button
                 key={key}
                 type="button"
-                onClick={() => updateField(key, !formData[key])}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all duration-150 active:scale-[0.97] border ${formData[key]
+                onClick={() => canEdit && updateField(key, !formData[key])}
+                disabled={!canEdit}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all duration-150 active:scale-[0.97] border ${!canEdit ? 'opacity-60 cursor-not-allowed ' : ''}${formData[key]
                   ? 'bg-teal-50 text-teal-700 border-teal-200'
                   : 'bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-300 hover:text-gray-500'
                   }`}
@@ -1056,7 +1079,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Nuoma</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.rent} onChange={e => updateField('rent', e.target.value)} placeholder="0" min={0} className={`${ltInputCompact} pr-12`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.rent} onChange={e => updateField('rent', e.target.value)} placeholder="0" min={0} className={`${ltInputCompact} pr-12`} onWheel={e => (e.target as HTMLInputElement).blur()} disabled={!canEdit} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">€/mėn.</span>
               </div>
             </div>
@@ -1066,7 +1089,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Depozitas</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.deposit_amount} onChange={e => updateField('deposit_amount', e.target.value)} placeholder="0" min={0} className={`${ltInputCompact} pr-6`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.deposit_amount} onChange={e => updateField('deposit_amount', e.target.value)} placeholder="0" min={0} className={`${ltInputCompact} pr-6`} onWheel={e => (e.target as HTMLInputElement).blur()} disabled={!canEdit} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">€</span>
               </div>
             </div>
@@ -1076,7 +1099,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Mokėjimo diena</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.payment_due_day} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('payment_due_day', v); }} onBlur={e => { const n = parseInt(e.target.value) || 1; updateField('payment_due_day', String(Math.min(28, Math.max(1, n)))); }} placeholder="1" min={1} max={28} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.payment_due_day} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('payment_due_day', v); }} onBlur={e => { const n = parseInt(e.target.value) || 1; updateField('payment_due_day', String(Math.min(28, Math.max(1, n)))); }} placeholder="1" min={1} max={28} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} disabled={!canEdit} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">d.</span>
               </div>
               <p className="text-[9px] text-gray-400 mt-1 leading-tight">Kiekvieną mėnesį iki šios dienos nuomininkas turi sumokėti nuomą</p>
@@ -1087,7 +1110,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Min. terminas</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.min_term_months} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('min_term_months', v); }} onBlur={e => { const n = parseInt(e.target.value) || 1; updateField('min_term_months', String(Math.min(120, Math.max(1, n)))); }} placeholder="12" min={1} max={120} className={`${ltInputCompact} pr-10`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.min_term_months} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('min_term_months', v); }} onBlur={e => { const n = parseInt(e.target.value) || 1; updateField('min_term_months', String(Math.min(120, Math.max(1, n)))); }} placeholder="12" min={1} max={120} className={`${ltInputCompact} pr-10`} onWheel={e => (e.target as HTMLInputElement).blur()} disabled={!canEdit} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">mėn.</span>
               </div>
               <p className="text-[9px] text-gray-400 mt-1 leading-tight">Trumpiausias galimas nuomos laikotarpis</p>
@@ -1098,7 +1121,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Baudos pradžia</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.late_fee_grace_days} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('late_fee_grace_days', v); }} onBlur={e => { const n = parseInt(e.target.value) || 0; updateField('late_fee_grace_days', String(Math.min(30, Math.max(0, n)))); }} placeholder="5" min={0} max={30} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.late_fee_grace_days} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); updateField('late_fee_grace_days', v); }} onBlur={e => { const n = parseInt(e.target.value) || 0; updateField('late_fee_grace_days', String(Math.min(30, Math.max(0, n)))); }} placeholder="5" min={0} max={30} className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} disabled={!canEdit} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">d.</span>
               </div>
               <p className="text-[9px] text-gray-400 mt-1 leading-tight">Po kiek dienų nuo mokėjimo termino pradedama skaičiuoti bauda</p>
@@ -1109,7 +1132,7 @@ const PropertyTab: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Vėlavimo bauda</label>
               </div>
               <div className="relative">
-                <input type="number" inputMode="numeric" value={formData.late_fee_amount} onChange={e => updateField('late_fee_amount', e.target.value)} placeholder="10" min={0} step="0.5" className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} />
+                <input type="number" inputMode="numeric" value={formData.late_fee_amount} onChange={e => updateField('late_fee_amount', e.target.value)} placeholder="10" min={0} step="0.5" className={`${ltInputCompact} pr-8`} onWheel={e => (e.target as HTMLInputElement).blur()} disabled={!canEdit} />
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">€</span>
               </div>
               <p className="text-[9px] text-gray-400 mt-1 leading-tight">Suma eurais, kuri pridedama už kiekvieną pavėluotą dieną</p>
@@ -1224,6 +1247,7 @@ const PropertyTab: React.FC<{
             placeholder="Pastabos apie šį būstą (matomos tik jums)..."
             rows={2}
             className={`${ltInputCompact} resize-none min-h-[56px]`}
+            disabled={!canEdit}
           />
         </div>
       </div>
@@ -1281,8 +1305,8 @@ const MetersTab: React.FC<{
   onViewHistory,
   onRequestMissing
 }) => {
-    console.log('MetersTab received meters:', meters);
-    console.log('Meter pricing data:', meters.map((m: any) => ({
+    if (import.meta.env.DEV) console.log('MetersTab received meters:', meters);
+    if (import.meta.env.DEV) console.log('Meter pricing data:', meters.map((m: any) => ({
       name: m.name,
       price_per_unit: m.price_per_unit,
       fixed_price: m.fixed_price,
@@ -1292,7 +1316,7 @@ const MetersTab: React.FC<{
     // Konvertuojame duomenis į naują formatą - naudojame meters prop tiesiogiai
     const meterData: Meter[] = useMemo(() =>
       meters.map((meter: any) => {
-        console.log('Processing meter:', meter.name, 'requires_photo:', meter.requires_photo, 'mode:', meter.mode);
+        if (import.meta.env.DEV) console.log('Processing meter:', meter.name, 'requires_photo:', meter.requires_photo, 'mode:', meter.mode);
 
         // Normalize heating meters
         const normalizedMeter = normalizeHeating(meter);
@@ -2085,10 +2109,10 @@ const SectionHeader: React.FC<{
         {icon}
       </div>
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-[13px] font-bold text-white">{title}</span>
-        <span className="text-[11px] text-gray-300 bg-black/30 px-1.5 py-0.5 rounded-md font-semibold">{count}</span>
+        <span className="text-[13px] font-bold text-gray-900">{title}</span>
+        <span className="text-[11px] text-gray-500 bg-gray-200/80 px-1.5 py-0.5 rounded-md font-semibold">{count}</span>
       </div>
-      <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
     </button>
     {action && <div className="flex-shrink-0 ml-2">{action}</div>}
   </div>
@@ -2112,6 +2136,7 @@ const END_REASON_MAP: Record<string, string> = {
 interface HistoryTabProps {
   propertyId: string;
   activityRefreshKey?: number;
+  bgStyle?: React.CSSProperties;
   currentTenant?: {
     name?: string;
     email?: string;
@@ -2123,7 +2148,7 @@ interface HistoryTabProps {
   };
 }
 
-const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, activityRefreshKey }) => {
+const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, activityRefreshKey, bgStyle }) => {
   // --- State ---
   const [pastTenants, setPastTenants] = useState<TenantHistoryRecord[]>([]);
   const [docs, setDocs] = useState<PropertyDocument[]>([]);
@@ -2286,7 +2311,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
     <div className="space-y-5 pb-4">
 
       {/* ─── SECTION 1: Tenant History ─── */}
-      <div className="bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl p-4">
+      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 bg-cover bg-center" style={bgStyle}>
 
         <div>
           <SectionHeader
@@ -2298,10 +2323,10 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           />
 
           {tenantsOpen && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
               {/* Current tenant */}
               {!isVacant && currentTenant && (
-                <div className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                <div className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
 
                   <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
                     <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -2330,7 +2355,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
 
               {/* Past tenants */}
               {pastTenants.map(t => (
-                <div key={t.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                <div key={t.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
 
                   <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
                     <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -2364,9 +2389,9 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
               {/* Empty state */}
               {tenantCount === 0 && (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <User className="w-8 h-8 text-white/30 mb-2" />
-                  <p className="text-[11px] text-white/60">Nuomininkų istorijos dar nėra</p>
-                  <p className="text-[10px] text-white/40 mt-1">Buvę nuomininkai bus rodomi čia</p>
+                  <User className="w-8 h-8 text-gray-300 mb-2" />
+                  <p className="text-[11px] text-gray-500">Nuomininkų istorijos dar nėra</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Buvę nuomininkai bus rodomi čia</p>
                 </div>
               )}
             </div>
@@ -2375,7 +2400,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
       </div>
 
       {/* ─── SECTION 2: Invoice Archive ─── */}
-      <div className="bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl p-4">
+      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 bg-cover bg-center" style={bgStyle}>
 
         <div>
           <SectionHeader
@@ -2388,19 +2413,19 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           />
 
           {invoicesOpen && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
               {invoices.length === 0 ? (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <Euro className="w-8 h-8 text-white/30 mb-2" />
-                  <p className="text-[11px] text-white/60">Sąskaitų dar nėra</p>
-                  <p className="text-[10px] text-white/40 mt-1">Sukurtos sąskaitos bus rodomos čia</p>
+                  <Euro className="w-8 h-8 text-gray-300 mb-2" />
+                  <p className="text-[11px] text-gray-500">Sąskaitų dar nėra</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Sukurtos sąskaitos bus rodomos čia</p>
                 </div>
               ) : (
                 invoices.map(inv => {
                   const st = INVOICE_STATUS_MAP[inv.status] || INVOICE_STATUS_MAP.unpaid;
                   const isExpanded = expandedInvoice === inv.id;
                   return (
-                    <div key={inv.id} className="relative rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                    <div key={inv.id} className="relative rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
 
                       <button
                         onClick={() => setExpandedInvoice(isExpanded ? null : inv.id)}
@@ -2489,7 +2514,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
       </div>
 
       {/* ─── SECTION 3: Uploaded Documents ─── */}
-      <div className="bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl p-4">
+      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 bg-cover bg-center" style={bgStyle}>
 
         <div>
           <SectionHeader
@@ -2504,7 +2529,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
                 <select
                   value={selectedType}
                   onChange={e => setSelectedType(e.target.value)}
-                  className="px-2 py-1 bg-black/30 border border-white/[0.15] rounded-lg text-[10px] text-white appearance-none cursor-pointer"
+                  className="px-2 py-1 bg-gray-100 border border-gray-200 rounded-lg text-[10px] text-gray-700 appearance-none cursor-pointer"
                 >
                   {DOCUMENT_TYPES.map(t => (
                     <option key={t.value} value={t.value} className="bg-neutral-800 text-white">{t.label}</option>
@@ -2530,16 +2555,16 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           {uploadError && <p className="text-red-400 text-[11px] mt-2 px-1">{uploadError}</p>}
 
           {docsOpen && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
               {docs.length === 0 ? (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <FileText className="w-8 h-8 text-white/30 mb-2" />
-                  <p className="text-[11px] text-white/60">Nėra įkeltų dokumentų</p>
-                  <p className="text-[10px] text-white/40 mt-1">Spauskite „Įkelti" norėdami pridėti sutartis, aktus ar kitus failus</p>
+                  <FileText className="w-8 h-8 text-gray-300 mb-2" />
+                  <p className="text-[11px] text-gray-500">Nėra įkeltų dokumentų</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Spauskite „Įkelti" norėdami pridėti sutartis, aktus ar kitus failus</p>
                 </div>
               ) : (
                 docs.map(doc => (
-                  <div key={doc.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden" style={{ backgroundImage: 'url(/images/CardsBackground.webp)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                  <div key={doc.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
 
                     <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
                       <div className="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -2570,7 +2595,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
         </div>
       </div>
       {/* Activity Log Section */}
-      <div className={`${ptSurface} mt-4`}>
+      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 mt-4 bg-cover bg-center" style={bgStyle}>
         <SectionHeader
           icon={<Activity className="w-4 h-4 text-blue-400" />}
           title="Veiklos žurnalas"
@@ -2580,12 +2605,12 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           iconBg="bg-blue-500/15"
         />
         {showActivityLog && (
-          <div className="px-4 pb-4 space-y-2">
+          <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
             {activityLog.length === 0 ? (
               <div className="text-center py-8">
-                <Activity className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-[12px] text-gray-400">Veiklų dar nėra</p>
-                <p className="text-[10px] text-gray-500 mt-1">Veiksmai bus rodomi čia</p>
+                <Activity className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-[12px] text-gray-500">Veiklų dar nėra</p>
+                <p className="text-[10px] text-gray-400 mt-1">Veiksmai bus rodomi čia</p>
               </div>
             ) : (
               activityLog.map((entry) => {
@@ -2603,12 +2628,12 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
                 const actionColor = entry.action === 'INSERT' ? 'text-emerald-400' : entry.action === 'DELETE' ? 'text-red-400' : entry.action === 'UPDATE' ? 'text-blue-400' : 'text-gray-400';
 
                 return (
-                  <div key={entry.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.06] transition-colors">
+                  <div key={entry.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-white/40 hover:bg-white/50 transition-colors border border-gray-200">
                     <span className={`text-[14px] font-bold ${actionColor} w-5 text-center flex-shrink-0`}>{actionIcon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-200 truncate">{entry.description}</p>
+                      <p className="text-[11px] text-gray-700 truncate">{entry.description}</p>
                     </div>
-                    <span className="text-[9px] text-gray-500 flex-shrink-0">{timeStr}</span>
+                    <span className="text-[9px] text-gray-400 flex-shrink-0">{timeStr}</span>
                   </div>
                 );
               })
@@ -2799,10 +2824,10 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     try {
       // Save to localStorage for now (could be extended to save to database)
       localStorage.setItem(`property_notes_${property.id}`, propertyNotes);
-      console.log('ï¿½S& Notes saved successfully');
+      if (import.meta.env.DEV) console.log('ï¿½S& Notes saved successfully');
       setIsNotesModalOpen(false);
     } catch (error) {
-      console.error('Error saving notes:', error);
+      if (import.meta.env.DEV) console.error('Error saving notes:', error);
       alert('Klaida išsaugant pastabas. Bandykite dar kartï¿½&.');
     } finally {
       setNotesSaving(false);
@@ -2827,11 +2852,11 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
         // Validate file
         if (!file.type.startsWith('image/')) {
-          console.warn('Skipping non-image file:', file.name);
+          if (import.meta.env.DEV) console.warn('Skipping non-image file:', file.name);
           continue;
         }
         if (file.size > 5 * 1024 * 1024) {
-          console.warn('File too large:', file.name);
+          if (import.meta.env.DEV) console.warn('File too large:', file.name);
           continue;
         }
 
@@ -2845,7 +2870,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           .upload(path, file, { upsert: true });
 
         if (uploadError) {
-          console.error('Upload error:', uploadError);
+          if (import.meta.env.DEV) console.error('Upload error:', uploadError);
           continue;
         }
 
@@ -2866,14 +2891,14 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         // Note: This assumes there's a photos column or we store in localStorage for now
         localStorage.setItem(`property_photos_${property.id}`, JSON.stringify(newPhotos));
 
-        console.log('Photos uploaded successfully:', uploadedUrls.length);
+        if (import.meta.env.DEV) console.log('Photos uploaded successfully:', uploadedUrls.length);
 
         // Log activity
         trackActivity('INSERT', { tableName: 'property_photos', recordId: property.id, description: `Įkelta ${uploadedUrls.length} nuotr.`, metadata: { count: uploadedUrls.length } });
         setActivityRefreshKey(k => k + 1);
       }
     } catch (error) {
-      console.error('Error uploading photos:', error);
+      if (import.meta.env.DEV) console.error('Error uploading photos:', error);
       alert('Klaida įkeliant nuotraukas. Bandykite dar kartï¿½&.');
     } finally {
       setUploadingPhotos(false);
@@ -2888,7 +2913,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   const handleReorderPhotos = useCallback((newPhotos: string[]) => {
     setPropertyPhotos(newPhotos);
     localStorage.setItem(`property_photos_${property.id}`, JSON.stringify(newPhotos));
-    console.log('ï¿½xï¿½ Photos reordered:', newPhotos.length);
+    if (import.meta.env.DEV) console.log('ï¿½xï¿½ Photos reordered:', newPhotos.length);
   }, [property.id]);
 
   // Handle deleting a photo
@@ -2896,7 +2921,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     const newPhotos = propertyPhotos.filter((_, i) => i !== index);
     setPropertyPhotos(newPhotos);
     localStorage.setItem(`property_photos_${property.id}`, JSON.stringify(newPhotos));
-    console.log('Photo deleted at index:', index);
+    if (import.meta.env.DEV) console.log('Photo deleted at index:', index);
 
     // Log activity
     trackActivity('DELETE', { tableName: 'property_photos', recordId: property.id, description: 'Ištrinta nuotrauka' });
@@ -2911,7 +2936,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     newPhotos.unshift(photo);
     setPropertyPhotos(newPhotos);
     localStorage.setItem(`property_photos_${property.id}`, JSON.stringify(newPhotos));
-    console.log('Photo set as cover from index:', index);
+    if (import.meta.env.DEV) console.log('Photo set as cover from index:', index);
 
     // Log activity
     trackActivity('UPDATE', { tableName: 'property_photos', recordId: property.id, description: 'Pakeistas viršelio nuotrauka' });
@@ -2927,7 +2952,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           setPropertyPhotos(parsed);
         }
       } catch (e) {
-        console.error('Error parsing stored photos:', e);
+        if (import.meta.env.DEV) console.error('Error parsing stored photos:', e);
       }
     }
   }, [property.id]);
@@ -2957,12 +2982,12 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
       if (error) throw error;
 
-      console.log('ï¿½S& Tenant added successfully');
+      if (import.meta.env.DEV) console.log('ï¿½S& Tenant added successfully');
       setIsTenantModalOpen(false);
       // Would need to refresh data here in real implementation
       alert('Nuomininkas pridï¿½tas sï¿½kmingai!');
     } catch (error) {
-      console.error('Error adding tenant:', error);
+      if (import.meta.env.DEV) console.error('Error adding tenant:', error);
       alert('Klaida pridï¿½dant nuomininku. Bandykite dar kartï¿½&.');
     }
   }, [tenantForm, property.id]);
@@ -2991,11 +3016,11 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
       if (error) throw error;
 
-      console.log('ï¿½S& Lease created successfully');
+      if (import.meta.env.DEV) console.log('ï¿½S& Lease created successfully');
       setIsLeaseModalOpen(false);
       alert('Sutartis sukurta sï¿½kmingai!');
     } catch (error) {
-      console.error('Error creating lease:', error);
+      if (import.meta.env.DEV) console.error('Error creating lease:', error);
       alert('Klaida kuriant sutarti. Bandykite dar kart&.');
     }
   }, [leaseForm, property.id]);
@@ -3014,7 +3039,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         .select('id');
 
       if (res.error) {
-        console.error('[handleDrawerSaveProperty] DB error:', res.error);
+        if (import.meta.env.DEV) console.error('[handleDrawerSaveProperty] DB error:', res.error);
         throw new Error(res.error.message || 'DB klaida saugant');
       }
       if (!res.data || res.data.length === 0) {
@@ -3023,7 +3048,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
       // Trigger parent to refetch AND update selectedTenant state
       onPropertyUpdated?.();
     } catch (error: any) {
-      console.error('[handleDrawerSaveProperty] Error:', error);
+      if (import.meta.env.DEV) console.error('[handleDrawerSaveProperty] Error:', error);
       throw error;
     }
   }, [property.id, onPropertyUpdated]);
@@ -3043,11 +3068,11 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
       if (error) throw error;
 
-      console.log('S& Property updated successfully');
+      if (import.meta.env.DEV) console.log('S& Property updated successfully');
       setIsEditPropertyModalOpen(false);
       alert('Būsto duomenys atnaujinti skmingai!');
     } catch (error) {
-      console.error('Error updating property:', error);
+      if (import.meta.env.DEV) console.error('Error updating property:', error);
       alert('Klaida atnaujinant būsto duomenis. Bandykite dar kart&.');
     }
   }, [propertyForm, property.id]);
@@ -3091,7 +3116,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         tenantPhotoEnabled: meter.tenantPhotoEnabled || false
       }));
       setMeterData(initialMeterData);
-      console.log('S& Initialized meterData with', initialMeterData.length, 'meters');
+      if (import.meta.env.DEV) console.log('S& Initialized meterData with', initialMeterData.length, 'meters');
     }
   }, [meters]);
 
@@ -3100,7 +3125,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     const fetchAddressMeters = async () => {
       if (isOpen && property?.id && meters.length === 0) {
         try {
-          console.log('x Fetching address meters for property:', property.id);
+          if (import.meta.env.DEV) console.log('x Fetching address meters for property:', property.id);
           const addressMeters = await getApartmentMeters(property.id);
 
           if (addressMeters && addressMeters.length > 0) {
@@ -3135,10 +3160,10 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
               tenantPhotoEnabled: false
             }));
             setMeterData(convertedMeters);
-            console.log('S& Loaded', convertedMeters.length, 'meters from address settings');
+            if (import.meta.env.DEV) console.log('S& Loaded', convertedMeters.length, 'meters from address settings');
           }
         } catch (error) {
-          console.error('Error fetching address meters:', error);
+          if (import.meta.env.DEV) console.error('Error fetching address meters:', error);
         }
       }
     };
@@ -3210,7 +3235,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           });
 
         if (error) {
-          console.error('Error adding meter:', error);
+          if (import.meta.env.DEV) console.error('Error adding meter:', error);
         }
       }
 
@@ -3252,19 +3277,19 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
       setShowAddMeter(false);
     } catch (err) {
-      console.error('Error in handleAddMeters:', err);
+      if (import.meta.env.DEV) console.error('Error in handleAddMeters:', err);
     }
   }, [property?.address_id, property?.id]);
 
   // Handler functions
   const handleSaveReading = useCallback(async (meterId: string, reading: number) => {
     try {
-      console.log('Saving reading for meter:', meterId, reading);
+      if (import.meta.env.DEV) console.log('Saving reading for meter:', meterId, reading);
 
       // Find the meter in the data
       const meterIndex = meterData.findIndex(m => m.id === meterId);
       if (meterIndex === -1) {
-        console.error('Meter not found:', meterId);
+        if (import.meta.env.DEV) console.error('Meter not found:', meterId);
         return;
       }
 
@@ -3311,10 +3336,10 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         notes: isCommunalMeter ? 'Bendras skaitliukas - nuomotojo įvestas rodmuo' : 'Nuomotojo įvestas rodmuo'
       };
 
-      console.log('ðŸ“Š Inserting meter reading data:', insertData);
-      console.log('ðŸ“Š Is communal meter:', isCommunalMeter);
-      console.log('ðŸ“Š Meter type:', meterType);
-      console.log('ðŸ“Š Property object:', property);
+      if (import.meta.env.DEV) console.log('ðŸ“Š Inserting meter reading data:', insertData);
+      if (import.meta.env.DEV) console.log('ðŸ“Š Is communal meter:', isCommunalMeter);
+      if (import.meta.env.DEV) console.log('ðŸ“Š Meter type:', meterType);
+      if (import.meta.env.DEV) console.log('ðŸ“Š Property object:', property);
 
       // Update the meter reading in the database
       const { data, error } = await supabase
@@ -3324,12 +3349,12 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         .single();
 
       if (error) {
-        console.error('âŒ Error saving reading:', error);
-        console.error('âŒ Error code:', error.code, 'Message:', error.message, 'Details:', error.details);
+        if (import.meta.env.DEV) console.error('âŒ Error saving reading:', error);
+        if (import.meta.env.DEV) console.error('âŒ Error code:', error.code, 'Message:', error.message, 'Details:', error.details);
         return;
       }
 
-      console.log('âœ… Reading saved successfully, DB returned:', data);
+      if (import.meta.env.DEV) console.log('âœ… Reading saved successfully, DB returned:', data);
 
       // Update local state
       const updatedMeterData = [...meterData];
@@ -3338,32 +3363,32 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
       (updatedMeterData[meterIndex] as ExtendedMeter).tenantSubmittedValue = reading;
       setMeterData(updatedMeterData);
 
-      console.log('âœ… Local state updated for meter:', meterId);
+      if (import.meta.env.DEV) console.log('âœ… Local state updated for meter:', meterId);
       // Remove the alert - it's causing the persistent notification issue
 
     } catch (error) {
-      console.error('Error saving reading:', error);
+      if (import.meta.env.DEV) console.error('Error saving reading:', error);
       alert('Klaida išsaugant rodmenį. Bandykite dar kart&.');
     }
   }, [meterData, property.id]);
 
   const handleRequestPhoto = useCallback(async (meterId: string) => {
     try {
-      console.log('Requesting photo for meter:', meterId);
+      if (import.meta.env.DEV) console.log('Requesting photo for meter:', meterId);
 
       // Here you would typically send a notification to the tenant
       // For now, we'll just log it
       alert('Nuomininkui išsiųstas prašymas pateikti nuotrauk&');
 
     } catch (error) {
-      console.error('Error requesting photo:', error);
+      if (import.meta.env.DEV) console.error('Error requesting photo:', error);
       alert('Klaida siunÄiant prašym&. Bandykite dar kart&.');
     }
   }, []);
 
   const handleViewHistory = useCallback(async (meterId: string) => {
     try {
-      console.log('Getting history for meter:', meterId);
+      if (import.meta.env.DEV) console.log('Getting history for meter:', meterId);
 
       // Fetch meter reading history from database
       const { data, error } = await supabase
@@ -3373,43 +3398,43 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         .order('reading_date', { ascending: false });
 
       if (error) {
-        console.error('Error fetching history:', error);
+        if (import.meta.env.DEV) console.error('Error fetching history:', error);
         alert('Klaida gaunant istorij&. Bandykite dar kart&.');
         return;
       }
 
       // Show history in a modal or navigate to history page
-      console.log('Meter history:', data);
+      if (import.meta.env.DEV) console.log('Meter history:', data);
       alert(`Rasta ${data?.length || 0} rodmenų istorijoje`);
 
     } catch (error) {
-      console.error('Error loading history:', error);
+      if (import.meta.env.DEV) console.error('Error loading history:', error);
       alert('Klaida gaunant istorij&. Bandykite dar kart&.');
     }
   }, []);
 
   const handleRequestMissing = useCallback(async (ids: string[]) => {
     try {
-      console.log('Requesting missing readings for meters:', ids);
+      if (import.meta.env.DEV) console.log('Requesting missing readings for meters:', ids);
 
       // Here you would typically send notifications to tenants
       // For now, we'll just log it
       alert(`Išsiųstas prašymas ${ids.length} skaitliukų rodmenims`);
 
     } catch (error) {
-      console.error('Error requesting missing readings:', error);
+      if (import.meta.env.DEV) console.error('Error requesting missing readings:', error);
       alert('Klaida siunÄiant prašymus. Bandykite dar kart&.');
     }
   }, []);
 
   const handleApproveReading = useCallback(async (meterId: string) => {
     try {
-      console.log('Approving reading for meter:', meterId);
+      if (import.meta.env.DEV) console.log('Approving reading for meter:', meterId);
 
       // Find the meter in the data
       const meterIndex = meterData.findIndex(m => m.id === meterId);
       if (meterIndex === -1) {
-        console.error('Meter not found:', meterId);
+        if (import.meta.env.DEV) console.error('Meter not found:', meterId);
         return;
       }
 
@@ -3425,7 +3450,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         .eq('status', 'pending');
 
       if (error) {
-        console.error('Error approving reading:', error);
+        if (import.meta.env.DEV) console.error('Error approving reading:', error);
         alert('Klaida patvirtinant rodmenį. Bandykite dar kart&.');
         return;
       }
@@ -3435,23 +3460,23 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
       (updatedMeterData[meterIndex] as ExtendedMeter).isApproved = true;
       setMeterData(updatedMeterData);
 
-      console.log('S& Reading approved successfully');
+      if (import.meta.env.DEV) console.log('S& Reading approved successfully');
       alert('Rodmuo skmingai patvirtintas!');
 
     } catch (error) {
-      console.error('Error approving reading:', error);
+      if (import.meta.env.DEV) console.error('Error approving reading:', error);
       alert('Klaida patvirtinant rodmenį. Bandykite dar kart&.');
     }
   }, [meterData, user?.id]);
 
   const handleEditReading = useCallback(async (meterId: string, newValue: number) => {
     try {
-      console.log('Editing reading for meter:', meterId, newValue);
+      if (import.meta.env.DEV) console.log('Editing reading for meter:', meterId, newValue);
 
       // Find the meter in the data
       const meterIndex = meterData.findIndex(m => m.id === meterId);
       if (meterIndex === -1) {
-        console.error('Meter not found:', meterId);
+        if (import.meta.env.DEV) console.error('Meter not found:', meterId);
         return;
       }
 
@@ -3471,7 +3496,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         .limit(1);
 
       if (error) {
-        console.error('Error updating reading:', error);
+        if (import.meta.env.DEV) console.error('Error updating reading:', error);
         alert('Klaida atnaujinant rodmenį. Bandykite dar kart&.');
         return;
       }
@@ -3483,24 +3508,24 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
       (updatedMeterData[meterIndex] as ExtendedMeter).tenantSubmittedValue = newValue;
       setMeterData(updatedMeterData);
 
-      console.log('S& Reading updated successfully');
+      if (import.meta.env.DEV) console.log('S& Reading updated successfully');
 
     } catch (error) {
-      console.error('Error editing reading:', error);
+      if (import.meta.env.DEV) console.error('Error editing reading:', error);
       alert('Klaida atnaujinant rodmenį. Bandykite dar kart&.');
     }
   }, [meterData]);
 
   const handleSendWarning = useCallback(async (meterId: string) => {
     try {
-      console.log('Sending warning for meter:', meterId);
+      if (import.meta.env.DEV) console.log('Sending warning for meter:', meterId);
 
       // Here you would typically send a warning notification to the tenant
       // For now, we'll just log it
       alert('Nuomininkui išsiųstas įspjimas');
 
     } catch (error) {
-      console.error('Error sending warning:', error);
+      if (import.meta.env.DEV) console.error('Error sending warning:', error);
       alert('Klaida siunÄiant įspjim&. Bandykite dar kart&.');
     }
   }, []);
@@ -3540,7 +3565,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         .eq('status', 'accepted');
 
       if (invError) {
-        console.error('Force remove — invitation update error:', invError);
+        if (import.meta.env.DEV) console.error('Force remove — invitation update error:', invError);
       }
 
       // 2. Clear property tenant data and set to vacant
@@ -3562,7 +3587,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         .eq('id', property.id);
 
       if (propError) {
-        console.error('Force remove — property update error:', propError);
+        if (import.meta.env.DEV) console.error('Force remove — property update error:', propError);
         alert('Klaida atnaujinant butą. Bandykite dar kartą.');
         return;
       }
@@ -3577,19 +3602,46 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
       onPropertyUpdated?.();
       onClose();
     } catch (err) {
-      console.error('Force remove error:', err);
+      if (import.meta.env.DEV) console.error('Force remove error:', err);
       alert('Klaida — bandykite dar kartą.');
     } finally {
       setIsForceRemoving(false);
     }
   }, [property?.id, tenant.status, onPropertyUpdated, onClose]);
 
-  const tabs = [
-    { id: 'overview', label: 'Apžvalga', icon: User },
-    { id: 'property', label: 'Būstas', icon: Home },
-    { id: 'meters', label: 'Komunaliniai', icon: Droplets },
-    { id: 'documents', label: 'Istorija', icon: FileText },
+  // Unified card background style for all tabs (from address settings)
+  const modalCardBgUrl = property ? resolveCardBgImage(property) : null;
+  const modalCardBgStyle: React.CSSProperties | undefined = React.useMemo(() => {
+    if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp') return undefined;
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.78) 100%), url('${modalCardBgUrl}')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    };
+  }, [modalCardBgUrl]);
+
+  // Subtle overlay variant — stronger white for text-heavy sections (Istorija)
+  const modalCardBgStyleSubtle: React.CSSProperties | undefined = React.useMemo(() => {
+    if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp') return undefined;
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.90) 100%), url('${modalCardBgUrl}')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    };
+  }, [modalCardBgUrl]);
+
+  const { permissions: agentPerms, isAgent: isAgentUser } = useAgentPermissions();
+
+  const allTabs = [
+    { id: 'overview', label: 'Apžvalga', icon: User, permKey: 'can_view_overview' as const },
+    { id: 'property', label: 'Būstas', icon: Home, permKey: 'can_view_property' as const },
+    { id: 'meters', label: 'Komunaliniai', icon: Droplets, permKey: 'can_view_meters' as const },
+    { id: 'documents', label: 'Istorija', icon: FileText, permKey: 'can_view_history' as const },
   ];
+
+  const tabs = isAgentUser
+    ? allTabs.filter(tab => agentPerms[tab.permKey])
+    : allTabs;
 
   if (!isOpen) return null;
 
@@ -3607,7 +3659,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           ref={modalRef}
           className="relative rounded-2xl shadow-2xl max-w-[1000px] w-[96vw] h-[90vh] grid grid-rows-[auto_auto_1fr] overflow-hidden"
           style={{
-            background: `linear-gradient(135deg, rgba(0, 0, 0, 0.45) 0%, rgba(20, 20, 20, 0.30) 50%, rgba(0, 0, 0, 0.45) 100%), url('/images/ModalBackground.png')`,
+            background: `linear-gradient(135deg, rgba(0, 0, 0, 0.70) 0%, rgba(15, 18, 21, 0.55) 50%, rgba(0, 0, 0, 0.70) 100%), url('/images/themebackground2.webp')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
@@ -3616,7 +3668,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           <div className="sticky top-0 z-10 border-b border-white/10 px-6 py-4 flex items-center justify-between bg-neutral-900/60 backdrop-blur-sm">
             <div>
               <h2 id="tenant-modal-title" className="text-xl font-semibold text-white">
-                {tenant.status === 'vacant' ? `Butas ${tenant.apartmentNumber}` : tenant.name}
+                {tenant.status === 'vacant' ? tenant.apartmentNumber : tenant.name}
               </h2>
               <p className="text-sm text-gray-400">
                 {property.address}
@@ -3625,7 +3677,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {tenant.status !== 'vacant' && (
+              {tenant.status !== 'vacant' && (!isAgentUser || agentPerms.can_terminate_contracts) && (
                 <button
                   onClick={handleForceRemoveTenant}
                   disabled={isForceRemoving}
@@ -3680,8 +3732,8 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
               <OverviewWithLayoutEditor
                 property={{
                   ...property,
-                  rent: property.rent,
-                  deposit_amount: property.deposit_amount,
+                  rent: agentPerms.can_view_financials ? property.rent : undefined,
+                  deposit_amount: agentPerms.can_view_financials ? property.deposit_amount : undefined,
                 }}
                 tenant={{
                   name: tenant?.name,
@@ -3690,29 +3742,29 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                   status: tenant?.status,
                   contractStart: tenant?.contractStart,
                   contractEnd: tenant?.contractEnd,
-                  monthlyRent: tenant?.monthlyRent,
-                  deposit: tenant?.deposit ?? undefined,
+                  monthlyRent: agentPerms.can_view_financials ? tenant?.monthlyRent : undefined,
+                  deposit: agentPerms.can_view_financials ? (tenant?.deposit ?? undefined) : undefined,
                   paymentDay: 1,
-                  overdue: tenant?.outstanding_amount || 0,
+                  overdue: agentPerms.can_view_financials ? (tenant?.outstanding_amount || 0) : 0,
                   lastSignIn: tenantLastLogin || undefined,
                   avatarUrl: tenantAvatarUrl || undefined,
                 }}
                 photos={propertyPhotos}
-                meters={meterData}
-                documents={new Array(documentCount)}
+                meters={agentPerms.can_view_meters ? meterData : []}
+                documents={agentPerms.can_view_history ? new Array(documentCount) : []}
 
-                canEditLayout={true}
-                onAddTenant={handleAddTenant}
+                canEditLayout={!isAgentUser}
+                onAddTenant={agentPerms.can_manage_tenants ? handleAddTenant : undefined}
                 onViewTenant={() => setActiveTab('documents')}
-                onSetPrice={() => setActiveTab('property')}
-                onSetDeposit={() => setActiveTab('property')}
-                onUploadPhoto={handleUploadPhoto}
-                onManagePhotos={() => setActiveTab('property')}
-                onOpenSettings={handleEditProperty}
+                onSetPrice={agentPerms.can_view_financials ? () => setActiveTab('property') : undefined}
+                onSetDeposit={agentPerms.can_view_financials ? () => setActiveTab('property') : undefined}
+                onUploadPhoto={agentPerms.can_upload_photos ? handleUploadPhoto : undefined}
+                onManagePhotos={agentPerms.can_upload_photos ? () => setActiveTab('property') : undefined}
+                onOpenSettings={!isAgentUser || agentPerms.can_edit_property ? handleEditProperty : undefined}
                 onNavigateTab={(tab) => setActiveTab(tab === 'komunaliniai' ? 'meters' : tab === 'dokumentai' ? 'documents' : tab === 'bustas' ? 'property' : tab)}
-                onDeletePhoto={handleDeletePhoto}
-                onReorderPhotos={handleReorderPhotos}
-                onSetCover={handleSetCover}
+                onDeletePhoto={agentPerms.can_upload_photos ? handleDeletePhoto : undefined}
+                onReorderPhotos={agentPerms.can_upload_photos ? handleReorderPhotos : undefined}
+                onSetCover={agentPerms.can_upload_photos ? handleSetCover : undefined}
                 onPropertyUpdated={onPropertyUpdated}
                 activityRefreshKey={activityRefreshKey}
               />
@@ -3732,6 +3784,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                 paymentDueDay={(property as any).extended_details?.payment_due_day}
                 onAddMeter={() => setShowAddMeter(true)}
                 onCollectReadings={() => handleRequestMissing(meterData.filter(m => m.needsPhoto || m.needsReading).map(m => m.id))}
+                bgStyle={modalCardBgStyle}
                 onSaveReadings={async (readings) => {
                   for (const r of readings) {
                     await handleSaveReading(r.meterId, r.value);
@@ -3750,7 +3803,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                         .maybeSingle();
 
                       if (fetchErr) {
-                        console.error('Error fetching latest reading:', fetchErr);
+                        if (import.meta.env.DEV) console.error('Error fetching latest reading:', fetchErr);
                         continue;
                       }
 
@@ -3770,9 +3823,9 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                           .eq('id', latestReading.id);
 
                         if (updateErr) {
-                          console.error('Error updating previous reading:', updateErr);
+                          if (import.meta.env.DEV) console.error('Error updating previous reading:', updateErr);
                         } else {
-                          console.log(`âœ… Updated previous reading for meter ${u.meterId} to ${u.previousReading}`);
+                          if (import.meta.env.DEV) console.log(`âœ… Updated previous reading for meter ${u.meterId} to ${u.previousReading}`);
                           // Update local state
                           const idx = meterData.findIndex(m => m.id === u.meterId);
                           if (idx !== -1) {
@@ -3801,9 +3854,9 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                             notes: 'Pradinis rodmuo — nuomotojo įvestas',
                           });
                         if (insertErr) {
-                          console.error(`Error creating initial reading for ${u.meterId}:`, insertErr);
+                          if (import.meta.env.DEV) console.error(`Error creating initial reading for ${u.meterId}:`, insertErr);
                         } else {
-                          console.log(`✅ Created initial reading for meter ${u.meterId}: ${u.previousReading}`);
+                          if (import.meta.env.DEV) console.log(`✅ Created initial reading for meter ${u.meterId}: ${u.previousReading}`);
                           const idx = meterData.findIndex(m => m.id === u.meterId);
                           if (idx !== -1) {
                             const updated = [...meterData];
@@ -3813,7 +3866,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                         }
                       }
                     } catch (err) {
-                      console.error('Error saving previous reading:', err);
+                      if (import.meta.env.DEV) console.error('Error saving previous reading:', err);
                     }
                   }
                 }}
@@ -3833,7 +3886,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                     />
                   </div>
                 )}
-                <HistoryTab propertyId={property.id} activityRefreshKey={activityRefreshKey} currentTenant={{ name: tenant.name, email: tenant.email, phone: tenant.phone, monthlyRent: tenant.monthlyRent, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, status: tenant.status }} />
+                <HistoryTab propertyId={property.id} activityRefreshKey={activityRefreshKey} bgStyle={modalCardBgStyleSubtle} currentTenant={{ name: tenant.name, email: tenant.email, phone: tenant.phone, monthlyRent: tenant.monthlyRent, contractStart: tenant.contractStart, contractEnd: tenant.contractEnd, status: tenant.status }} />
               </>
             </div>
           </div>
@@ -3860,8 +3913,8 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                     <MessageSquare className="w-5 h-5 text-[#2F8481]" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-neutral-900">Vidinï¿½s pastabos</h3>
-                    <p className="text-sm text-neutral-500">Komentarai apie būstï¿½&</p>
+                    <h3 className="text-lg font-semibold text-neutral-900">Vidinės pastabos</h3>
+                    <p className="text-sm text-neutral-500">Komentarai apie būstą</p>
                   </div>
                 </div>
                 <button
@@ -3904,7 +3957,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
           isOpen={isTenantModalOpen}
           onClose={() => setIsTenantModalOpen(false)}
           propertyId={property.id}
-          propertyLabel={property.address || `Butas ${property.id}`}
+          propertyLabel={property.address || property.id}
           onSuccess={() => setActivityRefreshKey(k => k + 1)}
         />
 

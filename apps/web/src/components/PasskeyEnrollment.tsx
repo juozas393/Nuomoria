@@ -21,7 +21,7 @@ const PasskeyEnrollment: React.FC<PasskeyEnrollmentProps> = ({ onComplete, onSki
 
       // For demo purposes, we'll simulate the passkey enrollment
       // In production, you would use the WebAuthn API
-      console.log('🔐 Starting passkey enrollment...');
+      if (import.meta.env.DEV) console.log('🔐 Starting passkey enrollment...');
       
       // Simulate enrollment process
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -36,7 +36,7 @@ const PasskeyEnrollment: React.FC<PasskeyEnrollmentProps> = ({ onComplete, onSki
       }, 2000);
       
     } catch (error: any) {
-      console.error('❌ Passkey enrollment error:', error);
+      if (import.meta.env.DEV) console.error('❌ Passkey enrollment error:', error);
       setMessage({ 
         type: 'error', 
         text: error.message || 'Klaida kuriant passkey. Bandykite dar kartą.' 

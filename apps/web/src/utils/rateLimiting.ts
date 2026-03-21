@@ -31,7 +31,7 @@ class RateLimiter {
       }
     } catch (error) {
       // Security: Don't log sensitive rate limiting errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.warn('Failed to load rate limits from storage:', error);
       }
     }
@@ -43,7 +43,7 @@ class RateLimiter {
       localStorage.setItem('rate_limits', JSON.stringify(data));
     } catch (error) {
       // Security: Don't log sensitive rate limiting errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.warn('Failed to save rate limits to storage:', error);
       }
     }

@@ -720,7 +720,7 @@ const AdminDashboard: React.FC = () => {
             setKpiDetail(arr);
             setKpiDetailHasMore(arr.length >= KPI_DETAIL_PAGE);
         } catch (err) {
-            console.error('KPI detail fetch error:', err);
+            if (import.meta.env.DEV) console.error('KPI detail fetch error:', err);
             setKpiDetail([]);
             setKpiDetailHasMore(false);
         } finally {
@@ -741,7 +741,7 @@ const AdminDashboard: React.FC = () => {
             setKpiDetail(prev => [...prev, ...arr]);
             setKpiDetailHasMore(arr.length >= KPI_DETAIL_PAGE);
         } catch (err) {
-            console.error('KPI detail load more error:', err);
+            if (import.meta.env.DEV) console.error('KPI detail load more error:', err);
         } finally {
             setKpiDetailLoadingMore(false);
         }
@@ -809,7 +809,7 @@ const AdminDashboard: React.FC = () => {
                 occupiedProperties: stats.occupied_properties ?? 0,
             });
         } catch (err) {
-            console.error('Admin fetch error:', err);
+            if (import.meta.env.DEV) console.error('Admin fetch error:', err);
         } finally {
             setLoading(false);
         }

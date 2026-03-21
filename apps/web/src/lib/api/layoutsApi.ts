@@ -92,7 +92,7 @@ export const saveLayouts = async (
             });
 
         if (error) {
-            console.error(`Failed to save ${bp} layout:`, error);
+            if (import.meta.env.DEV) console.error(`Failed to save ${bp} layout:`, error);
             throw error;
         }
     }
@@ -113,7 +113,7 @@ export const resetLayouts = async (_propertyId?: string): Promise<void> => {
         .eq('view', 'overview');
 
     if (error) {
-        console.error('Failed to reset layouts:', error);
+        if (import.meta.env.DEV) console.error('Failed to reset layouts:', error);
         throw error;
     }
 };

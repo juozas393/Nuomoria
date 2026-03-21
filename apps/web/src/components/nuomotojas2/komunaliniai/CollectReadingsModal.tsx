@@ -79,7 +79,7 @@ export const CollectReadingsModal: React.FC<CollectReadingsModalProps> = ({
             await onSendRequests(Array.from(selectedMeterIds), method);
             setStep('sent');
         } catch (error) {
-            console.error('Failed to send requests:', error);
+            if (import.meta.env.DEV) console.error('Failed to send requests:', error);
         } finally {
             setIsSending(false);
         }

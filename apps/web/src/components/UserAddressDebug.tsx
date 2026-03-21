@@ -27,7 +27,7 @@ export const UserAddressDebug: React.FC = () => {
         const addresses = await addressApi.getAll(userId);
         setAllAddresses(addresses);
 
-        console.log('User addresses debug:', {
+        if (import.meta.env.DEV) console.log('User addresses debug:', {
           userId: user.id,
           role: user.role,
           shouldFilter: shouldFilterByUser,
@@ -35,7 +35,7 @@ export const UserAddressDebug: React.FC = () => {
           filteredAddresses: addresses
         });
       } catch (error) {
-        console.error('Error loading debug data:', error);
+        if (import.meta.env.DEV) console.error('Error loading debug data:', error);
       } finally {
         setLoading(false);
       }

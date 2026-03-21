@@ -489,7 +489,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
               <label className="block text-sm font-medium text-gray-700 mb-1">Fiksuota suma (€)</label>
               <input
                 type="number"
-                step="0.01"
+                    step="any"
                 value={formData.fixed_price}
                 onChange={(e) => setFormData(prev => ({ ...prev, fixed_price: parseFloat(e.target.value) || 0 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
@@ -501,7 +501,7 @@ const EditMeterModal: React.FC<EditMeterModalProps> = ({ meter, onClose, onSave 
               <label className="block text-sm font-medium text-gray-700 mb-1">Kaina už vienetą (€)</label>
               <input
                 type="number"
-                step="0.01"
+                    step="any"
                 value={formData.price_per_unit}
                 onChange={(e) => setFormData(prev => ({ ...prev, price_per_unit: parseFloat(e.target.value) || 0 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2F8481] focus:border-[#2F8481]"
@@ -853,7 +853,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
           try {
             onMeterUpdate(modernMeter.id, updatedMeter);
           } catch (error) {
-            console.error('❌ Error updating meter in database:', error);
+            if (import.meta.env.DEV) console.error('❌ Error updating meter in database:', error);
           }
         });
       }
@@ -865,7 +865,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
     if (meter) {
       setEditingMeter(meter);
       setShowEditModal(true);
-      console.log('Opening edit modal for meter:', meter.id);
+      if (import.meta.env.DEV) console.log('Opening edit modal for meter:', meter.id);
     }
   }, [meters]);
 
@@ -882,7 +882,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         setShowEditModal(false);
         setEditingMeter(null);
 
-        console.log('✅ Meter updated locally:', editingMeter.id);
+        if (import.meta.env.DEV) console.log('✅ Meter updated locally:', editingMeter.id);
 
         // Update the database in the background (non-blocking)
         if (onMeterUpdate) {
@@ -891,15 +891,15 @@ export const MetersTable: React.FC<MetersTableProps> = ({
             try {
               onMeterUpdate(editingMeter.id, updatedMeter);
             } catch (error) {
-              console.error('❌ Error updating meter in database:', error);
-              console.warn('Meter was updated locally but may not be saved to database');
+              if (import.meta.env.DEV) console.error('❌ Error updating meter in database:', error);
+              if (import.meta.env.DEV) console.warn('Meter was updated locally but may not be saved to database');
             }
           });
         }
       } catch (error) {
-        console.error('❌ Error updating meter:', error);
+        if (import.meta.env.DEV) console.error('❌ Error updating meter:', error);
         // Don't show alert - just log the error to avoid disrupting UX
-        console.warn('Error in meter update, but UI remains responsive');
+        if (import.meta.env.DEV) console.warn('Error in meter update, but UI remains responsive');
       }
     }
   }, [editingMeter, meters, onMetersChange, onMeterUpdate]);
@@ -908,8 +908,8 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   const handleAddAvailableMeter = (availableMeter: any) => {
     try {
-      console.log('handleAddAvailableMeter called with:', availableMeter);
-      console.log('Current meters:', meters);
+      if (import.meta.env.DEV) console.log('handleAddAvailableMeter called with:', availableMeter);
+      if (import.meta.env.DEV) console.log('Current meters:', meters);
 
       // Convert available meter to regular meter format
       const newMeter: LocalMeter = {
@@ -930,30 +930,30 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         tenantPhotoEnabled: availableMeter.tenantPhotoEnabled || false
       };
 
-      console.log('Created new meter:', newMeter);
+      if (import.meta.env.DEV) console.log('Created new meter:', newMeter);
 
       // Add to meters array
       const updatedMeters = [...meters, newMeter];
-      console.log('Updated meters array:', updatedMeters);
+      if (import.meta.env.DEV) console.log('Updated meters array:', updatedMeters);
 
       onMetersChange(updatedMeters);
-      console.log('onMetersChange called successfully');
+      if (import.meta.env.DEV) console.log('onMetersChange called successfully');
 
       // Auto-select the newly added meter for immediate editing
       setSelectedMeterId(newMeter.id);
-      console.log('✅ Auto-selected new meter for editing:', newMeter.id);
+      if (import.meta.env.DEV) console.log('✅ Auto-selected new meter for editing:', newMeter.id);
 
     } catch (error) {
-      console.error('Error adding meter:', error);
+      if (import.meta.env.DEV) console.error('Error adding meter:', error);
       alert('Klaida pridedant skaitliuką. Bandykite dar kartą.');
     }
   };
 
   const handleAddMeters = useCallback((newMeters: any[]) => {
-    console.log('🔍 handleAddMeters called with:', newMeters);
+    if (import.meta.env.DEV) console.log('🔍 handleAddMeters called with:', newMeters);
 
     const metersToAdd = newMeters.map(meter => {
-      console.log('🔍 Processing meter:', meter);
+      if (import.meta.env.DEV) console.log('🔍 Processing meter:', meter);
 
       const requiresPhoto = meter.requirePhoto || meter.requiresPhoto || meter.requires_photo || meter.photoRequired || false;
       const processedMeter = {
@@ -974,18 +974,18 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         tenantPhotoEnabled: requiresPhoto
       };
 
-      console.log('🔍 Processed meter:', processedMeter);
+      if (import.meta.env.DEV) console.log('🔍 Processed meter:', processedMeter);
       return processedMeter;
     });
 
-    console.log('🔍 Final metersToAdd:', metersToAdd);
+    if (import.meta.env.DEV) console.log('🔍 Final metersToAdd:', metersToAdd);
     onMetersChange([...meters, ...metersToAdd]);
 
     // Auto-select the first newly added meter for immediate editing
     if (metersToAdd.length > 0) {
       setSelectedMeterId(metersToAdd[0].id);
       setShowAddModal(false);
-      console.log('✅ Auto-selected new meter for editing:', metersToAdd[0].id);
+      if (import.meta.env.DEV) console.log('✅ Auto-selected new meter for editing:', metersToAdd[0].id);
     }
   }, [meters, onMetersChange]);
 
@@ -1028,7 +1028,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         try {
           onMeterUpdate(meters[index].id, { [field]: value });
         } catch (error) {
-          console.error('❌ Error updating meter field in database:', error);
+          if (import.meta.env.DEV) console.error('❌ Error updating meter field in database:', error);
         }
       });
     }
@@ -1109,7 +1109,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
           try {
             onMeterUpdate(meter.id, updatedMeter);
           } catch (error) {
-            console.error('❌ Error saving meter changes to database:', error);
+            if (import.meta.env.DEV) console.error('❌ Error saving meter changes to database:', error);
           }
         });
       }
@@ -1148,7 +1148,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
         try {
           onMeterUpdate(meter.id, updatedMeter);
         } catch (error) {
-          console.error('❌ Error updating meter type in database:', error);
+          if (import.meta.env.DEV) console.error('❌ Error updating meter type in database:', error);
         }
       });
     }
@@ -1168,7 +1168,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
           try {
             onMeterUpdate(meter.id, { is_inherited: false, inherited_from_address_id: undefined });
           } catch (error) {
-            console.error('❌ Error converting meter to custom in database:', error);
+            if (import.meta.env.DEV) console.error('❌ Error converting meter to custom in database:', error);
           }
         });
       }
@@ -1189,7 +1189,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
           try {
             onMeterUpdate(meter.id, { is_inherited: true });
           } catch (error) {
-            console.error('❌ Error resetting meter to inherited in database:', error);
+            if (import.meta.env.DEV) console.error('❌ Error resetting meter to inherited in database:', error);
           }
         });
       }
@@ -1254,13 +1254,13 @@ export const MetersTable: React.FC<MetersTableProps> = ({
 
   // Reading request handlers
   const handleSendReadingRequest = useCallback((selectedMeterIds: string[], period: string, dueDate: string) => {
-    console.log('Sending reading request:', { selectedMeterIds, period, dueDate });
+    if (import.meta.env.DEV) console.log('Sending reading request:', { selectedMeterIds, period, dueDate });
     // TODO: Implement API call to send reading request
     alert(`Prašymas išsiųstas ${selectedMeterIds.length} skaitliukams. Laikotarpis: ${period}, terminas: ${dueDate}`);
   }, []);
 
   const handleApproveSubmission = useCallback((submissionId: string) => {
-    console.log('Approving submission:', submissionId);
+    if (import.meta.env.DEV) console.log('Approving submission:', submissionId);
     // TODO: Implement API call to approve submission
     setReadingSubmissions(prev =>
       prev.map(sub =>
@@ -1272,7 +1272,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   }, []);
 
   const handleRejectSubmission = useCallback((submissionId: string, reason: string) => {
-    console.log('Rejecting submission:', submissionId, reason);
+    if (import.meta.env.DEV) console.log('Rejecting submission:', submissionId, reason);
     // TODO: Implement API call to reject submission
     setReadingSubmissions(prev =>
       prev.map(sub =>
@@ -1284,7 +1284,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
   }, []);
 
   const handleViewPhoto = useCallback((photoUrl: string) => {
-    console.log('Viewing photo:', photoUrl);
+    if (import.meta.env.DEV) console.log('Viewing photo:', photoUrl);
     // TODO: Implement photo viewer modal
     window.open(photoUrl, '_blank');
   }, []);
@@ -1308,6 +1308,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       case 'per_consumption': return 'Pagal suvartojimą';
       case 'per_apartment': return 'Pagal butų sk.';
       case 'per_area': return 'Pagal plotą';
+      case 'per_person': return 'Pagal asmenis';
       case 'fixed_split': return 'Fiksuotas';
       default: return method;
     }
@@ -1319,6 +1320,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
       case 'per_consumption': return 'Suvartojimas';
       case 'per_apartment': return 'Butų sk.';
       case 'per_area': return 'Plotas';
+      case 'per_person': return 'Pagal asmenis';
       case 'fixed_split': return 'Fiksuotas';
       default: return method;
     }
@@ -1599,7 +1601,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                           {isSelected && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#2F8481]/10 text-[#2F8481] text-[9px] font-medium">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#2F8481] animate-pulse" />
-                              Selected
+                              Pasirinktas
                             </span>
                           )}
                         </div>
@@ -1679,12 +1681,12 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                     <div className="flex items-center gap-2">
                       <span className="text-[15px] font-bold text-gray-900 truncate">{selectedMeter.name}</span>
                       <span className="inline-flex px-1.5 py-0.5 rounded bg-[#2F8481]/10 text-[#2F8481] text-[9px] font-semibold uppercase tracking-wide">
-                        Editing
+                        Redaguojama
                       </span>
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
                       <div className="w-1 h-1 rounded-full bg-emerald-400/70" />
-                      <span className="text-[10px] text-gray-400/80 font-medium">Auto-saved</span>
+                      <span className="text-[10px] text-gray-400/80 font-medium">Automatiškai išsaugota</span>
                     </div>
                   </div>
                 </div>
@@ -1750,7 +1752,7 @@ export const MetersTable: React.FC<MetersTableProps> = ({
                 <div className="bg-white rounded-lg border border-gray-200 p-1 flex items-center shadow-sm">
                   <input
                     type="number"
-                    step="0.01"
+                        step="any"
                     min="0"
                     value={selectedMeter.unit === 'Kitas' ? (selectedMeter.fixed_price ?? 0) : (selectedMeter.price_per_unit ?? 0)}
                     onChange={(e) => {

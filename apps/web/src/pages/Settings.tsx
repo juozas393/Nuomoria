@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
+
 interface StripeAccountInfo {
   id: string;
   stripe_account_id: string;
@@ -362,6 +363,8 @@ const Settings: React.FC = () => {
             </div>
           </div>
         )}
+
+
       </div>
     </div>
   );

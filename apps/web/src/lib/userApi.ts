@@ -185,7 +185,7 @@ export const userApi = {
 
     if (error) {
       // Security: Don't log sensitive address errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('getUserAddresses error:', error);
       }
       throw new Error('Error fetching user addresses');
@@ -233,7 +233,7 @@ export const userApi = {
 
     if (error) {
       // Security: Don't log sensitive address errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('addUserToAddress error:', error);
       }
       throw new Error('Error adding user to address');

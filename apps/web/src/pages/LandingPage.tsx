@@ -163,7 +163,7 @@ const TerminalDiagnostics: React.FC = () => {
             </div>
 
             {/* ── Terminal body ── */}
-            <div className="px-5 py-4 space-y-3 min-h-[320px]" style={mono}>
+            <div className="px-4 py-3 lg:px-5 lg:py-4 space-y-2.5 lg:space-y-3 min-h-[280px] lg:min-h-[300px]" style={mono}>
                 {/* Scan lines */}
                 {scanLines.map((line, i) => (
                     <div
@@ -397,11 +397,11 @@ const LandingPage: React.FC = () => {
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}
             >
-                <div className="max-w-[1200px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
-                    <img src={logoBlack} alt="Nuomoria" className="h-10 lg:h-11 w-auto object-contain" />
+                <div className="max-w-[1200px] mx-auto px-6 md:px-12 h-16 flex items-center justify-between">
+                    <img src={logoBlack} alt="Nuomoria" className="h-10 md:h-11 w-auto object-contain" />
 
                     {/* Desktop nav links */}
-                    <div className="hidden lg:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-6 lg:gap-8">
                         <button onClick={scrollToFeatures} className="text-[13px] font-medium transition-colors hover:text-white" style={{ color: 'rgba(255,255,255,0.55)' }}>
                             Galimybės
                         </button>
@@ -434,7 +434,7 @@ const LandingPage: React.FC = () => {
             {/* ═══════════════════════════════════════════════
           HERO SECTION — compact split layout
       ═══════════════════════════════════════════════ */}
-            <section className="relative pt-16 pb-8 lg:pb-0 lg:min-h-[82vh] flex flex-col">
+            <section className="relative pt-16 pb-8 md:pb-0 md:min-h-[80vh] flex flex-col">
                 {/* Background image — full view */}
                 <div className="absolute inset-0 overflow-hidden">
                     <img src="/images/ImageIntroduction.webp" alt="" className="w-full h-full object-cover object-bottom" />
@@ -444,8 +444,8 @@ const LandingPage: React.FC = () => {
                 {/* Subtle teal glow */}
                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 25% 50%, rgba(16,185,170,0.06) 0%, transparent 50%)' }} />
 
-                <div className="relative z-10 flex-1 flex items-center px-6 lg:px-16 py-12 lg:py-0">
-                    <div className="max-w-[1200px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center landing-fade-in">
+                <div className="relative z-10 flex-1 flex items-center px-6 md:px-12 lg:px-16 py-12 md:py-0">
+                    <div className="max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center landing-fade-in">
 
                         {/* LEFT — Headline & CTA */}
                         <div>
@@ -456,17 +456,17 @@ const LandingPage: React.FC = () => {
                                 Nuomos valdymo platforma Lietuvai
                             </div>
 
-                            <h1 className="text-[32px] lg:text-[50px] font-extrabold leading-[1.10] tracking-[-0.03em] mb-5 font-display">
+                            <h1 className="text-[32px] md:text-[40px] lg:text-[50px] font-extrabold leading-[1.10] tracking-[-0.03em] mb-5 font-display">
                                 Viskas ko reikia{' '}
                                 <span className="landing-gradient-text font-accent italic">nuomos valdymui </span>
                                 {' '}vienoje vietoje
                             </h1>
 
-                            <p className="text-[14px] lg:text-[16px] leading-[1.75] mb-8 max-w-[480px]" style={{ color: 'rgba(255,255,255,0.60)' }}>
+                            <p className="text-[14px] md:text-[15px] lg:text-[16px] leading-[1.75] mb-8 max-w-[480px]" style={{ color: 'rgba(255,255,255,0.60)' }}>
                                 Automatizuokite sąskaitas, stebėkite skaitliukus, valdykite nuomininkus ir analizuokite pajamas — nuo pirmo buto iki didelio portfelio.
                             </p>
 
-                            <div className="flex flex-col lg:flex-row items-start gap-3 mb-5">
+                            <div className="flex flex-col md:flex-row items-start gap-3 mb-5">
                                 <Link to="/login"
                                     className="group inline-flex items-center gap-2.5 px-7 py-3 rounded-xl text-[14px] font-bold transition-all duration-200 active:scale-[0.97] shadow-[0_8px_32px_rgba(47,132,129,0.25)]"
                                     style={{ background: 'linear-gradient(135deg, #2F8481 0%, #3AB09E 100%)' }}
@@ -489,8 +489,8 @@ const LandingPage: React.FC = () => {
                             </p>
                         </div>
 
-                        <div className="relative lg:pl-4 flex items-center justify-center">
-                            <div className="relative w-full max-w-[520px] landing-float-1" style={{
+                        <div className="relative flex items-center justify-center">
+                            <div className="relative w-full max-w-[460px] xl:max-w-[520px] landing-float-1" style={{
                                 opacity: 0,
                                 animation: 'landingFadeIn 1s cubic-bezier(0.16,1,0.3,1) 0.4s forwards',
                             }}>
@@ -511,7 +511,7 @@ const LandingPage: React.FC = () => {
             <section className="relative py-14 lg:py-16" style={{ background: 'linear-gradient(180deg, rgba(47,132,129,0.04) 0%, transparent 100%)' }}>
                 <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,132,129,0.15) 50%, transparent 95%)' }} />
                 <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,132,129,0.08) 50%, transparent 95%)' }} />
-                <div className="max-w-[900px] mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                <div className="max-w-[900px] mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                     <AnimatedStat value="100%" label="Nemokama" description="Visos funkcijos be mokesčių" delay={0} />
                     <AnimatedStat value="24/7" label="Prieiga" description="Valdykite bet kada, bet kur" delay={0.1} />
                     <AnimatedStat value="∞" label="Objektų" description="Neribotas butų skaičius" delay={0.2} />

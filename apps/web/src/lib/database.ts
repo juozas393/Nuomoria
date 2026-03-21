@@ -139,38 +139,127 @@ export interface Tenant {
   updated_at: string;
 }
 
+// Helper function to resolve allowed address IDs based on user role
+async function getAllowedAddressIds(userId: string, role?: string): Promise<string[]> {
+  if (role === 'property_manager') {
+    const { data: assignments } = await supabase
+      .from('agent_assignments')
+      .select('landlord_id, address_id')
+      .eq('agent_id', userId)
+      .eq('status', 'active');
+    
+    if (!assignments || assignments.length === 0) return [];
+    
+    const globalLandlords = assignments.filter(a => !a.address_id).map(a => a.landlord_id);
+    const specificIds = assignments.filter(a => a.address_id).map(a => a.address_id as string);
+    
+    let globalIds: string[] = [];
+    if (globalLandlords.length > 0) {
+      const { data } = await supabase
+        .from('user_addresses')
+        .select('address_id')
+        .in('user_id', globalLandlords)
+        .in('role_at_address', ['owner', 'landlord']);
+      if (data) globalIds = data.map(d => d.address_id);
+    }
+    
+    return [...new Set([...specificIds, ...globalIds])];
+  } else {
+    // Normal user (landlord or tenant)
+    const { data, error } = await supabase
+      .from('user_addresses')
+      .select('address_id')
+      .eq('user_id', userId);
+    
+    if (error || !data) return [];
+    return data.map(d => d.address_id);
+  }
+}
+
+// Helper: get specific property IDs for agents with apartment-level assignments
+// Returns null if agent has full access (global or all-at-address), 
+// or a Set of property IDs if they have specific apartment assignments
+async function getAgentPropertyFilter(userId: string, role?: string): Promise<Set<string> | null> {
+  if (role !== 'property_manager') return null;
+  
+  const { data: assignments } = await supabase
+    .from('agent_assignments')
+    .select('address_id, property_id')
+    .eq('agent_id', userId)
+    .eq('status', 'active');
+  
+  if (!assignments || assignments.length === 0) return new Set();
+  
+  // If any assignment is global (no address & no property), return null = full access
+  if (assignments.some(a => !a.address_id && !a.property_id)) return null;
+  
+  // Collect specific property IDs and addresses with full access
+  const specificPropertyIds = new Set<string>();
+  const fullAddressIds = new Set<string>();
+  
+  for (const a of assignments) {
+    if (a.address_id && !a.property_id) {
+      // Full access to this address — don't filter its properties
+      fullAddressIds.add(a.address_id);
+    } else if (a.property_id) {
+      specificPropertyIds.add(a.property_id);
+    }
+  }
+  
+  // If there are any full-address assignments, we can't just use property IDs
+  // Return null to skip filtering — RLS will handle the rest
+  if (fullAddressIds.size > 0 && specificPropertyIds.size === 0) return null;
+  
+  // Mixed: some addresses fully, some specific properties
+  // For full addresses, we need to NOT filter those properties
+  // We return the specific IDs + a marker for full addresses
+  if (fullAddressIds.size > 0) return null; // Let RLS handle mixed scenarios
+  
+  return specificPropertyIds;
+}
+
 // Address API
 export const addressApi = {
   // Get all addresses (with optional user filtering) - OPTIMIZED
-  async getAll(userId?: string): Promise<Address[]> {
-    // Optimized query with single join instead of two separate queries
+  async getAll(userId?: string, role?: string): Promise<Address[]> {
+    // Optimized query with resolved address boundaries
     if (userId) {
-      const { data, error } = await supabase
+      const addressIds = await getAllowedAddressIds(userId, role);
+      if (addressIds.length === 0) return [];
+
+      const selectStr = role === 'property_manager' 
+        ? '*, address_settings(*), user_addresses!inner(role, users:user_id(first_name, last_name, email))' 
+        : '*, address_settings(*)';
+
+      let query = supabase
         .from('addresses')
-        .select(`
-          *,
-          user_addresses!inner(user_id)
-        `)
-        .eq('user_addresses.user_id', userId)
+        .select(selectStr as any)
+        .in('id', addressIds)
         .order('created_at', { ascending: false });
+        
+      if (role === 'property_manager') {
+        query = query.in('user_addresses.role', ['owner', 'landlord']);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         return [];
       }
-      return data || [];
+      return (data as unknown) as Address[];
     }
 
     // No user filtering - get all addresses
     const { data, error } = await supabase
       .from('addresses')
-      .select('*')
+      .select('*, address_settings(*)')
       .order('created_at', { ascending: false });
 
     if (error) {
       throw error;
     }
 
-    return data || [];
+    return (data as unknown) as Address[];
   },
 
   // Get addresses for specific user
@@ -182,7 +271,8 @@ export const addressApi = {
         user_addresses!inner(
           user_id,
           role
-        )
+        ),
+        address_settings(*)
       `)
       .eq('user_addresses.user_id', userId)
       .order('created_at', { ascending: false });
@@ -195,7 +285,7 @@ export const addressApi = {
   async getById(id: string): Promise<Address | null> {
     const { data, error } = await supabase
       .from('addresses')
-      .select('*')
+      .select('*, address_settings(*)')
       .eq('id', id)
       .single();
 
@@ -238,12 +328,13 @@ export const addressApi = {
     if (error) throw error;
   },
 
-  // Check for duplicate addresses
-  async checkDuplicate(fullAddress: string, excludeId?: string): Promise<Address[]> {
+  // Check for duplicate addresses (safe against injection)
+  async checkDuplicate(fullAddress: string, excludeId?: string): Promise<Pick<Address, 'id' | 'full_address' | 'city' | 'created_at'>[]> {
+    // Use separate safe queries instead of string interpolation in .or()
     let query = supabase
       .from('addresses')
-      .select('*')
-      .or(`full_address.eq.${fullAddress},full_address.ilike.%${fullAddress}%,full_address.ilike.${fullAddress}%`);
+      .select('id, full_address, city, created_at')
+      .ilike('full_address', `%${fullAddress.replace(/%/g, '')}%`);
 
     if (excludeId) {
       query = query.neq('id', excludeId);
@@ -258,7 +349,7 @@ export const addressApi = {
   async cleanupDuplicates(): Promise<void> {
     const { data: addresses, error } = await supabase
       .from('addresses')
-      .select('*')
+      .select('id, full_address, created_at')
       .order('created_at', { ascending: true });
 
     if (error) throw error;
@@ -271,22 +362,21 @@ export const addressApi = {
       if (!duplicates.has(key)) {
         duplicates.set(key, []);
       }
-      duplicates.get(key)!.push(address);
+      duplicates.get(key)!.push(address as Address);
     });
 
-    // Delete duplicates (keep the oldest one)
-    duplicates.forEach((addressList, key) => {
+    // Delete duplicates (keep the oldest one) — properly awaited
+    for (const [, addressList] of duplicates) {
       if (addressList.length > 1) {
-        // Keep the first (oldest) one, delete the rest
         const toDelete = addressList.slice(1);
-        toDelete.forEach(async (address) => {
-          await supabase
-            .from('addresses')
-            .delete()
-            .eq('id', address.id);
-        });
+        const idsToDelete = toDelete.map(a => a.id);
+        const { error: delErr } = await supabase
+          .from('addresses')
+          .delete()
+          .in('id', idsToDelete);
+        if (delErr) throw delErr;
       }
-    });
+    }
   }
 };
 
@@ -304,7 +394,7 @@ export const propertyApi = {
 
       if (userAddressError) {
         // Security: Don't log sensitive database errors in production
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.error('Error fetching user addresses:', userAddressError);
         }
         return [];
@@ -335,7 +425,8 @@ export const propertyApi = {
             company_name,
             contact_person,
             company_phone,
-            company_email
+            company_email,
+            address_settings(*)
           )
         `)
         .in('address_id', addressIds)
@@ -373,50 +464,38 @@ export const propertyApi = {
     return data || [];
   },
 
-  // Ensure apartment meters exist for all properties
-  async ensureApartmentMeters(): Promise<void> {
-    try {
-      // Ensuring apartment meters exist for all properties - logging removed for production
-
-      // For now, skip the automatic creation to avoid errors
-      // The SQL script should be run manually in Supabase SQL editor
-      // Skipping automatic apartment meters creation - logging removed for production
-
-    } catch (error) {
-      // Error in ensureApartmentMeters - logging removed for production
-      // Don't throw error to prevent app from crashing
-      // Continuing without apartment meters creation - logging removed for production
-    }
-  },
-
   // Get properties with enhanced meter data - OPTIMIZED
-  async getAllWithEnhancedMeters(userId?: string): Promise<PropertyWithAddress[]> {
+  async getAllWithEnhancedMeters(userId?: string, role?: string): Promise<PropertyWithAddress[]> {
     // Optimized query with single join and selective field loading
     if (userId) {
-      // First, get user's address IDs
-      const { data: userAddresses, error: userAddressError } = await supabase
-        .from('user_addresses')
-        .select('address_id')
-        .eq('user_id', userId);
-
-      if (userAddressError) {
-        // Security: Don't log sensitive database errors in production
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error fetching user addresses:', userAddressError);
-        }
+      const addressIds = await getAllowedAddressIds(userId, role);
+      
+      if (addressIds.length === 0) {
         return [];
       }
-
-      if (!userAddresses || userAddresses.length === 0) {
-        return [];
-      }
-
-      const addressIds = userAddresses.map(ua => ua.address_id);
 
       // Then get properties for those addresses with safe query
-      const { data, error } = await supabase
-        .from('properties')
-        .select(`
+      const selectStr = role === 'property_manager'
+        ? `
+          *,
+          address:addresses(
+            id,
+            full_address,
+            building_type,
+            total_apartments,
+            floors,
+            year_built,
+            management_type,
+            chairman_name,
+            chairman_phone,
+            chairman_email,
+            company_name,
+            contact_person,
+            company_phone,
+            company_email,
+            user_addresses!inner(role, users:user_id(first_name, last_name, email))
+          )
+        ` : `
           *,
           address:addresses(
             id,
@@ -434,13 +513,26 @@ export const propertyApi = {
             company_phone,
             company_email
           )
-        `)
+        `;
+
+      let query = supabase
+        .from('properties')
+        .select(selectStr as any)
         .in('address_id', addressIds)
         .order('created_at', { ascending: false });
 
+      if (role === 'property_manager') {
+        query = query.in('address.user_addresses.role', ['owner', 'landlord']);
+      }
+
+      // Get agent property filter for apartment-level assignments
+      const propertyFilter = await getAgentPropertyFilter(userId, role);
+
+      const { data, error } = await query;
+
       if (error) {
         // Security: Don't log sensitive database errors in production
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.error('Error fetching properties with enhanced data:', error);
         }
         // Return basic properties without enhanced data
@@ -452,14 +544,23 @@ export const propertyApi = {
 
         if (basicError) {
           // Security: Don't log sensitive database errors in production
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.error('Error fetching basic properties:', basicError);
           }
           return [];
         }
-        return basicData || [];
+        let filteredBasic = (basicData as unknown) as PropertyWithAddress[];
+        if (propertyFilter) {
+          filteredBasic = filteredBasic.filter(p => propertyFilter.has(p.id));
+        }
+        return filteredBasic;
       }
-      return data || [];
+      let result = (data as unknown) as PropertyWithAddress[];
+      // Apply property-level filter for agents with specific apartment assignments
+      if (propertyFilter) {
+        result = result.filter(p => propertyFilter.has(p.id));
+      }
+      return result;
     }
 
     // No user filtering - get all properties with safe query
@@ -481,14 +582,15 @@ export const propertyApi = {
           company_name,
           contact_person,
           company_phone,
-          company_email
+          company_email,
+          address_settings(*)
         )
       `)
       .order('created_at', { ascending: false });
 
     if (error) {
       // Security: Don't log sensitive database errors in production
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('Error fetching all properties with enhanced data:', error);
       }
       // Return basic properties without enhanced data
@@ -499,7 +601,7 @@ export const propertyApi = {
 
       if (basicError) {
         // Security: Don't log sensitive database errors in production
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.error('Error fetching basic properties:', basicError);
         }
         return [];
@@ -520,7 +622,8 @@ export const propertyApi = {
           user_addresses!inner(
             user_id,
             role
-          )
+          ),
+          address_settings(*)
         )
       `)
       .eq('address.user_addresses.user_id', userId)
@@ -534,7 +637,7 @@ export const propertyApi = {
   async getByAddressId(addressId: string): Promise<Property[]> {
     const { data, error } = await supabase
       .from('properties')
-      .select('*')
+      .select('*, address:addresses(address_settings(*))')
       .eq('address_id', addressId)
       .order('apartment_number');
 
@@ -898,9 +1001,35 @@ export const databaseUtils = {
 };
 
 // Communal Meters API
+export interface CommunalMeter {
+  id: string;
+  address_id: string;
+  name: string;
+  type: string;
+  unit: string;
+  price_per_unit: number;
+  fixed_price?: number;
+  distribution_method?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CommunalExpense {
+  id: string;
+  meter_id: string;
+  month: string;
+  amount: number;
+  consumption?: number;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+  communal_meters?: Pick<CommunalMeter, 'id' | 'name' | 'type' | 'unit' | 'price_per_unit' | 'fixed_price' | 'distribution_method'>;
+}
+
 export const communalMeterApi = {
   // Get all meters for an address
-  async getByAddressId(addressId: string): Promise<any[]> {
+  async getByAddressId(addressId: string): Promise<CommunalMeter[]> {
     const { data, error } = await supabase
       .from('communal_meters')
       .select('*')
@@ -913,7 +1042,7 @@ export const communalMeterApi = {
   },
 
   // Create new meter
-  async create(meter: any): Promise<any> {
+  async create(meter: Omit<CommunalMeter, 'id' | 'created_at'>): Promise<CommunalMeter> {
     const { data, error } = await supabase
       .from('communal_meters')
       .insert([meter])
@@ -925,7 +1054,7 @@ export const communalMeterApi = {
   },
 
   // Update meter
-  async update(id: string, updates: any): Promise<any> {
+  async update(id: string, updates: Partial<Omit<CommunalMeter, 'id' | 'created_at'>>): Promise<CommunalMeter> {
     const { data, error } = await supabase
       .from('communal_meters')
       .update(updates)
@@ -951,7 +1080,7 @@ export const communalMeterApi = {
 // Communal Expenses API
 export const communalExpenseApi = {
   // Get all expenses for a meter
-  async getByMeterId(meterId: string): Promise<any[]> {
+  async getByMeterId(meterId: string): Promise<CommunalExpense[]> {
     const { data, error } = await supabase
       .from('communal_expenses')
       .select('*')
@@ -963,7 +1092,7 @@ export const communalExpenseApi = {
   },
 
   // Get expenses by month
-  async getByMonth(month: string): Promise<any[]> {
+  async getByMonth(month: string): Promise<CommunalExpense[]> {
     const { data, error } = await supabase
       .from('communal_expenses')
       .select(`
@@ -986,7 +1115,7 @@ export const communalExpenseApi = {
   },
 
   // Create new expense
-  async create(expense: any): Promise<any> {
+  async create(expense: Omit<CommunalExpense, 'id' | 'created_at' | 'communal_meters'>): Promise<CommunalExpense> {
     const { data, error } = await supabase
       .from('communal_expenses')
       .insert([expense])
@@ -998,7 +1127,7 @@ export const communalExpenseApi = {
   },
 
   // Update expense
-  async update(id: string, updates: any): Promise<any> {
+  async update(id: string, updates: Partial<Omit<CommunalExpense, 'id' | 'created_at' | 'communal_meters'>>): Promise<CommunalExpense> {
     const { data, error } = await supabase
       .from('communal_expenses')
       .update(updates)
@@ -1295,7 +1424,7 @@ export const messagesApi = {
     return data;
   },
 
-  // Get all conversations for current user
+  // Get all conversations for current user — enriched with other user info
   async getMyConversations(): Promise<Conversation[]> {
     const { data: userData } = await supabase.auth.getUser();
     const currentUserId = userData?.user?.id;
@@ -1309,7 +1438,78 @@ export const messagesApi = {
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    if (!data?.length) return [];
+
+    // Collect all "other" participant IDs
+    const otherUserIds = data.map(c =>
+      c.participant_1 === currentUserId ? c.participant_2 : c.participant_1
+    );
+    const uniqueIds = [...new Set(otherUserIds)];
+
+    // Fetch user details — users table has first_name + last_name + avatar_url
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, email, first_name, last_name, avatar_url')
+      .in('id', uniqueIds);
+
+    const usersMap = new Map(
+      (usersData || []).map(u => [u.id, u])
+    );
+
+    // Fetch last message + unread count for each conversation
+    const conversationIds = data.map(c => c.id);
+
+    const { data: lastMessages } = await supabase
+      .from('messages')
+      .select('*')
+      .in('conversation_id', conversationIds)
+      .order('created_at', { ascending: false });
+
+    // Group: last message per conversation
+    const lastMsgMap = new Map<string, Message>();
+    for (const msg of (lastMessages || [])) {
+      if (!lastMsgMap.has(msg.conversation_id)) {
+        lastMsgMap.set(msg.conversation_id, msg);
+      }
+    }
+
+    // Unread counts per conversation
+    const { data: unreadMsgs } = await supabase
+      .from('messages')
+      .select('conversation_id')
+      .in('conversation_id', conversationIds)
+      .neq('sender_id', currentUserId)
+      .eq('is_read', false);
+
+    const unreadMap = new Map<string, number>();
+    for (const msg of (unreadMsgs || [])) {
+      unreadMap.set(msg.conversation_id, (unreadMap.get(msg.conversation_id) || 0) + 1);
+    }
+
+    // Enrich conversations
+    return data.map(conv => {
+      const otherId = conv.participant_1 === currentUserId
+        ? conv.participant_2
+        : conv.participant_1;
+      const user = usersMap.get(otherId);
+
+      // Build full name from first_name + last_name
+      const fullName = user
+        ? [user.first_name, user.last_name].filter(Boolean).join(' ') || undefined
+        : undefined;
+
+      return {
+        ...conv,
+        other_user: user ? {
+          id: user.id,
+          email: user.email,
+          full_name: fullName,
+          avatar_url: user.avatar_url,
+        } : undefined,
+        last_message: lastMsgMap.get(conv.id),
+        unread_count: unreadMap.get(conv.id) || 0,
+      };
+    });
   },
 
   // Get messages for a conversation

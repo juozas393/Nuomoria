@@ -87,7 +87,7 @@ export const metersAdapter = {
     // const response = await fetch(`/api/tenants/${tenantId}/meters`);
     // return response.json();
 
-    console.log('Getting meters for tenant:', tenantId);
+    if (import.meta.env.DEV) console.log('Getting meters for tenant:', tenantId);
     return mockMeters;
   },
 
@@ -100,7 +100,7 @@ export const metersAdapter = {
     //   body: JSON.stringify({ reading, date: date || new Date().toISOString() })
     // });
 
-    console.log('Saving reading for meter:', meterId, reading);
+    if (import.meta.env.DEV) console.log('Saving reading for meter:', meterId, reading);
   },
 
   // Request photo for a meter
@@ -110,7 +110,7 @@ export const metersAdapter = {
     //   method: 'POST'
     // });
 
-    console.log('Requesting photo for meter:', meterId);
+    if (import.meta.env.DEV) console.log('Requesting photo for meter:', meterId);
   },
 
   // Get meter history
@@ -119,7 +119,7 @@ export const metersAdapter = {
     // const response = await fetch(`/api/meters/${meterId}/history`);
     // return response.json();
 
-    console.log('Getting history for meter:', meterId);
+    if (import.meta.env.DEV) console.log('Getting history for meter:', meterId);
     return [];
   },
 
@@ -130,7 +130,7 @@ export const metersAdapter = {
     //   method: 'POST'
     // });
 
-    console.log('Requesting missing readings for tenant:', tenantId);
+    if (import.meta.env.DEV) console.log('Requesting missing readings for tenant:', tenantId);
   },
 
   // Update meter status
@@ -142,7 +142,7 @@ export const metersAdapter = {
     //   body: JSON.stringify({ status })
     // });
 
-    console.log('Updating status for meter:', meterId, status);
+    if (import.meta.env.DEV) console.log('Updating status for meter:', meterId, status);
   }
 };
 

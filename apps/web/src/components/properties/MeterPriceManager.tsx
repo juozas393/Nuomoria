@@ -50,7 +50,7 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
 
         setMeterReadings(readings);
       } catch (error) {
-        console.error('Error loading meter readings:', error);
+        if (import.meta.env.DEV) console.error('Error loading meter readings:', error);
       } finally {
         setLoading(false);
       }
@@ -63,16 +63,16 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
 
   // Determine meter type based on name and distribution method
   const getMeterType = useCallback((meter: MeterPriceData): 'individual' | 'communal' => {
-    console.log('🔍 getMeterType called for:', meter.name, 'with type:', meter.type, 'distribution:', meter.distribution_method);
+    if (import.meta.env.DEV) console.log('🔍 getMeterType called for:', meter.name, 'with type:', meter.type, 'distribution:', meter.distribution_method);
 
     // Always use the type from database (address settings) - this is the single source of truth
     if (meter.type && (meter.type === 'individual' || meter.type === 'communal')) {
-      console.log('🔍 Using meter type from database (address settings):', meter.name, '->', meter.type);
+      if (import.meta.env.DEV) console.log('🔍 Using meter type from database (address settings):', meter.name, '->', meter.type);
       return meter.type;
     }
 
     // Fallback only if type is not set in database
-    console.log('🔍 Type not in database, using fallback for:', meter.name);
+    if (import.meta.env.DEV) console.log('🔍 Type not in database, using fallback for:', meter.name);
     return 'individual'; // Default fallback
   }, []);
 
@@ -164,7 +164,7 @@ export const MeterPriceManager: React.FC<MeterPriceManagerProps> = ({
       setEditingMeterId(null);
       setEditValues({});
     } catch (error) {
-      console.error('Error updating meter:', error);
+      if (import.meta.env.DEV) console.error('Error updating meter:', error);
     }
   }, [editValues, onMeterUpdate, onGlobalMeterUpdate, getMeterType]);
 

@@ -193,7 +193,7 @@ const Properties: React.FC = () => {
 
   const handleEditProperty = (property: Property) => {
     // Handle edit logic
-    console.log('Edit property:', property);
+    if (import.meta.env.DEV) console.log('Edit property:', property);
   };
 
   const handleDeleteProperty = (id: string) => {
@@ -248,7 +248,7 @@ const Properties: React.FC = () => {
 
       // Pridėti skaitiklius, jei yra
       if (apartmentData.meters && apartmentData.meters.length > 0) {
-        console.log('Pridedami skaitliukai:', apartmentData.meters);
+        if (import.meta.env.DEV) console.log('Pridedami skaitliukai:', apartmentData.meters);
         
         // Convert MeterRow to PropertyMeterConfig format
         const meterConfigs = apartmentData.meters.map((meter: any) => ({
@@ -268,7 +268,7 @@ const Properties: React.FC = () => {
         }));
 
         await propertyMeterConfigsApi.createMultiple(newProperty.id, meterConfigs);
-        console.log('Skaitliukai sėkmingai pridėti');
+        if (import.meta.env.DEV) console.log('Skaitliukai sėkmingai pridėti');
       }
 
       // Convert API response to Property format and add to state
@@ -276,9 +276,9 @@ const Properties: React.FC = () => {
       setProperties(prev => [...prev, convertedProperty]);
       setShowAddApartmentModal(false);
       
-      console.log('Butas sėkmingai pridėtas:', newProperty);
+      if (import.meta.env.DEV) console.log('Butas sėkmingai pridėtas:', newProperty);
     } catch (error) {
-      console.error('Klaida pridedant butą:', error);
+      if (import.meta.env.DEV) console.error('Klaida pridedant butą:', error);
       // Čia galėtumėte pridėti error handling (toast notification, etc.)
     }
   };

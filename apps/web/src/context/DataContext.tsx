@@ -9,6 +9,7 @@ interface DataContextType {
   propertiesLoading: boolean;
   propertiesError: Error | null;
   refetchProperties: () => void;
+  patchProperty: (propertyId: string, patch: Record<string, any>) => void;
   
   // Addresses
   addresses: any[] | null;
@@ -74,8 +75,8 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
         setAddressesLoading(true);
         
         const [propertiesData, addressesData] = await Promise.all([
-          propertyApi.getAllWithEnhancedMeters(user.id),
-          addressApi.getAll(user.id)
+          propertyApi.getAllWithEnhancedMeters(user.id, user.role),
+          addressApi.getAll(user.id, user.role)
         ]);
 
         setProperties(propertiesData || []);
@@ -103,7 +104,7 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
     if (!user) return;
     try {
       setPropertiesLoading(true);
-      const data = await propertyApi.getAllWithEnhancedMeters(user.id);
+      const data = await propertyApi.getAllWithEnhancedMeters(user.id, user.role);
       setProperties(data || []);
       setPropertiesError(null);
     } catch (error) {
@@ -115,11 +116,16 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
     }
   }, [user]);
 
+  // Patch a single property locally without full refetch (optimistic update)
+  const patchProperty = React.useCallback((propertyId: string, patch: Record<string, any>) => {
+    setProperties(prev => prev.map(p => p.id === propertyId ? { ...p, ...patch } : p));
+  }, []);
+
   const refetchAddresses = React.useCallback(async () => {
     if (!user) return;
     try {
       setAddressesLoading(true);
-      const data = await addressApi.getAll(user.id);
+      const data = await addressApi.getAll(user.id, user.role);
       setAddresses(data || []);
       setAddressesError(null);
     } catch (error) {
@@ -135,13 +141,13 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
   const tenantCount = React.useMemo(() => {
     if (!properties) return 0;
     const count = properties.filter(p => p.tenant_name && p.tenant_name !== 'Laisvas').length;
-    // console.log('🔍 tenantCount calculated:', count, 'from', properties.length, 'properties');
+    // if (import.meta.env.DEV) console.log('🔍 tenantCount calculated:', count, 'from', properties.length, 'properties');
     return count;
   }, [properties]);
 
   const propertyCount = React.useMemo(() => {
     const count = properties?.length || 0;
-    // console.log('🔍 propertyCount calculated:', count);
+    // if (import.meta.env.DEV) console.log('🔍 propertyCount calculated:', count);
     return count;
   }, [properties]);
 
@@ -150,7 +156,7 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
     if (!addresses || !Array.isArray(addresses)) return 0;
     
     const count = addresses.length;
-    // console.log('🔍 addressCount calculated from addresses:', count, 'addresses:', addresses);
+    // if (import.meta.env.DEV) console.log('🔍 addressCount calculated from addresses:', count, 'addresses:', addresses);
     return count;
   }, [addresses]);
 
@@ -161,6 +167,7 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
     propertiesLoading,
     propertiesError,
     refetchProperties,
+    patchProperty,
     
     // Addresses
     addresses,
@@ -177,6 +184,7 @@ export function DataProvider({ children }: DataProviderProps): React.ReactElemen
     propertiesLoading,
     propertiesError,
     refetchProperties,
+    patchProperty,
     addresses,
     addressesLoading,
     addressesError,
@@ -203,8 +211,8 @@ export function useData(): DataContextType {
 
 // Utility hooks for specific data needs
 export function useProperties() {
-  const { properties, propertiesLoading, propertiesError, refetchProperties } = useData();
-  return { properties, loading: propertiesLoading, error: propertiesError, refetch: refetchProperties };
+  const { properties, propertiesLoading, propertiesError, refetchProperties, patchProperty } = useData();
+  return { properties, loading: propertiesLoading, error: propertiesError, refetch: refetchProperties, patchProperty };
 }
 
 export function useAddresses() {

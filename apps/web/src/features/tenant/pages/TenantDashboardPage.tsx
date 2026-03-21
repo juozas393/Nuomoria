@@ -48,6 +48,7 @@ import {
     Sparkles,
 } from 'lucide-react';
 import { tenantInvitationApi } from '../../../lib/database';
+import { WelcomeModal } from '../../../components/ui/WelcomeModal';
 
 /**
  * Nuomininko Skydelis — Light Theme (matching Landlord Dashboard)
@@ -1529,6 +1530,9 @@ const TenantDashboardPage: React.FC = () => {
                     </div>
                 )
             }
+            
+            {/* First-Login Welcome Protocol */}
+            <WelcomeModal />
         </div >
     );
 };

@@ -13,6 +13,7 @@ export const ROUTE_PRELOAD_MAP: Record<string, () => Promise<any>> = {
     'remontas': () => import('./pages/Maintenance'),
     'profilis': () => import('./pages/Profile'),
     'nustatymai': () => import('./pages/Settings'),
+    'agentai': () => import('./pages/AgentsPage'),
     'vartotojai': () => import('./pages/Users'),
     'admin': () => import('./pages/AdminDashboard'),
     'pagalba': () => import('./pages/GuidePage'),

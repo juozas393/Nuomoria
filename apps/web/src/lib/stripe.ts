@@ -49,7 +49,7 @@ export async function startStripeOnboarding(returnUrl?: string): Promise<{ url?:
         });
         return await res.json();
     } catch (err) {
-        console.error('startStripeOnboarding error:', err);
+        if (import.meta.env.DEV) console.error('startStripeOnboarding error:', err);
         return { error: 'Nepavyko prisijungti prie Stripe' };
     }
 }
@@ -72,7 +72,7 @@ export async function createRentPayment(params: {
         });
         return await res.json();
     } catch (err) {
-        console.error('createRentPayment error:', err);
+        if (import.meta.env.DEV) console.error('createRentPayment error:', err);
         return { error: 'Nepavyko sukurti mokėjimo' };
     }
 }

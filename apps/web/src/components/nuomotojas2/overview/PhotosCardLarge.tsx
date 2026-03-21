@@ -13,6 +13,7 @@ interface PhotosCardLargeProps {
     onDeletePhoto?: (index: number) => void;
     onReorderPhotos?: (photos: string[]) => void;
     onSetCover?: (index: number) => void;
+    bgStyle?: React.CSSProperties;
 }
 
 // =============================================================================
@@ -138,6 +139,7 @@ export const PhotosCardLarge = memo<PhotosCardLargeProps>(({
     onDeletePhoto,
     onReorderPhotos,
     onSetCover,
+    bgStyle,
 }) => {
     const count = photos.length;
     const mainPhoto = photos[0];
@@ -223,7 +225,7 @@ export const PhotosCardLarge = memo<PhotosCardLargeProps>(({
     const canDrag = !!onReorderPhotos;
 
     return (
-        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full flex flex-col">
+        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full flex flex-col" style={bgStyle}>
             <CardPatternOverlay />
 
             {/* COMPACT: p-2.5 instead of p-4 */}

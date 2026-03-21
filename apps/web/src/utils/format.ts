@@ -20,7 +20,7 @@ export const formatDate = (date: Date | string): string => {
     const d = String(dateObj.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   } catch (error) {
-    console.error('Error formatting date:', error);
+    if (import.meta.env.DEV) console.error('Error formatting date:', error);
     return 'Nenurodyta';
   }
 };

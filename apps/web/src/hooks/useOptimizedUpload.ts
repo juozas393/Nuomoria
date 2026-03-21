@@ -286,7 +286,7 @@ export function useOptimizedUpload(
                         .select();
 
                     if (insertError) {
-                        console.error('DB insert error:', insertError);
+                        if (import.meta.env.DEV) console.error('DB insert error:', insertError);
                         // Photos are uploaded but not in DB - log for manual fix
                         uploadErrors.push({
                             file: 'database',
@@ -318,10 +318,10 @@ export function useOptimizedUpload(
                 percentage: 100,
             });
 
-            console.log(`[Upload] Completed: ${uploadedPhotos.length}/${files.length} photos`);
+            if (import.meta.env.DEV) console.log(`[Upload] Completed: ${uploadedPhotos.length}/${files.length} photos`);
 
         } catch (error: any) {
-            console.error('[Upload] Fatal error:', error);
+            if (import.meta.env.DEV) console.error('[Upload] Fatal error:', error);
             uploadErrors.push({ file: 'system', error: error.message || 'Nenumatyta klaida' });
         } finally {
             setIsUploading(false);

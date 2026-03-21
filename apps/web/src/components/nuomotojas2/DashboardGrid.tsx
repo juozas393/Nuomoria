@@ -135,7 +135,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
                 return JSON.parse(saved) as LayoutItem[];
             }
         } catch (e) {
-            console.warn('Failed to load dashboard layout:', e);
+            if (import.meta.env.DEV) console.warn('Failed to load dashboard layout:', e);
         }
         return null;
     }, [storageKey]);
@@ -158,7 +158,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
         try {
             localStorage.setItem(storageKey, JSON.stringify(newLayout));
         } catch (e) {
-            console.warn('Failed to save dashboard layout:', e);
+            if (import.meta.env.DEV) console.warn('Failed to save dashboard layout:', e);
         }
     }, [storageKey]);
 

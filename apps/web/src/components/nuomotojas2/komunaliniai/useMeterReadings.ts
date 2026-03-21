@@ -118,7 +118,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 .order('name');
 
             if (err) {
-                console.error('[useMeterReadings] Error fetching meter configs:', err);
+                if (import.meta.env.DEV) console.error('[useMeterReadings] Error fetching meter configs:', err);
                 setError('Nepavyko užkrauti skaitliukų konfigūracijos');
                 return;
             }
@@ -189,9 +189,9 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 if (prevErr) throw prevErr;
                 setPrevMonthReadings(prevData || []);
 
-                console.log(`[useMeterReadings] Loaded ${(currentData || []).length} readings for ${year}-${month + 1}, ${(prevData || []).length} from prev month`);
+                if (import.meta.env.DEV) console.log(`[useMeterReadings] Loaded ${(currentData || []).length} readings for ${year}-${month + 1}, ${(prevData || []).length} from prev month`);
             } catch (e: any) {
-                console.error('[useMeterReadings] Error fetching readings:', e);
+                if (import.meta.env.DEV) console.error('[useMeterReadings] Error fetching readings:', e);
                 setError('Nepavyko užkrauti rodmenų');
             } finally {
                 setIsLoading(false);
@@ -214,7 +214,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             const previousReading = prevReading?.current_reading ?? reading?.previous_reading ?? null;
             const currentReading = reading?.current_reading ?? null;
 
-            console.log(`[useMeterReadings] Meter "${config.name}" (${config.id}):`, {
+            if (import.meta.env.DEV) console.log(`[useMeterReadings] Meter "${config.name}" (${config.id}):`, {
                 savedPrevReading: reading?.previous_reading,
                 prevMonthCurrent: prevReading?.current_reading,
                 resolvedPrevious: previousReading,
@@ -313,7 +313,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 .limit(limit);
 
             if (err) {
-                console.error('[useMeterReadings] Error fetching history:', err);
+                if (import.meta.env.DEV) console.error('[useMeterReadings] Error fetching history:', err);
                 return [];
             }
 
@@ -327,7 +327,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 notes: r.notes,
             }));
         } catch (e) {
-            console.error('[useMeterReadings] Error in fetchMeterHistory:', e);
+            if (import.meta.env.DEV) console.error('[useMeterReadings] Error in fetchMeterHistory:', e);
             return [];
         }
     }, [propertyId]);
@@ -344,7 +344,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
         try {
             const config = meterConfig || meterConfigs.find(c => c.id === meterId);
             if (!config) {
-                console.error('[useMeterReadings] Config not found for meter:', meterId);
+                if (import.meta.env.DEV) console.error('[useMeterReadings] Config not found for meter:', meterId);
                 return false;
             }
 
@@ -361,7 +361,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             const isCommunal = config.distribution_method !== 'per_consumption';
             const meterType = isCommunal ? 'address' : 'apartment';
 
-            console.log(`[useMeterReadings] saveReading:`, {
+            if (import.meta.env.DEV) console.log(`[useMeterReadings] saveReading:`, {
                 meterId,
                 currentVal,
                 prev,
@@ -381,7 +381,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 return await saveIndividualReading(meterId, config, currentVal, prev, difference, pricePerUnit, totalSum, meterType);
             }
         } catch (e) {
-            console.error('[useMeterReadings] Error saving reading:', e);
+            if (import.meta.env.DEV) console.error('[useMeterReadings] Error saving reading:', e);
             return false;
         }
     }, [propertyId, meterConfigs, readings, readingDate, year, month]);
@@ -414,10 +414,10 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 .eq('id', existing.id);
 
             if (updateErr) {
-                console.error('[useMeterReadings] Error updating reading:', updateErr);
+                if (import.meta.env.DEV) console.error('[useMeterReadings] Error updating reading:', updateErr);
                 return false;
             }
-            console.log(`✅ Updated reading for meter ${meterId} in period ${readingDate}`);
+            if (import.meta.env.DEV) console.log(`✅ Updated reading for meter ${meterId} in period ${readingDate}`);
         } else {
             const { error: insertErr } = await supabase
                 .from('meter_readings')
@@ -437,10 +437,10 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                 });
 
             if (insertErr) {
-                console.error('[useMeterReadings] Error inserting reading:', insertErr);
+                if (import.meta.env.DEV) console.error('[useMeterReadings] Error inserting reading:', insertErr);
                 return false;
             }
-            console.log(`✅ Inserted reading for meter ${meterId} in period ${readingDate}`);
+            if (import.meta.env.DEV) console.log(`✅ Inserted reading for meter ${meterId} in period ${readingDate}`);
         }
 
         return true;
@@ -464,7 +464,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             .eq('address_id', config.address_id);
 
         if (propErr || !allProperties || allProperties.length === 0) {
-            console.error('[useMeterReadings] Cannot fetch properties for communal distribution:', propErr);
+            if (import.meta.env.DEV) console.error('[useMeterReadings] Cannot fetch properties for communal distribution:', propErr);
             // Fallback: save for current property only
             return await saveIndividualReading(meterId, config, currentVal, prev, difference, pricePerUnit, totalSum, 'address');
         }
@@ -473,7 +473,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
         const totalArea = allProperties.reduce((sum, p) => sum + (Number(p.area) || 0), 0);
         const readingType = resolveMeterReadingType(config);
 
-        console.log(`[useMeterReadings] Communal distribution: ${aptCount} apartments, totalArea=${totalArea}, method=${config.distribution_method}`);
+        if (import.meta.env.DEV) console.log(`[useMeterReadings] Communal distribution: ${aptCount} apartments, totalArea=${totalArea}, method=${config.distribution_method}`);
 
         // 2. Fetch existing readings for this meter across ALL properties in this period
         const { data: existingReadings } = await supabase
@@ -522,7 +522,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                     .eq('id', existingId);
 
                 if (updateErr) {
-                    console.error(`[useMeterReadings] Error updating communal reading for property ${prop.id}:`, updateErr);
+                    if (import.meta.env.DEV) console.error(`[useMeterReadings] Error updating communal reading for property ${prop.id}:`, updateErr);
                     allSuccess = false;
                 }
             } else {
@@ -544,14 +544,14 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                     });
 
                 if (insertErr) {
-                    console.error(`[useMeterReadings] Error inserting communal reading for property ${prop.id}:`, insertErr);
+                    if (import.meta.env.DEV) console.error(`[useMeterReadings] Error inserting communal reading for property ${prop.id}:`, insertErr);
                     allSuccess = false;
                 }
             }
         }
 
         if (allSuccess) {
-            console.log(`✅ Communal meter "${config.name}" distributed to ${aptCount} properties`);
+            if (import.meta.env.DEV) console.log(`✅ Communal meter "${config.name}" distributed to ${aptCount} properties`);
         }
 
         return allSuccess;
@@ -575,10 +575,10 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                     .lte('reading_date', periodEnd);
 
                 if (delErr) {
-                    console.error('[useMeterReadings] Error deleting communal readings:', delErr);
+                    if (import.meta.env.DEV) console.error('[useMeterReadings] Error deleting communal readings:', delErr);
                     return false;
                 }
-                console.log(`✅ Deleted communal readings for meter ${meterId} in period ${periodStart}–${periodEnd}`);
+                if (import.meta.env.DEV) console.log(`✅ Deleted communal readings for meter ${meterId} in period ${periodStart}–${periodEnd}`);
             } else {
                 // Individual meter — delete ALL readings for this meter+property in this period
                 // (handles duplicates: e.g. null entry on 1st + real entry on 7th)
@@ -591,15 +591,15 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
                     .lte('reading_date', periodEnd);
 
                 if (delErr) {
-                    console.error('[useMeterReadings] Error deleting reading:', delErr);
+                    if (import.meta.env.DEV) console.error('[useMeterReadings] Error deleting reading:', delErr);
                     return false;
                 }
-                console.log(`✅ Deleted all readings for meter ${meterId}, property ${propertyId} in period ${periodStart}–${periodEnd}`);
+                if (import.meta.env.DEV) console.log(`✅ Deleted all readings for meter ${meterId}, property ${propertyId} in period ${periodStart}–${periodEnd}`);
             }
 
             return true;
         } catch (e) {
-            console.error('[useMeterReadings] Error in deleteReading:', e);
+            if (import.meta.env.DEV) console.error('[useMeterReadings] Error in deleteReading:', e);
             return false;
         }
     }, [propertyId, meterConfigs, periodStart, periodEnd]);
@@ -607,11 +607,11 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
     // Refetch readings for current AND previous period (call after save)
     const refetch = useCallback(async () => {
         if (!propertyId) {
-            console.warn('[useMeterReadings] refetch: no propertyId');
+            if (import.meta.env.DEV) console.warn('[useMeterReadings] refetch: no propertyId');
             return;
         }
 
-        console.log(`[useMeterReadings] refetch: propertyId=${propertyId}, period=${periodStart} - ${periodEnd}`);
+        if (import.meta.env.DEV) console.log(`[useMeterReadings] refetch: propertyId=${propertyId}, period=${periodStart} - ${periodEnd}`);
 
         // Current period
         const { data: currentData, error: currErr } = await supabase
@@ -622,7 +622,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             .lte('reading_date', periodEnd)
             .order('reading_date', { ascending: false });
 
-        console.log(`[useMeterReadings] refetch: currentData=${(currentData || []).length} readings, error=${currErr?.message || 'none'}`);
+        if (import.meta.env.DEV) console.log(`[useMeterReadings] refetch: currentData=${(currentData || []).length} readings, error=${currErr?.message || 'none'}`);
 
         if (!currErr) {
             setReadings(currentData || []);
@@ -645,7 +645,7 @@ export function useMeterReadings(propertyId: string | undefined, addressId: stri
             setPrevMonthReadings(prevData || []);
         }
 
-        console.log(`[useMeterReadings] refetch complete: ${(currentData || []).length} current, ${(prevData || []).length} prev`);
+        if (import.meta.env.DEV) console.log(`[useMeterReadings] refetch complete: ${(currentData || []).length} current, ${(prevData || []).length} prev`);
     }, [propertyId, periodStart, periodEnd, year, month]);
 
     return {

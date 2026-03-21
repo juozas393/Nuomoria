@@ -17,7 +17,7 @@ export const bundleOptimizations = {
       return await importFunc();
     } catch (error) {
       // Security: Don't log sensitive import errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('Dynamic import failed:', error);
       }
       return null;
@@ -112,7 +112,7 @@ export const codeSplittingHelpers = {
   createRouteLoader: (importFunc: () => Promise<any>) => {
     return () => importFunc().catch(error => {
       // Security: Don't log sensitive route errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('Route loading failed:', error);
       }
       return { default: () => null };
@@ -142,9 +142,9 @@ export const performanceMonitoring = {
     const result = fn();
     const end = performance.now();
     
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       // Security: Don't log sensitive performance data
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log(`${name} took ${(end - start).toFixed(2)}ms`);
       }
     }
@@ -158,9 +158,9 @@ export const performanceMonitoring = {
     const result = await fn();
     const end = performance.now();
     
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
       // Security: Don't log sensitive performance data
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log(`${name} took ${(end - start).toFixed(2)}ms`);
       }
     }

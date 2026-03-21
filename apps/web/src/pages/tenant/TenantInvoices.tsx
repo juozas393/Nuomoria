@@ -235,7 +235,7 @@ ${inv.lateFee > 0 ? `<div style="display:flex;justify-content:space-between;marg
           .select('*, properties(apartment_number, address_id, addresses:address_id(full_address))')
           .order('invoice_date', { ascending: false });
 
-        if (error) { console.error('[TenantInvoices]', error); setIsLoading(false); return; }
+        if (error) { if (import.meta.env.DEV) console.error('[TenantInvoices]', error); setIsLoading(false); return; }
 
         const mapped: DetailedInvoice[] = (data || []).map((row: any) => {
           const ps = row.period_start ? new Date(row.period_start) : new Date();
@@ -266,7 +266,7 @@ ${inv.lateFee > 0 ? `<div style="display:flex;justify-content:space-between;marg
           };
         });
         setInvoices(mapped);
-      } catch (err) { console.error('[TenantInvoices]', err); }
+      } catch (err) { if (import.meta.env.DEV) console.error('[TenantInvoices]', err); }
       finally { setIsLoading(false); }
     };
     loadInvoices();

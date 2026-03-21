@@ -9,7 +9,7 @@ export type Role = UserRole;
 type RegisterPayload = {
   identifier: string; // email arba username
   password: string;
-  role: 'tenant' | 'landlord' | 'maintenance';
+  role?: 'tenant' | 'landlord' | 'maintenance' | null;
   first_name?: string;
   last_name?: string;
 };
@@ -82,12 +82,12 @@ async function fetchProfile(userId: string): Promise<UserWithPermissions | null>
   // Atsinešam permissions ir profilį atskirai
   const [permsRes, profileRes] = await Promise.all([
     supabase.from('user_permissions').select('permission').eq('user_id', userId),
-    supabase.from('profiles').select('avatar_url, username').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('avatar_url, username, welcome_completed').eq('id', userId).maybeSingle(),
   ]);
 
   if (permsRes.error) {
     // Security: Don't log sensitive permission errors
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.warn('⚠️ Failed to fetch permissions:', permsRes.error);
     }
   }
@@ -103,6 +103,7 @@ async function fetchProfile(userId: string): Promise<UserWithPermissions | null>
     created_at: userData.created_at,
     updated_at: userData.updated_at,
     avatar_url: profileRes.data?.avatar_url || undefined,
+    welcome_completed: profileRes.data?.welcome_completed || false,
     permissions: perms,
   };
   return result;
@@ -298,7 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           if (rpcErr) {
             // Security: Don't log sensitive database errors
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.DEV) {
               console.warn('⚠️ ensure_user_row failed, continue with fallback:', rpcErr.message);
               // If it's a password_hash constraint error, this is expected for Google users
               if (rpcErr.message?.includes('password_hash')) {
@@ -324,14 +325,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(prof);
         } else {
           // Security: Don't log sensitive user errors
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.warn('⚠️ users row not found, using fallback user');
           }
           setUser(fallbackUser);
         }
       } catch (e: any) {
         // Security: Don't log sensitive session errors
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.error('❌ hydrateFromSession error:', e?.message ?? e);
         }
         setUser(fallbackUser);
@@ -405,6 +406,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, [initialized]);
 
+  // ── Global last_seen heartbeat (every 60s for all authenticated users) ──
+  useEffect(() => {
+    if (!user) return;
+    const updateLastSeen = async () => {
+      try { await supabase.rpc('update_last_seen'); } catch { /* silent */ }
+    };
+    updateLastSeen(); // immediate
+    const interval = setInterval(updateLastSeen, 60000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
   // ---- Public API
 
   const login = async (identifier: string, password: string): Promise<AuthResult> => {
@@ -474,7 +486,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Jei email confirmation įjungtas – sesijos nebus. Bet onAuthStateChange suveiks po login'o.
     // ensureUserRow padarysime po prisijungimo.
     // Išsaugom pasirinktą rolę – pravers pirmajam login'ui (jei RPC norėsi paduoti role)
-    localStorage.setItem('signup.role', payload.role);
+    if (payload.role) localStorage.setItem('signup.role', payload.role);
     if (payload.first_name) localStorage.setItem('signup.first_name', payload.first_name);
     if (payload.last_name) localStorage.setItem('signup.last_name', payload.last_name);
 
@@ -484,11 +496,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async (opts?: { link?: boolean }) => {
     if (opts?.link) {
       // Security: Don't log sensitive linking information
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('🔗 Linking Google account to existing user');
       }
       // Security: Don't log sensitive user data
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('🔗 Setting linking flags:', {
           linkingGoogle: 'true',
           currentUserId: user?.id || '',
@@ -535,7 +547,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const createDemoUsers = async () => {
     try {
       // Security: Don't log sensitive demo user creation
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('🔧 Creating demo users...');
       }
 
@@ -576,7 +588,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (existingUser) {
             // Security: Don't log sensitive user information
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.DEV) {
               console.log(`✅ User ${userData.email} already exists`);
             }
             continue;
@@ -597,30 +609,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (authError) {
             // Security: Don't log sensitive user creation errors
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.DEV) {
               console.error(`❌ Failed to create ${userData.email}:`, authError.message);
             }
           } else {
             // Security: Don't log sensitive user information
-            if (process.env.NODE_ENV === 'development') {
+            if (import.meta.env.DEV) {
               console.log(`✅ Created user: ${userData.email}`);
             }
           }
         } catch (error: any) {
           // Security: Don't log sensitive user creation errors
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.error(`❌ Error creating ${userData.email}:`, error.message);
           }
         }
       }
 
       // Security: Don't log sensitive demo user creation
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('🔧 Demo users creation completed');
       }
     } catch (error: any) {
       // Security: Don't log sensitive demo user creation errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('❌ Demo users creation failed:', error.message);
       }
       throw error;
@@ -675,7 +687,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sendMagicLink = async (email: string): Promise<{ success: boolean; message: string }> => {
     try {
       // Security: Don't log sensitive email information
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('📧 Sending magic link to:', email);
       }
 
@@ -699,7 +711,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // SECURITY WARNING: This is a development-only implementation
       // In production, tokens must be stored server-side with proper expiration
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         // Security: Don't store sensitive magic link tokens in localStorage
         // In production, use secure server-side storage
         localStorage.setItem(`magic_token_${token}`, JSON.stringify({
@@ -708,7 +720,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           used: false
         }));
         // Security: Don't log sensitive magic link URLs
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.log('📧 Magic link generated for testing');
         }
       }
@@ -722,7 +734,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (error: any) {
       // Security: Don't log sensitive magic link errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('❌ Error sending magic link:', error);
       }
       return {
@@ -735,7 +747,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyMagicLink = async (token: string): Promise<AuthResult> => {
     try {
       // Security: Don't log sensitive tokens
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('🔗 Verifying magic link token');
       }
 
@@ -791,13 +803,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Security: Don't log sensitive verification information
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('✅ Magic link verification successful');
       }
       return { success: true };
     } catch (error: any) {
       // Security: Don't log sensitive verification errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('❌ Error verifying magic link:', error);
       }
       return { success: false, error: 'Klaida patvirtinant nuorodą.' };
@@ -807,7 +819,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sendOTP = async (email: string): Promise<{ success: boolean; message: string }> => {
     try {
       // Security: Don't log sensitive information
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('📱 Sending OTP to:', email);
       }
 
@@ -832,7 +844,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // In production, send actual SMS/email here
       // Security: Don't log OTP codes
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         // SECURITY WARNING: This is a development-only implementation
         // In production, OTPs must be stored server-side with proper expiration
         // Security: Don't store sensitive OTP codes in localStorage
@@ -842,7 +854,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           expiresAt: expiresAt.toISOString(),
           attempts: 0
         }));
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.log('📱 OTP generated for testing:', otp);
         }
       }
@@ -853,7 +865,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (error: any) {
       // Security: Don't log sensitive OTP errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('❌ Error sending OTP:', error);
       }
       return {
@@ -866,7 +878,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyOTP = async (email: string, code: string): Promise<AuthResult> => {
     try {
       // Security: Don't log sensitive OTP verification information
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('🔢 Verifying OTP for:', email);
       }
 
@@ -941,13 +953,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Security: Don't log sensitive OTP verification information
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('✅ OTP verification successful');
       }
       return { success: true };
     } catch (error: any) {
       // Security: Don't log sensitive OTP verification errors
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('❌ Error verifying OTP:', error);
       }
       return { success: false, error: 'Klaida patvirtinant kodą.' };
@@ -957,7 +969,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const createOrGetUser = async (email: string) => {
     try {
       // Security: Don't log sensitive user information
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('👤 Creating or getting user for:', email);
       }
 
@@ -970,7 +982,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (userError && userError.code !== 'PGRST116') {
         // Security: Don't log sensitive user errors
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.error('❌ Error checking existing user:', userError);
         }
         return null;
@@ -978,7 +990,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (existingUser) {
         // Security: Don't log sensitive user information
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.log('✅ Found existing user:', existingUser.email);
         }
 

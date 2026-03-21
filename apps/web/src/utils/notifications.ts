@@ -29,10 +29,10 @@ export async function sendNotification(notification: NotificationData) {
 
     if (error) throw error;
     
-    console.log('Notification sent:', data);
+    if (import.meta.env.DEV) console.log('Notification sent:', data);
     return data;
   } catch (error) {
-    console.error('Error sending notification:', error);
+    if (import.meta.env.DEV) console.error('Error sending notification:', error);
     throw error;
   }
 }
@@ -58,10 +58,10 @@ export async function sendInAppNotification(
 
     if (error) throw error;
     
-    console.log('In-app notification sent:', result);
+    if (import.meta.env.DEV) console.log('In-app notification sent:', result);
     return result;
   } catch (error) {
-    console.error('Error sending in-app notification:', error);
+    if (import.meta.env.DEV) console.error('Error sending in-app notification:', error);
     throw error;
   }
 }
@@ -87,10 +87,10 @@ export async function queueEmail(
 
     if (error) throw error;
     
-    console.log('Email queued:', data);
+    if (import.meta.env.DEV) console.log('Email queued:', data);
     return data;
   } catch (error) {
-    console.error('Error queuing email:', error);
+    if (import.meta.env.DEV) console.error('Error queuing email:', error);
     throw error;
   }
 }

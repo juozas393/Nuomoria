@@ -306,11 +306,11 @@ export async function optimizeImage(
         compressionRatio: Number(((1 - (full.blob.size / file.size)) * 100).toFixed(1)),
     };
 
-    console.log(`[ImageOptimizer] Optimized: ${file.name}`);
-    console.log(`  Original: ${(file.size / 1024).toFixed(0)}KB ${img.naturalWidth}x${img.naturalHeight}`);
-    console.log(`  Full: ${(full.blob.size / 1024).toFixed(0)}KB ${full.width}x${full.height}`);
-    console.log(`  Thumb: ${(thumb.blob.size / 1024).toFixed(0)}KB ${thumb.width}x${thumb.height}`);
-    console.log(`  Compression: ${meta.compressionRatio}%`);
+    if (import.meta.env.DEV) console.log(`[ImageOptimizer] Optimized: ${file.name}`);
+    if (import.meta.env.DEV) console.log(`  Original: ${(file.size / 1024).toFixed(0)}KB ${img.naturalWidth}x${img.naturalHeight}`);
+    if (import.meta.env.DEV) console.log(`  Full: ${(full.blob.size / 1024).toFixed(0)}KB ${full.width}x${full.height}`);
+    if (import.meta.env.DEV) console.log(`  Thumb: ${(thumb.blob.size / 1024).toFixed(0)}KB ${thumb.width}x${thumb.height}`);
+    if (import.meta.env.DEV) console.log(`  Compression: ${meta.compressionRatio}%`);
 
     return {
         full: full.blob,

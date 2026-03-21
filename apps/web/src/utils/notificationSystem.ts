@@ -453,8 +453,8 @@ export const sendNotification = async (property: Property): Promise<boolean> => 
     const message = generateNotificationMessage(property, notificationType);
 
     // Simulate sending notification
-    console.log(`Sending ${notificationType} notification to ${property.tenant_name}:`);
-    console.log(message);
+    if (import.meta.env.DEV) console.log(`Sending ${notificationType} notification to ${property.tenant_name}:`);
+    if (import.meta.env.DEV) console.log(message);
 
     // Update notification count and last sent date in database
     await propertiesApi.update(property.id, {
@@ -471,7 +471,7 @@ export const sendNotification = async (property: Property): Promise<boolean> => 
 
     return true;
   } catch (error) {
-    console.error('Failed to send notification:', error);
+    if (import.meta.env.DEV) console.error('Failed to send notification:', error);
     return false;
   }
 };
@@ -482,9 +482,9 @@ export const checkAndSendNotifications = async (properties: Property[]): Promise
   for (const property of notificationsToSend) {
     const success = await sendNotification(property);
     if (success) {
-      console.log(`Notification sent successfully to ${property.tenant_name}`);
+      if (import.meta.env.DEV) console.log(`Notification sent successfully to ${property.tenant_name}`);
     } else {
-      console.error(`Failed to send notification to ${property.tenant_name}`);
+      if (import.meta.env.DEV) console.error(`Failed to send notification to ${property.tenant_name}`);
     }
   }
 };
@@ -493,17 +493,17 @@ export const checkAndSendNotifications = async (properties: Property[]): Promise
 export const handleTenantResponse = async (propertyId: string, response: 'wants_to_renew' | 'does_not_want_to_renew'): Promise<void> => {
   try {
     // In real implementation, this would update the database
-    console.log(`Tenant response for property ${propertyId}: ${response}`);
+    if (import.meta.env.DEV) console.log(`Tenant response for property ${propertyId}: ${response}`);
 
     if (response === 'wants_to_renew') {
-      console.log('Tenant wants to renew - automatically extending contract for 1 year');
+      if (import.meta.env.DEV) console.log('Tenant wants to renew - automatically extending contract for 1 year');
       // Automatically extend contract for 1 year
       // This will be handled by autoRenewOnPositiveResponse function
     } else {
-      console.log('Tenant does not want to renew - landlord will be notified when contract expires');
+      if (import.meta.env.DEV) console.log('Tenant does not want to renew - landlord will be notified when contract expires');
     }
   } catch (error) {
-    console.error('Failed to handle tenant response:', error);
+    if (import.meta.env.DEV) console.error('Failed to handle tenant response:', error);
   }
 };
 
@@ -532,12 +532,12 @@ export const calculateDepositReturn = (property: Property): number => {
   const depositPaid = property.deposit_paid_amount || 0;
   const oneMonthRent = property.rent || 0;
 
-  console.log(`DEBUG calculateDepositReturn:`);
-  console.log(`- Today: ${today.toISOString()}`);
-  console.log(`- Contract End: ${contractEnd.toISOString()}`);
-  console.log(`- Days Until End: ${daysUntilEnd}`);
-  console.log(`- Deposit Paid: ${depositPaid}`);
-  console.log(`- One Month Rent: ${oneMonthRent}`);
+  if (import.meta.env.DEV) console.log(`DEBUG calculateDepositReturn:`);
+  if (import.meta.env.DEV) console.log(`- Today: ${today.toISOString()}`);
+  if (import.meta.env.DEV) console.log(`- Contract End: ${contractEnd.toISOString()}`);
+  if (import.meta.env.DEV) console.log(`- Days Until End: ${daysUntilEnd}`);
+  if (import.meta.env.DEV) console.log(`- Deposit Paid: ${depositPaid}`);
+  if (import.meta.env.DEV) console.log(`- One Month Rent: ${oneMonthRent}`);
 
   // Jei nėra išsikraustymo pranešimo, depozitas lieka galioti
   if (!property.tenant_response || !property.planned_move_out_date) {
@@ -556,9 +556,9 @@ export const calculateDepositReturn = (property: Property): number => {
   let daysNotice = 0;
   if (responseDate) {
     daysNotice = Math.ceil((plannedMoveOut.getTime() - responseDate.getTime()) / (1000 * 60 * 60 * 24));
-    console.log(`DEBUG: Pranešimo laikas: ${daysNotice} dienų`);
-    console.log(`DEBUG: Pateikimo data: ${responseDate.toISOString()}`);
-    console.log(`DEBUG: Išsikraustymo data: ${plannedMoveOut.toISOString()}`);
+    if (import.meta.env.DEV) console.log(`DEBUG: Pranešimo laikas: ${daysNotice} dienų`);
+    if (import.meta.env.DEV) console.log(`DEBUG: Pateikimo data: ${responseDate.toISOString()}`);
+    if (import.meta.env.DEV) console.log(`DEBUG: Išsikraustymo data: ${plannedMoveOut.toISOString()}`);
   }
 
   // 1. SUTARTIS DAR GALIOJA (iki pabaigos datos)
@@ -566,15 +566,15 @@ export const calculateDepositReturn = (property: Property): number => {
 
     // 1.1. IŠSIKRAUSTYMAS SUTARTIES PABAIGOJE
     if (plannedMoveOut.getTime() === contractEnd.getTime()) {
-      console.log(`DEBUG: Išsikraustymas sutarties pabaigoje, pranešimo laikas: ${daysNotice} dienų`);
-      console.log(`DEBUG: Deposit paid: ${depositPaid}, One month rent: ${oneMonthRent}`);
+      if (import.meta.env.DEV) console.log(`DEBUG: Išsikraustymas sutarties pabaigoje, pranešimo laikas: ${daysNotice} dienų`);
+      if (import.meta.env.DEV) console.log(`DEBUG: Deposit paid: ${depositPaid}, One month rent: ${oneMonthRent}`);
       if (daysNotice >= 30) {
-        console.log(`DEBUG: Grąžinamas visas depozitas (≥30 dienų)`);
+        if (import.meta.env.DEV) console.log(`DEBUG: Grąžinamas visas depozitas (≥30 dienų)`);
         return depositPaid; // Grąžinamas visas depozitas
       } else {
-        console.log(`DEBUG: Išskaičiuojama 1 mėn. nuoma (<30 dienų)`);
+        if (import.meta.env.DEV) console.log(`DEBUG: Išskaičiuojama 1 mėn. nuoma (<30 dienų)`);
         const result = Math.max(0, depositPaid - oneMonthRent);
-        console.log(`DEBUG: Rezultatas: ${result} (${depositPaid} - ${oneMonthRent})`);
+        if (import.meta.env.DEV) console.log(`DEBUG: Rezultatas: ${result} (${depositPaid} - ${oneMonthRent})`);
         return result; // Išskaičiuojama 1 mėn. nuoma
       }
     }
@@ -593,18 +593,18 @@ export const calculateDepositReturn = (property: Property): number => {
   if (daysUntilEnd <= 0) {
 
     // 2.1. NUOMININKAS NORI IŠSIKRAUSTYTI (neterminuotoje fazėje)
-    console.log(`DEBUG: Neterminuota sutartis, pranešimo laikas: ${daysNotice} dienų`);
+    if (import.meta.env.DEV) console.log(`DEBUG: Neterminuota sutartis, pranešimo laikas: ${daysNotice} dienų`);
     if (daysNotice >= 30) {
-      console.log(`DEBUG: Grąžinamas visas depozitas (≥30 dienų)`);
+      if (import.meta.env.DEV) console.log(`DEBUG: Grąžinamas visas depozitas (≥30 dienų)`);
       return depositPaid; // Grąžinamas visas depozitas
     } else {
-      console.log(`DEBUG: Išskaičiuojama 1 mėn. nuoma (<30 dienų)`);
+      if (import.meta.env.DEV) console.log(`DEBUG: Išskaičiuojama 1 mėn. nuoma (<30 dienų)`);
       return Math.max(0, depositPaid - oneMonthRent); // Išskaičiuojama 1 mėn. nuoma
     }
   }
 
   // Numatytoji logika - depozitas grąžinamas
-  console.log(`DEBUG: Galutinis depozito grąžinimas: ${depositPaid}`);
+  if (import.meta.env.DEV) console.log(`DEBUG: Galutinis depozito grąžinimas: ${depositPaid}`);
   return depositPaid;
 };
 
@@ -643,19 +643,19 @@ export const calculateFinalDepositReturn = (property: Property): number => {
   const additionalDeductions = calculateAdditionalDeductions(property);
   const outstandingAmount = (property as any).outstanding_amount || 0;
 
-  console.log(`DEBUG calculateFinalDepositReturn:`);
-  console.log(`- Base deposit return: ${baseDepositReturn}`);
-  console.log(`- Additional deductions: ${additionalDeductions}`);
-  console.log(`- Outstanding amount: ${outstandingAmount}`);
+  if (import.meta.env.DEV) console.log(`DEBUG calculateFinalDepositReturn:`);
+  if (import.meta.env.DEV) console.log(`- Base deposit return: ${baseDepositReturn}`);
+  if (import.meta.env.DEV) console.log(`- Additional deductions: ${additionalDeductions}`);
+  if (import.meta.env.DEV) console.log(`- Outstanding amount: ${outstandingAmount}`);
 
   // Jei yra neapmokėtų sąskaitų ar kitų išlaidų, depozitas negrąžinamas
   // Nuomininkas turi pats padengti visas sąskaitas prieš grąžinant depozitą
   if (additionalDeductions > 0) {
-    console.log(`- Final result: 0 (due to additional deductions)`);
+    if (import.meta.env.DEV) console.log(`- Final result: 0 (due to additional deductions)`);
     return 0; // Depozitas negrąžinamas, kol neapmokėtos sąskaitos
   }
 
-  console.log(`- Final result: ${baseDepositReturn}`);
+  if (import.meta.env.DEV) console.log(`- Final result: ${baseDepositReturn}`);
   return baseDepositReturn;
 };
 
@@ -665,12 +665,12 @@ export const autoRenewContract = async (property: Property): Promise<void> => {
     const newEndDate = new Date(property.contract_end);
     newEndDate.setMonth(newEndDate.getMonth() + 6); // Add 6 months
 
-    console.log(`Auto-renewing contract for ${property.tenant_name} until ${newEndDate.getFullYear()}-${String(newEndDate.getMonth() + 1).padStart(2, '0')}-${String(newEndDate.getDate()).padStart(2, '0')}`);
+    if (import.meta.env.DEV) console.log(`Auto-renewing contract for ${property.tenant_name} until ${newEndDate.getFullYear()}-${String(newEndDate.getMonth() + 1).padStart(2, '0')}-${String(newEndDate.getDate()).padStart(2, '0')}`);
 
     // In real implementation, this would update the database
     // Update contract_end and set auto_renewal_enabled to true
   } catch (error) {
-    console.error('Failed to auto-renew contract:', error);
+    if (import.meta.env.DEV) console.error('Failed to auto-renew contract:', error);
   }
 };
 
@@ -689,7 +689,7 @@ export const autoRenewOnPositiveResponse = async (property: Property): Promise<P
       tenant_response: 'wants_to_renew',
       auto_renewal_enabled: true // Pažymėti, kad sutartis jau pratęsta
     });
-    console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (1 year extension)`);
+    if (import.meta.env.DEV) console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (1 year extension)`);
     return updated;
   }
   return null;
@@ -740,10 +740,10 @@ export const autoRenewIfNeeded = async (property: Property): Promise<Property | 
         contract_end: newEnd.toISOString().slice(0, 10),
         auto_renewal_enabled: true // Pažymėti, kad sutartis jau pratęsta
       });
-      console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (${diffDays < 0 ? 'expired' : '31 days remaining'})`);
+      if (import.meta.env.DEV) console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (${diffDays < 0 ? 'expired' : '31 days remaining'})`);
       return updated;
     } catch (error) {
-      console.error(`Failed to auto-renew contract for ${property.tenant_name}:`, error);
+      if (import.meta.env.DEV) console.error(`Failed to auto-renew contract for ${property.tenant_name}:`, error);
       return null;
     }
   }
@@ -783,10 +783,10 @@ export const autoRenewOnNotification = async (property: Property): Promise<Prope
         auto_renewal_enabled: true, // Pažymėti, kad sutartis jau pratęsta
         tenant_response: 'wants_to_renew' // Automatiškai pažymėti, kad nuomininkas nori pratęsti
       });
-      console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (notification sent)`);
+      if (import.meta.env.DEV) console.log(`Automatically renewed contract for ${property.tenant_name} until ${newEnd.getFullYear()}-${String(newEnd.getMonth() + 1).padStart(2, '0')}-${String(newEnd.getDate()).padStart(2, '0')} (notification sent)`);
       return updated;
     } catch (error) {
-      console.error(`Failed to auto-renew contract for ${property.tenant_name}:`, error);
+      if (import.meta.env.DEV) console.error(`Failed to auto-renew contract for ${property.tenant_name}:`, error);
       return null;
     }
   }
@@ -1063,14 +1063,14 @@ export const createMoveOutNotification = (tenant: Tenant): Notification => {
 export const cancelPendingNotifications = (tenantId: string, reason: 'tenant_responded' | 'contract_auto_renewed' | 'tenant_moved_out'): void => {
   // Čia būtų logika atšaukti visus laukiančius pranešimus
   // priklausomai nuo priežasties
-  console.log(`Cancelling notifications for tenant ${tenantId}, reason: ${reason}`);
+  if (import.meta.env.DEV) console.log(`Cancelling notifications for tenant ${tenantId}, reason: ${reason}`);
 };
 
 // Pranešimų siuntimo logika (nauja versija)
 export const sendNotificationNew = async (notification: Notification): Promise<boolean> => {
   try {
     // Simuliuoti pranešimo siuntimą
-    console.log(`Sending notification to tenant ${notification.tenantId}:`, notification.message);
+    if (import.meta.env.DEV) console.log(`Sending notification to tenant ${notification.tenantId}:`, notification.message);
 
     // Čia būtų tikras pranešimo siuntimas (email, SMS, etc.)
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simuliuoti API call
@@ -1081,7 +1081,7 @@ export const sendNotificationNew = async (notification: Notification): Promise<b
 
     return true;
   } catch (error) {
-    console.error('Failed to send notification:', error);
+    if (import.meta.env.DEV) console.error('Failed to send notification:', error);
     notification.status = 'failed';
     return false;
   }

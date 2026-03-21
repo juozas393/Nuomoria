@@ -22,7 +22,7 @@ export const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey,
 });
 
 // Security: Remove debug exposure in production
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   // @ts-expect-error
   window.__supabase = supabase;
 }

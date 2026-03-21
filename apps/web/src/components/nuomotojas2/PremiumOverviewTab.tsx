@@ -1,9 +1,10 @@
-import React, { memo, ReactNode } from 'react';
+import React, { memo, useMemo, ReactNode } from 'react';
 import {
     Home, User, Euro, FileText, Droplets, Plus, Settings,
     Upload, Camera, ChevronRight, Phone, Calendar, CheckCircle2,
     Circle, Clock, MoreHorizontal, ArrowRight
 } from 'lucide-react';
+import { resolveCardBgImage } from '../../context/CardBgContext';
 
 // =============================================================================
 // SURFACE HIERARCHY (Premium Design System)
@@ -50,6 +51,7 @@ interface PropertyInfo {
     area?: number;
     floor?: number;
     type?: string;
+    extended_details?: any;
 }
 
 interface PremiumOverviewProps {
@@ -81,12 +83,13 @@ interface CommandHeaderProps {
     nextAction: { label: string; short: string; onClick?: () => void };
     onDocs?: () => void;
     onSettings?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
 const CommandHeader = memo<CommandHeaderProps>(({
-    property, isVacant, nextAction, onDocs, onSettings
+    property, isVacant, nextAction, onDocs, onSettings, bgStyle
 }) => (
-    <div className={`${surface1} px-3 py-2 mb-2`}>
+    <div className={`${surface1} px-3 py-2 mb-2`} style={bgStyle}>
         <div className="flex items-center justify-between">
             {/* Left: Address + chips */}
             <div className="flex items-center gap-2.5">
@@ -151,9 +154,10 @@ interface Task { label: string; done: boolean; cta: string; onClick?: () => void
 interface NextStepsHeroProps {
     tasks: Task[];
     onViewAll?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
-const NextStepsHero = memo<NextStepsHeroProps>(({ tasks, onViewAll }) => {
+const NextStepsHero = memo<NextStepsHeroProps>(({ tasks, onViewAll, bgStyle }) => {
     const remaining = tasks.filter(t => !t.done);
     const progress = Math.round(((tasks.length - remaining.length) / tasks.length) * 100);
     const topTasks = remaining.slice(0, 3);
@@ -161,7 +165,7 @@ const NextStepsHero = memo<NextStepsHeroProps>(({ tasks, onViewAll }) => {
 
     if (isComplete) {
         return (
-            <div className={`${surface2} p-3 flex items-center gap-2.5`}>
+            <div className={`${surface2} p-3 flex items-center gap-2.5`} style={bgStyle}>
                 <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                 <span className="text-[12px] font-bold text-emerald-700">Būstas paruoštas nuomai</span>
                 <span className={`${tiny} ml-auto`}>100%</span>
@@ -170,7 +174,7 @@ const NextStepsHero = memo<NextStepsHeroProps>(({ tasks, onViewAll }) => {
     }
 
     return (
-        <div className={surface2}>
+        <div className={surface2} style={bgStyle}>
             {/* Header with progress */}
             <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
                 <div className="flex items-center gap-2">
@@ -232,12 +236,13 @@ interface MoneySnapshotProps {
     isVacant: boolean;
     onSetPrice?: () => void;
     onAddDeposit?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
 const MoneySnapshot = memo<MoneySnapshotProps>(({
-    rent, deposit, paymentDay, overdue, isVacant, onSetPrice, onAddDeposit
+    rent, deposit, paymentDay, overdue, isVacant, onSetPrice, onAddDeposit, bgStyle
 }) => (
-    <div className={surface1}>
+    <div className={surface1} style={bgStyle}>
         <div className="px-3 py-2 border-b border-gray-100">
             <span className={heading}>Finansai</span>
         </div>
@@ -428,10 +433,11 @@ interface TenantCardProps {
     isVacant: boolean;
     onAdd?: () => void;
     onView?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
-const TenantCard = memo<TenantCardProps>(({ tenant, isVacant, onAdd, onView }) => (
-    <div className={surface1}>
+const TenantCard = memo<TenantCardProps>(({ tenant, isVacant, onAdd, onView, bgStyle }) => (
+    <div className={surface1} style={bgStyle}>
         <div className="px-3 py-2 border-b border-gray-100">
             <span className={heading}>Nuomininkas</span>
         </div>
@@ -484,11 +490,13 @@ interface MiniCardProps {
     status?: string;
     cta: string;
     onAction?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
-const MiniCard = memo<MiniCardProps>(({ icon, title, value, status, cta, onAction }) => (
+const MiniCard = memo<MiniCardProps>(({ icon, title, value, status, cta, onAction, bgStyle }) => (
     <div
         className={`${surface1} p-2.5 cursor-pointer hover:bg-white/90 transition-colors`}
+        style={bgStyle}
         onClick={onAction}
     >
         <div className="flex items-center justify-between mb-1.5">
@@ -513,10 +521,11 @@ MiniCard.displayName = 'MiniCard';
 interface ActivityCardProps {
     activities: { text: string; time: string }[];
     onUpload?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
-const ActivityCard = memo<ActivityCardProps>(({ activities, onUpload }) => (
-    <div className={surface1}>
+const ActivityCard = memo<ActivityCardProps>(({ activities, onUpload, bgStyle }) => (
+    <div className={surface1} style={bgStyle}>
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
             <span className={heading}>Paskutinė veikla</span>
             {activities.length > 0 && <button className={cta}>Visos →</button>}
@@ -604,6 +613,17 @@ export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
 }) => {
     const isVacant = !tenant?.name || tenant.status === 'vacant';
 
+    // Compute card background style from property settings
+    const cardBgUrl = resolveCardBgImage(property);
+    const cardBgStyle: React.CSSProperties | undefined = useMemo(() => {
+        if (!cardBgUrl || cardBgUrl === '/images/CardsBackground.webp') return undefined;
+        return {
+            backgroundImage: `linear-gradient(to bottom, rgba(255,255,255,0.82), rgba(255,255,255,0.88)), url('${cardBgUrl}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+        };
+    }, [cardBgUrl]);
+
     // Tasks
     const tasks: Task[] = [
         { label: 'Pridėkite nuotraukas', done: photos.length >= 3, cta: 'Įkelti', onClick: onUploadPhoto },
@@ -628,13 +648,14 @@ export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
                 nextAction={nextAction}
                 onDocs={() => onNavigateTab?.('dokumentai')}
                 onSettings={onOpenSettings}
+                bgStyle={cardBgStyle}
             />
 
             {/* B) Hero Row: 60/40 split */}
             <div className="grid grid-cols-[3fr_2fr] gap-2">
                 {/* Left 60%: Next Steps + Money */}
                 <div className="space-y-2">
-                    {isVacant && <NextStepsHero tasks={tasks} />}
+                    {isVacant && <NextStepsHero tasks={tasks} bgStyle={cardBgStyle} />}
                     <MoneySnapshot
                         rent={tenant.monthlyRent || null}
                         deposit={tenant.deposit || null}
@@ -643,6 +664,7 @@ export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
                         isVacant={isVacant}
                         onSetPrice={onSetPrice}
                         onAddDeposit={() => onNavigateTab?.('nuoma')}
+                        bgStyle={cardBgStyle}
                     />
                 </div>
 
@@ -659,6 +681,7 @@ export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
                         isVacant={isVacant}
                         onAdd={onAddTenant}
                         onView={onViewTenant}
+                        bgStyle={cardBgStyle}
                     />
                 </div>
             </div>
@@ -672,6 +695,7 @@ export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
                     status={meters.length > 0 ? 'Pask. skaitymas: šiandien' : undefined}
                     cta="Valdyti"
                     onAction={onManageMeters || (() => onNavigateTab?.('komunaliniai'))}
+                    bgStyle={cardBgStyle}
                 />
                 <MiniCard
                     icon={<FileText className="w-3.5 h-3.5 text-orange-500" />}
@@ -680,10 +704,11 @@ export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
                     status={documents.length > 0 ? 'Pask. įkeltas: vakar' : undefined}
                     cta="Įkelti"
                     onAction={onUploadDocument || (() => onNavigateTab?.('dokumentai'))}
+                    bgStyle={cardBgStyle}
                 />
             </div>
 
-            <ActivityCard activities={activities} onUpload={onUploadPhoto} />
+            <ActivityCard activities={activities} onUpload={onUploadPhoto} bgStyle={cardBgStyle} />
 
             {/* D) Sticky Bar */}
             <StickyBar

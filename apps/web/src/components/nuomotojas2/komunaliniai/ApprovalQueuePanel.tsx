@@ -70,7 +70,7 @@ export const ApprovalQueuePanel: React.FC<ApprovalQueuePanelProps> = ({
                 setCurrentIndex(prev => prev - 1);
             }
         } catch (error) {
-            console.error('Failed to approve:', error);
+            if (import.meta.env.DEV) console.error('Failed to approve:', error);
         } finally {
             setIsProcessing(false);
         }
@@ -89,7 +89,7 @@ export const ApprovalQueuePanel: React.FC<ApprovalQueuePanelProps> = ({
                 setCurrentIndex(prev => prev - 1);
             }
         } catch (error) {
-            console.error('Failed to reject:', error);
+            if (import.meta.env.DEV) console.error('Failed to reject:', error);
         } finally {
             setIsProcessing(false);
         }

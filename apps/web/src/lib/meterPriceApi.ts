@@ -204,7 +204,6 @@ export const getMeterReadings = async (
   period?: string
 ): Promise<{ current: number; previous: number; consumption: number }> => {
   try {
-    console.log('📊 Getting meter readings for:', { meterId, meterType });
 
     const { data, error } = await supabase
       .from('meter_readings')
@@ -227,7 +226,6 @@ export const getMeterReadings = async (
       consumption: reading?.consumption || 0
     };
 
-    console.log('📊 Meter readings result:', result);
     return result;
   } catch (error) {
     console.error('Error in getMeterReadings:', error);

@@ -29,6 +29,7 @@ interface RodmenysModuleProps {
     footerLeft?: React.ReactNode;
     footerRight?: React.ReactNode;
     dueDate?: Date;
+    bgStyle?: React.CSSProperties;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -105,7 +106,7 @@ export const RodmenysModule: React.FC<RodmenysModuleProps> = ({
     total, missingReadings, pendingApproval, pendingWithPhoto, ok,
     activeFilter, onFilterChange, searchQuery, onSearchChange,
     categoryFilter, onCategoryChange, scopeFilter, onScopeChange,
-    missingCount, onEnterAll, children, footerLeft, footerRight,
+    missingCount, onEnterAll, children, footerLeft, footerRight, bgStyle,
 }) => {
     // Note: Removed auto-select for missing filter - "Visi" is now default
 
@@ -119,7 +120,7 @@ export const RodmenysModule: React.FC<RodmenysModuleProps> = ({
     return (
         <div
             className="flex-1 flex flex-col rounded-2xl shadow-lg overflow-hidden relative"
-            style={{
+            style={bgStyle || {
                 backgroundImage: 'url(/images/rodikliai_opt.webp)',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',

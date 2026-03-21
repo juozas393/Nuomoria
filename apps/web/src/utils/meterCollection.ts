@@ -46,7 +46,7 @@ export async function createCollectionRequestsForAddress(
       .not('tenant_id', 'is', null);
 
     if (propertiesError) {
-      console.error('Error fetching properties:', propertiesError);
+      if (import.meta.env.DEV) console.error('Error fetching properties:', propertiesError);
       throw propertiesError;
     }
 
@@ -59,7 +59,7 @@ export async function createCollectionRequestsForAddress(
       .eq('is_active', true);
 
     if (metersError) {
-      console.error('Error fetching meters:', metersError);
+      if (import.meta.env.DEV) console.error('Error fetching meters:', metersError);
       throw metersError;
     }
 
@@ -92,7 +92,7 @@ export async function createCollectionRequestsForAddress(
     
     return requests;
   } catch (error) {
-    console.error('Error creating collection requests:', error);
+    if (import.meta.env.DEV) console.error('Error creating collection requests:', error);
     throw error;
   }
 }
@@ -112,12 +112,12 @@ export async function getMeterReadingsWithPhotos(
       .eq('address_id', addressId);
 
     if (propertiesError) {
-      console.error('Error fetching properties for address:', propertiesError);
+      if (import.meta.env.DEV) console.error('Error fetching properties for address:', propertiesError);
       throw propertiesError;
     }
 
     if (!properties || properties.length === 0) {
-      console.log('No properties found for address:', addressId);
+      if (import.meta.env.DEV) console.log('No properties found for address:', addressId);
       return [];
     }
 
@@ -145,7 +145,7 @@ export async function getMeterReadingsWithPhotos(
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching meter readings with photos:', error);
+      if (import.meta.env.DEV) console.error('Error fetching meter readings with photos:', error);
       throw error;
     }
 
@@ -163,7 +163,7 @@ export async function getMeterReadingsWithPhotos(
       createdAt: reading.created_at
     }));
   } catch (error) {
-    console.error('Error getting meter readings with photos:', error);
+    if (import.meta.env.DEV) console.error('Error getting meter readings with photos:', error);
     throw error;
   }
 }
@@ -185,7 +185,7 @@ export async function sendMeterReadingNotification(
     // 2. Create in-app notification
     // 3. Update notification history
   } catch (error) {
-    console.error('Error sending meter reading notification:', error);
+    if (import.meta.env.DEV) console.error('Error sending meter reading notification:', error);
     throw error;
   }
 }

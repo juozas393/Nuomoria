@@ -15,6 +15,7 @@ interface SummaryLinksCardProps {
     onNavigateRental?: () => void;
     onNavigateDocuments?: () => void;
     onNavigateMeters?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
 // =============================================================================
@@ -30,6 +31,7 @@ export const SummaryLinksCard = memo<SummaryLinksCardProps>(({
     onNavigateRental,
     onNavigateDocuments,
     onNavigateMeters,
+    bgStyle,
 }) => {
     const getRentValue = () => {
         if (!rentStatus) return 'Nenustatyta';
@@ -71,7 +73,7 @@ export const SummaryLinksCard = memo<SummaryLinksCardProps>(({
     ];
 
     return (
-        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full flex flex-col">
+        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full flex flex-col" style={bgStyle}>
             <CardPatternOverlay />
 
             {/* Header - COMPACT */}

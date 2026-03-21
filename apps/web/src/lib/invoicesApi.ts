@@ -116,7 +116,7 @@ export async function generateInvoiceNumber(): Promise<string> {
         .limit(1);
 
     if (error) {
-        console.error('Error generating invoice number:', error);
+        if (import.meta.env.DEV) console.error('Error generating invoice number:', error);
         return `${prefix}001`;
     }
 
@@ -164,7 +164,7 @@ export async function getInvoices(filters?: InvoiceFilters): Promise<{ data: Inv
     const { data, error } = await query;
 
     if (error) {
-        console.error('Error fetching invoices:', error);
+        if (import.meta.env.DEV) console.error('Error fetching invoices:', error);
         return { data: null, error };
     }
 

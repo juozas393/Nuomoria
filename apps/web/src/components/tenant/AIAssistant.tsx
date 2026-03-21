@@ -70,7 +70,7 @@ const AIAssistant: React.FC = () => {
       confidence: 95,
       action: {
         label: 'Nustatyti automatinį mokėjimą',
-        onClick: () => console.log('Setup auto payment'),
+        onClick: () => { if (import.meta.env.DEV) console.log('Setup auto payment'); },
         type: 'primary'
       },
       timestamp: '2024-01-28T10:00:00Z'
@@ -84,7 +84,7 @@ const AIAssistant: React.FC = () => {
       confidence: 88,
       action: {
         label: 'Pranešti apie problemą',
-        onClick: () => console.log('Report issue'),
+        onClick: () => { if (import.meta.env.DEV) console.log('Report issue'); },
         type: 'secondary'
       },
       timestamp: '2024-01-28T09:30:00Z'
@@ -98,7 +98,7 @@ const AIAssistant: React.FC = () => {
       confidence: 92,
       action: {
         label: 'Pratęsti sutartį',
-        onClick: () => console.log('Renew contract'),
+        onClick: () => { if (import.meta.env.DEV) console.log('Renew contract'); },
         type: 'primary'
       },
       timestamp: '2024-01-28T08:15:00Z'
@@ -112,7 +112,7 @@ const AIAssistant: React.FC = () => {
       confidence: 78,
       action: {
         label: 'Peržiūrėti patarimus',
-        onClick: () => console.log('View tips'),
+        onClick: () => { if (import.meta.env.DEV) console.log('View tips'); },
         type: 'secondary'
       },
       timestamp: '2024-01-27T16:45:00Z'
@@ -157,8 +157,8 @@ const AIAssistant: React.FC = () => {
   const [actions, setActions] = useState<AIAction[]>([
     {
       id: '1',
-      title: 'Automatinis skaitliukų rodmenų pateikimas',
-      description: 'AI automatiškai pateiks skaitliukų rodmenis kiekvieną mėnesį',
+      title: 'Automatinis skaitiklių rodmenų pateikimas',
+      description: 'AI automatiškai pateiks skaitiklių rodmenis kiekvieną mėnesį',
       type: 'automated',
       status: 'running',
       progress: 75,

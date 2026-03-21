@@ -90,7 +90,7 @@ export const saveCommunalConfig = (config: CommunalConfig): void => {
   }
 
   // Čia būtų išsaugojimas į duomenų bazę
-  console.log('Saving communal config:', config);
+  if (import.meta.env.DEV) console.log('Saving communal config:', config);
 };
 
 

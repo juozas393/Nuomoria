@@ -65,7 +65,7 @@ export const MobileReadingSheet: React.FC<MobileReadingSheetProps> = ({
             await onSave();
             onClose();
         } catch (error) {
-            console.error('Failed to save:', error);
+            if (import.meta.env.DEV) console.error('Failed to save:', error);
         } finally {
             setIsSaving(false);
         }

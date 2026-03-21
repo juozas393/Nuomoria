@@ -105,7 +105,7 @@ class DashboardErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Security: Only log in development, never in production
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('Dashboard Error:', error, errorInfo);
     }
   }
@@ -540,7 +540,7 @@ const TenantDashboard: React.FC = () => {
   }, []);
 
   const handleAction = useCallback((actionId: string) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('Action clicked:', actionId);
     }
   }, []);

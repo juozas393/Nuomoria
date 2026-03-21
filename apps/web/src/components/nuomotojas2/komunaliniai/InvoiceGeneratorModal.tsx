@@ -242,7 +242,7 @@ export const InvoiceGeneratorModal = memo<InvoiceGeneratorModalProps>(({
             onInvoiceCreated?.();
             setTimeout(() => onClose(), 1500);
         } catch (err) {
-            console.error('[InvoiceGenerator] Error:', err);
+            if (import.meta.env.DEV) console.error('[InvoiceGenerator] Error:', err);
             setError('Klaida kuriant sąskaitą');
         } finally {
             setIsSaving(false);

@@ -37,7 +37,7 @@ export const MeterManagementCard: React.FC<MeterManagementCardProps> = ({
     collectionMode: 'landlord_only' as const
   };
 
-  console.log('🔍 MeterManagementCard policy:', {
+  if (import.meta.env.DEV) console.log('🔍 MeterManagementCard policy:', {
     name: meter.name,
     type: meter.type,
     distribution_method: meter.distribution_method,
@@ -103,7 +103,7 @@ export const MeterManagementCard: React.FC<MeterManagementCardProps> = ({
       setCurrentReading('');
       setPreviousReading('');
     } catch (error) {
-      console.error('Error updating reading:', error);
+      if (import.meta.env.DEV) console.error('Error updating reading:', error);
     } finally {
       setIsSubmitting(false);
     }

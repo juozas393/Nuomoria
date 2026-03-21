@@ -54,6 +54,7 @@ import { ReadingRequestModal } from '../properties/ReadingRequestModal';
 import { ReadingsInbox } from '../properties/ReadingsInbox';
 import { type DistributionMethod } from '../../constants/meterDistribution';
 import InviteTenantModal from './InviteTenantModal';
+import { supabase } from '../../lib/supabase';
 
 interface MeterReading {
   id: string;
@@ -183,6 +184,29 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
 
   // Tenant invitation modal
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false); // Mock data for now
+
+  // Tenant avatar
+  const [tenantAvatarUrl, setTenantAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (apartment.status !== 'occupied' || !apartment.tenant?.email) return;
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', apartment.tenant.email)
+          .maybeSingle();
+        if (!userData?.id) return;
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', userData.id)
+          .maybeSingle();
+        if (profileData?.avatar_url) setTenantAvatarUrl(profileData.avatar_url);
+      } catch { /* non-critical */ }
+    };
+    fetchAvatar();
+  }, [apartment.status, apartment.tenant?.email]);
 
   // Mock meters data for this apartment
   const apartmentMeters = useMemo(() => [
@@ -610,7 +634,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Butas {apartment.apartmentNumber}</h3>
+                  <h3 className="text-lg font-bold text-gray-900">{apartment.apartmentNumber}</h3>
                   <p className="text-sm text-gray-600 flex items-center gap-2">
                     <MapPinIcon className="w-4 h-4" />
                     Vokiečių g. 117 • {apartment.floor}a • {apartment.area}m² • {apartment.rooms}k
@@ -681,9 +705,20 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
                 {/* Tenant Basic Info */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <UserIcon className="w-5 h-5 text-blue-600" />
-                    </div>
+                    {tenantAvatarUrl ? (
+                      <img
+                        src={tenantAvatarUrl}
+                        alt={apartment.tenant.name}
+                        className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2F8481, #4DB6AC)' }}>
+                        <span className="text-sm font-bold text-white">
+                          {apartment.tenant.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <h4 className="font-semibold text-gray-900">{apartment.tenant.name}</h4>
                       <p className="text-sm text-gray-600">{apartment.tenant.phone}</p>
@@ -893,7 +928,7 @@ const ApartmentCard: React.FC<ApartmentCardProps> = ({
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         propertyId={apartment.id}
-        propertyLabel={`Butas ${apartment.apartmentNumber}`}
+        propertyLabel={apartment.apartmentNumber}
         defaultRent={apartment.monthlyRent}
         defaultDeposit={apartment.monthlyRent}
         onSuccess={() => {

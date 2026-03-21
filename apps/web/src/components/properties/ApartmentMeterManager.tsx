@@ -30,7 +30,7 @@ export const ApartmentMeterManager: React.FC<ApartmentMeterManagerProps> = ({
     try {
       // Load meters from address settings (address_meters)
       const meters = await getApartmentMeters(propertyId);
-      console.log('📊 Loaded meters from address settings:', meters);
+      if (import.meta.env.DEV) console.log('📊 Loaded meters from address settings:', meters);
       
       setMeters(meters);
       
@@ -39,7 +39,7 @@ export const ApartmentMeterManager: React.FC<ApartmentMeterManagerProps> = ({
       setApartmentCount(count);
       
     } catch (err) {
-      console.error('Error loading meter data:', err);
+      if (import.meta.env.DEV) console.error('Error loading meter data:', err);
       setError('Klaida kraunant skaitliukų duomenis');
     } finally {
       setLoading(false);
@@ -65,7 +65,7 @@ export const ApartmentMeterManager: React.FC<ApartmentMeterManagerProps> = ({
       onMetersUpdate?.();
       
     } catch (err) {
-      console.error('Error updating meter:', err);
+      if (import.meta.env.DEV) console.error('Error updating meter:', err);
       // Reload data to revert changes
       loadData();
     }
@@ -85,7 +85,7 @@ export const ApartmentMeterManager: React.FC<ApartmentMeterManagerProps> = ({
       onMetersUpdate?.();
       
     } catch (err) {
-      console.error('Error updating global meter:', err);
+      if (import.meta.env.DEV) console.error('Error updating global meter:', err);
       // Reload data to revert changes
       loadData();
     }
@@ -164,15 +164,15 @@ export const ApartmentMeterManager: React.FC<ApartmentMeterManagerProps> = ({
             key={meter.id}
             meter={meter}
             onUpdateReading={(meterId, reading) => {
-              console.log('Updating reading for meter:', meterId, reading);
+              if (import.meta.env.DEV) console.log('Updating reading for meter:', meterId, reading);
               // TODO: Implement reading update
             }}
             onOpenApartmentReadings={(meterId) => {
-              console.log('Opening apartment readings for meter:', meterId);
+              if (import.meta.env.DEV) console.log('Opening apartment readings for meter:', meterId);
               // TODO: Implement apartment readings modal
             }}
             onReviewTenantSubmission={(meterId, action) => {
-              console.log('Reviewing tenant submission:', meterId, action);
+              if (import.meta.env.DEV) console.log('Reviewing tenant submission:', meterId, action);
               // TODO: Implement tenant submission review
             }}
           />

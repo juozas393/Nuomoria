@@ -539,7 +539,7 @@ function AvailableMeterRow({
         {/* Add button */}
         <button
           onClick={() => {
-            console.log('AvailableMeterRow Add button clicked for:', availableMeter.name);
+            if (import.meta.env.DEV) console.log('AvailableMeterRow Add button clicked for:', availableMeter.name);
             onAdd(availableMeter);
           }}
           className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-[#2F8481] rounded-lg hover:bg-[#297a77] transition-colors duration-200 shadow-sm hover:shadow-md flex-shrink-0"
@@ -607,13 +607,13 @@ export function MetersPanel({
   });
 
   const handleAddAvailableMeter = (availableMeter: AvailableMeter) => {
-    console.log('MetersPanel handleAddAvailableMeter called with:', availableMeter);
+    if (import.meta.env.DEV) console.log('MetersPanel handleAddAvailableMeter called with:', availableMeter);
     onAddAvailableMeter(availableMeter);
-    console.log('MetersPanel onAddAvailableMeter called');
+    if (import.meta.env.DEV) console.log('MetersPanel onAddAvailableMeter called');
   };
 
   const handleAddMeterClick = () => {
-    console.log('Add meter button clicked, creating new meter');
+    if (import.meta.env.DEV) console.log('Add meter button clicked, creating new meter');
     onAddMeter(); // Call the parent's onAddMeter to create a new meter
 
     // Find the newest meter and put it in edit mode
@@ -621,7 +621,7 @@ export function MetersPanel({
       const newestMeter = meters[meters.length - 1];
       if (newestMeter && newestMeter.name === 'Naujas skaitliukas') {
         setEditingMeterId(newestMeter.id);
-        console.log('New meter put in edit mode:', newestMeter.id);
+        if (import.meta.env.DEV) console.log('New meter put in edit mode:', newestMeter.id);
       }
     }, 100);
   };

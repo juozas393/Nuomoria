@@ -43,13 +43,13 @@ export async function createTenantHistoryRecord(
             });
 
         if (error) {
-            console.error('Failed to create tenant history:', error.message);
+            if (import.meta.env.DEV) console.error('Failed to create tenant history:', error.message);
             return false;
         }
 
         return true;
     } catch (err) {
-        console.error('Error creating tenant history record:', err);
+        if (import.meta.env.DEV) console.error('Error creating tenant history record:', err);
         return false;
     }
 }
@@ -92,13 +92,13 @@ export async function cleanupTenantHistory(
             .select('id');
 
         if (error) {
-            console.error('Failed to cleanup tenant history:', error.message);
+            if (import.meta.env.DEV) console.error('Failed to cleanup tenant history:', error.message);
             return 0;
         }
 
         return deleted?.length || 0;
     } catch (err) {
-        console.error('Error cleaning up tenant history:', err);
+        if (import.meta.env.DEV) console.error('Error cleaning up tenant history:', err);
         return 0;
     }
 }
@@ -141,10 +141,10 @@ export async function runTenantHistoryCleanup(): Promise<void> {
         }
 
         if (totalDeleted > 0) {
-            console.log(`Cleaned up ${totalDeleted} old tenant history records`);
+            if (import.meta.env.DEV) console.log(`Cleaned up ${totalDeleted} old tenant history records`);
         }
     } catch (err) {
         // Cleanup is non-critical, silently fail
-        console.error('Error in tenant history cleanup:', err);
+        if (import.meta.env.DEV) console.error('Error in tenant history cleanup:', err);
     }
 }

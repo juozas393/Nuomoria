@@ -122,7 +122,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                     inv => inv.email.toLowerCase() === invitationEmail.toLowerCase() && inv.status === 'pending'
                 );
                 if (pendingForEmail) {
-                    console.log('Replacing existing pending invitation for:', invitationEmail);
+                    if (import.meta.env.DEV) console.log('Replacing existing pending invitation for:', invitationEmail);
                 }
             }
 
@@ -149,7 +149,7 @@ const InviteTenantModal: React.FC<InviteTenantModalProps> = ({
                 });
 
                 if (emailError) {
-                    console.error('Failed to send invitation email:', emailError);
+                    if (import.meta.env.DEV) console.error('Failed to send invitation email:', emailError);
                 } else {
                     setLastEmailSentAt(Date.now());
                     setCooldownSeconds(COOLDOWN_DURATION);

@@ -11,13 +11,13 @@ const EmailConfirmation: React.FC = () => {
   useEffect(() => {
     const handleGoogleCallback = async () => {
       try {
-        console.log('🔄 EmailConfirmation: Starting Google callback handling');
+        if (import.meta.env.DEV) console.log('🔄 EmailConfirmation: Starting Google callback handling');
 
         // Get the current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
-          console.error('❌ Session error:', sessionError);
+          if (import.meta.env.DEV) console.error('❌ Session error:', sessionError);
           setStatus('error');
           setMessage('Klaida gaunant sesiją. Bandykite dar kartą.');
           setTimeout(() => navigate('/login'), 3000);
@@ -25,12 +25,12 @@ const EmailConfirmation: React.FC = () => {
         }
 
         if (!session) {
-          console.log('ℹ️ No session found, redirecting to login');
+          if (import.meta.env.DEV) console.log('ℹ️ No session found, redirecting to login');
           navigate('/login');
           return;
         }
 
-        console.log('✅ Session acquired:', {
+        if (import.meta.env.DEV) console.log('✅ Session acquired:', {
           user: session.user?.email,
           uid: session.user?.id,
           provider: session.user?.app_metadata?.provider
@@ -38,7 +38,7 @@ const EmailConfirmation: React.FC = () => {
 
         // Check if this is a Google OAuth callback
         if (session.user?.app_metadata?.provider === 'google') {
-          console.log('🔗 Google OAuth callback detected');
+          if (import.meta.env.DEV) console.log('🔗 Google OAuth callback detected');
 
           const googleEmail = session.user.email;
           const googleUserId = session.user.id;
@@ -49,11 +49,11 @@ const EmailConfirmation: React.FC = () => {
           const currentUserEmail = localStorage.getItem('currentUserEmail');
 
           if (isLinking && currentUserId) {
-            console.log('🔗 Google account linking operation detected');
-            console.log('🔗 Current user ID:', currentUserId);
-            console.log('🔗 Current user email:', currentUserEmail);
-            console.log('🔗 Google user ID:', googleUserId);
-            console.log('🔗 Google user email:', googleEmail);
+            if (import.meta.env.DEV) console.log('🔗 Google account linking operation detected');
+            if (import.meta.env.DEV) console.log('🔗 Current user ID:', currentUserId);
+            if (import.meta.env.DEV) console.log('🔗 Current user email:', currentUserEmail);
+            if (import.meta.env.DEV) console.log('🔗 Google user ID:', googleUserId);
+            if (import.meta.env.DEV) console.log('🔗 Google user email:', googleEmail);
 
             // Handle linking scenario
             await handleGoogleLinking(currentUserId, currentUserEmail || '', googleUserId, googleEmail || '');
@@ -62,11 +62,11 @@ const EmailConfirmation: React.FC = () => {
             await handleGoogleSignIn(googleUserId, googleEmail || '');
           }
         } else {
-          console.log('ℹ️ Not a Google OAuth callback, redirecting to dashboard');
+          if (import.meta.env.DEV) console.log('ℹ️ Not a Google OAuth callback, redirecting to dashboard');
           navigate('/');
         }
       } catch (error) {
-        console.error('❌ Error in Google callback handling:', error);
+        if (import.meta.env.DEV) console.error('❌ Error in Google callback handling:', error);
         setStatus('error');
         setMessage('Klaida apdorojant Google paskyros prijungimą. Bandykite dar kartą.');
         setTimeout(() => navigate('/login'), 3000);
@@ -83,10 +83,10 @@ const EmailConfirmation: React.FC = () => {
           .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
-          console.error('❌ Error checking existing Google account:', checkError);
+          if (import.meta.env.DEV) console.error('❌ Error checking existing Google account:', checkError);
           // Continue anyway, we'll handle it in the update
         } else if (existingGoogleUser && existingGoogleUser.id !== currentUserId) {
-          console.log('⚠️ Google account already linked to another user:', existingGoogleUser.email);
+          if (import.meta.env.DEV) console.log('⚠️ Google account already linked to another user:', existingGoogleUser.email);
           setStatus('error');
           setMessage(`Ši Google paskyra jau prijungta prie kito vartotojo (${existingGoogleUser.email}). Naudokite kitą Google paskyrą arba atjunkite ją iš kito vartotojo.`);
           setTimeout(() => navigate('/profilis'), 5000);
@@ -104,9 +104,9 @@ const EmailConfirmation: React.FC = () => {
           .single();
 
         if (currentUserError && currentUserError.code !== 'PGRST116') {
-          console.error('❌ Error checking current user:', currentUserError);
+          if (import.meta.env.DEV) console.error('❌ Error checking current user:', currentUserError);
         } else if (currentUser?.google_linked && currentUser.google_email !== googleEmail) {
-          console.log('⚠️ Current user already has a different Google account linked');
+          if (import.meta.env.DEV) console.log('⚠️ Current user already has a different Google account linked');
           setStatus('error');
           setMessage(`Jūs jau turite prijungtą Google paskyrą (${currentUser.google_email}). Naudokite kitą Google paskyrą arba atjunkite esamą.`);
           setTimeout(() => navigate('/profilis'), 5000);
@@ -117,7 +117,7 @@ const EmailConfirmation: React.FC = () => {
         await linkGoogleToUser(currentUserId, googleEmail, googleUserId);
 
       } catch (error) {
-        console.error('❌ Error in Google linking:', error);
+        if (import.meta.env.DEV) console.error('❌ Error in Google linking:', error);
         setStatus('error');
         setMessage('Klaida prijungiant Google paskyrą. Bandykite dar kartą.');
         setTimeout(() => navigate('/profilis'), 3000);
@@ -126,7 +126,7 @@ const EmailConfirmation: React.FC = () => {
 
     const handleGoogleSignIn = async (googleUserId: string, googleEmail: string) => {
       try {
-        console.log('ℹ️ Regular Google sign-in detected');
+        if (import.meta.env.DEV) console.log('ℹ️ Regular Google sign-in detected');
 
         // Check if this Google account is already linked to a user
         const { data: existingUser, error: checkError } = await supabase
@@ -136,10 +136,10 @@ const EmailConfirmation: React.FC = () => {
           .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
-          console.error('❌ Error checking existing Google account:', checkError);
+          if (import.meta.env.DEV) console.error('❌ Error checking existing Google account:', checkError);
           // Continue to dashboard
         } else if (existingUser) {
-          console.log('✅ Google account found linked to user:', existingUser.email);
+          if (import.meta.env.DEV) console.log('✅ Google account found linked to user:', existingUser.email);
           // The user is already linked, just go to dashboard
           setStatus('success');
           setMessage('Sėkmingai prisijungta su Google paskyra!');
@@ -155,17 +155,17 @@ const EmailConfirmation: React.FC = () => {
           .single();
 
         if (regularUserError && regularUserError.code !== 'PGRST116') {
-          console.error('❌ Error checking regular user:', regularUserError);
+          if (import.meta.env.DEV) console.error('❌ Error checking regular user:', regularUserError);
         } else if (regularUser && !regularUser.google_linked) {
-          console.log('⚠️ Found regular account with same contact email, but not linked to Google');
-          console.log('🔍 Regular user:', regularUser);
-          console.log('ℹ️ This is normal - contact email can be shared, but Google email should be unique');
+          if (import.meta.env.DEV) console.log('⚠️ Found regular account with same contact email, but not linked to Google');
+          if (import.meta.env.DEV) console.log('🔍 Regular user:', regularUser);
+          if (import.meta.env.DEV) console.log('ℹ️ This is normal - contact email can be shared, but Google email should be unique');
 
           // This is actually OK - contact emails can be shared
           // The important thing is that Google email should be unique
           // Let's continue with normal Google sign-in process
 
-          console.log('✅ Contact email conflict is OK - proceeding with Google sign-in');
+          if (import.meta.env.DEV) console.log('✅ Contact email conflict is OK - proceeding with Google sign-in');
           setStatus('success');
           setMessage('Sėkmingai prisijungta su Google paskyra!');
           setTimeout(() => navigate('/'), 2000);
@@ -173,13 +173,13 @@ const EmailConfirmation: React.FC = () => {
         }
 
         // This is a completely new Google account
-        console.log('ℹ️ New Google account, creating new user or continuing...');
+        if (import.meta.env.DEV) console.log('ℹ️ New Google account, creating new user or continuing...');
         setStatus('success');
         setMessage('Sėkmingai prisijungta su Google paskyra!');
         setTimeout(() => navigate('/'), 2000);
 
       } catch (error) {
-        console.error('❌ Error in Google sign-in:', error);
+        if (import.meta.env.DEV) console.error('❌ Error in Google sign-in:', error);
         setStatus('error');
         setMessage('Klaida prisijungiant su Google paskyra. Bandykite dar kartą.');
         setTimeout(() => navigate('/login'), 3000);
@@ -188,7 +188,7 @@ const EmailConfirmation: React.FC = () => {
 
     const linkGoogleToUser = async (userId: string, googleEmail: string, googleUserId: string) => {
       try {
-        console.log('🔗 Attempting to link Google account to user...');
+        if (import.meta.env.DEV) console.log('🔗 Attempting to link Google account to user...');
 
         // Method 1: Try direct database update
         // Security: Use centralized environment configuration
@@ -207,7 +207,7 @@ const EmailConfirmation: React.FC = () => {
         });
 
         if (response.ok) {
-          console.log('✅ Google account linked successfully via direct API call');
+          if (import.meta.env.DEV) console.log('✅ Google account linked successfully via direct API call');
           setStatus('success');
           setMessage('Google paskyra sėkmingai prijungta!');
 
@@ -219,7 +219,7 @@ const EmailConfirmation: React.FC = () => {
           setTimeout(() => navigate('/profilis'), 2000);
           return;
         } else {
-          console.log('⚠️ Direct API call failed, trying Supabase client...');
+          if (import.meta.env.DEV) console.log('⚠️ Direct API call failed, trying Supabase client...');
 
           // Method 2: Try Supabase client
           const { error: updateError } = await supabase
@@ -231,10 +231,10 @@ const EmailConfirmation: React.FC = () => {
             .eq('id', userId);
 
           if (updateError) {
-            console.log('⚠️ Supabase client update failed:', updateError.message);
+            if (import.meta.env.DEV) console.log('⚠️ Supabase client update failed:', updateError.message);
 
             // Method 3: Store in localStorage as fallback
-            console.log('🔄 Using localStorage fallback');
+            if (import.meta.env.DEV) console.log('🔄 Using localStorage fallback');
             localStorage.setItem('google_linked', 'true');
             // Security: Don't store sensitive Google data in localStorage
             // In production, use secure server-side session management
@@ -242,7 +242,7 @@ const EmailConfirmation: React.FC = () => {
             setStatus('success');
             setMessage('Google paskyra prijungta! (Laikinas sprendimas - duomenys išsaugoti lokalioje atmintyje)');
           } else {
-            console.log('✅ Google account linked successfully via Supabase client');
+            if (import.meta.env.DEV) console.log('✅ Google account linked successfully via Supabase client');
             setStatus('success');
             setMessage('Google paskyra sėkmingai prijungta!');
           }
@@ -256,7 +256,7 @@ const EmailConfirmation: React.FC = () => {
           return;
         }
       } catch (error) {
-        console.error('❌ Error linking Google account:', error);
+        if (import.meta.env.DEV) console.error('❌ Error linking Google account:', error);
 
         // Fallback: Store in localStorage
         localStorage.setItem('google_linked', 'true');
@@ -279,7 +279,7 @@ const EmailConfirmation: React.FC = () => {
 
 
   const logSecurityEvent = (event: string, details: any) => {
-    console.log(`🚨 SECURITY EVENT: ${event}`, {
+    if (import.meta.env.DEV) console.log(`🚨 SECURITY EVENT: ${event}`, {
       timestamp: new Date().toISOString(),
       details
     });

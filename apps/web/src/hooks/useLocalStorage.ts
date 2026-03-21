@@ -14,7 +14,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
       // If error also return initialValue
-      console.log(error);
+      if (import.meta.env.DEV) console.log(error);
       return initialValue;
     }
   });
@@ -33,7 +33,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       }
     } catch (error) {
       // A more advanced implementation would handle the error case
-      console.log(error);
+      if (import.meta.env.DEV) console.log(error);
     }
   };
   

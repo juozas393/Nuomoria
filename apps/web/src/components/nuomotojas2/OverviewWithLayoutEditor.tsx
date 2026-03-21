@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 
 // Layout editor components
 import { LayoutEditorProvider, useLayoutEditor } from './layout/LayoutEditorProvider';
@@ -18,6 +18,7 @@ import { RecentActivityCard, ActivityItem } from './overview/RecentActivityCard'
 // API
 import { getLayouts, saveLayouts } from '../../lib/api/layoutsApi';
 import { getPropertyAuditLog, generateDisplayDescription } from '../../lib/auditLogApi';
+import { resolveCardBgImage } from '../../context/CardBgContext';
 
 // =============================================================================
 // TYPES
@@ -34,16 +35,23 @@ interface TenantInfo {
     deposit?: number;
     paymentDay?: number;
     overdue?: number;
+    lastSignIn?: string;
+    avatarUrl?: string;
 }
 
 interface PropertyInfo {
     id: string;
     address?: string;
+    address_id?: string;
     rooms?: number;
     area?: number;
     floor?: number;
     type?: string;
     status?: string;
+    rent?: number;
+    deposit_amount?: number;
+    apartment_number?: string;
+    extended_details?: any;
 }
 
 interface Layouts {
@@ -192,7 +200,7 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
     useEffect(() => {
         if (!property.id) return;
         getPropertyAuditLog(property.id, 9).then(entries => {
-            console.log('[ActivityFeed] Fetched audit entries for', property.id, ':', entries.length, entries);
+            if (import.meta.env.DEV) console.log('[ActivityFeed] Fetched audit entries for', property.id, ':', entries.length, entries);
             const items: ActivityItem[] = entries
                 .filter(e => e.action !== 'VIEW')
                 .map(entry => ({
@@ -203,9 +211,20 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
                 }));
             setAuditActivities(items);
         }).catch(err => {
-            console.error('[ActivityFeed] Error fetching audit log:', err);
+            if (import.meta.env.DEV) console.error('[ActivityFeed] Error fetching audit log:', err);
         });
     }, [property.id, activityRefreshKey]);
+
+    // Compute card background style from property settings
+    const cardBgUrl = resolveCardBgImage(property);
+    const cardBgStyle: React.CSSProperties | undefined = useMemo(() => {
+        if (!cardBgUrl || cardBgUrl === '/images/CardsBackground.webp') return undefined;
+        return {
+            backgroundImage: `linear-gradient(to bottom, rgba(255,255,255,0.82), rgba(255,255,255,0.88)), url('${cardBgUrl}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+        };
+    }, [cardBgUrl]);
 
     return (
         <div className="p-4" style={{ transform: 'scale(0.82)', transformOrigin: 'top center', width: 'calc(100% / 0.82)', marginLeft: 'calc((100% - 100% / 0.82) / 2)' }}>
@@ -229,6 +248,7 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
                     primaryAction={heroPrimaryAction}
                     onViewProperty={() => onNavigateTab?.('property')}
                     onSettings={onOpenSettings}
+                    bgStyle={cardBgStyle}
                 />
 
                 {/* Tenant Card */}
@@ -238,6 +258,7 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
                     isPrimary={tenantIsPrimary}
                     onAddTenant={onAddTenant}
                     onViewTenant={onViewTenant}
+                    bgStyle={cardBgStyle}
                 />
 
                 {/* Photos Card */}
@@ -248,6 +269,7 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
                     onDeletePhoto={onDeletePhoto}
                     onReorderPhotos={onReorderPhotos}
                     onSetCover={onSetCover}
+                    bgStyle={cardBgStyle}
                 />
 
                 {/* Summary Links Card */}
@@ -259,14 +281,15 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
                     onNavigateRental={() => onNavigateTab?.('rental')}
                     onNavigateDocuments={() => onNavigateTab?.('documents')}
                     onNavigateMeters={() => onNavigateTab?.('meters')}
+                    bgStyle={cardBgStyle}
                 />
 
                 {/* KPI Tiles Block */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 h-full">
-                    <RentTile rent={tenant.monthlyRent} />
-                    <DepositTile deposit={tenant.deposit} />
-                    <MetersTile count={meters.length} />
-                    <DocumentsTile count={documents.length} />
+                    <RentTile rent={tenant.monthlyRent} bgStyle={cardBgStyle} />
+                    <DepositTile deposit={tenant.deposit} bgStyle={cardBgStyle} />
+                    <MetersTile count={meters.length} bgStyle={cardBgStyle} />
+                    <DocumentsTile count={documents.length} bgStyle={cardBgStyle} />
                 </div>
 
                 {/* Checklist */}
@@ -283,6 +306,7 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
                 <RecentActivityCard
                     activities={auditActivities}
                     onViewAll={() => onNavigateTab?.('documents')}
+                    bgStyle={cardBgStyle}
                 />
             </EditableGrid>
         </div>
@@ -306,7 +330,7 @@ export const OverviewWithLayoutEditor: React.FC<OverviewWithLayoutEditorProps> =
                     setInitialLayouts(saved);
                 }
             } catch (error) {
-                console.error('Failed to load layouts:', error);
+                if (import.meta.env.DEV) console.error('Failed to load layouts:', error);
             } finally {
                 setIsLoading(false);
             }

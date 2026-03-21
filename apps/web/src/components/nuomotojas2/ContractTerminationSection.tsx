@@ -158,7 +158,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     .maybeSingle();
 
                 if (error) {
-                    console.error('Error fetching termination data:', error);
+                    if (import.meta.env.DEV) console.error('Error fetching termination data:', error);
                     setData(null);
                 } else if (inv) {
                     // Fetch actual rent/deposit from properties table (invitation values may be null)
@@ -202,7 +202,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     setData(null);
                 }
             } catch (err) {
-                console.error('Error:', err);
+                if (import.meta.env.DEV) console.error('Error:', err);
             } finally {
                 setIsLoading(false);
             }

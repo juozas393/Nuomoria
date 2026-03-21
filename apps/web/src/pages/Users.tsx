@@ -43,7 +43,7 @@ const Users: React.FC = () => {
       const usersData = await userApi.getAllUsers();
       setUsers(usersData);
     } catch (error) {
-      console.error('Error loading users:', error);
+      if (import.meta.env.DEV) console.error('Error loading users:', error);
     } finally {
       setLoading(false);
     }
@@ -72,7 +72,7 @@ const Users: React.FC = () => {
       } else {
         // New users should sign up via Google OAuth
         // This admin form only supports editing existing users
-        console.warn('Creating users through admin panel is not supported - users should sign up via Google OAuth');
+        if (import.meta.env.DEV) console.warn('Creating users through admin panel is not supported - users should sign up via Google OAuth');
       }
 
       setShowAddModal(false);
@@ -80,7 +80,7 @@ const Users: React.FC = () => {
       resetForm();
       loadUsers();
     } catch (error) {
-      console.error('Error saving user:', error);
+      if (import.meta.env.DEV) console.error('Error saving user:', error);
     }
   };
 
@@ -103,7 +103,7 @@ const Users: React.FC = () => {
         await userApi.deleteUser(userId);
         loadUsers();
       } catch (error) {
-        console.error('Error deleting user:', error);
+        if (import.meta.env.DEV) console.error('Error deleting user:', error);
       }
     }
   };

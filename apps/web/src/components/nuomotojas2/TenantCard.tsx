@@ -154,7 +154,7 @@ const TenantCard: React.FC<TenantCardProps> = memo(({ tenant, isSelected, onClic
           </div>
           <div>
             <h3 className="font-bold text-gray-900 text-lg group-hover:text-[#2f8481] transition-colors duration-500 origin-left">{tenant.name}</h3>
-            <p className="text-sm text-gray-500 font-medium">Butas {tenant.apartmentNumber}</p>
+            <p className="text-sm text-gray-500 font-medium">{tenant.apartmentNumber}</p>
           </div>
         </div>
 

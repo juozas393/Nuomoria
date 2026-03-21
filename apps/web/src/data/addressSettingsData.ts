@@ -135,7 +135,7 @@ export const saveAddressSettings = (settings: AddressSettings): void => {
   }
   
   // In a real application, this would save to a database
-  console.log('Address settings saved:', settings);
+  if (import.meta.env.DEV) console.log('Address settings saved:', settings);
 };
 
 export const deleteAddressSettings = (addressId: string): void => {
@@ -145,7 +145,7 @@ export const deleteAddressSettings = (addressId: string): void => {
   }
   
   // In a real application, this would delete from a database
-  console.log('Address settings deleted:', addressId);
+  if (import.meta.env.DEV) console.log('Address settings deleted:', addressId);
 };
 
 export const getAddressesWithSettings = (): string[] => {

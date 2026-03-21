@@ -12,7 +12,7 @@ const NewLogin: React.FC = () => {
     try {
       await signInWithGoogle();
     } catch (error) {
-      console.error('❌ Google sign-in error:', error);
+      if (import.meta.env.DEV) console.error('❌ Google sign-in error:', error);
       setMessage({ type: 'error', text: 'Klaida prisijungiant su Google' });
     }
   };

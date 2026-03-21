@@ -40,7 +40,7 @@ export async function getAllAmenities(): Promise<Amenity[]> {
         .order('name');
 
     if (error) {
-        console.error('[amenitiesApi] Error fetching amenities:', error);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error fetching amenities:', error);
         throw error;
     }
 
@@ -64,7 +64,7 @@ export async function searchAmenities(query: string): Promise<Amenity[]> {
         .order('name');
 
     if (error) {
-        console.error('[amenitiesApi] Error searching amenities:', error);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error searching amenities:', error);
         throw error;
     }
 
@@ -101,7 +101,7 @@ export async function createAmenity(
         .single();
 
     if (error) {
-        console.error('[amenitiesApi] Error creating amenity:', error);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error creating amenity:', error);
         throw error;
     }
 
@@ -121,7 +121,7 @@ export async function findExistingAmenity(name: string): Promise<Amenity | null>
         .maybeSingle();
 
     if (error) {
-        console.error('[amenitiesApi] Error checking existing amenity:', error);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error checking existing amenity:', error);
         throw error;
     }
 
@@ -138,7 +138,7 @@ export async function getPropertyAmenities(propertyId: string): Promise<string[]
         .eq('property_id', propertyId);
 
     if (error) {
-        console.error('[amenitiesApi] Error fetching property amenities:', error);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error fetching property amenities:', error);
         throw error;
     }
 
@@ -159,7 +159,7 @@ export async function setPropertyAmenities(
         .eq('property_id', propertyId);
 
     if (deleteError) {
-        console.error('[amenitiesApi] Error deleting old amenities:', deleteError);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error deleting old amenities:', deleteError);
         throw deleteError;
     }
 
@@ -175,7 +175,7 @@ export async function setPropertyAmenities(
             .insert(rows);
 
         if (insertError) {
-            console.error('[amenitiesApi] Error inserting amenities:', insertError);
+            if (import.meta.env.DEV) console.error('[amenitiesApi] Error inserting amenities:', insertError);
             throw insertError;
         }
     }
@@ -193,7 +193,7 @@ export async function addPropertyAmenity(
         .insert({ property_id: propertyId, amenity_id: amenityId });
 
     if (error && error.code !== '23505') { // Ignore duplicate key
-        console.error('[amenitiesApi] Error adding amenity:', error);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error adding amenity:', error);
         throw error;
     }
 }
@@ -209,7 +209,7 @@ export async function removePropertyAmenity(
         .eq('amenity_id', amenityId);
 
     if (error) {
-        console.error('[amenitiesApi] Error removing amenity:', error);
+        if (import.meta.env.DEV) console.error('[amenitiesApi] Error removing amenity:', error);
         throw error;
     }
 }

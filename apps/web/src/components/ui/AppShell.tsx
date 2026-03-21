@@ -73,6 +73,8 @@ function getUserRoleLabel(user: any): string {
   if (user?.role === 'landlord') return 'Nuomotojas';
   if (user?.role === 'tenant') return 'Nuomininkas';
   if (user?.role === 'admin') return 'Administratorius';
+  if (user?.role === 'property_manager') return 'Agentas';
+  if (user?.role === 'maintenance') return 'Priežiūra';
   return user?.role || 'Vartotojas';
 }
 
@@ -116,8 +118,8 @@ export const AppShell: React.FC = React.memo(() => {
   const handleLogout = useCallback(async () => {
     setUserMenuOpen(false);
     await logout();
-    navigate('/login');
-  }, [logout, navigate]);
+    window.location.href = '/login';
+  }, [logout]);
 
   /* Close dropdown on outside click */
   useEffect(() => {
@@ -285,7 +287,8 @@ export const AppShell: React.FC = React.memo(() => {
                     <div className="py-1.5">
                       {[
                         { label: 'Profilis', icon: UserCircleIcon, action: () => { setUserMenuOpen(false); navigate('/profilis'); } },
-                        { label: 'Nustatymai', icon: Cog6ToothIcon, action: () => { setUserMenuOpen(false); navigate(user?.role === 'tenant' ? '/tenant/settings' : '/nustatymai'); } },
+                        // Hide Nustatymai for agents
+                        ...(user?.role !== 'property_manager' ? [{ label: 'Nustatymai', icon: Cog6ToothIcon, action: () => { setUserMenuOpen(false); navigate(user?.role === 'tenant' ? '/tenant/settings' : '/nustatymai'); } }] : []),
                         ...(user?.role !== 'tenant' ? [{ label: 'Pagalba', icon: QuestionMarkCircleIcon, action: () => { setUserMenuOpen(false); navigate('/pagalba'); } }] : []),
                       ].map(item => (
                         <button

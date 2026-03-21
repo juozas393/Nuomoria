@@ -144,7 +144,7 @@ export const AddApartmentModal: React.FC<AddApartmentModalProps> = React.memo(({
         setSingleFormData(prev => ({ ...prev, meters: mapped }));
         setMultipleFormData(prev => ({ ...prev, meters: mapped }));
       } catch (e) {
-        console.error('[AddApartmentModal] Error fetching address meters:', e);
+        if (import.meta.env.DEV) console.error('[AddApartmentModal] Error fetching address meters:', e);
         setDefaultMeters(fallbackMeters);
       }
     };

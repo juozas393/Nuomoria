@@ -25,45 +25,47 @@ const Nuomotojas2Dashboard = React.lazy(() =>
 
 // Lazy load other pages with chunk names for better caching
 
-const Properties = React.lazy(() => import(/* webpackChunkName: "properties" */ './pages/Properties'));
-const Tenants = React.lazy(() => import(/* webpackChunkName: "tenants" */ './pages/Tenants'));
-const TenantLayout = React.lazy(() => import(/* webpackChunkName: "tenant-layout" */ './features/tenant/layouts/TenantLayout'));
-const TenantDashboard = React.lazy(() => import(/* webpackChunkName: "tenant-dashboard" */ './features/tenant/pages/TenantDashboardPage'));
-const TenantSettingsPage = React.lazy(() => import(/* webpackChunkName: "tenant-settings" */ './features/tenant/pages/TenantSettingsPage'));
-const TenantMeters = React.lazy(() => import(/* webpackChunkName: "tenant-meters" */ './pages/tenant/TenantMeters'));
-const TenantInvoices = React.lazy(() => import(/* webpackChunkName: "tenant-invoices" */ './pages/tenant/TenantInvoices'));
-const TenantContractPage = React.lazy(() => import(/* webpackChunkName: "tenant-contract" */ './pages/tenant/TenantContractPage'));
-const MetersPage = React.lazy(() => import(/* webpackChunkName: "meters" */ './pages/Meters'));
-const MeterPolicyDemo = React.lazy(() => import(/* webpackChunkName: "meter-demo" */ './pages/MeterPolicyDemo'));
-const Invoices = React.lazy(() => import(/* webpackChunkName: "invoices" */ './pages/Invoices'));
-const Analytics = React.lazy(() => import(/* webpackChunkName: "analytics" */ './pages/Analytics'));
-const Maintenance = React.lazy(() => import(/* webpackChunkName: "maintenance" */ './pages/Maintenance'));
-const Profile = React.lazy(() => import(/* webpackChunkName: "profile" */ './pages/Profile'));
-const Apartments = React.lazy(() => import(/* webpackChunkName: "apartments" */ './pages/Apartments'));
-const Settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './pages/Settings'));
-const Users = React.lazy(() => import(/* webpackChunkName: "users" */ './pages/Users'));
-const AdminDashboard = React.lazy(() => import(/* webpackChunkName: "admin" */ './pages/AdminDashboard'));
-const AdminPerformancePage = React.lazy(() => import(/* webpackChunkName: "admin-performance" */ './pages/AdminPerformancePage'));
+const Properties = React.lazy(() => import('./pages/Properties'));
+const Tenants = React.lazy(() => import('./pages/Tenants'));
+const TenantLayout = React.lazy(() => import('./features/tenant/layouts/TenantLayout'));
+const TenantDashboard = React.lazy(() => import('./features/tenant/pages/TenantDashboardPage'));
+const TenantSettingsPage = React.lazy(() => import('./features/tenant/pages/TenantSettingsPage'));
+const TenantMeters = React.lazy(() => import('./pages/tenant/TenantMeters'));
+const TenantInvoices = React.lazy(() => import('./pages/tenant/TenantInvoices'));
+const TenantContractPage = React.lazy(() => import('./pages/tenant/TenantContractPage'));
+const MetersPage = React.lazy(() => import('./pages/Meters'));
+const MeterPolicyDemo = React.lazy(() => import('./pages/MeterPolicyDemo'));
+const Invoices = React.lazy(() => import('./pages/Invoices'));
+const Analytics = React.lazy(() => import('./pages/Analytics'));
+const Maintenance = React.lazy(() => import('./pages/Maintenance'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Apartments = React.lazy(() => import('./pages/Apartments'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const Users = React.lazy(() => import('./pages/Users'));
+const AgentsPage = React.lazy(() => import('./pages/AgentsPage'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const AdminPerformancePage = React.lazy(() => import('./pages/AdminPerformancePage'));
 
-// Auth pages - load immediately as they're critical
-const SupabaseLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseLogin'));
-const ProfessionalLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './features/auth/pages/LoginPage'));
-const OnboardingWrapper = React.lazy(() => import(/* webpackChunkName: "auth" */ './features/auth/pages/OnboardingWrapper'));
-const SupabaseAuthCallback = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/SupabaseAuthCallback'));
-const EmailLogin = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/EmailLogin'));
-const MagicLinkVerify = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/MagicLinkVerify'));
+// Auth pages
+const SupabaseLogin = React.lazy(() => import('./pages/SupabaseLogin'));
+const ProfessionalLogin = React.lazy(() => import('./features/auth/pages/LoginPage'));
+const RegisterPage = React.lazy(() => import('./features/auth/pages/RegisterPage'));
+const OnboardingWrapper = React.lazy(() => import('./features/auth/pages/OnboardingWrapper'));
+const SupabaseAuthCallback = React.lazy(() => import('./pages/SupabaseAuthCallback'));
+const EmailLogin = React.lazy(() => import('./pages/EmailLogin'));
+const MagicLinkVerify = React.lazy(() => import('./pages/MagicLinkVerify'));
 
-const EmailConfirmation = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/EmailConfirmation'));
-const Welcome = React.lazy(() => import(/* webpackChunkName: "auth" */ './pages/Welcome'));
+const EmailConfirmation = React.lazy(() => import('./pages/EmailConfirmation'));
+const Welcome = React.lazy(() => import('./pages/Welcome'));
 
 // Landing page
-const LandingPage = React.lazy(() => import(/* webpackChunkName: "landing" */ './pages/LandingPage'));
+const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 
 // Guide page
-const GuidePage = React.lazy(() => import(/* webpackChunkName: "guide" */ './pages/GuidePage'));
-const PricingPage = React.lazy(() => import(/* webpackChunkName: "pricing" */ './pages/PricingPage'));
+const GuidePage = React.lazy(() => import('./pages/GuidePage'));
+const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 
-// Test pages (for development)
+// Test pages — only loaded in development
 const TestModal = React.lazy(() => import('./pages/TestModal'));
 
 // Loading component with skeleton layout
@@ -128,7 +130,7 @@ const RoleBasedRedirect: React.FC = () => {
   }
 
   // If no user or no role, redirect to onboarding
-  if (!user?.role || !['landlord', 'tenant', 'admin'].includes(user.role)) {
+  if (!user?.role || !['landlord', 'tenant', 'admin', 'property_manager'].includes(user.role)) {
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -141,7 +143,7 @@ const RoleBasedRedirect: React.FC = () => {
     return <Navigate to="/admin" replace />;
   }
 
-  // Landlord -> landlord dashboard
+  // Landlord & property_manager -> landlord dashboard
   return <Navigate to="/dashboard" replace />;
 };
 
@@ -155,6 +157,7 @@ function AppContent() {
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<ProfessionalLogin />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route path="/login-old" element={<SupabaseLogin />} />
             <Route path="/auth/callback" element={<SupabaseAuthCallback />} />
             <Route path="/onboarding" element={<OnboardingWrapper />} />
@@ -163,7 +166,7 @@ function AppContent() {
 
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/auth/old-callback" element={<EmailConfirmation />} />
-            <Route path="/test-modal" element={<TestModal />} />
+            {import.meta.env.DEV && <Route path="/test-modal" element={<TestModal />} />}
             <Route path="/pagalba" element={<GuidePage />} />
             <Route path="/kainos" element={<PricingPage />} />
 
@@ -174,17 +177,19 @@ function AppContent() {
               </ProtectedRoute>
             }>
 
-              {/* Landlord/Admin routes — single RoleGuard for the group */}
-              <Route path="dashboard" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Nuomotojas2Dashboard /></ErrorBoundary>} />
-              <Route path="turtas" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Properties /></ErrorBoundary>} />
-              <Route path="butai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Apartments /></ErrorBoundary>} />
-              <Route path="nuomininkai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Tenants /></ErrorBoundary>} />
-              <Route path="skaitikliai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><MetersPage /></ErrorBoundary>} />
-              <Route path="saskaitos" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Invoices /></ErrorBoundary>} />
-              <Route path="analitika" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Analytics /></ErrorBoundary>} />
-              <Route path="remontas" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Maintenance /></ErrorBoundary>} />
-              <Route path="nustatymai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Settings /></ErrorBoundary>} />
-              <Route path="vartotojai" element={<ErrorBoundary fallback={<ErrorFallbackPage />}><Users /></ErrorBoundary>} />
+              {/* Landlord/Admin routes — protected by RoleGuard */}
+              <Route path="dashboard" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><Nuomotojas2Dashboard /></ErrorBoundary></RoleGuard>} />
+              {/* Redirects — these pages are now integrated into Dashboard */}
+              <Route path="turtas" element={<Navigate to="/dashboard" replace />} />
+              <Route path="butai" element={<Navigate to="/dashboard" replace />} />
+              <Route path="nuomininkai" element={<Navigate to="/dashboard" replace />} />
+              <Route path="Skaitikliai" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><MetersPage /></ErrorBoundary></RoleGuard>} />
+              <Route path="saskaitos" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><Invoices /></ErrorBoundary></RoleGuard>} />
+              <Route path="analitika" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><Analytics /></ErrorBoundary></RoleGuard>} />
+              <Route path="remontas" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><Maintenance /></ErrorBoundary></RoleGuard>} />
+              <Route path="nustatymai" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><Settings /></ErrorBoundary></RoleGuard>} />
+              <Route path="agentai" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><AgentsPage /></ErrorBoundary></RoleGuard>} />
+              <Route path="vartotojai" element={<RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant"><ErrorBoundary fallback={<ErrorFallbackPage />}><Users /></ErrorBoundary></RoleGuard>} />
 
               {/* Admin-only dashboard */}
               <Route path="admin" element={
@@ -205,27 +210,27 @@ function AppContent() {
               {/* Tenant routes — inside AppShell (sidebar + header) */}
               <Route path="tenant" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <TenantDashboard />
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}><TenantDashboard /></ErrorBoundary>
                 </RoleGuard>
               } />
               <Route path="tenant/settings" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <TenantSettingsPage />
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}><TenantSettingsPage /></ErrorBoundary>
                 </RoleGuard>
               } />
               <Route path="tenant/meters" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <TenantMeters />
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}><TenantMeters /></ErrorBoundary>
                 </RoleGuard>
               } />
               <Route path="tenant/invoices" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <TenantInvoices />
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}><TenantInvoices /></ErrorBoundary>
                 </RoleGuard>
               } />
               <Route path="tenant/contract" element={
                 <RoleGuard allowedRoles={['tenant']} redirectTo="/dashboard">
-                  <TenantContractPage />
+                  <ErrorBoundary fallback={<ErrorFallbackPage />}><TenantContractPage /></ErrorBoundary>
                 </RoleGuard>
               } />
             </Route>

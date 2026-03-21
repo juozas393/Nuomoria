@@ -12,6 +12,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { PropertyDetailsModal } from '../properties/PropertyDetailsModal';
 import { Tenant } from '../../types/tenant';
+import { useAuth } from '../../context/AuthContext';
+import { useAgentPermissions } from '../../hooks/useAgentPermissions';
 
 // Performance optimized scroll classes
 const scrollClasses = {
@@ -147,7 +149,7 @@ const TenantRow = React.memo<{
           {metersMissing && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 text-amber-700 border border-amber-200">Skaitl.</span>}
         </div>
         <div className="truncate text-[11px] text-gray-500 mt-0.5">
-          Butas {tenant.apartmentNumber} • {tenant.address}
+          {tenant.apartmentNumber} • {tenant.address}
         </div>
       </div>
 
@@ -202,6 +204,10 @@ const AddressGroup: React.FC<AddressGroupProps> = ({
   onAddApartment,
   onSettingsClick
 }) => {
+  const { user } = useAuth();
+  const isAgent = user?.role === 'property_manager';
+  const { permissions: agentPerms } = useAgentPermissions();
+
   // Išjungti smooth scroll kai modalas atidarytas
   const isModalOpen = selectedTenant !== null;
   const groupRef = useRef<HTMLDivElement>(null);
@@ -311,24 +317,28 @@ const AddressGroup: React.FC<AddressGroupProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0 border-l border-gray-200/60 pl-2">
-            <button
-              onClick={() => onAddApartment(address)}
-              className="p-1.5 text-gray-400 hover:text-[#2F8481] hover:bg-[#2F8481]/10 rounded-lg transition-all"
-              title="Pridėti butą"
-            >
-              <PlusIcon className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => {
-                const firstTenant = tenants.find(t => t.address === address);
-                const addressId = firstTenant?.address_id;
-                onSettingsClick(address, addressId);
-              }}
-              className="p-1.5 text-gray-400 hover:text-[#2F8481] hover:bg-[#2F8481]/10 rounded-lg transition-all"
-              title="Nustatymai"
-            >
-              <Cog6ToothIcon className="h-4 w-4" />
-            </button>
+            {!isAgent && (
+              <>
+                <button
+                  onClick={() => onAddApartment(address)}
+                  className="p-1.5 text-gray-400 hover:text-[#2F8481] hover:bg-[#2F8481]/10 rounded-lg transition-all"
+                  title="Pridėti butą"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    const firstTenant = tenants.find(t => t.address === address);
+                    const addressId = firstTenant?.address_id;
+                    onSettingsClick(address, addressId);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-[#2F8481] hover:bg-[#2F8481]/10 rounded-lg transition-all"
+                  title="Nustatymai"
+                >
+                  <Cog6ToothIcon className="h-4 w-4" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -430,7 +440,7 @@ const TenantListOptimized: React.FC<TenantListOptimizedProps> = ({
         alert('Nėra skaitliukų, kuriems reikia fotografijų, arba nėra nuomininkų.');
       }
     } catch (error) {
-      console.error('Error collecting all readings:', error);
+      if (import.meta.env.DEV) console.error('Error collecting all readings:', error);
       alert('Klaida siųsiant prašymus. Bandykite vėliau.');
     } finally {
       setIsCollectingAll(false);

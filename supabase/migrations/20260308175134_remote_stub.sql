@@ -1,0 +1,2 @@
+-- Remote-only migration (already applied to staging)
+-- Stub created to sync local migration history
