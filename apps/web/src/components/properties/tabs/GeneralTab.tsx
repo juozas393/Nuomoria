@@ -13,6 +13,7 @@ interface GeneralTabProps {
 }
 
 const CARD_BACKGROUNDS = [
+  { file: 'none', label: 'Baltas' },
   { file: 'CardsBackground.webp', label: 'Geometrinis' },
   { file: 'rodikliai_opt.webp', label: 'Dangoraižis' },
   { file: 'rodikliai2_opt.webp', label: 'Klasika' },
@@ -115,7 +116,8 @@ export const GeneralTab = memo<GeneralTabProps>(({
       <p className="text-[11px] text-gray-400 mb-3">Pasirinkite fono nuotrauką, kuri bus naudojama buto kortelėse. Taikoma visiems šio adreso butams (nebent butas turi individualų pasirinkimą).</p>
       <div className="grid grid-cols-3 gap-3">
         {CARD_BACKGROUNDS.map(opt => {
-          const isSelected = (settings.buildingInfo.card_background || 'CardsBackground.webp') === opt.file;
+          const currentBg = settings.buildingInfo.card_background || 'CardsBackground.webp';
+          const isSelected = currentBg === opt.file;
           return (
             <button
               key={opt.file}
@@ -127,14 +129,18 @@ export const GeneralTab = memo<GeneralTabProps>(({
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <img
-                src={`/images/${opt.file}`}
-                alt={opt.label}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <span className="absolute bottom-1.5 left-2 text-[10px] font-bold text-white">{opt.label}</span>
+              {opt.file === 'none' ? (
+                <div className="w-full h-full bg-white" />
+              ) : (
+                <img
+                  src={`/images/${opt.file}`}
+                  alt={opt.label}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              )}
+              <div className={`absolute inset-0 ${opt.file === 'none' ? 'bg-gradient-to-t from-neutral-100 to-transparent' : 'bg-gradient-to-t from-black/50 to-transparent'}`} />
+              <span className={`absolute bottom-1.5 left-2 text-[10px] font-bold ${opt.file === 'none' ? 'text-neutral-500' : 'text-white'}`}>{opt.label}</span>
               {isSelected && (
                 <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center shadow-sm">
                   <Check className="w-3 h-3 text-white" />
@@ -144,6 +150,67 @@ export const GeneralTab = memo<GeneralTabProps>(({
           );
         })}
       </div>
+
+      {/* Adjustments — shown when a photo background is selected (not Baltas) */}
+      {settings.buildingInfo.card_background && settings.buildingInfo.card_background !== 'none' && (() => {
+        const pos = settings.buildingInfo.card_background_position ?? 50;
+        const opacity = settings.buildingInfo.card_background_opacity ?? 15;
+        const overlayVal = 1 - (opacity / 100); // 15% ryškumas = 0.85 overlay
+        const bgFile = settings.buildingInfo.card_background;
+        return (
+          <div className="mt-4 p-3 bg-neutral-50 rounded-xl border border-neutral-200 space-y-3">
+            {/* Ryškumas */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-neutral-700">Ryškumas</span>
+                <span className="text-[10px] text-neutral-400">{opacity}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] text-neutral-400">Šviesiau</span>
+                <input
+                  type="range"
+                  min="5"
+                  max="60"
+                  value={opacity}
+                  onChange={(e) => updateSettings('buildingInfo', { card_background_opacity: parseInt(e.target.value) })}
+                  className="flex-1 h-1.5 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-teal-500 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-teal-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:shadow-sm"
+                />
+                <span className="text-[9px] text-neutral-400">Ryškiau</span>
+              </div>
+            </div>
+
+            {/* Pozicija */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-neutral-700">Pozicija</span>
+                <span className="text-[10px] text-neutral-400">{pos}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] text-neutral-400">Viršus</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={pos}
+                  onChange={(e) => updateSettings('buildingInfo', { card_background_position: parseInt(e.target.value) })}
+                  className="flex-1 h-1.5 bg-neutral-200 rounded-full appearance-none cursor-pointer accent-teal-500 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-teal-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:shadow-sm"
+                />
+                <span className="text-[9px] text-neutral-400">Apačia</span>
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div
+              className="h-16 rounded-lg overflow-hidden border border-neutral-200"
+              style={{
+                backgroundImage: `linear-gradient(180deg, rgba(255,255,255,${overlayVal}) 0%, rgba(255,255,255,${Math.max(0, overlayVal - 0.03)}) 50%, rgba(255,255,255,${Math.min(1, overlayVal + 0.02)}) 100%), url('/images/${bgFile}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: `center ${pos}%`,
+              }}
+            />
+          </div>
+        );
+      })()}
     </Card>
 
     {/* Danger zone */}

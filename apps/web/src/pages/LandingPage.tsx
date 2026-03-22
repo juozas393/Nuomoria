@@ -10,6 +10,7 @@ import {
 import logoImage from '../assets/logocanvaTransparent.png';
 import logoBlack from '../assets/logocanvBLACKWithoutBG.png';
 import smallLogoWhite from '../assets/SmallLogoWHITEWithoutBG.png';
+import PricingModal from '../components/PricingModal';
 
 
 
@@ -233,6 +234,7 @@ const LandingPage: React.FC = () => {
     const { isAuthenticated, loading, user } = useAuth();
     const featuresRef = useRef<HTMLDivElement>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [pricingOpen, setPricingOpen] = useState(false);
     const [analyticsTab, setAnalyticsTab] = useState<'overview' | 'revenue' | 'time'>('overview');
 
     // Determine dashboard link for authenticated users
@@ -411,6 +413,9 @@ const LandingPage: React.FC = () => {
                         <a href="#faq" className="text-[13px] font-medium transition-colors hover:text-white" style={{ color: 'rgba(255,255,255,0.55)' }}>
                             D.U.K.
                         </a>
+                        <button onClick={() => setPricingOpen(true)} className="text-[13px] font-medium transition-colors hover:text-white" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                            Kainos
+                        </button>
                         <Link to="/pagalba" className="text-[13px] font-medium transition-colors hover:text-white" style={{ color: 'rgba(255,255,255,0.55)' }}>
                             Pagalba
                         </Link>
@@ -1068,6 +1073,9 @@ const LandingPage: React.FC = () => {
                             <a href="#faq" className="text-[12px] transition-colors duration-200 hover:text-teal-400/60" style={{ color: 'rgba(255,255,255,0.25)' }}>
                                 D.U.K.
                             </a>
+                            <button onClick={() => setPricingOpen(true)} className="text-[12px] transition-colors duration-200 hover:text-teal-400/60" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                                Kainos
+                            </button>
                             <Link to="/login" className="text-[12px] transition-colors duration-200 hover:text-teal-400/60" style={{ color: 'rgba(255,255,255,0.25)' }}>
                                 Prisijungti
                             </Link>
@@ -1080,6 +1088,9 @@ const LandingPage: React.FC = () => {
                     </div>
                 </div>
             </footer >
+
+            {/* Pricing Modal */}
+            <PricingModal isOpen={pricingOpen} onClose={() => setPricingOpen(false)} />
 
             {/* ═══════════════════════════════════════════════
           STYLES

@@ -697,9 +697,10 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
     saveAddressSettings(settings);
     setAddressSettings(settings);
     setShowAddressSettingsModal(false);
-    // Refetch addresses so card backgrounds and other settings update immediately
+    // Refetch both addresses and properties so card backgrounds update everywhere
     refetchAddresses();
-  }, [refetchAddresses]);
+    refetchProperties();
+  }, [refetchAddresses, refetchProperties]);
 
   const handleAddressSelect = useCallback((address: any) => {
     setSelectedAddress(address);
@@ -1318,8 +1319,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                   return (
                                     <SortableApartmentRow key={tenant.id} id={tenant.id}>
                                     <div
-                                      className="group/row flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/95 bg-cover bg-center shadow-sm border border-white/60 hover:shadow-md border-l-2 border-l-transparent hover:border-l-[#2F8481] transition-all cursor-pointer"
-                                      style={resolveCardBgStyleLight(tenant, address)}
+                                      className="group/row flex items-center gap-2.5 px-3 py-2 rounded-lg bg-cover bg-center shadow-sm border border-white/60 hover:shadow-md border-l-2 border-l-transparent hover:border-l-[#2F8481] transition-all cursor-pointer"
+                                      style={resolveCardBgStyleLight(null, address)}
                                       onClick={() => handleTenantClick(tenant, address.id)}
                                     >
                                       {/* Drag handle */}
@@ -1478,7 +1479,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
                                       {/* Photo area — compact */}
                                       <div 
                                         className="relative h-28 overflow-hidden bg-gray-100 bg-cover bg-center"
-                                        style={!firstPhoto ? resolveCardBgStyle(tenant, address) : undefined}
+                                        style={!firstPhoto ? resolveCardBgStyle(null, address) : undefined}
                                       >
                                         {firstPhoto ? (
                                           <img

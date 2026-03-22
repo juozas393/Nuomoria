@@ -2109,10 +2109,10 @@ const SectionHeader: React.FC<{
         {icon}
       </div>
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-[13px] font-bold text-gray-900">{title}</span>
-        <span className="text-[11px] text-gray-500 bg-gray-200/80 px-1.5 py-0.5 rounded-md font-semibold">{count}</span>
+        <span className="text-[13px] font-bold text-neutral-800">{title}</span>
+        <span className="text-[11px] text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded-md font-semibold">{count}</span>
       </div>
-      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
     </button>
     {action && <div className="flex-shrink-0 ml-2">{action}</div>}
   </div>
@@ -2299,7 +2299,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
     return (
       <div className="flex items-center justify-center py-16">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-400" />
-        <span className="ml-3 text-white/60 text-sm">Kraunama istorija...</span>
+        <span className="ml-3 text-neutral-500 text-sm">Kraunama istorija...</span>
       </div>
     );
   }
@@ -2311,7 +2311,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
     <div className="space-y-5 pb-4">
 
       {/* ─── SECTION 1: Tenant History ─── */}
-      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 bg-cover bg-center" style={bgStyle}>
+      <div className="bg-white border border-neutral-200 rounded-2xl p-5 bg-cover bg-center" style={bgStyle}>
 
         <div>
           <SectionHeader
@@ -2323,21 +2323,21 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           />
 
           {tenantsOpen && (
-            <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
+            <div className="mt-3 rounded-lg p-3 space-y-2">
               {/* Current tenant */}
               {!isVacant && currentTenant && (
-                <div className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                <div className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-neutral-100 hover:bg-neutral-50 transition-colors">
 
                   <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center flex-shrink-0">
                       <User className="w-4 h-4 text-teal-600" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-semibold text-gray-800 truncate">{currentTenant.name}</span>
-                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-medium">Dabartinis</span>
+                        <span className="text-[12px] font-semibold text-neutral-800 truncate">{currentTenant.name}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full font-medium">Dabartinis</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 mt-0.5">
                         {currentTenant.contractStart && (
                           <span>Nuo {(() => { const d = new Date(currentTenant.contractStart); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
                         )}
@@ -2355,22 +2355,22 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
 
               {/* Past tenants */}
               {pastTenants.map(t => (
-                <div key={t.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                <div key={t.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-neutral-100 hover:bg-neutral-50 transition-colors">
 
                   <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <User className="w-4 h-4 text-gray-500" />
+                    <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 text-teal-600" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-semibold text-gray-800 truncate">{t.tenant_name}</span>
+                        <span className="text-[12px] font-semibold text-neutral-800 truncate">{t.tenant_name}</span>
                         {t.end_reason && (
-                          <span className="text-[9px] px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded-full">
+                          <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded-full">
                             {END_REASON_MAP[t.end_reason] || t.end_reason}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 mt-0.5">
                         {t.contract_start && (
                           <span>{(() => { const d = new Date(t.contract_start); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
                         )}
@@ -2389,9 +2389,9 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
               {/* Empty state */}
               {tenantCount === 0 && (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <User className="w-8 h-8 text-gray-300 mb-2" />
-                  <p className="text-[11px] text-gray-500">Nuomininkų istorijos dar nėra</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Buvę nuomininkai bus rodomi čia</p>
+                  <User className="w-8 h-8 text-neutral-300 mb-2" />
+                  <p className="text-[11px] text-neutral-500">Nuomininkų istorijos dar nėra</p>
+                  <p className="text-[10px] text-neutral-400 mt-1">Buvę nuomininkai bus rodomi čia</p>
                 </div>
               )}
             </div>
@@ -2400,7 +2400,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
       </div>
 
       {/* ─── SECTION 2: Invoice Archive ─── */}
-      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 bg-cover bg-center" style={bgStyle}>
+      <div className="bg-white border border-neutral-200 rounded-2xl p-5 bg-cover bg-center" style={bgStyle}>
 
         <div>
           <SectionHeader
@@ -2413,33 +2413,33 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           />
 
           {invoicesOpen && (
-            <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
+            <div className="mt-3 rounded-lg p-3 space-y-2">
               {invoices.length === 0 ? (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <Euro className="w-8 h-8 text-gray-300 mb-2" />
-                  <p className="text-[11px] text-gray-500">Sąskaitų dar nėra</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Sukurtos sąskaitos bus rodomos čia</p>
+                  <Euro className="w-8 h-8 text-neutral-300 mb-2" />
+                  <p className="text-[11px] text-neutral-500">Sąskaitų dar nėra</p>
+                  <p className="text-[10px] text-neutral-400 mt-1">Sukurtos sąskaitos bus rodomos čia</p>
                 </div>
               ) : (
                 invoices.map(inv => {
                   const st = INVOICE_STATUS_MAP[inv.status] || INVOICE_STATUS_MAP.unpaid;
                   const isExpanded = expandedInvoice === inv.id;
                   return (
-                    <div key={inv.id} className="relative rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                    <div key={inv.id} className="relative rounded-lg overflow-hidden border border-neutral-100">
 
                       <button
                         onClick={() => setExpandedInvoice(isExpanded ? null : inv.id)}
-                        className="relative z-10 w-full flex items-center justify-between p-3 hover:bg-gray-50/50 transition-colors text-left"
+                        className="relative z-10 w-full flex items-center justify-between p-3 hover:bg-neutral-50 transition-colors text-left"
                       >
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Euro className="w-4 h-4 text-amber-600" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="text-[12px] font-medium text-gray-800 truncate">
+                            <div className="text-[12px] font-medium text-neutral-800 truncate">
                               {inv.invoice_number ? `Sąskaita ${inv.invoice_number}` : 'Sąskaita'}
                               {inv.period_start && inv.period_end && (
-                                <span className="text-gray-500 font-normal ml-1.5">
+                                <span className="text-neutral-500 font-normal ml-1.5">
                                   ({(() => { const d = new Date(inv.period_start); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })()} – {(() => { const d = new Date(inv.period_end); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })()})
                                 </span>
                               )}
@@ -2450,53 +2450,53 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
                                 <span className={st.text}>{st.label}</span>
                               </span>
                               {inv.invoice_date && (
-                                <span className="text-gray-500">{(() => { const d = new Date(inv.invoice_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                                <span className="text-neutral-400">{(() => { const d = new Date(inv.invoice_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
                               )}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                          <span className="text-[13px] font-bold text-gray-800 tabular-nums">{fmtCurrency(Number(inv.amount || 0))}</span>
-                          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                          <span className="text-[13px] font-bold text-neutral-800 tabular-nums">{fmtCurrency(Number(inv.amount || 0))}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                         </div>
                       </button>
 
                       {isExpanded && (
-                        <div className="relative z-10 px-3 pb-3 border-t border-gray-200/60">
+                        <div className="relative z-10 px-3 pb-3 border-t border-neutral-100">
                           <div className="grid grid-cols-2 gap-3 mt-3 mb-3">
                             {inv.rent_amount != null && Number(inv.rent_amount) > 0 && (
                               <div>
-                                <span className="text-[10px] text-gray-500 block">Nuoma</span>
-                                <span className="text-[12px] font-semibold text-gray-800">{fmtCurrency(Number(inv.rent_amount))}</span>
+                                <span className="text-[10px] text-neutral-500 block">Nuoma</span>
+                                <span className="text-[12px] font-semibold text-neutral-800">{fmtCurrency(Number(inv.rent_amount))}</span>
                               </div>
                             )}
                             {inv.utilities_amount != null && Number(inv.utilities_amount) > 0 && (
                               <div>
-                                <span className="text-[10px] text-gray-500 block">Komunaliniai</span>
-                                <span className="text-[12px] font-semibold text-gray-800">{fmtCurrency(Number(inv.utilities_amount))}</span>
+                                <span className="text-[10px] text-neutral-500 block">Komunaliniai</span>
+                                <span className="text-[12px] font-semibold text-neutral-800">{fmtCurrency(Number(inv.utilities_amount))}</span>
                               </div>
                             )}
                             {inv.due_date && (
                               <div>
-                                <span className="text-[10px] text-gray-500 block">Mokėti iki</span>
-                                <span className="text-[12px] text-gray-800">{(() => { const d = new Date(inv.due_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                                <span className="text-[10px] text-neutral-500 block">Mokėti iki</span>
+                                <span className="text-[12px] text-neutral-800">{(() => { const d = new Date(inv.due_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
                               </div>
                             )}
                             {inv.paid_date && (
                               <div>
-                                <span className="text-[10px] text-gray-500 block">Apmokėta</span>
-                                <span className="text-[12px] text-emerald-600">{(() => { const d = new Date(inv.paid_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                                <span className="text-[10px] text-neutral-500 block">Apmokėta</span>
+                                <span className="text-[12px] text-emerald-400">{(() => { const d = new Date(inv.paid_date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
                               </div>
                             )}
                           </div>
                           {inv.line_items && inv.line_items.length > 0 && (
                             <div className="mt-2">
-                              <span className="text-[10px] text-gray-500 block mb-1.5">Eilutės</span>
+                              <span className="text-[10px] text-neutral-500 block mb-1.5">Eilutės</span>
                               <div className="space-y-1">
                                 {inv.line_items.map((item: any, idx: number) => (
-                                  <div key={idx} className="flex items-center justify-between py-1 px-2 bg-gray-100/60 rounded-md">
-                                    <span className="text-[11px] text-gray-600 truncate flex-1">{item.label || item.description || 'Paslauga'}</span>
-                                    <span className="text-[11px] font-medium text-gray-800 ml-2 tabular-nums">{fmtCurrency(Number(item.amount || 0))}</span>
+                                  <div key={idx} className="flex items-center justify-between py-1 px-2 bg-neutral-50 rounded-md">
+                                    <span className="text-[11px] text-neutral-500 truncate flex-1">{item.label || item.description || 'Paslauga'}</span>
+                                    <span className="text-[11px] font-medium text-neutral-800 ml-2 tabular-nums">{fmtCurrency(Number(item.amount || 0))}</span>
                                   </div>
                                 ))}
                               </div>
@@ -2514,7 +2514,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
       </div>
 
       {/* ─── SECTION 3: Uploaded Documents ─── */}
-      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 bg-cover bg-center" style={bgStyle}>
+      <div className="bg-white border border-neutral-200 rounded-2xl p-5 bg-cover bg-center" style={bgStyle}>
 
         <div>
           <SectionHeader
@@ -2529,10 +2529,10 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
                 <select
                   value={selectedType}
                   onChange={e => setSelectedType(e.target.value)}
-                  className="px-2 py-1 bg-gray-100 border border-gray-200 rounded-lg text-[10px] text-gray-700 appearance-none cursor-pointer"
+                  className="px-2 py-1 bg-neutral-50 border border-neutral-200 rounded-lg text-[10px] text-neutral-700 appearance-none cursor-pointer"
                 >
                   {DOCUMENT_TYPES.map(t => (
-                    <option key={t.value} value={t.value} className="bg-neutral-800 text-white">{t.label}</option>
+                    <option key={t.value} value={t.value} className="bg-white text-neutral-700">{t.label}</option>
                   ))}
                 </select>
                 <input ref={fileInputRef} type="file" className="hidden"
@@ -2555,31 +2555,31 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           {uploadError && <p className="text-red-400 text-[11px] mt-2 px-1">{uploadError}</p>}
 
           {docsOpen && (
-            <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
+            <div className="mt-3 rounded-lg p-3 space-y-2">
               {docs.length === 0 ? (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <FileText className="w-8 h-8 text-gray-300 mb-2" />
-                  <p className="text-[11px] text-gray-500">Nėra įkeltų dokumentų</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Spauskite „Įkelti" norėdami pridėti sutartis, aktus ar kitus failus</p>
+                  <FileText className="w-8 h-8 text-neutral-300 mb-2" />
+                  <p className="text-[11px] text-neutral-500">Nėra įkeltų dokumentų</p>
+                  <p className="text-[10px] text-neutral-400 mt-1">Spauskite „Įkelti" norėdami pridėti sutartis, aktus ar kitus failus</p>
                 </div>
               ) : (
                 docs.map(doc => (
-                  <div key={doc.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-gray-200" style={{ backgroundImage: `url(${resolveCardBgImage()})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                  <div key={doc.id} className="relative flex items-center justify-between p-3 rounded-lg overflow-hidden border border-neutral-100 hover:bg-neutral-50 transition-colors">
 
                     <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
-                      <div className="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 bg-cyan-50 rounded-lg flex items-center justify-center flex-shrink-0">
                         <FileText className="w-4 h-4 text-cyan-600" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[12px] font-medium text-gray-800 truncate">{doc.name}</div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                        <div className="text-[12px] font-medium text-neutral-800 truncate">{doc.name}</div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-neutral-500">
                           <span>{getDocTypeLabel(doc.type)}</span>
                           {doc.file_size && <><span>•</span><span>{formatFileSize(doc.file_size)}</span></>}
                         </div>
                       </div>
                     </div>
                     <div className="relative z-10 flex items-center gap-2 flex-shrink-0 ml-2">
-                      <span className="text-[10px] text-gray-500">{(() => { const d = new Date(doc.created_at); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
+                      <span className="text-[10px] text-neutral-400">{(() => { const d = new Date(doc.created_at); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()}</span>
                       <button onClick={() => handleDownload(doc)}
                         className="text-[11px] text-teal-600 hover:text-teal-700 font-medium transition-colors">Atsisiųsti</button>
                       <button onClick={() => handleDeleteDoc(doc)}
@@ -2595,7 +2595,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
         </div>
       </div>
       {/* Activity Log Section */}
-      <div className="rounded-xl border border-gray-200/60 shadow-sm p-4 mt-4 bg-cover bg-center" style={bgStyle}>
+      <div className="bg-white border border-neutral-200 rounded-2xl p-5 mt-4 bg-cover bg-center" style={bgStyle}>
         <SectionHeader
           icon={<Activity className="w-4 h-4 text-blue-400" />}
           title="Veiklos žurnalas"
@@ -2605,12 +2605,12 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
           iconBg="bg-blue-500/15"
         />
         {showActivityLog && (
-          <div className="mt-3 bg-white/90 backdrop-blur-sm rounded-lg p-3 space-y-2 border border-gray-200">
+          <div className="mt-3 rounded-lg p-3 space-y-2">
             {activityLog.length === 0 ? (
               <div className="text-center py-8">
-                <Activity className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-[12px] text-gray-500">Veiklų dar nėra</p>
-                <p className="text-[10px] text-gray-400 mt-1">Veiksmai bus rodomi čia</p>
+                <Activity className="w-8 h-8 text-neutral-300 mx-auto mb-2" />
+                <p className="text-[12px] text-neutral-500">Veiklų dar nėra</p>
+                <p className="text-[10px] text-neutral-400 mt-1">Veiksmai bus rodomi čia</p>
               </div>
             ) : (
               activityLog.map((entry) => {
@@ -2628,12 +2628,12 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ propertyId, currentTenant, acti
                 const actionColor = entry.action === 'INSERT' ? 'text-emerald-400' : entry.action === 'DELETE' ? 'text-red-400' : entry.action === 'UPDATE' ? 'text-blue-400' : 'text-gray-400';
 
                 return (
-                  <div key={entry.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-white/40 hover:bg-white/50 transition-colors border border-gray-200">
+                  <div key={entry.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors border border-neutral-100">
                     <span className={`text-[14px] font-bold ${actionColor} w-5 text-center flex-shrink-0`}>{actionIcon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-700 truncate">{entry.description}</p>
+                      <p className="text-[11px] text-neutral-600 truncate">{entry.description}</p>
                     </div>
-                    <span className="text-[9px] text-gray-400 flex-shrink-0">{timeStr}</span>
+                    <span className="text-[9px] text-neutral-400 flex-shrink-0">{timeStr}</span>
                   </div>
                 );
               })
@@ -3610,9 +3610,9 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   }, [property?.id, tenant.status, onPropertyUpdated, onClose]);
 
   // Unified card background style for all tabs (from address settings)
-  const modalCardBgUrl = property ? resolveCardBgImage(property) : null;
+  const modalCardBgUrl = property ? resolveCardBgImage(property, addressInfo) : null;
   const modalCardBgStyle: React.CSSProperties | undefined = React.useMemo(() => {
-    if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp') return undefined;
+    if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp' || modalCardBgUrl === 'none') return undefined;
     return {
       backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.78) 100%), url('${modalCardBgUrl}')`,
       backgroundSize: 'cover',
@@ -3622,7 +3622,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
 
   // Subtle overlay variant — stronger white for text-heavy sections (Istorija)
   const modalCardBgStyleSubtle: React.CSSProperties | undefined = React.useMemo(() => {
-    if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp') return undefined;
+    if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp' || modalCardBgUrl === 'none') return undefined;
     return {
       backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.90) 100%), url('${modalCardBgUrl}')`,
       backgroundSize: 'cover',
@@ -3879,6 +3879,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                   <div className="mb-4">
                     <ContractTerminationSection
                       propertyId={property.id}
+                      bgStyle={modalCardBgStyleSubtle}
                       onTerminationChange={() => {
                         onPropertyUpdated?.();
                         setActivityRefreshKey(k => k + 1);

@@ -71,6 +71,8 @@ export interface BuildingInfo {
   companyCode: string;
   companyWebsite: string;
   card_background: string;
+  card_background_position: number;
+  card_background_opacity: number;
 }
 
 export interface ContactInfo {
@@ -183,6 +185,8 @@ export const DEFAULT_SETTINGS: AddressSettingsData = {
     companyCode: '',
     companyWebsite: '',
     card_background: 'CardsBackground.webp',
+    card_background_position: 50,
+    card_background_opacity: 15,
   },
   contactInfo: {
     managerName: '',
