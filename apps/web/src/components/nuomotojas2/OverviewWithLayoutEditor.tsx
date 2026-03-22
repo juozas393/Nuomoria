@@ -18,7 +18,7 @@ import { RecentActivityCard, ActivityItem } from './overview/RecentActivityCard'
 // API
 import { getLayouts, saveLayouts } from '../../lib/api/layoutsApi';
 import { getPropertyAuditLog, generateDisplayDescription } from '../../lib/auditLogApi';
-import { resolveCardBgImage } from '../../context/CardBgContext';
+import { resolveCardBgImage, resolveCardBgStyleLight } from '../../context/CardBgContext';
 
 // =============================================================================
 // TYPES
@@ -63,6 +63,7 @@ interface Layouts {
 interface OverviewWithLayoutEditorProps {
     property: PropertyInfo;
     tenant: TenantInfo;
+    addressInfo?: any;
     photos?: string[];
     meters?: any[];
     documents?: any[];
@@ -136,6 +137,7 @@ const computeReadiness = (
 const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
     property,
     tenant,
+    addressInfo,
     photos = [],
     meters = [],
     documents = [],
@@ -215,16 +217,14 @@ const OverviewContent: React.FC<OverviewWithLayoutEditorProps> = ({
         });
     }, [property.id, activityRefreshKey]);
 
-    // Compute card background style from property settings
-    const cardBgUrl = resolveCardBgImage(property);
+    // Compute card background style from property settings (uses address opacity/position)
+    const cardBgUrl = resolveCardBgImage(property, addressInfo);
     const cardBgStyle: React.CSSProperties | undefined = useMemo(() => {
         if (!cardBgUrl || cardBgUrl === '/images/CardsBackground.webp') return undefined;
-        return {
-            backgroundImage: `linear-gradient(to bottom, rgba(255,255,255,0.82), rgba(255,255,255,0.88)), url('${cardBgUrl}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-        };
-    }, [cardBgUrl]);
+        const resolved = resolveCardBgStyleLight(property, addressInfo);
+        if (resolved.backgroundColor === '#ffffff') return undefined;
+        return resolved;
+    }, [cardBgUrl, property, addressInfo]);
 
     return (
         <div className="p-4" style={{ transform: 'scale(0.82)', transformOrigin: 'top center', width: 'calc(100% / 0.82)', marginLeft: 'calc((100% - 100% / 0.82) / 2)' }}>

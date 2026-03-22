@@ -4,7 +4,7 @@ import {
     Upload, Camera, ChevronRight, Phone, Calendar, CheckCircle2,
     Circle, Clock, MoreHorizontal, ArrowRight
 } from 'lucide-react';
-import { resolveCardBgImage } from '../../context/CardBgContext';
+import { resolveCardBgImage, resolveCardBgStyleLight } from '../../context/CardBgContext';
 
 // =============================================================================
 // SURFACE HIERARCHY (Premium Design System)
@@ -57,6 +57,7 @@ interface PropertyInfo {
 interface PremiumOverviewProps {
     tenant: Tenant;
     property: PropertyInfo;
+    addressInfo?: any;
     photos?: string[];
     meters?: any[];
     documents?: any[];
@@ -596,6 +597,7 @@ StickyBar.displayName = 'StickyBar';
 export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
     tenant,
     property,
+    addressInfo,
     photos = [],
     meters = [],
     documents = [],
@@ -613,16 +615,14 @@ export const PremiumOverviewTab: React.FC<PremiumOverviewProps> = ({
 }) => {
     const isVacant = !tenant?.name || tenant.status === 'vacant';
 
-    // Compute card background style from property settings
-    const cardBgUrl = resolveCardBgImage(property);
+    // Compute card background style from property settings (uses address opacity/position)
+    const cardBgUrl = resolveCardBgImage(property, addressInfo);
     const cardBgStyle: React.CSSProperties | undefined = useMemo(() => {
         if (!cardBgUrl || cardBgUrl === '/images/CardsBackground.webp') return undefined;
-        return {
-            backgroundImage: `linear-gradient(to bottom, rgba(255,255,255,0.82), rgba(255,255,255,0.88)), url('${cardBgUrl}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-        };
-    }, [cardBgUrl]);
+        const resolved = resolveCardBgStyleLight(property, addressInfo);
+        if (resolved.backgroundColor === '#ffffff') return undefined;
+        return resolved;
+    }, [cardBgUrl, property, addressInfo]);
 
     // Tasks
     const tasks: Task[] = [

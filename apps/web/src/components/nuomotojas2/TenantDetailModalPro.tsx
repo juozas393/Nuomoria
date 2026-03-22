@@ -4,7 +4,8 @@ import { useFocusTrap } from "../../utils/nuomotojas2Utils";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { trackActivity } from "../../lib/activityTracker";
-import { resolveCardBgImage } from '../../context/CardBgContext';
+import { logAuditEvent } from "../../lib/auditLogApi";
+import { resolveCardBgImage, resolveCardBgStyle, resolveCardBgStyleLight } from '../../context/CardBgContext';
 import { useAgentPermissions } from '../../hooks/useAgentPermissions';
 
 import { Tenant } from "../../types/tenant";
@@ -2894,7 +2895,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         if (import.meta.env.DEV) console.log('Photos uploaded successfully:', uploadedUrls.length);
 
         // Log activity
-        trackActivity('INSERT', { tableName: 'property_photos', recordId: property.id, description: `Įkelta ${uploadedUrls.length} nuotr.`, metadata: { count: uploadedUrls.length } });
+        logAuditEvent(property.id, 'property_photos', 'INSERT', `Įkelta ${uploadedUrls.length} nuotr.`, { count: uploadedUrls.length }).catch(() => {});
         setActivityRefreshKey(k => k + 1);
       }
     } catch (error) {
@@ -2924,7 +2925,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
     if (import.meta.env.DEV) console.log('Photo deleted at index:', index);
 
     // Log activity
-    trackActivity('DELETE', { tableName: 'property_photos', recordId: property.id, description: 'Ištrinta nuotrauka' });
+    logAuditEvent(property.id, 'property_photos', 'DELETE', 'Ištrinta nuotrauka').catch(() => {});
     setActivityRefreshKey(k => k + 1);
   }, [property.id, propertyPhotos]);
 
@@ -3045,6 +3046,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
       if (!res.data || res.data.length === 0) {
         throw new Error('Nepavyko išsaugoti — nėra prieigos teisių arba būstas nerastas');
       }
+      logAuditEvent(property.id, 'properties', 'UPDATE', 'Atnaujinti būsto duomenys', updates, null, Object.keys(updates)).catch(() => {});
       // Trigger parent to refetch AND update selectedTenant state
       onPropertyUpdated?.();
     } catch (error: any) {
@@ -3613,22 +3615,18 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
   const modalCardBgUrl = property ? resolveCardBgImage(property, addressInfo) : null;
   const modalCardBgStyle: React.CSSProperties | undefined = React.useMemo(() => {
     if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp' || modalCardBgUrl === 'none') return undefined;
-    return {
-      backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.70) 50%, rgba(255,255,255,0.78) 100%), url('${modalCardBgUrl}')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    };
-  }, [modalCardBgUrl]);
+    const resolved = resolveCardBgStyleLight(property, addressInfo);
+    if (resolved.backgroundColor === '#ffffff') return undefined;
+    return resolved;
+  }, [modalCardBgUrl, property, addressInfo]);
 
-  // Subtle overlay variant — stronger white for text-heavy sections (Istorija)
+  // Subtle overlay variant — same as main but slightly more white for text-heavy sections
   const modalCardBgStyleSubtle: React.CSSProperties | undefined = React.useMemo(() => {
     if (!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp' || modalCardBgUrl === 'none') return undefined;
-    return {
-      backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.90) 100%), url('${modalCardBgUrl}')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    };
-  }, [modalCardBgUrl]);
+    const resolved = resolveCardBgStyleLight(property, addressInfo);
+    if (resolved.backgroundColor === '#ffffff') return undefined;
+    return resolved;
+  }, [modalCardBgUrl, property, addressInfo]);
 
   const { permissions: agentPerms, isAgent: isAgentUser } = useAgentPermissions();
 
@@ -3658,11 +3656,18 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
         <div
           ref={modalRef}
           className="relative rounded-2xl shadow-2xl max-w-[1000px] w-[96vw] h-[90vh] grid grid-rows-[auto_auto_1fr] overflow-hidden"
-          style={{
-            background: `linear-gradient(135deg, rgba(0, 0, 0, 0.70) 0%, rgba(15, 18, 21, 0.55) 50%, rgba(0, 0, 0, 0.70) 100%), url('/images/themebackground2.webp')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
+          style={(() => {
+            const addrBg = resolveCardBgStyle(property, addressInfo);
+            return {
+              ...addrBg,
+              // Fallback if no custom address bg
+              ...((!modalCardBgUrl || modalCardBgUrl === '/images/CardsBackground.webp') ? {
+                background: `linear-gradient(135deg, rgba(0, 0, 0, 0.70) 0%, rgba(15, 18, 21, 0.55) 50%, rgba(0, 0, 0, 0.70) 100%), url('/images/themebackground2.webp')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              } : {}),
+            };
+          })()}
         >
           {/* Header */}
           <div className="sticky top-0 z-10 border-b border-white/10 px-6 py-4 flex items-center justify-between bg-neutral-900/60 backdrop-blur-sm">
@@ -3735,6 +3740,7 @@ const TenantDetailModalPro: React.FC<TenantDetailModalProProps> = ({
                   rent: agentPerms.can_view_financials ? property.rent : undefined,
                   deposit_amount: agentPerms.can_view_financials ? property.deposit_amount : undefined,
                 }}
+                addressInfo={addressInfo}
                 tenant={{
                   name: tenant?.name,
                   phone: tenant?.phone,

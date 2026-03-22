@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logAuditEvent } from './auditLogApi';
 import { type DistributionMethod } from '../constants/meterDistribution';
 import { type AddressMeterSettings } from '../types/communal';
 
@@ -99,6 +100,7 @@ export const createCommunalMeter = async (meter: Omit<CommunalMeter, 'id' | 'cre
       throw error;
     }
 
+    logAuditEvent(meter.address_id, 'meters', 'INSERT', `Pridėtas komunalinis skaitiklis: ${meter.name}`, { name: meter.name, type: meter.type, unit: meter.unit }).catch(() => {});
     return data;
   } catch (error) {
     if (import.meta.env.DEV) console.error('Error in createCommunalMeter:', error);
@@ -120,6 +122,7 @@ export const updateCommunalMeter = async (id: string, updates: Partial<CommunalM
       throw error;
     }
 
+    logAuditEvent(data.address_id, 'meters', 'UPDATE', `Atnaujintas skaitiklis: ${data.name}`, updates, null, Object.keys(updates)).catch(() => {});
     return data;
   } catch (error) {
     if (import.meta.env.DEV) console.error('Error in updateCommunalMeter:', error);
@@ -129,6 +132,9 @@ export const updateCommunalMeter = async (id: string, updates: Partial<CommunalM
 
 export const deleteCommunalMeter = async (id: string): Promise<void> => {
   try {
+    // Fetch info before deleting
+    const { data: meter } = await supabase.from('communal_meters').select('address_id, name').eq('id', id).single();
+
     const { error } = await supabase
       .from('communal_meters')
       .delete()
@@ -138,6 +144,8 @@ export const deleteCommunalMeter = async (id: string): Promise<void> => {
       if (import.meta.env.DEV) console.error('Error deleting communal meter:', error);
       throw error;
     }
+
+    if (meter?.address_id) logAuditEvent(meter.address_id, 'meters', 'DELETE', `Ištrintas skaitiklis: ${meter.name || id}`).catch(() => {});
   } catch (error) {
     if (import.meta.env.DEV) console.error('Error in deleteCommunalMeter:', error);
     throw error;

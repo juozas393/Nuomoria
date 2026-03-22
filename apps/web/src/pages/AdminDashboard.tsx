@@ -37,12 +37,22 @@ import {
     CircleDollarSign,
     CircleOff,
     UsersRound,
+    ScrollText,
+    Calendar,
+    Mail,
+    Phone,
+    Ban,
+    ShieldCheck,
+    History,
+    AlertTriangle,
 } from 'lucide-react';
+import { logAuditEvent } from '../lib/auditLogApi';
 
-// ─── Premium Dark Design Tokens (matching landlord dashboard) ─── //
-const glassCard = 'bg-[#0c1a1f]/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl';
-const glassCardHover = `${glassCard} hover:bg-[#0c1a1f]/90 hover:border-white/[0.12] transition-all duration-300`;
-const panelCard = 'bg-[#0c1a1f]/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl';
+// ─── Design Tokens — mixed theme: dark background, white content cards ─── //
+const glassCard = 'bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] rounded-2xl';
+const glassCardHover = `${glassCard} hover:bg-white/[0.10] hover:border-white/[0.12] transition-all duration-300`;
+const panelCard = 'bg-white rounded-2xl border border-gray-200/60 shadow-sm';
+const whiteCard = 'bg-white rounded-xl border border-gray-200/60 shadow-sm';
 
 // ─── Types ─── //
 interface AuditLogEntry {
@@ -87,6 +97,10 @@ interface KPIData {
     totalPhotos: number;
     totalDocuments: number;
     pendingInvitations: number;
+    totalContracts: number;
+    totalRevenue: number;
+    outstandingAmount: number;
+    occupancyRate: number;
     occupiedProperties: number;
 }
 
@@ -107,6 +121,8 @@ const TABLE_LABELS: Record<string, string> = {
     address_meters: 'Skaitliukai (adreso)',
     address_settings: 'Adreso nustatymai',
     user_addresses: 'Prieigos',
+    communal_meters: 'Komunaliniai skaitikliai',
+    apartment_meters: 'Buto skaitikliai',
 };
 
 const ACTION_LABELS: Record<string, { label: string; color: string; bgColor: string; icon: typeof Plus }> = {
@@ -141,6 +157,8 @@ const TABLE_ICONS: Record<string, typeof Building2> = {
     address_meters: Gauge,
     address_settings: Activity,
     user_addresses: Users,
+    communal_meters: Gauge,
+    apartment_meters: Gauge,
 };
 
 // Lithuanian field labels
@@ -371,6 +389,10 @@ const KPI_ROW3 = [
     { key: 'totalReadings', icon: BarChart3, label: 'Rodmenų įrašai', gradient: 'from-green-500 to-emerald-600', bgLight: 'bg-green-50', textColor: 'text-green-600' },
     { key: 'activeTenants', icon: UserPlus, label: 'Aktyvūs nuomininkai', gradient: 'from-violet-500 to-purple-600', bgLight: 'bg-violet-50', textColor: 'text-violet-600' },
     { key: 'unreadNotifications', icon: Bell, label: 'Neperskaityti', gradient: 'from-pink-500 to-rose-600', bgLight: 'bg-pink-50', textColor: 'text-pink-600' },
+] as const;
+
+const KPI_ROW4 = [
+    { key: 'totalContracts', icon: ScrollText, label: 'Aktyvios sutartys', gradient: 'from-teal-500 to-cyan-600', bgLight: 'bg-teal-50', textColor: 'text-teal-600' },
 ] as const;
 
 // ─── Premium KPI Card ─── //
@@ -630,8 +652,9 @@ const AuditEntry = memo<{ entry: AuditLogEntry; showUser?: boolean }>(({ entry, 
 AuditEntry.displayName = 'AuditEntry';
 
 // ─── User Card ─── //
-const UserCard = memo<{ user: UserInfo; activityCount: number; isSelected: boolean; onClick: () => void }>(
-    ({ user, activityCount, isSelected, onClick }) => {
+const UserCard = memo<{ user: UserInfo; activityCount: number; isSelected: boolean; isExpanded: boolean; onClick: () => void; onToggleBlock: (userId: string, block: boolean) => void; onChangeRole: (userId: string, role: string) => void }>(
+    ({ user, activityCount, isSelected, isExpanded, onClick, onToggleBlock, onChangeRole }) => {
+        const isBlocked = user.is_active === false;
         const roleConfig = user.role === 'admin'
             ? { bg: 'bg-gradient-to-br from-purple-500 to-violet-600', badge: 'bg-purple-500/15 text-purple-400 border-purple-500/20' }
             : user.role === 'landlord'
@@ -641,33 +664,63 @@ const UserCard = memo<{ user: UserInfo; activityCount: number; isSelected: boole
                     : { bg: 'bg-gradient-to-br from-gray-400 to-gray-500', badge: 'bg-white/[0.08] text-gray-400 border-white/[0.10]' };
 
         return (
-            <button
-                onClick={onClick}
-                className={`w-full bg-white/[0.06] backdrop-blur-sm border rounded-xl p-3 flex items-center gap-3 transition-all duration-300 hover:bg-white/[0.10] ${isSelected ? 'ring-2 ring-teal-400/60 bg-white/[0.12] border-teal-500/30' : 'border-white/[0.10]'}`}
-            >
-                <div className={`w-9 h-9 rounded-xl ${roleConfig.bg} flex items-center justify-center flex-shrink-0 shadow-lg ${isSelected ? 'scale-110' : ''} transition-transform duration-300`}>
-                    <span className="text-[12px] font-bold text-white">
-                        {(user.first_name?.[0] || user.email[0]).toUpperCase()}
-                    </span>
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                    <p className="text-[12px] font-semibold text-white truncate">
-                        {user.nickname || (user.first_name ? `${user.first_name}${user.last_name ? ` ${user.last_name}` : ''}` : user.email.split('@')[0])}
-                    </p>
-                    <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-semibold border ${roleConfig.badge}`}>
-                        {ROLE_LABELS[user.role || ''] || user.role || '?'}
-                    </span>
-                    {activityCount > 0 && (
-                        <span className="bg-white/[0.08] text-gray-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums">
-                            {activityCount}
+            <div className={`bg-gray-50 border rounded-xl transition-all duration-300 hover:bg-gray-100 ${isBlocked ? 'border-red-300 bg-red-50' : isSelected ? 'ring-2 ring-teal-400/60 bg-teal-50 border-teal-300' : 'border-gray-200'}`}>
+                <button onClick={onClick} className="w-full p-3 flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl ${isBlocked ? 'bg-gradient-to-br from-red-500 to-rose-600' : roleConfig.bg} flex items-center justify-center flex-shrink-0 shadow-lg ${isSelected ? 'scale-110' : ''} transition-transform duration-300`}>
+                        {isBlocked ? <Ban className="w-4 h-4 text-white" /> : (
+                            <span className="text-[12px] font-bold text-white">
+                                {(user.first_name?.[0] || user.email[0]).toUpperCase()}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                        <p className={`text-[12px] font-semibold truncate ${isBlocked ? 'text-red-400 line-through' : 'text-gray-800'}`}>
+                            {user.nickname || (user.first_name ? `${user.first_name}${user.last_name ? ` ${user.last_name}` : ''}` : user.email.split('@')[0])}
+                        </p>
+                        <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {isBlocked && <span className="text-[8px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-md">Užblokuotas</span>}
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-semibold border ${roleConfig.badge}`}>
+                            {ROLE_LABELS[user.role || ''] || user.role || '?'}
                         </span>
-                    )}
-                    <ChevronRight className={`w-3.5 h-3.5 transition-all duration-300 ${isSelected ? 'text-teal-500 rotate-90 scale-110' : 'text-gray-300'}`} />
-                </div>
-            </button>
+                        {activityCount > 0 && (
+                            <span className="bg-white/[0.08] text-gray-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums">{activityCount}</span>
+                        )}
+                        <ChevronRight className={`w-3.5 h-3.5 transition-all duration-300 ${isExpanded ? 'text-teal-500 rotate-90' : isSelected ? 'text-teal-500' : 'text-gray-300'}`} />
+                    </div>
+                </button>
+                {isExpanded && (
+                    <div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2">
+                        <div className="grid grid-cols-2 gap-2 text-[9px]">
+                            <div><span className="text-gray-400">El. paštas:</span> <span className="text-gray-700">{user.email}</span></div>
+                            <div><span className="text-gray-400">Rolė:</span> <span className="text-gray-700">{ROLE_LABELS[user.role || ''] || '—'}</span></div>
+                            <div><span className="text-gray-400">Pask. prisijungimas:</span> <span className="text-gray-700">{user.last_login ? new Date(user.last_login).toLocaleString('lt-LT') : 'Niekada'}</span></div>
+                            <div><span className="text-gray-400">Registracija:</span> <span className="text-gray-700">{user.created_at ? new Date(user.created_at).toLocaleDateString('lt-LT') : '—'}</span></div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                            {user.role !== 'admin' && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onToggleBlock(user.id, !isBlocked); }}
+                                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${isBlocked ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}
+                                >
+                                    {isBlocked ? <><ShieldCheck className="w-3 h-3" /> Atblokuoti</> : <><Ban className="w-3 h-3" /> Blokuoti</>}
+                                </button>
+                            )}
+                            <select
+                                value={user.role || ''}
+                                onChange={(e) => { e.stopPropagation(); onChangeRole(user.id, e.target.value); }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-gray-100 border border-gray-200 text-gray-700 text-[9px] font-semibold rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-teal-500/40"
+                            >
+                                <option value="landlord" className="bg-gray-900">Nuomotojas</option>
+                                <option value="tenant" className="bg-gray-900">Nuomininkas</option>
+                                <option value="admin" className="bg-gray-900">Administratorius</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
+            </div>
         );
     }
 );
@@ -686,10 +739,17 @@ const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
     const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
     const [users, setUsers] = useState<UserInfo[]>([]);
-    const [kpi, setKpi] = useState<KPIData>({ totalUsers: 0, totalLandlords: 0, totalTenantUsers: 0, totalAddresses: 0, totalProperties: 0, totalInvoices: 0, paidInvoices: 0, unpaidInvoices: 0, activeMeters: 0, totalReadings: 0, activeTenants: 0, unreadNotifications: 0, totalPhotos: 0, totalDocuments: 0, pendingInvitations: 0, occupiedProperties: 0 });
+    const [kpi, setKpi] = useState<KPIData>({ totalUsers: 0, totalLandlords: 0, totalTenantUsers: 0, totalAddresses: 0, totalProperties: 0, totalInvoices: 0, paidInvoices: 0, unpaidInvoices: 0, activeMeters: 0, totalReadings: 0, activeTenants: 0, unreadNotifications: 0, totalPhotos: 0, totalDocuments: 0, pendingInvitations: 0, occupiedProperties: 0, totalContracts: 0, totalRevenue: 0, outstandingAmount: 0, occupancyRate: 0 });
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+
+    // Contracts & Terminations
+    const [contracts, setContracts] = useState<any[]>([]);
+    const [contractHistory, setContractHistory] = useState<any[]>([]);
+    const [terminations, setTerminations] = useState<any[]>([]);
+    const [contractTab, setContractTab] = useState<'active' | 'pending' | 'history' | 'terminations'>('active');
+    const [contractsLoading, setContractsLoading] = useState(false);
 
     // Filters
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -709,6 +769,83 @@ const AdminDashboard: React.FC = () => {
     const activeKpiRef = React.useRef(activeKpi);
     activeKpiRef.current = activeKpi;
 
+    // Fallback direct queries when RPC returns empty
+    const fetchKpiDetailFallback = useCallback(async (kpiKey: string, limit: number): Promise<Record<string, unknown>[]> => {
+        try {
+            if (kpiKey === 'activeTenants') {
+                const { data } = await supabase.from('tenant_invitations').select('id, full_name, email, phone, status, rent, deposit, contract_start, contract_end, property_label, invited_by_email, created_at').eq('status', 'accepted').order('created_at', { ascending: false }).limit(limit);
+                return (data || []).map(d => ({ ...d, street: d.property_label }));
+            }
+            if (kpiKey === 'pendingInvitations') {
+                const { data } = await supabase.from('tenant_invitations').select('id, full_name, email, phone, status, rent, deposit, contract_start, contract_end, property_label, expires_at, created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(limit);
+                return (data || []).map(d => ({ ...d, street: d.property_label }));
+            }
+            if (kpiKey === 'totalUsers' || kpiKey === 'totalLandlords' || kpiKey === 'totalTenantUsers') {
+                let q = supabase.from('users').select('id, email, role, first_name, last_name, is_active, last_login, created_at').order('created_at', { ascending: false }).limit(limit);
+                if (kpiKey === 'totalLandlords') q = q.eq('role', 'landlord');
+                if (kpiKey === 'totalTenantUsers') q = q.eq('role', 'tenant');
+                const { data } = await q;
+                return (data || []) as Record<string, unknown>[];
+            }
+            if (kpiKey === 'unreadNotifications') {
+                const { data } = await supabase.from('notifications').select('id, body, kind, user_id, created_at, is_read').eq('is_read', false).order('created_at', { ascending: false }).limit(limit);
+                return (data || []) as Record<string, unknown>[];
+            }
+            if (kpiKey === 'totalReadings') {
+                const { data } = await supabase.from('meter_readings').select('id, meter_id, current_reading, previous_reading, reading_date, period, total_sum, type, property_id, properties:property_id(apartment_number, address_id)').order('reading_date', { ascending: false }).limit(limit);
+                return (data || []).map((d: any) => ({ ...d, value: d.current_reading, meter_name: d.type || 'Skaitiklis', meter_unit: '', street: d.properties?.apartment_number ? `But. ${d.properties.apartment_number}` : '—' })) as Record<string, unknown>[];
+            }
+            if (kpiKey === 'activeMeters') {
+                const { data } = await supabase.from('apartment_meters').select('id, name, type, unit, price_per_unit, is_active, property_id, properties:property_id(apartment_number, addresses:address_id(full_address, city))').eq('is_active', true).order('created_at', { ascending: false }).limit(limit);
+                return (data || []).map((d: any) => ({ ...d, street: d.properties?.addresses?.full_address || d.properties?.apartment_number || '—' })) as Record<string, unknown>[];
+            }
+            if (kpiKey === 'totalAddresses') {
+                const { data } = await supabase.from('addresses').select('id, full_address, street, city, building_type, total_apartments, user_id, created_at').order('created_at', { ascending: false }).limit(limit);
+                // Enrich with owner email
+                const userIds = [...new Set((data || []).map((d: any) => d.user_id).filter(Boolean))];
+                let ownerMap = new Map<string, string>();
+                if (userIds.length > 0) {
+                    const { data: owners } = await supabase.from('users').select('id, email').in('id', userIds);
+                    ownerMap = new Map((owners || []).map((o: any) => [o.id, o.email]));
+                }
+                return (data || []).map((d: any) => ({ ...d, owner_email: ownerMap.get(d.user_id) || null, property_count: d.total_apartments || 0 })) as Record<string, unknown>[];
+            }
+            if (kpiKey === 'totalProperties' || kpiKey === 'occupiedProperties') {
+                let q = supabase.from('properties').select('id, apartment_number, status, rooms, area, rent, deposit_amount, address_id, addresses:address_id(full_address, street, city)').order('created_at', { ascending: false }).limit(limit);
+                if (kpiKey === 'occupiedProperties') q = q.eq('status', 'occupied');
+                const { data } = await q;
+                // Enrich with tenant name from accepted invitations
+                const propIds = (data || []).map((d: any) => d.id);
+                let tenantMap = new Map<string, string>();
+                if (propIds.length > 0) {
+                    const { data: tenants } = await supabase.from('tenant_invitations').select('property_id, full_name, email').eq('status', 'accepted').in('property_id', propIds);
+                    tenantMap = new Map((tenants || []).map((t: any) => [t.property_id, t.full_name || t.email]));
+                }
+                return (data || []).map((d: any) => ({ ...d, street: (d.addresses as any)?.full_address || (d.addresses as any)?.street || '—', tenant_name: tenantMap.get(d.id) || null })) as Record<string, unknown>[];
+            }
+            if (kpiKey === 'totalInvoices' || kpiKey === 'paidInvoices' || kpiKey === 'unpaidInvoices') {
+                let q = supabase.from('invoices').select('id, invoice_number, amount, rent_amount, utilities_amount, other_amount, status, invoice_date, due_date, paid_date, paid_amount, payment_method, late_fee, notes, property_id, tenant_id, properties:property_id(apartment_number, rent, deposit_amount, addresses:address_id(full_address, city))').order('invoice_date', { ascending: false }).limit(limit);
+                if (kpiKey === 'paidInvoices') q = q.eq('status', 'paid');
+                if (kpiKey === 'unpaidInvoices') q = q.eq('status', 'unpaid');
+                const { data } = await q;
+                // Enrich with tenant name and address
+                const propIds = (data || []).filter((d: any) => d.property_id).map((d: any) => d.property_id);
+                let tenantMap = new Map<string, string>();
+                if (propIds.length > 0) {
+                    const { data: tenants } = await supabase.from('tenant_invitations').select('property_id, full_name, email').eq('status', 'accepted').in('property_id', propIds);
+                    tenantMap = new Map((tenants || []).map((t: any) => [t.property_id, t.full_name || t.email]));
+                }
+                return (data || []).map((d: any) => ({
+                    ...d,
+                    street: (d.properties as any)?.addresses?.full_address || '',
+                    apartment_number: (d.properties as any)?.apartment_number || '',
+                    tenant_name: tenantMap.get(d.property_id) || null,
+                })) as Record<string, unknown>[];
+            }
+        } catch { /* ignore */ }
+        return [];
+    }, []);
+
     const fetchKpiDetail = useCallback(async (kpiKey: string) => {
         if (activeKpiRef.current === kpiKey) { setActiveKpi(null); return; }
         setActiveKpi(kpiKey);
@@ -716,17 +853,23 @@ const AdminDashboard: React.FC = () => {
         try {
             const { data, error } = await supabase.rpc('get_admin_kpi_detail', { kpi_key: kpiKey, page_offset: 0, page_limit: KPI_DETAIL_PAGE });
             if (error) throw error;
-            const arr = Array.isArray(data) ? data : [];
+            let arr = Array.isArray(data) ? data : [];
+            // Fallback if RPC returned empty but KPI count is > 0
+            if (arr.length === 0) {
+                arr = await fetchKpiDetailFallback(kpiKey, KPI_DETAIL_PAGE);
+            }
             setKpiDetail(arr);
             setKpiDetailHasMore(arr.length >= KPI_DETAIL_PAGE);
         } catch (err) {
             if (import.meta.env.DEV) console.error('KPI detail fetch error:', err);
-            setKpiDetail([]);
-            setKpiDetailHasMore(false);
+            // Try fallback on RPC error
+            const fallback = await fetchKpiDetailFallback(kpiKey, KPI_DETAIL_PAGE);
+            setKpiDetail(fallback);
+            setKpiDetailHasMore(fallback.length >= KPI_DETAIL_PAGE);
         } finally {
             setKpiDetailLoading(false);
         }
-    }, []);
+    }, [fetchKpiDetailFallback]);
 
     const loadMoreKpiDetail = useCallback(async () => {
         const key = activeKpiRef.current;
@@ -807,6 +950,7 @@ const AdminDashboard: React.FC = () => {
                 totalDocuments: stats.total_documents ?? 0,
                 pendingInvitations: stats.pending_invitations ?? 0,
                 occupiedProperties: stats.occupied_properties ?? 0,
+                totalContracts: 0, totalRevenue: 0, outstandingAmount: 0, occupancyRate: 0, // updated by fetchContracts
             });
         } catch (err) {
             if (import.meta.env.DEV) console.error('Admin fetch error:', err);
@@ -814,6 +958,54 @@ const AdminDashboard: React.FC = () => {
             setLoading(false);
         }
     }, [buildLogQuery]);
+
+    // Fetch contracts data
+    const fetchContracts = useCallback(async () => {
+        setContractsLoading(true);
+        try {
+            const [invRes, histRes, addrRes, termRes] = await Promise.all([
+                supabase.from('tenant_invitations').select('*, properties:property_id(id, apartment_number, address_id)').order('created_at', { ascending: false }).limit(200),
+                supabase.from('tenant_history').select('*').order('created_at', { ascending: false }).limit(100),
+                supabase.from('addresses').select('id, full_address, city'),
+                supabase.from('properties').select('id, apartment_number, status, termination_status, termination_date, termination_reason, termination_requested_at, termination_requested_by, termination_confirmed_at, deposit_amount, deposit_paid_amount, rent, address_id').not('termination_status', 'is', null).order('termination_requested_at', { ascending: false }).limit(100),
+            ]);
+            // Enrich invitations with address info
+            const addrMap = new Map((addrRes.data || []).map((a: any) => [a.id, a]));
+            const enriched = (invRes.data || []).map((inv: any) => {
+                const addrId = inv.properties?.address_id;
+                const addr = addrId ? addrMap.get(addrId) : null;
+                return { ...inv, _address: addr, _aptNum: inv.properties?.apartment_number };
+            });
+            setContracts(enriched);
+            if (histRes.data) setContractHistory(histRes.data);
+            // Enrich terminations with address
+            const enrichedTerms = (termRes.data || []).map((t: any) => ({ ...t, _address: addrMap.get(t.address_id) }));
+            setTerminations(enrichedTerms);
+
+            // Calculate financial metrics
+            const accepted = enriched.filter((c: any) => c.status === 'accepted');
+            const totalMonthlyRent = accepted.reduce((sum: number, c: any) => sum + (Number(c.rent) || 0), 0);
+            // Fetch invoice totals for financial overview
+            const [paidRes, unpaidRes] = await Promise.all([
+                supabase.from('invoices').select('amount').eq('status', 'paid'),
+                supabase.from('invoices').select('amount').eq('status', 'unpaid'),
+            ]);
+            const totalPaid = (paidRes.data || []).reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+            const totalUnpaid = (unpaidRes.data || []).reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+
+            setKpi(prev => ({
+                ...prev,
+                totalContracts: accepted.length,
+                totalRevenue: totalPaid,
+                outstandingAmount: totalUnpaid,
+                occupancyRate: prev.totalProperties > 0 ? Math.round((prev.occupiedProperties / prev.totalProperties) * 100) : 0,
+            }));
+        } catch (err) {
+            if (import.meta.env.DEV) console.error('Contracts fetch error:', err);
+        } finally {
+            setContractsLoading(false);
+        }
+    }, []);
 
     // Load more (pagination)
     const loadMore = useCallback(async () => {
@@ -832,7 +1024,8 @@ const AdminDashboard: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+        fetchContracts();
+    }, [fetchData, fetchContracts]);
 
     // Count activities per user
     const userActivityCounts = useMemo(() => {
@@ -863,10 +1056,39 @@ const AdminDashboard: React.FC = () => {
         return users.find(u => u.id === selectedUserId) || null;
     }, [selectedUserId, users]);
 
+    // Expanded user detail
+    const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+    // Expanded KPI detail row
+    const [expandedDetailId, setExpandedDetailId] = useState<string | null>(null);
+
     // Handle user selection (toggle)
     const handleUserClick = useCallback((userId: string) => {
         setSelectedUserId(prev => prev === userId ? null : userId);
+        setExpandedUserId(prev => prev === userId ? null : userId);
     }, []);
+
+    // Block/unblock user
+    const handleToggleBlock = useCallback(async (userId: string, block: boolean) => {
+        if (!confirm(block ? 'Ar tikrai norite užblokuoti šį vartotoją?' : 'Ar tikrai norite atblokuoti šį vartotoją?')) return;
+        const { error } = await supabase.from('users').update({ is_active: !block }).eq('id', userId);
+        if (error) { alert('Klaida: ' + error.message); return; }
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: !block } : u));
+        logAuditEvent(userId, 'users', 'UPDATE', block ? `Vartotojas užblokuotas` : `Vartotojas atblokuotas`, { is_active: !block }).catch(() => {});
+    }, []);
+
+    // Change user role
+    const handleChangeRole = useCallback(async (userId: string, newRole: string) => {
+        if (!confirm(`Pakeisti rolę į "${ROLE_LABELS[newRole] || newRole}"?`)) return;
+        const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId);
+        if (error) { alert('Klaida: ' + error.message); return; }
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+        logAuditEvent(userId, 'users', 'UPDATE', `Vartotojo rolė pakeista: ${ROLE_LABELS[newRole] || newRole}`, { role: newRole }).catch(() => {});
+    }, []);
+
+    // Computed contract lists
+    const activeContracts = useMemo(() => contracts.filter(c => c.status === 'accepted'), [contracts]);
+    const pendingContracts = useMemo(() => contracts.filter(c => c.status === 'pending' && c.expires_at && new Date(c.expires_at) > new Date()), [contracts]);
+    const contractTabItems = contractTab === 'active' ? activeContracts : contractTab === 'pending' ? pendingContracts : contractTab === 'terminations' ? terminations : contractHistory;
 
     if (loading) {
         return (
@@ -945,7 +1167,7 @@ const AdminDashboard: React.FC = () => {
                                 <Shield className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h1 className="text-[18px] font-extrabold text-white tracking-tight">Administravimo panelė</h1>
+                                <h1 className="text-[18px] font-extrabold text-gray-900 tracking-tight">Administravimo panelė</h1>
                                 <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1.5">
                                     <Zap className="w-3 h-3 text-teal-500" />
                                     {selectedUser
@@ -956,7 +1178,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <a
                             href="/admin/performance"
-                            className="flex items-center gap-2 px-4 py-2 bg-white/[0.08] hover:bg-white/[0.12] text-gray-300 hover:text-white text-[11px] font-bold rounded-xl transition-all duration-300 border border-white/[0.08]"
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 text-[11px] font-bold rounded-xl transition-all duration-300 border border-gray-200"
                         >
                             <BarChart3 className="w-3.5 h-3.5" />
                             Našumas
@@ -968,6 +1190,36 @@ const AdminDashboard: React.FC = () => {
                             <RefreshCw className="w-3.5 h-3.5" />
                             Atnaujinti
                         </button>
+                    </div>
+                </div>
+
+                {/* ─── Financial Overview ─── */}
+                <div className={`${panelCard} p-5`}>
+                    <div className="flex items-center gap-2.5 mb-4">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+                            <CircleDollarSign className="w-4 h-4 text-white" />
+                        </div>
+                        <h2 className="text-[13px] font-bold text-gray-800">Finansinė apžvalga</h2>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="bg-emerald-50 border border-emerald-200/60 rounded-xl px-4 py-3">
+                            <p className="text-[10px] text-emerald-600 font-medium">Surinkta pajamų</p>
+                            <p className="text-[22px] font-extrabold text-emerald-700 mt-1 tabular-nums">€{kpi.totalRevenue.toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
+                        </div>
+                        <div className={`${kpi.outstandingAmount > 0 ? 'bg-red-50 border-red-200/60' : 'bg-emerald-50 border-emerald-200/60'} border rounded-xl px-4 py-3`}>
+                            <p className={`text-[10px] ${kpi.outstandingAmount > 0 ? 'text-red-600' : 'text-emerald-600'} font-medium`}>Nesumokėta</p>
+                            <p className={`text-[22px] font-extrabold mt-1 tabular-nums ${kpi.outstandingAmount > 0 ? 'text-red-700' : 'text-emerald-700'}`}>€{kpi.outstandingAmount.toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200/60 rounded-xl px-4 py-3">
+                            <p className="text-[10px] text-blue-600 font-medium">Užimtumas</p>
+                            <p className="text-[22px] font-extrabold text-blue-700 mt-1 tabular-nums">{kpi.occupancyRate}%</p>
+                            <p className="text-[9px] text-blue-400 mt-0.5">{kpi.occupiedProperties} iš {kpi.totalProperties} butų</p>
+                        </div>
+                        <div className="bg-teal-50 border border-teal-200/60 rounded-xl px-4 py-3">
+                            <p className="text-[10px] text-teal-600 font-medium">Mėn. nuoma (aktyvios)</p>
+                            <p className="text-[22px] font-extrabold text-teal-700 mt-1 tabular-nums">€{activeContracts.reduce((s, c: any) => s + (Number(c.rent) || 0), 0).toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
+                            <p className="text-[9px] text-teal-400 mt-0.5">{activeContracts.length} sutartys</p>
+                        </div>
                     </div>
                 </div>
 
@@ -1022,8 +1274,221 @@ const AdminDashboard: React.FC = () => {
                     ))}
                 </div>
 
+                {/* ─── Sutartys KPI ─── */}
+                <div className={`${panelCard} p-4`}>
+                    <div className="flex items-center gap-2.5 mb-3">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md shadow-teal-500/20">
+                            <ScrollText className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <h2 className="text-[13px] font-bold text-gray-800">Sutartys ir nutraukimai</h2>
+                    </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <KPICard
+                        icon={ScrollText}
+                        label="Aktyvios sutartys"
+                        value={activeContracts.length}
+                        gradient="from-teal-500 to-cyan-600"
+                        bgLight="bg-teal-50"
+                        textColor="text-teal-600"
+                        onClick={() => setActiveKpi(prev => prev === 'totalContracts' ? null : 'totalContracts')}
+                        isActive={activeKpi === 'totalContracts'}
+                    />
+                    <KPICard
+                        icon={Clock}
+                        label="Laukiančios"
+                        value={pendingContracts.length}
+                        gradient="from-amber-500 to-orange-600"
+                        bgLight="bg-amber-50"
+                        textColor="text-amber-600"
+                        onClick={() => { setContractTab('pending'); setActiveKpi(prev => prev === 'totalContracts' ? null : 'totalContracts'); }}
+                        isActive={activeKpi === 'totalContracts' && contractTab === 'pending'}
+                    />
+                    <KPICard
+                        icon={FileText}
+                        label="Sutarčių istorija"
+                        value={contractHistory.length}
+                        gradient="from-gray-500 to-slate-600"
+                        bgLight="bg-gray-50"
+                        textColor="text-gray-600"
+                        onClick={() => { setContractTab('history'); setActiveKpi(prev => prev === 'totalContracts' ? null : 'totalContracts'); }}
+                        isActive={activeKpi === 'totalContracts' && contractTab === 'history'}
+                    />
+                    <KPICard
+                        icon={AlertCircle}
+                        label="Nutraukimai"
+                        value={terminations.length}
+                        gradient="from-red-500 to-rose-600"
+                        bgLight="bg-red-50"
+                        textColor="text-red-600"
+                        onClick={() => { setContractTab('terminations' as any); setActiveKpi(prev => prev === 'totalContracts' ? null : 'totalContracts'); }}
+                        isActive={activeKpi === 'totalContracts' && contractTab === ('terminations' as any)}
+                    />
+                </div>
+                </div>
+
+                {/* ─── Contracts Detail Panel ─── */}
+                {activeKpi === 'totalContracts' && (
+                    <div className={`${panelCard} p-5 transition-all duration-300`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
+                                    <ScrollText className="w-4 h-4 text-white" />
+                                </div>
+                                <h2 className="text-[13px] font-bold text-gray-800">Sutartys</h2>
+                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-semibold">{contractTabItems.length}</span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                                {([['active', 'Aktyvios'], ['pending', 'Laukiančios'], ['history', 'Istorija'], ['terminations', 'Nutraukimai']] as const).map(([key, label]) => (
+                                    <button key={key} onClick={() => setContractTab(key)} className={`px-3 py-1.5 text-[10px] font-semibold rounded-md transition-all ${contractTab === key ? 'bg-teal-500/20 text-teal-400' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200'}`}>
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {contractsLoading ? (
+                            <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-teal-400" /></div>
+                        ) : contractTabItems.length === 0 ? (
+                            <p className="text-[11px] text-gray-500 text-center py-6">Nėra sutarčių šioje kategorijoje</p>
+                        ) : (
+                            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
+                                {contractTab === 'terminations' ? contractTabItems.map((t: any) => {
+                                    const addr = t._address;
+                                    const statusMap: Record<string, { label: string; color: string }> = {
+                                        pending: { label: 'Prašoma', color: 'text-amber-400 bg-amber-500/15' },
+                                        confirmed: { label: 'Patvirtinta', color: 'text-red-400 bg-red-500/15' },
+                                        rejected: { label: 'Atmesta', color: 'text-gray-400 bg-gray-500/15' },
+                                        cancelled: { label: 'Atšaukta', color: 'text-gray-400 bg-gray-500/15' },
+                                        completed: { label: 'Užbaigta', color: 'text-emerald-400 bg-emerald-500/15' },
+                                    };
+                                    const ts = statusMap[String(t.termination_status)] || { label: String(t.termination_status), color: 'text-gray-400 bg-gray-500/15' };
+                                    const deposit = Number(t.deposit_amount) || 0;
+                                    const depositPaid = Number(t.deposit_paid_amount) || 0;
+
+                                    return (
+                                        <div key={t.id} className="bg-white/[0.06] rounded-xl border border-white/[0.08] px-4 py-3 hover:bg-white/[0.10] transition-colors space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                                                        <AlertCircle className="w-4 h-4 text-red-500" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-[12px] font-semibold text-white truncate">
+                                                            {addr?.full_address || '—'}{t.apartment_number ? `, but. ${t.apartment_number}` : ''}
+                                                        </p>
+                                                        <p className="text-[9px] text-gray-400 mt-0.5">
+                                                            Iniciatorius: {t.termination_requested_by === 'tenant' ? 'Nuomininkas' : t.termination_requested_by === 'landlord' ? 'Nuomotojas' : t.termination_requested_by || '—'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 flex-shrink-0">
+                                                    <div className="text-right">
+                                                        {t.termination_date && (
+                                                            <div className="flex items-center gap-1.5 text-[10px] text-gray-300">
+                                                                <Calendar className="w-3 h-3 text-gray-500" />
+                                                                {new Date(t.termination_date).toLocaleDateString('lt-LT')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className={`text-[9px] font-bold px-2 py-1 rounded-lg ${ts.color}`}>{ts.label}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4 pl-11 text-[9px] text-gray-500 flex-wrap">
+                                                {t.termination_reason && <span>Priežastis: <span className="text-gray-300">{t.termination_reason}</span></span>}
+                                                {deposit > 0 && <span>Depozitas: <span className="text-gray-300">€{deposit}</span></span>}
+                                                {depositPaid > 0 && <span>Grąžinta: <span className="text-emerald-400">€{depositPaid}</span></span>}
+                                                {deposit > 0 && deposit !== depositPaid && <span>Išskaičiuota: <span className="text-red-400">€{deposit - depositPaid}</span></span>}
+                                                {t.termination_requested_at && <span>Prašyta: {new Date(t.termination_requested_at).toLocaleDateString('lt-LT')}</span>}
+                                                {t.termination_confirmed_at && <span>Patvirtinta: {new Date(t.termination_confirmed_at).toLocaleDateString('lt-LT')}</span>}
+                                                {t.rent > 0 && <span>Nuoma buvo: €{Number(t.rent)}</span>}
+                                            </div>
+                                            {/* Deposit warning */}
+                                            {deposit > 0 && depositPaid === 0 && t.termination_status === 'confirmed' && (
+                                                <div className="flex items-center gap-2 pl-11 mt-1">
+                                                    <span className="flex items-center gap-1 text-[9px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg">
+                                                        <AlertTriangle className="w-3 h-3" />
+                                                        Depozitas negrąžintas — €{deposit}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }) : (contractTab === 'active' || contractTab === 'pending') ? contractTabItems.map((c: any) => {
+                                    const addr = c._address;
+                                    const aptNum = c._aptNum;
+                                    const isExpired = c.contract_end && new Date(c.contract_end) < new Date();
+                                    const isEndingSoon = c.contract_end && !isExpired && new Date(c.contract_end) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                                    const statusColor = c.status === 'pending' ? 'text-amber-400 bg-amber-500/15' : isExpired ? 'text-red-400 bg-red-500/15' : isEndingSoon ? 'text-yellow-400 bg-yellow-500/15' : 'text-emerald-400 bg-emerald-500/15';
+                                    const statusLabel = c.status === 'pending' ? 'Laukiama' : isExpired ? 'Pasibaigusi' : isEndingSoon ? 'Baigiasi' : 'Aktyvi';
+                                    return (
+                                        <div key={c.id} className="bg-white/[0.06] rounded-xl border border-white/[0.08] px-4 py-3 hover:bg-white/[0.10] transition-colors">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className="w-8 h-8 rounded-lg bg-teal-500/15 flex items-center justify-center flex-shrink-0">
+                                                        <UserPlus className="w-4 h-4 text-teal-500" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-[12px] font-semibold text-white truncate">{c.full_name || c.email}</p>
+                                                        <p className="text-[9px] text-gray-400 mt-0.5 truncate">{addr?.full_address || '—'}{aptNum ? `, but. ${aptNum}` : ''} · {addr?.city || ''}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 flex-shrink-0">
+                                                    <div className="text-right">
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-gray-300">
+                                                            <Calendar className="w-3 h-3 text-gray-500" />
+                                                            {c.contract_start ? new Date(c.contract_start).toLocaleDateString('lt-LT') : '—'} — {c.contract_end ? new Date(c.contract_end).toLocaleDateString('lt-LT') : '—'}
+                                                        </div>
+                                                        <div className="flex items-center gap-3 mt-1 justify-end">
+                                                            {c.rent > 0 && <span className="text-[10px] font-bold text-white">€{Number(c.rent)}</span>}
+                                                            {c.deposit > 0 && <span className="text-[9px] text-gray-400">Dep: €{Number(c.deposit)}</span>}
+                                                        </div>
+                                                    </div>
+                                                    <span className={`text-[9px] font-bold px-2 py-1 rounded-lg ${statusColor}`}>{statusLabel}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4 mt-2 pl-11 text-[9px] text-gray-500">
+                                                {c.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{c.email}</span>}
+                                                {c.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{c.phone}</span>}
+                                                {c.invited_by_email && <span>Nuomotojas: {c.invited_by_email}</span>}
+                                                {c.property_label && <span className="flex items-center gap-1"><Home className="w-3 h-3" />{c.property_label}</span>}
+                                            </div>
+                                        </div>
+                                    );
+                                }) : contractTabItems.map((h: any) => (
+                                    <div key={h.id} className="bg-white/[0.06] rounded-xl border border-white/[0.08] px-4 py-3 hover:bg-white/[0.10] transition-colors">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-500/15 flex items-center justify-center flex-shrink-0">
+                                                    <Clock className="w-4 h-4 text-gray-400" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[12px] font-semibold text-white truncate">{h.tenant_name || h.tenant_email || '—'}</p>
+                                                    <p className="text-[9px] text-gray-400 mt-0.5">{h.tenant_email || ''} {h.tenant_phone ? `· ${h.tenant_phone}` : ''}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 flex-shrink-0">
+                                                <div className="text-right">
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-gray-300">
+                                                        <Calendar className="w-3 h-3 text-gray-500" />
+                                                        {h.contract_start ? new Date(h.contract_start).toLocaleDateString('lt-LT') : '—'} — {h.contract_end ? new Date(h.contract_end).toLocaleDateString('lt-LT') : '—'}
+                                                    </div>
+                                                    {h.rent > 0 && <p className="text-[10px] font-bold text-white mt-1">€{Number(h.rent)}</p>}
+                                                </div>
+                                                <span className="text-[9px] font-bold px-2 py-1 rounded-lg text-gray-400 bg-gray-500/15">
+                                                    {h.end_reason === 'expired' ? 'Pasibaigė' : h.end_reason === 'moved_out' ? 'Išsikraustė' : h.end_reason === 'evicted' ? 'Iškeldinta' : h.end_reason === 'mutual' ? 'Abipusis' : h.end_reason || 'Baigta'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {h.notes && <p className="text-[9px] text-gray-500 mt-2 pl-11">Pastaba: {h.notes}</p>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* ─── KPI Detail Panel ─── */}
-                {activeKpi && (
+                {activeKpi && activeKpi !== 'totalContracts' && (
                     <div className={`${panelCard} p-5 transition-all duration-300`}>
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2.5">
@@ -1031,7 +1496,7 @@ const AdminDashboard: React.FC = () => {
                                     <Eye className="w-4 h-4 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[13px] font-bold text-white">
+                                    <h2 className="text-[13px] font-bold text-gray-800">
                                         {[...KPI_ROW1, ...KPI_ROW2, ...KPI_ROW3].find(k => k.key === activeKpi)?.label || 'Detalės'}
                                     </h2>
                                     <p className="text-[9px] text-gray-400">{kpiDetail.length} įrašų</p>
@@ -1086,73 +1551,61 @@ const AdminDashboard: React.FC = () => {
                                         const utilAmt = Number(r.utilities_amount || 0);
                                         const totalAmt = Number(r.amount || 0);
 
+                                        const isExp = expandedDetailId === String(r.id || idx);
+                                        const fmtEur = (v: number) => new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(v);
                                         return (
-                                            <div key={idx} className="bg-white/[0.06] rounded-xl border border-white/[0.08] px-3.5 py-3 hover:bg-white/[0.10] transition-colors space-y-2">
-                                                {/* Header row */}
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center flex-shrink-0"><Receipt className="w-4 h-4 text-amber-500" /></div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-[11px] font-semibold text-white truncate">
+                                            <div key={idx} className="bg-white rounded-xl border border-gray-200/80 hover:shadow-md transition-all overflow-hidden">
+                                                <button onClick={() => setExpandedDetailId(isExp ? null : String(r.id || idx))} className="w-full px-4 py-3 flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0"><Receipt className="w-4 h-4 text-amber-600" /></div>
+                                                    <div className="flex-1 min-w-0 text-left">
+                                                        <p className="text-[12px] font-semibold text-gray-800 truncate">
                                                             {r.invoice_number ? String(r.invoice_number) : `Sąskaita #${idx + 1}`}
-                                                            {r.street ? <span className="text-gray-400 font-normal"> — {String(r.street)}{r.apartment_number ? `, ${r.apartment_number}` : ''}</span> : ''}
+                                                            {r.street ? <span className="text-gray-400 font-normal"> — {String(r.street)}{r.apartment_number ? `, ${String(r.apartment_number)}` : ''}</span> : ''}
                                                         </p>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${s.color}`}>{s.label}</span>
-                                                            {Boolean(r.invoice_date) && <span className="text-[9px] text-gray-500">Išrašyta: {new Date(String(r.invoice_date)).toLocaleDateString('lt-LT')}</span>}
+                                                            {Boolean(r.invoice_date) && <span className="text-[9px] text-gray-400">Išrašyta: {new Date(String(r.invoice_date)).toLocaleDateString('lt-LT')}</span>}
+                                                            {Boolean(r.tenant_name) && <span className="text-[9px] text-gray-400">· {String(r.tenant_name)}</span>}
                                                         </div>
                                                     </div>
-                                                    <div className="text-right flex-shrink-0">
-                                                        <p className="text-[13px] font-bold text-white tabular-nums">{new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(totalAmt)}</p>
+                                                    <p className="text-[14px] font-bold text-gray-800 tabular-nums flex-shrink-0">{fmtEur(totalAmt)}</p>
+                                                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isExp ? 'rotate-180' : ''}`} />
+                                                </button>
+                                                {isExp && (
+                                                    <div className="px-4 pb-3 pt-0 border-t border-gray-100 space-y-2">
+                                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[10px] pt-2">
+                                                            <div><span className="text-gray-400">Nuoma</span><p className="font-semibold text-gray-700 tabular-nums">{fmtEur(rentAmt)}</p></div>
+                                                            <div><span className="text-gray-400">Komunalinės</span><p className="font-semibold text-gray-700 tabular-nums">{fmtEur(utilAmt)}</p></div>
+                                                            <div><span className="text-gray-400">Kita</span><p className="font-semibold text-gray-700 tabular-nums">{fmtEur(Number(r.other_amount || 0))}</p></div>
+                                                            <div><span className="text-gray-400">Viso</span><p className="font-bold text-gray-900 tabular-nums">{fmtEur(totalAmt)}</p></div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[10px]">
+                                                            {dueDate && <div><span className="text-gray-400">Terminas</span><p className="font-semibold text-gray-700">{dueDate.toLocaleDateString('lt-LT')}</p></div>}
+                                                            {Boolean(r.paid_date) && <div><span className="text-gray-400">Apmokėta</span><p className="font-semibold text-emerald-600">{new Date(String(r.paid_date)).toLocaleDateString('lt-LT')}{r.payment_method ? ` (${String(r.payment_method)})` : ''}</p></div>}
+                                                            {Boolean(r.tenant_name) && <div><span className="text-gray-400">Nuomininkas</span><p className="font-semibold text-gray-700">{String(r.tenant_name)}</p></div>}
+                                                            {paymentDay > 0 && <div><span className="text-gray-400">Mokėjimo diena</span><p className="font-semibold text-gray-700">{paymentDay} d.</p></div>}
+                                                        </div>
+                                                        {lateFeeTotal > 0 && (
+                                                            <div className="flex items-center gap-2 text-[10px] bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                                                                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                                                <span className="font-semibold text-red-600">Bauda: {fmtEur(lateFeeTotal)} ({overdueDays} d. × {lateFeePerDay}€/d.)</span>
+                                                            </div>
+                                                        )}
+                                                        {Boolean(r.notes) && <p className="text-[9px] text-gray-400">Pastaba: {String(r.notes)}</p>}
                                                     </div>
-                                                </div>
-
-                                                {/* Breakdown */}
-                                                <div className="flex items-center gap-3 text-[10px] pl-11">
-                                                    {rentAmt > 0 && (
-                                                        <span className="text-gray-400">Nuoma: <span className="text-gray-200 font-semibold tabular-nums">{new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(rentAmt)}</span></span>
-                                                    )}
-                                                    {utilAmt > 0 && (
-                                                        <span className="text-gray-400">Komunalinės: <span className="text-gray-200 font-semibold tabular-nums">{new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(utilAmt)}</span></span>
-                                                    )}
-                                                </div>
-
-                                                {/* Payment terms & Late fee */}
-                                                <div className="flex items-center gap-3 text-[9px] pl-11 flex-wrap">
-                                                    {paymentDay > 0 && paymentDay <= 31 && (
-                                                        <span className="text-gray-500 flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            Mokėjimo diena: <span className="text-gray-300 font-semibold">{paymentDay} d.</span>
-                                                        </span>
-                                                    )}
-                                                    {dueDate && (
-                                                        <span className="text-gray-500">
-                                                            Terminas: <span className="text-gray-300 font-semibold">{dueDate.toLocaleDateString('lt-LT')}</span>
-                                                        </span>
-                                                    )}
-                                                    {lateFeeTotal > 0 && (
-                                                        <span className="text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-md font-semibold flex items-center gap-1">
-                                                            <AlertCircle className="w-3 h-3" />
-                                                            Bauda: {new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(lateFeeTotal)} ({overdueDays} d. × {lateFeePerDay}€)
-                                                        </span>
-                                                    )}
-                                                    {isUnpaid && lateFeePerDay > 0 && lateFeeTotal === 0 && graceDays > 0 && (
-                                                        <span className="text-gray-500">
-                                                            Baudos pradžia: po {graceDays} d. ({lateFeePerDay}€/d.)
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                )}
                                             </div>
                                         );
                                     }
                                     if (activeKpi === 'totalAddresses') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.06] rounded-xl border border-white/[0.08] px-3 py-2.5 hover:bg-white/[0.10] transition-colors">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0"><Building2 className="w-4 h-4 text-blue-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0"><Building2 className="w-4 h-4 text-blue-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.street || '—')}, {String(r.city || '')}</p>
+                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.street || '—')}, {String(r.city || '')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.owner_email ? String(r.owner_email) : 'Nėra savininko'}</p>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-gray-300 bg-white/[0.08] px-2 py-1 rounded-lg">{String(r.property_count || 0)} butai</span>
+                                                <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{String(r.property_count || 0)} butai</span>
                                             </div>
                                         );
                                     }
@@ -1164,10 +1617,10 @@ const AdminDashboard: React.FC = () => {
                                         };
                                         const ps = propStatus[String(r.status)] || { label: String(r.status), color: 'text-gray-600 bg-gray-50' };
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.06] rounded-xl border border-white/[0.08] px-3 py-2.5 hover:bg-white/[0.10] transition-colors">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center flex-shrink-0"><Home className="w-4 h-4 text-indigo-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0"><Home className="w-4 h-4 text-indigo-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-white truncate">{r.street ? `${r.street}${r.apartment_number ? ` - ${r.apartment_number}` : ''}` : `Butas ${r.apartment_number || ''}`}</p>
+                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{r.street ? `${r.street}${r.apartment_number ? ` - ${r.apartment_number}` : ''}` : `Butas ${r.apartment_number || ''}`}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.tenant_name ? `Nuomininkas: ${r.tenant_name}` : 'Nėra nuomininko'}{r.rent ? ` · €${Number(r.rent)}` : ''}</p>
                                                 </div>
                                                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${ps.color}`}>{ps.label}</span>
@@ -1176,26 +1629,26 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     if (activeKpi === 'activeMeters') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.06] rounded-xl border border-white/[0.08] px-3 py-2.5 hover:bg-white/[0.10] transition-colors">
-                                                <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center flex-shrink-0"><Gauge className="w-4 h-4 text-cyan-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center flex-shrink-0"><Gauge className="w-4 h-4 text-cyan-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.name || '—')}</p>
+                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.name || '—')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.street ? String(r.street) : '—'} · {String(r.type || '')} ({String(r.unit || '')})</p>
                                                 </div>
-                                                {r.price_per_unit ? <span className="text-[10px] font-bold text-gray-300 bg-white/[0.08] px-2 py-1 rounded-lg">€{Number(r.price_per_unit)}/{String(r.unit || 'vnt')}</span> : null}
+                                                {r.price_per_unit ? <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">€{Number(r.price_per_unit)}/{String(r.unit || 'vnt')}</span> : null}
                                             </div>
                                         );
                                     }
                                     if (activeKpi === 'totalReadings') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.06] rounded-xl border border-white/[0.08] px-3 py-2.5 hover:bg-white/[0.10] transition-colors">
-                                                <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center flex-shrink-0"><BarChart3 className="w-4 h-4 text-green-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0"><BarChart3 className="w-4 h-4 text-green-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.meter_name || '—')}</p>
+                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.meter_name || '—')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.street ? String(r.street) : '—'} · {String(r.period || '—')}</p>
                                                 </div>
                                                 <div className="text-right flex-shrink-0">
-                                                    <p className="text-[12px] font-bold text-white tabular-nums">{String(r.value || '—')} {String(r.meter_unit || '')}</p>
+                                                    <p className="text-[12px] font-bold text-gray-800 tabular-nums">{String(r.value || '—')} {String(r.meter_unit || '')}</p>
                                                     <p className="text-[9px] text-gray-400">{r.reading_date ? new Date(String(r.reading_date)).toLocaleDateString('lt-LT') : '—'}</p>
                                                 </div>
                                             </div>
@@ -1203,10 +1656,10 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     if (activeKpi === 'activeTenants' || activeKpi === 'pendingInvitations') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.06] rounded-xl border border-white/[0.08] px-3 py-2.5 hover:bg-white/[0.10] transition-colors">
-                                                <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center flex-shrink-0"><UserPlus className="w-4 h-4 text-violet-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0"><UserPlus className="w-4 h-4 text-violet-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.full_name || r.email || '—')}</p>
+                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.full_name || r.email || '—')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.street ? `${r.street}${r.apartment_number ? ` - ${r.apartment_number}` : ''}` : '—'}</p>
                                                 </div>
                                                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${r.status === 'accepted' ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-500/15'}`}>
@@ -1217,10 +1670,10 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     if (activeKpi === 'unreadNotifications') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.06] rounded-xl border border-white/[0.08] px-3 py-2.5 hover:bg-white/[0.10] transition-colors">
-                                                <div className="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center flex-shrink-0"><Bell className="w-4 h-4 text-rose-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0"><Bell className="w-4 h-4 text-rose-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.body || 'Pranešimas')}</p>
+                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.body || 'Pranešimas')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.user_email ? String(r.user_email) : '—'} · {String(r.kind || '')}</p>
                                                 </div>
                                                 <span className="text-[9px] text-gray-400 font-mono flex-shrink-0">{r.created_at ? new Date(String(r.created_at)).toLocaleDateString('lt-LT') : '—'}</span>
@@ -1229,10 +1682,10 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     // Fallback: users
                                     return (
-                                        <div key={idx} className="flex items-center gap-3 bg-white/[0.06] rounded-xl border border-white/[0.08] px-3 py-2.5 hover:bg-white/[0.10] transition-colors">
-                                            <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0"><Users className="w-4 h-4 text-purple-500" /></div>
+                                        <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0"><Users className="w-4 h-4 text-purple-500" /></div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[11px] font-semibold text-white truncate">{r.first_name || r.last_name ? `${r.first_name || ''} ${r.last_name || ''}`.trim() : String(r.email || '—')}</p>
+                                                <p className="text-[11px] font-semibold text-gray-800 truncate">{r.first_name || r.last_name ? `${r.first_name || ''} ${r.last_name || ''}`.trim() : String(r.email || '—')}</p>
                                                 <p className="text-[9px] text-gray-400 mt-0.5">{String(r.email || '')}</p>
                                             </div>
                                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${r.role === 'admin' ? 'text-purple-600 bg-purple-50' : r.role === 'landlord' ? 'text-teal-600 bg-teal-50' : r.role === 'tenant' ? 'text-sky-600 bg-sky-50' : 'text-gray-500 bg-gray-50'}`}>
@@ -1262,7 +1715,7 @@ const AdminDashboard: React.FC = () => {
                             <TrendingUp className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-[13px] font-bold text-white">Sistemos būsena</h2>
+                            <h2 className="text-[13px] font-bold text-gray-800">Sistemos būsena</h2>
                             <p className="text-[9px] text-gray-400">Realaus laiko apžvalga</p>
                         </div>
                     </div>
@@ -1271,39 +1724,39 @@ const AdminDashboard: React.FC = () => {
                             icon={CheckCircle}
                             value={kpi.occupiedProperties}
                             label="Išnuomoti butai"
-                            color="bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                            color="bg-emerald-50 text-emerald-600 border-emerald-200"
                             dotColor="bg-emerald-500"
                         />
                         <StatusPill
                             icon={Home}
                             value={kpi.totalProperties - kpi.occupiedProperties}
                             label="Laisvi butai"
-                            color="bg-white/[0.06] text-gray-400 border-white/[0.10]"
+                            color="bg-gray-50 text-gray-500 border-gray-200"
                         />
                         <StatusPill
                             icon={Clock}
                             value={kpi.pendingInvitations}
                             label="Laukiantys pakvietimai"
-                            color="bg-amber-500/15 text-amber-400 border-amber-500/20"
+                            color="bg-amber-50 text-amber-600 border-amber-200"
                             dotColor={kpi.pendingInvitations > 0 ? 'bg-amber-500' : undefined}
                         />
                         <StatusPill
                             icon={FileText}
                             value={kpi.totalDocuments}
                             label="Dokumentai"
-                            color="bg-blue-500/15 text-blue-400 border-blue-500/20"
+                            color="bg-blue-50 text-blue-600 border-blue-200"
                         />
                         <StatusPill
                             icon={Image}
                             value={kpi.totalPhotos}
                             label="Nuotraukos"
-                            color="bg-violet-500/15 text-violet-400 border-violet-500/20"
+                            color="bg-violet-50 text-violet-600 border-violet-200"
                         />
                         <StatusPill
                             icon={AlertCircle}
                             value={kpi.unreadNotifications}
                             label="Neperskaityta"
-                            color="bg-rose-500/15 text-rose-400 border-rose-500/20"
+                            color="bg-rose-50 text-rose-600 border-rose-200"
                             dotColor={kpi.unreadNotifications > 0 ? 'bg-rose-500' : undefined}
                         />
                     </div>
@@ -1319,16 +1772,16 @@ const AdminDashboard: React.FC = () => {
                                     <Users className="w-3.5 h-3.5 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[13px] font-bold text-white">Vartotojai</h2>
+                                    <h2 className="text-[13px] font-bold text-gray-800">Vartotojai</h2>
                                 </div>
-                                <span className="text-[10px] text-gray-400 bg-white/[0.08] px-2 py-0.5 rounded-full font-semibold">
+                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-semibold">
                                     {users.length}
                                 </span>
                             </div>
                             {selectedUserId && (
                                 <button
                                     onClick={() => setSelectedUserId(null)}
-                                    className="flex items-center gap-1 text-[10px] text-teal-400 hover:text-teal-300 font-semibold transition-colors bg-teal-500/15 px-2 py-1 rounded-lg hover:bg-teal-500/25"
+                                    className="flex items-center gap-1 text-[10px] text-teal-400 hover:text-teal-300 font-semibold transition-colors bg-teal-100 px-2 py-1 rounded-lg hover:bg-teal-200"
                                 >
                                     <X className="w-3 h-3" />
                                     Rodyti visus
@@ -1342,7 +1795,10 @@ const AdminDashboard: React.FC = () => {
                                     user={u}
                                     activityCount={userActivityCounts[u.id] || 0}
                                     isSelected={selectedUserId === u.id}
+                                    isExpanded={expandedUserId === u.id}
                                     onClick={() => handleUserClick(u.id)}
+                                    onToggleBlock={handleToggleBlock}
+                                    onChangeRole={handleChangeRole}
                                 />
                             ))}
                         </div>
@@ -1356,13 +1812,13 @@ const AdminDashboard: React.FC = () => {
                                     <Activity className="w-3.5 h-3.5 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[13px] font-bold text-white">
+                                    <h2 className="text-[13px] font-bold text-gray-800">
                                         {selectedUser
                                             ? `${selectedUser.first_name || selectedUser.email.split('@')[0]} — veiksmų žurnalas`
                                             : 'Veiksmų žurnalas'}
                                     </h2>
                                 </div>
-                                <span className="text-[10px] text-gray-400 bg-white/[0.08] px-2 py-0.5 rounded-full font-semibold">
+                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-semibold">
                                     {filteredLogs.length}{hasMore ? '+' : ''}
                                 </span>
                             </div>
@@ -1457,6 +1913,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     );

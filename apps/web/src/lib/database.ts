@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logAuditEvent } from './auditLogApi';
 
 // Types
 export interface Address {
@@ -302,6 +303,7 @@ export const addressApi = {
       .single();
 
     if (error) throw error;
+    logAuditEvent(data.id, 'addresses', 'INSERT', `Sukurtas naujas adresas: ${address.full_address}`, { full_address: address.full_address, city: address.city }).catch(() => {});
     return data;
   },
 
@@ -315,6 +317,7 @@ export const addressApi = {
       .single();
 
     if (error) throw error;
+    logAuditEvent(id, 'addresses', 'UPDATE', 'Atnaujintas adresas', updates, null, Object.keys(updates)).catch(() => {});
     return data;
   },
 
@@ -326,6 +329,7 @@ export const addressApi = {
       .eq('id', id);
 
     if (error) throw error;
+    logAuditEvent(id, 'addresses', 'DELETE', 'Ištrintas adresas').catch(() => {});
   },
 
   // Check for duplicate addresses (safe against injection)
@@ -676,6 +680,7 @@ export const propertyApi = {
       .single();
 
     if (error) throw error;
+    logAuditEvent(data.id, 'properties', 'INSERT', `Sukurtas naujas būstas: ${(property as any).apartment_number || data.id}`, { apartment_number: (property as any).apartment_number, rooms: (property as any).rooms, area: (property as any).area }).catch(() => {});
     return data;
   },
 
@@ -689,6 +694,7 @@ export const propertyApi = {
       .single();
 
     if (error) throw error;
+    logAuditEvent(id, 'properties', 'UPDATE', 'Atnaujintas būstas', updates, null, Object.keys(updates)).catch(() => {});
     return data;
   },
 
@@ -700,6 +706,7 @@ export const propertyApi = {
       .eq('id', id);
 
     if (error) throw error;
+    logAuditEvent(id, 'properties', 'DELETE', 'Ištrintas būstas').catch(() => {});
   },
 
   // Get properties by status
@@ -1221,6 +1228,7 @@ export const tenantInvitationApi = {
       .single();
 
     if (error) throw error;
+    logAuditEvent(invitation.property_id, 'tenant_invitations', 'INSERT', `Nuomininko pakvietimas išsiųstas: ${invitation.email}`, { email: invitation.email, full_name: invitation.full_name, rent: invitation.rent, deposit: invitation.deposit, contract_start: contractStart, contract_end: contractEnd }).catch(() => {});
     return data;
   },
 

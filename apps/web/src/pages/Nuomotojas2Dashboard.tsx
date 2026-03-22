@@ -516,7 +516,8 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
         companyName: property.address.company_name,
         contactPerson: property.address.contact_person,
         companyPhone: property.address.company_phone,
-        companyEmail: property.address.company_email
+        companyEmail: property.address.company_email,
+        address_settings: property.address.address_settings,
       } : null,
       meters: [],
       outstanding_amount: property.outstanding_amount || 0,
@@ -1224,8 +1225,7 @@ const Nuomotojas2Dashboard: React.FC = React.memo(() => {
 
                         return (
                           <SortableAddressCard key={address.id} id={address.id} bgStyle={resolveCardBgStyle(null, address)}>
-                            {/* Dark overlay for readability */}
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/55 rounded-2xl" />
+                            {/* Dark overlay handled by resolveCardBgStyle gradient */}
 
                             {/* Address Header — Glass over dark bg */}
                             <div className="relative z-10 bg-white/[0.06] backdrop-blur-sm border-b border-white/[0.08] px-4 py-3">
