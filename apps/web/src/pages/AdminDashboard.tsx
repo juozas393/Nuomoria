@@ -400,16 +400,16 @@ const KPI_ROW4 = [
 const KPICard = memo<{ icon: typeof Users; label: string; value: number; gradient: string; bgLight: string; textColor: string; onClick?: () => void; isActive?: boolean }>(
     ({ icon: Icon, label, value, gradient, bgLight, textColor, onClick, isActive }) => (
         <div
-            className={`${glassCardHover} p-4 group cursor-pointer transition-all duration-300 ${isActive ? 'ring-2 ring-teal-400/50 bg-white/[0.12] scale-[1.02]' : ''}`}
+            className={`${glassCardHover} p-3 group cursor-pointer ${isActive ? 'ring-1 ring-teal-400/50 bg-white/[0.08]' : ''}`}
             onClick={onClick}
         >
-            <div className="flex items-center gap-3.5">
-                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300`}>
-                    <Icon className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md`}>
+                    <Icon className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-[22px] font-extrabold text-white tabular-nums leading-none">{value}</p>
-                    <p className="text-[10px] font-medium text-gray-400 mt-1 truncate">{label}</p>
+                    <p className="text-[18px] font-extrabold text-white tabular-nums leading-none">{value}</p>
+                    <p className="text-[9px] font-medium text-gray-500 mt-0.5 truncate">{label}</p>
                 </div>
             </div>
         </div>
@@ -1154,21 +1154,17 @@ const AdminDashboard: React.FC = () => {
     return (
         <div className="min-h-full relative overflow-hidden bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('/imagesGen/DashboardImage.webp')` }}>
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(3,12,10,0.92) 0%, rgba(6,20,18,0.88) 40%, rgba(8,25,22,0.85) 70%, rgba(3,12,10,0.92) 100%)' }} />
-            <div className="relative z-10 p-4 lg:p-6 space-y-5 max-w-7xl mx-auto">
+            <div className="relative z-10 p-4 lg:p-6 space-y-3 max-w-7xl mx-auto">
 
                 {/* ─── Hero Header ─── */}
-                <div className={`${panelCard} p-5 relative overflow-hidden`}>
-                    {/* Decorative gradient blobs */}
-                    <div className="absolute -top-12 -right-12 w-40 h-40 bg-gradient-to-br from-purple-500/15 to-violet-500/10 rounded-full blur-3xl" />
-                    <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-gradient-to-br from-teal-500/10 to-cyan-500/8 rounded-full blur-3xl" />
-
-                    <div className="flex items-center justify-between relative z-10">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
-                                <Shield className="w-6 h-6 text-white" />
+                <div className={`${panelCard} p-4`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-md">
+                                <Shield className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <h1 className="text-[18px] font-extrabold text-white tracking-tight">Administravimo panelė</h1>
+                                <h1 className="text-[16px] font-bold text-white">Administravimo panelė</h1>
                                 <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1.5">
                                     <Zap className="w-3 h-3 text-teal-500" />
                                     {selectedUser
@@ -1224,43 +1220,9 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* ─── KPI Cards — Row 1: Users ─── */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {KPI_ROW1.map(cfg => (
-                        <KPICard
-                            key={cfg.key}
-                            icon={cfg.icon}
-                            label={cfg.label}
-                            value={kpi[cfg.key as keyof KPIData]}
-                            gradient={cfg.gradient}
-                            bgLight={cfg.bgLight}
-                            textColor={cfg.textColor}
-                            onClick={() => fetchKpiDetail(cfg.key)}
-                            isActive={activeKpi === cfg.key}
-                        />
-                    ))}
-                </div>
-
-                {/* ─── KPI Cards — Row 2: Properties & Invoices ─── */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {KPI_ROW2.map(cfg => (
-                        <KPICard
-                            key={cfg.key}
-                            icon={cfg.icon}
-                            label={cfg.label}
-                            value={kpi[cfg.key as keyof KPIData]}
-                            gradient={cfg.gradient}
-                            bgLight={cfg.bgLight}
-                            textColor={cfg.textColor}
-                            onClick={() => fetchKpiDetail(cfg.key)}
-                            isActive={activeKpi === cfg.key}
-                        />
-                    ))}
-                </div>
-
-                {/* ─── KPI Cards — Row 3: Operations ─── */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {KPI_ROW3.map(cfg => (
+                {/* ─── KPI Overview ─── */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    {[...KPI_ROW1, ...KPI_ROW2, ...KPI_ROW3].map(cfg => (
                         <KPICard
                             key={cfg.key}
                             icon={cfg.icon}
@@ -1276,14 +1238,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* ─── Sutartys KPI ─── */}
-                <div className={`${panelCard} p-4`}>
-                    <div className="flex items-center gap-2.5 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md shadow-teal-500/20">
-                            <ScrollText className="w-3.5 h-3.5 text-white" />
-                        </div>
-                        <h2 className="text-[13px] font-bold text-white">Sutartys ir nutraukimai</h2>
-                    </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                     <KPICard
                         icon={ScrollText}
                         label="Aktyvios sutartys"
@@ -1324,7 +1279,6 @@ const AdminDashboard: React.FC = () => {
                         onClick={() => { setContractTab('terminations' as any); setActiveKpi(prev => prev === 'totalContracts' ? null : 'totalContracts'); }}
                         isActive={activeKpi === 'totalContracts' && contractTab === ('terminations' as any)}
                     />
-                </div>
                 </div>
 
                 {/* ─── Contracts Detail Panel ─── */}
@@ -1708,60 +1662,6 @@ const AdminDashboard: React.FC = () => {
                         )}
                     </div>
                 )}
-
-                {/* ─── System Status ─── */}
-                <div className={`${panelCard} p-5`}>
-                    <div className="flex items-center gap-2.5 mb-4">
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
-                            <TrendingUp className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-[13px] font-bold text-white">Sistemos būsena</h2>
-                            <p className="text-[9px] text-gray-400">Realaus laiko apžvalga</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-6 gap-2.5">
-                        <StatusPill
-                            icon={CheckCircle}
-                            value={kpi.occupiedProperties}
-                            label="Išnuomoti butai"
-                            color="bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-                            dotColor="bg-emerald-500"
-                        />
-                        <StatusPill
-                            icon={Home}
-                            value={kpi.totalProperties - kpi.occupiedProperties}
-                            label="Laisvi butai"
-                            color="bg-white/[0.06] text-gray-400 border-white/[0.10]"
-                        />
-                        <StatusPill
-                            icon={Clock}
-                            value={kpi.pendingInvitations}
-                            label="Laukiantys pakvietimai"
-                            color="bg-amber-500/15 text-amber-400 border-amber-500/20"
-                            dotColor={kpi.pendingInvitations > 0 ? 'bg-amber-500' : undefined}
-                        />
-                        <StatusPill
-                            icon={FileText}
-                            value={kpi.totalDocuments}
-                            label="Dokumentai"
-                            color="bg-blue-500/15 text-blue-400 border-blue-500/20"
-                        />
-                        <StatusPill
-                            icon={Image}
-                            value={kpi.totalPhotos}
-                            label="Nuotraukos"
-                            color="bg-violet-500/15 text-violet-400 border-violet-500/20"
-                        />
-                        <StatusPill
-                            icon={AlertCircle}
-                            value={kpi.unreadNotifications}
-                            label="Neperskaityta"
-                            color="bg-rose-500/15 text-rose-400 border-rose-500/20"
-                            dotColor={kpi.unreadNotifications > 0 ? 'bg-rose-500' : undefined}
-                        />
-                    </div>
-                </div>
 
                 {/* ─── Main content: Users + Activity Log ─── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
