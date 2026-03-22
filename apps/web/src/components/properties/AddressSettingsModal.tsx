@@ -1,282 +1,58 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   Building2, Users, Gauge, Bell, Wallet,
-  X, Save, Trash2, MapPin,
-  AlertTriangle, User, CreditCard, Plus,
-  Phone, Check, Loader2, Copy, ChevronDown
+  X, Save, MapPin, AlertTriangle,
 } from 'lucide-react';
-import { MetersTable } from './MetersTable';
 import {
   getAddressSettings,
   upsertAddressSettings,
   getAddressIdByAddress,
-  type AddressSettings as DbAddressSettings
 } from '../../lib/communalMetersApi';
 import { supabase } from '../../lib/supabase';
 import { type DistributionMethod } from '../../constants/meterDistribution';
 
-// ============================================================
-// TYPES
-// ============================================================
-interface LocalMeter {
-  id: string;
-  name: string;
-  type: 'individual' | 'communal';
-  unit: 'm3' | 'kWh' | 'GJ' | 'Kitas';
-  price_per_unit: number;
-  fixed_price?: number;
-  distribution_method: DistributionMethod;
-  description: string;
-  is_active: boolean;
-  requires_photo: boolean;
-  is_custom?: boolean;
-  is_inherited?: boolean;
-  collectionMode: 'landlord_only' | 'tenant_photo';
-  landlordReadingEnabled: boolean;
-  tenantPhotoEnabled: boolean;
-  supplier?: string;
-}
+// Types & defaults
+import type {
+  AddressSettingsData,
+  AddressSettingsModalProps,
+  AddressRow,
+  LocalMeter,
+  TabId,
+} from './addressSettingsTypes';
+import { DEFAULT_SETTINGS } from './addressSettingsTypes';
 
-interface AddressSettingsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  address: string;
-  addressId?: string;
-  currentSettings?: any;
-  onSave: (settings: any) => void;
-  onDelete?: (addressId: string, address: string) => void;
-}
-
-type TabId = 'general' | 'contacts' | 'financial' | 'notifications' | 'communal';
+// Tab components
+import { GeneralTab } from './tabs/GeneralTab';
+import { ContactsTab } from './tabs/ContactsTab';
+import { FinancialTab } from './tabs/FinancialTab';
+import { NotificationsTab } from './tabs/NotificationsTab';
+import { CommunalTab } from './tabs/CommunalTab';
 
 // ============================================================
-// DEFAULT SETTINGS
+// TABS CONFIG (static â€” hoisted outside render)
 // ============================================================
-const DEFAULT_SETTINGS = {
-  buildingInfo: {
-    totalApartments: 1,
-    totalFloors: 1,
-    yearBuilt: null as number | null,
-    buildingType: 'Butų namas' as string,
-    heatingType: 'central' as string,
-    parkingSpaces: 0,
-    totalArea: null as number | null,
-    managementType: 'Nuomotojas' as string,
-    associationNumber: '',
-    companyCode: '',
-    companyWebsite: '',
-  },
-  contactInfo: {
-    managerName: '',
-    managerPhone: '',
-    managerEmail: '',
-    emergencyContact: '',
-    emergencyPhone: '',
-    chairmanName: '',
-    chairmanPhone: '',
-    chairmanEmail: '',
-    companyName: '',
-    contactPerson: '',
-    companyPhone: '',
-    companyEmail: '',
-    plumberPhone: '',
-    electricianPhone: '',
-    dispatcherPhone: '',
-    customContacts: [] as Array<{ id: string; title: string; content: string; comment: string }>,
-  },
-  financialSettings: {
-    defaultDeposit: 500,
-    latePaymentFee: 0,
-    gracePeriodDays: 5,
-    autoRenewalEnabled: true,
-    defaultContractDuration: 12,
-    paymentDay: 15,
-    depositPolicy: '1month' as string,
-    bankAccount: '',
-    recipientName: '',
-    paymentPurposeTemplate: '',
-    paymentMethods: {
-      bankTransfer: { enabled: false, iban: '', bankName: '', recipientName: '' },
-      paysera: { enabled: false, account: '' },
-      revolut: { enabled: false, tag: '' },
-      stripe: { enabled: false },
-    },
-  },
-  notificationSettings: {
-    rentReminderEnabled: true,
-    rentReminderDays: 3,
-    latePaymentEnabled: true,
-    meterReminderEnabled: true,
-    meterReminderDays: 5,
-    meterReadingStartDay: 20,
-    meterReadingEndDay: 29,
-    contractExpiryEnabled: true,
-    contractExpiryReminderDays: 30,
-    maintenanceNotifications: true,
-    newDocumentNotifications: false,
-  },
-  communalConfig: {
-    enableMeterEditing: true,
-    requirePhotos: true,
-    historyRetentionMonths: 18,
-  },
-};
-
-// ============================================================
-// SHARED COMPONENTS — Premium Light Theme
-// ============================================================
-const FormField: React.FC<{
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-  helperText?: string;
-}> = ({ label, children, className = '', helperText }) => (
-  <div className={className}>
-    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em] mb-1">
-      {label}
-    </label>
-    {children}
-    {helperText && (
-      <p className="text-[9px] text-gray-400 mt-1 leading-tight">{helperText}</p>
-    )}
-  </div>
-);
-
-const InputField: React.FC<{
-  value: string | number;
-  onChange: (val: string) => void;
-  type?: string;
-  placeholder?: string;
-  suffix?: string;
-}> = ({ value, onChange, type = 'text', placeholder = '', suffix }) => (
-  <div className="relative">
-    <input
-      type={type}
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full px-3.5 py-2 bg-white border border-gray-300/80 rounded-lg text-[13px] text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:bg-white transition-all outline-none shadow-sm"
-    />
-    {suffix && (
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-gray-400">
-        {suffix}
-      </span>
-    )}
-  </div>
-);
-
-const SelectField: React.FC<{
-  value: string;
-  onChange: (val: string) => void;
-  options: { value: string; label: string }[];
-}> = ({ value, onChange, options }) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3.5 py-2 bg-white border border-gray-300/80 rounded-lg text-[13px] text-gray-900 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:bg-white transition-all outline-none appearance-none cursor-pointer pr-8 shadow-sm"
-    >
-      {options.map(o => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-    <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  </div>
-);
-
-const ToggleRow: React.FC<{
-  label: string;
-  description?: string;
-  checked: boolean;
-  onChange: (val: boolean) => void;
-  children?: React.ReactNode;
-}> = ({ label, description, checked, onChange, children }) => (
-  <div className={`rounded-xl border p-4 transition-all duration-200 ${checked
-    ? 'bg-white border-teal-200/60 shadow-[0_1px_4px_rgba(47,132,129,0.08)]'
-    : 'bg-white border-gray-100 hover:border-gray-200'
-    }`}>
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-semibold text-gray-900">{label}</div>
-        {description && <div className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">{description}</div>}
-      </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-[22px] w-10 items-center rounded-full transition-all duration-200 flex-shrink-0 ${checked ? 'bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.3)]' : 'bg-gray-200'
-          }`}
-      >
-        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-[22px]' : 'translate-x-1'
-          }`} />
-      </button>
-    </div>
-    {checked && children && (
-      <div className="mt-3 pt-3 border-t border-gray-100/80">
-        {children}
-      </div>
-    )}
-  </div>
-);
-
-const SegmentedControl: React.FC<{
-  value: string;
-  onChange: (val: string) => void;
-  options: { value: string; label: string }[];
-}> = ({ value, onChange, options }) => (
-  <div className="flex bg-gray-100/80 rounded-xl p-1 gap-0.5">
-    {options.map(o => (
-      <button
-        key={o.value}
-        onClick={() => onChange(o.value)}
-        className={`flex-1 px-3 py-2 rounded-lg text-[12px] font-semibold transition-all duration-200 ${value === o.value
-          ? 'bg-white text-teal-700 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(47,132,129,0.1)]'
-          : 'text-gray-400 hover:text-gray-600'
-          }`}
-      >
-        {o.label}
-      </button>
-    ))}
-  </div>
-);
-
-const Card: React.FC<{
-  title?: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}> = ({ title, icon, children, className = '' }) => (
-  <div
-    className={`rounded-2xl border border-white/60 shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden bg-white/95 bg-cover bg-center ${className}`}
-    style={{ backgroundImage: `url('/images/CardsBackground.webp')` }}
-  >
-    {title && (
-      <div className="flex items-center gap-2.5 px-5 py-3 border-b border-gray-200/40">
-        <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center">
-          {icon}
-        </div>
-        <h4 className="text-[13px] font-bold text-gray-900">{title}</h4>
-      </div>
-    )}
-    <div className="p-5">{children}</div>
-  </div>
-);
+const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: 'general', label: 'Bendra info', icon: Building2 },
+  { id: 'contacts', label: 'Kontaktai', icon: Users },
+  { id: 'financial', label: 'Finansai', icon: Wallet },
+  { id: 'notifications', label: 'Pranešimai', icon: Bell },
+  { id: 'communal', label: 'Komunaliniai', icon: Gauge },
+];
 
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
+const AddressSettingsModal = memo<AddressSettingsModalProps>(({
   isOpen,
   onClose,
   address,
   addressId,
   currentSettings,
   onSave,
-  onDelete
+  onDelete,
 }) => {
-  // State
+  // â”€â”€ State â”€â”€
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [dbAddressId, setDbAddressId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -285,58 +61,82 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ bendrija?: string; valdymoImone?: string }>({});
   const [showSavedToast, setShowSavedToast] = useState(false);
-  const [addressData, setAddressData] = useState<any>(null);
+  const [addressData, setAddressData] = useState<AddressRow | null>(null);
   const { user } = useAuth();
   const [ownerPhone, setOwnerPhone] = useState<string | null>(null);
   const [phoneInput, setPhoneInput] = useState('');
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [phoneSaved, setPhoneSaved] = useState(false);
   const [allAddresses, setAllAddresses] = useState<Array<{ id: string; full_address: string }>>([]);
-  const [copyDropdownTab, setCopyDropdownTab] = useState<string | null>(null);
 
-  // Save phone to user profile
-  const handleSavePhone = async () => {
+  // Settings state â€” typed
+  const [settings, setSettings] = useState<AddressSettingsData>(() => ({
+    ...structuredClone(DEFAULT_SETTINGS),
+    ...(currentSettings ? structuredClone(currentSettings) : {}),
+  } as AddressSettingsData));
+
+  // Meters state
+  const [addressMeters, setAddressMeters] = useState<LocalMeter[]>([]);
+  const [initialMeters, setInitialMeters] = useState<LocalMeter[]>([]);
+
+  // â”€â”€ Reset ephemeral state on modal open â”€â”€
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab('general');
+      setIsDirty(false);
+      setError(null);
+      setValidationErrors({});
+      setShowSavedToast(false);
+      setPhoneInput('');
+      setPhoneSaved(false);
+      setSettings({
+        ...structuredClone(DEFAULT_SETTINGS),
+        ...(currentSettings ? structuredClone(currentSettings) : {}),
+      } as AddressSettingsData);
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps â€” intentionally reset on open only
+
+  // â”€â”€ Save phone to user profile â”€â”€
+  const handleSavePhone = useCallback(async () => {
     if (!user?.id || !phoneInput.trim()) return;
     setIsSavingPhone(true);
     try {
-      // Update users table
-      await supabase.from('users').update({ phone: phoneInput.trim() }).eq('id', user.id);
-      // Update profiles table too
-      await supabase.from('profiles').update({ phone: phoneInput.trim() }).eq('id', user.id);
+      const { error: usersErr } = await supabase.from('users').update({ phone: phoneInput.trim() }).eq('id', user.id);
+      if (usersErr) throw usersErr;
+      const { error: profilesErr } = await supabase.from('profiles').update({ phone: phoneInput.trim() }).eq('id', user.id);
+      if (profilesErr) throw profilesErr;
       setOwnerPhone(phoneInput.trim());
       setPhoneSaved(true);
       setTimeout(() => setPhoneSaved(false), 3000);
     } catch (err) {
-      console.error('Error saving phone:', err);
+      if (import.meta.env.DEV) console.error('[AddressSettingsModal] Error saving phone:', err);
+      setError('Klaida išsaugant telefono numerį.');
     } finally {
       setIsSavingPhone(false);
     }
-  };
+  }, [user?.id, phoneInput]);
 
-  // Settings state
-  const [settings, setSettings] = useState({
-    ...DEFAULT_SETTINGS,
-    ...(currentSettings || {})
-  });
-
-  // Copy settings from another address
-  const copySettingsFrom = async (sourceAddressId: string, tab: 'contacts' | 'financial') => {
+  // â”€â”€ Copy settings from another address â”€â”€
+  const copySettingsFrom = useCallback(async (sourceAddressId: string, tab: 'contacts' | 'financial') => {
     try {
-      const { data: srcSettings } = await supabase
+      const { data: srcSettings, error: srcErr } = await supabase
         .from('address_settings')
         .select('contact_info, financial_settings, building_info')
         .eq('address_id', sourceAddressId)
         .maybeSingle();
 
-      if (tab === 'contacts' && srcSettings) {
-        // Also fetch contact fields from address row
-        const { data: srcAddr } = await supabase
+      if (srcErr) throw srcErr;
+      if (!srcSettings) return;
+
+      if (tab === 'contacts') {
+        const { data: srcAddr, error: addrErr } = await supabase
           .from('addresses')
           .select('chairman_name, chairman_phone, chairman_email, company_name, contact_person, company_phone, company_email, management_type')
           .eq('id', sourceAddressId)
           .maybeSingle();
+        if (addrErr) throw addrErr;
 
-        setSettings((prev: typeof settings) => ({
+        setSettings(prev => ({
           ...prev,
           contactInfo: {
             ...prev.contactInfo,
@@ -354,119 +154,91 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
             managementType: srcAddr?.management_type ?? prev.buildingInfo.managementType,
             associationNumber: srcSettings.building_info?.associationNumber ?? prev.buildingInfo.associationNumber,
             companyCode: srcSettings.building_info?.companyCode ?? prev.buildingInfo.companyCode,
-          }
+          },
         }));
-        setIsDirty(true);
-      } else if (tab === 'financial' && srcSettings) {
-        setSettings((prev: typeof settings) => ({
+      } else if (tab === 'financial') {
+        setSettings(prev => ({
           ...prev,
           financialSettings: {
             ...prev.financialSettings,
             ...(srcSettings.financial_settings || {}),
-          }
+          },
         }));
-        setIsDirty(true);
       }
+      setIsDirty(true);
     } catch (err) {
-      console.error('Error copying settings:', err);
-    } finally {
-      setCopyDropdownTab(null);
+      if (import.meta.env.DEV) console.error('[AddressSettingsModal] Error copying settings:', err);
+      setError('Klaida kopijuojant nustatymus.');
     }
-  };
+  }, []);
 
-  // Meters state
-  const [addressMeters, setAddressMeters] = useState<LocalMeter[]>([]);
-  const [initialMeters, setInitialMeters] = useState<LocalMeter[]>([]);
-
-  // ============================================================
-  // DATA LOADING
-  // ============================================================
+  // â”€â”€ DATA LOADING â”€â”€
   useEffect(() => {
-    const loadAddressData = async () => {
-      if (!isOpen) return;
+    if (!isOpen) return;
 
+    let cancelled = false;
+    const loadAddressData = async () => {
       setIsLoading(true);
+      setError(null);
       try {
-        // Fetch owner phone from users table
+        // Collect all async data first, then do one big state update
+        let fetchedPhone: string | null = null;
+        let fetchedAddresses: Array<{ id: string; full_address: string }> = [];
+        let fetchedAddrRow: AddressRow | null = null;
+        let fetchedDbSettings: Awaited<ReturnType<typeof getAddressSettings>> = null;
+        let fetchedMeters: LocalMeter[] = [];
+
+        // 1. Owner phone
         if (user?.id) {
-          const { data: userData } = await supabase
+          const { data: userData, error: userErr } = await supabase
             .from('users')
             .select('phone')
             .eq('id', user.id)
             .maybeSingle();
-          setOwnerPhone(userData?.phone || null);
+          if (userErr && import.meta.env.DEV) if (import.meta.env.DEV) console.error('[AddressSettingsModal] Owner phone fetch error:', userErr);
+          fetchedPhone = userData?.phone || null;
         }
 
-        // Fetch all user addresses for copy feature
+        // 2. All addresses (for copy feature)
         if (user?.id) {
-          const { data: userAddr } = await supabase
+          const { data: userAddr, error: addrListErr } = await supabase
             .from('addresses')
             .select('id, full_address')
             .eq('created_by', user.id);
+          if (addrListErr && import.meta.env.DEV) if (import.meta.env.DEV) console.error('[AddressSettingsModal] Address list fetch error:', addrListErr);
           if (userAddr) {
-            // Exclude current address
-            setAllAddresses(userAddr.filter(a => a.id !== (addressId || '')));
+            fetchedAddresses = userAddr.filter(a => a.id !== (addressId || ''));
           }
         }
+
+        // 3. Resolve addressId
         const resolvedAddressId = addressId || await getAddressIdByAddress(address);
-        setDbAddressId(resolvedAddressId);
+        if (cancelled) return;
 
         if (resolvedAddressId) {
-          // Load address row data
-          const { data: addrRow } = await supabase
+          // 4. Load address row data
+          const { data: addrRow, error: addrRowErr } = await supabase
             .from('addresses')
             .select('*')
             .eq('id', resolvedAddressId)
             .single();
+          if (addrRowErr && import.meta.env.DEV) if (import.meta.env.DEV) console.error('[AddressSettingsModal] Address row fetch error:', addrRowErr);
+          if (addrRow) fetchedAddrRow = addrRow;
 
-          if (addrRow) {
-            setAddressData(addrRow);
-            // Merge address row fields into buildingInfo
-            setSettings((prev: typeof settings) => ({
-              ...prev,
-              buildingInfo: {
-                ...prev.buildingInfo,
-                totalApartments: addrRow.total_apartments ?? prev.buildingInfo.totalApartments,
-                totalFloors: addrRow.floors ?? prev.buildingInfo.totalFloors,
-                yearBuilt: addrRow.year_built ?? prev.buildingInfo.yearBuilt,
-                buildingType: addrRow.building_type ?? prev.buildingInfo.buildingType,
-                managementType: addrRow.management_type ?? prev.buildingInfo.managementType,
-              },
-              contactInfo: {
-                ...prev.contactInfo,
-                chairmanName: addrRow.chairman_name ?? '',
-                chairmanPhone: addrRow.chairman_phone ?? '',
-                chairmanEmail: addrRow.chairman_email ?? '',
-                companyName: addrRow.company_name ?? '',
-                contactPerson: addrRow.contact_person ?? '',
-                companyPhone: addrRow.company_phone ?? '',
-                companyEmail: addrRow.company_email ?? '',
-              }
-            }));
-          }
+          // 5. Load address settings
+          fetchedDbSettings = await getAddressSettings(resolvedAddressId);
 
-          // Load address settings from address_settings table
-          const dbSettings = await getAddressSettings(resolvedAddressId);
-          if (dbSettings) {
-            setSettings((prev: typeof settings) => ({
-              ...prev,
-              buildingInfo: { ...prev.buildingInfo, ...(dbSettings.building_info || {}) },
-              contactInfo: { ...prev.contactInfo, ...(dbSettings.contact_info || {}) },
-              financialSettings: { ...prev.financialSettings, ...(dbSettings.financial_settings || {}) },
-              notificationSettings: { ...prev.notificationSettings, ...(dbSettings.notification_settings || {}) },
-              communalConfig: { ...prev.communalConfig, ...(dbSettings.communal_config || {}) },
-            }));
-          }
-
-          // Load address meters
+          // 6. Load address meters
           const { data: meters, error: metersError } = await supabase
             .from('address_meters')
             .select('id, name, type, unit, price_per_unit, fixed_price, distribution_method, description, is_active, requires_photo, collection_mode, landlord_reading_enabled, tenant_photo_enabled, supplier')
             .eq('address_id', resolvedAddressId)
             .eq('is_active', true);
 
+          if (metersError && import.meta.env.DEV) if (import.meta.env.DEV) console.error('[AddressSettingsModal] Meters fetch error:', metersError);
+
           if (!metersError && meters) {
-            const convertedMeters: LocalMeter[] = meters.map(meter => ({
+            fetchedMeters = meters.map(meter => ({
               id: meter.id,
               name: meter.name,
               type: meter.type as 'individual' | 'communal',
@@ -484,58 +256,175 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
               tenantPhotoEnabled: meter.tenant_photo_enabled ?? false,
               supplier: meter.supplier || undefined,
             }));
-            setAddressMeters(convertedMeters);
-            setInitialMeters(JSON.parse(JSON.stringify(convertedMeters)));
           }
         }
-      } catch (error) {
-        console.error('Error loading address data:', error);
+
+        if (cancelled) return;
+
+        // â”€â”€ Single batch state update to avoid race conditions â”€â”€
+        setOwnerPhone(fetchedPhone);
+        setAllAddresses(fetchedAddresses);
+        setDbAddressId(resolvedAddressId);
+        setAddressData(fetchedAddrRow);
+        setAddressMeters(fetchedMeters);
+        setInitialMeters(structuredClone(fetchedMeters));
+
+        // Merge all data sources into settings in ONE call
+        setSettings(prev => {
+          const merged = structuredClone(prev);
+
+          // From address row
+          if (fetchedAddrRow) {
+            merged.buildingInfo.totalApartments = fetchedAddrRow.total_apartments ?? merged.buildingInfo.totalApartments;
+            merged.buildingInfo.totalFloors = fetchedAddrRow.floors ?? merged.buildingInfo.totalFloors;
+            merged.buildingInfo.yearBuilt = fetchedAddrRow.year_built ?? merged.buildingInfo.yearBuilt;
+            merged.buildingInfo.buildingType = fetchedAddrRow.building_type ?? merged.buildingInfo.buildingType;
+            merged.buildingInfo.managementType = fetchedAddrRow.management_type ?? merged.buildingInfo.managementType;
+            merged.contactInfo.chairmanName = fetchedAddrRow.chairman_name ?? '';
+            merged.contactInfo.chairmanPhone = fetchedAddrRow.chairman_phone ?? '';
+            merged.contactInfo.chairmanEmail = fetchedAddrRow.chairman_email ?? '';
+            merged.contactInfo.companyName = fetchedAddrRow.company_name ?? '';
+            merged.contactInfo.contactPerson = fetchedAddrRow.contact_person ?? '';
+            merged.contactInfo.companyPhone = fetchedAddrRow.company_phone ?? '';
+            merged.contactInfo.companyEmail = fetchedAddrRow.company_email ?? '';
+          }
+
+          // From DB settings (higher priority)
+          if (fetchedDbSettings) {
+            Object.assign(merged.buildingInfo, fetchedDbSettings.building_info || {});
+            Object.assign(merged.contactInfo, fetchedDbSettings.contact_info || {});
+            Object.assign(merged.financialSettings, fetchedDbSettings.financial_settings || {});
+            Object.assign(merged.notificationSettings, fetchedDbSettings.notification_settings || {});
+            Object.assign(merged.communalConfig, fetchedDbSettings.communal_config || {});
+          }
+
+          return merged;
+        });
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('[AddressSettingsModal] Error loading address data:', err);
+        setError('Klaida kraunant adreso duomenis.');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     loadAddressData();
-  }, [isOpen, address, addressId]);
+    return () => { cancelled = true; };
+  }, [isOpen, address, addressId, user?.id]);
 
-  // ============================================================
-  // HANDLERS
-  // ============================================================
+  // â”€â”€ HANDLERS â”€â”€
   const handleMetersChange = useCallback((meters: LocalMeter[]) => {
     setAddressMeters(meters);
     setIsDirty(true);
   }, []);
 
-  const updateSettings = useCallback((section: keyof typeof settings, updates: any) => {
-    setSettings((prev: typeof settings) => ({
+  const handleMeterUpdate = useCallback(async (id: string, updates: Partial<LocalMeter>) => {
+    try {
+      const dbUpdates: Record<string, unknown> = {};
+      if ('supplier' in updates) dbUpdates.supplier = updates.supplier || null;
+      if ('price_per_unit' in updates) dbUpdates.price_per_unit = updates.price_per_unit;
+      if ('fixed_price' in updates) dbUpdates.fixed_price = updates.fixed_price;
+      if ('distribution_method' in updates) dbUpdates.distribution_method = updates.distribution_method;
+      if ('name' in updates) dbUpdates.name = updates.name;
+      if ('type' in updates) dbUpdates.type = updates.type;
+      if ('unit' in updates) dbUpdates.unit = updates.unit;
+      if (Object.keys(dbUpdates).length > 0) {
+        const { error: updateErr } = await supabase.from('address_meters').update(dbUpdates).eq('id', id);
+        if (updateErr) throw updateErr;
+      }
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('[AddressSettingsModal] onMeterUpdate error:', e);
+    }
+  }, []);
+
+  const updateSettings = useCallback((section: keyof AddressSettingsData, updates: Record<string, unknown>) => {
+    setSettings(prev => ({
       ...prev,
-      [section]: { ...prev[section], ...updates }
+      [section]: { ...prev[section], ...updates },
     }));
     setIsDirty(true);
-    // Clear validation errors when editing relevant sections
     if (section === 'contactInfo' || section === 'buildingInfo') {
       setValidationErrors({});
     }
   }, []);
 
-  const handleSave = async () => {
+  // â”€â”€ Save meters using batch upsert â”€â”€
+  const saveMeters = useCallback(async (resolvedAddressId: string) => {
+    // 1. Find deleted meters
+    const { data: existingMeters, error: fetchErr } = await supabase
+      .from('address_meters')
+      .select('id')
+      .eq('address_id', resolvedAddressId);
+    if (fetchErr) throw fetchErr;
+
+    const existingIds = existingMeters?.map(m => m.id) || [];
+    const currentIds = addressMeters.filter(m => !m.id.startsWith('temp_')).map(m => m.id);
+    const deletedIds = existingIds.filter(id => !currentIds.includes(id));
+
+    // 2. Batch delete
+    if (deletedIds.length > 0) {
+      const { error: delErr } = await supabase.from('address_meters').delete().in('id', deletedIds);
+      if (delErr) throw delErr;
+    }
+
+    // 3. Separate new vs existing meters
+    const newMeters = addressMeters.filter(m => m.id.startsWith('temp_'));
+    const existingToUpdate = addressMeters.filter(m => !m.id.startsWith('temp_'));
+
+    const toDbRow = (meter: LocalMeter, includeId: boolean) => {
+      const row: Record<string, unknown> = {
+        address_id: resolvedAddressId,
+        name: meter.name,
+        type: meter.type,
+        unit: meter.unit,
+        price_per_unit: meter.price_per_unit,
+        fixed_price: meter.fixed_price,
+        distribution_method: meter.distribution_method,
+        description: meter.description,
+        is_active: meter.is_active,
+        requires_photo: meter.requires_photo,
+        collection_mode: meter.collectionMode,
+        landlord_reading_enabled: meter.landlordReadingEnabled,
+        tenant_photo_enabled: meter.tenantPhotoEnabled,
+        supplier: meter.supplier || null,
+      };
+      if (includeId) row.id = meter.id;
+      return row;
+    };
+
+    // 4. Batch insert new meters
+    if (newMeters.length > 0) {
+      const { error: insertErr } = await supabase
+        .from('address_meters')
+        .insert(newMeters.map(m => toDbRow(m, false)));
+      if (insertErr) throw insertErr;
+    }
+
+    // 5. Batch upsert existing meters
+    if (existingToUpdate.length > 0) {
+      const { error: upsertErr } = await supabase
+        .from('address_meters')
+        .upsert(existingToUpdate.map(m => toDbRow(m, true)), { onConflict: 'id' });
+      if (upsertErr) throw upsertErr;
+    }
+  }, [addressMeters]);
+
+  const handleSave = useCallback(async () => {
     if (!dbAddressId) {
       setError('Nepavyko rasti adreso ID.');
       return;
     }
 
-    // Validate contacts: if any field filled, require phone or email
+    // Validate contacts
     const ci = settings.contactInfo;
     const newValidationErrors: { bendrija?: string; valdymoImone?: string } = {};
 
-    // Bendrijos kontaktai: if chairmanName or associationNumber filled, need phone or email
     const bendrijaHasData = (ci.chairmanName || '').trim() || (settings.buildingInfo.associationNumber || '').trim();
     const bendrijaHasContact = (ci.chairmanPhone || '').trim() || (ci.chairmanEmail || '').trim();
     if (bendrijaHasData && !bendrijaHasContact) {
       newValidationErrors.bendrija = 'Užpildykite bent telefoną arba el. paštą';
     }
 
-    // Valdymo įmonės kontaktai: if companyName, companyCode, or contactPerson filled, need phone or email
     const imoneHasData = (ci.companyName || '').trim() || (settings.buildingInfo.companyCode || '').trim() || (ci.contactPerson || '').trim();
     const imoneHasContact = (ci.companyPhone || '').trim() || (ci.companyEmail || '').trim();
     if (imoneHasData && !imoneHasContact) {
@@ -548,23 +437,25 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
       return;
     }
     setValidationErrors({});
-
     setIsSaving(true);
     setError(null);
 
     try {
-      // Save address settings
+      // 1. Save address settings (type assertion needed â€” API types are narrower than actual stored JSON)
       await upsertAddressSettings({
         address_id: dbAddressId,
-        building_info: settings.buildingInfo,
+        building_info: {
+          ...settings.buildingInfo,
+          yearBuilt: settings.buildingInfo.yearBuilt ?? undefined,
+        } as Parameters<typeof upsertAddressSettings>[0]['building_info'],
         contact_info: settings.contactInfo,
         financial_settings: settings.financialSettings,
         notification_settings: settings.notificationSettings,
-        communal_config: settings.communalConfig
+        communal_config: settings.communalConfig,
       });
 
-      // Also update the addresses table with core fields
-      await supabase
+      // 2. Update addresses table with core fields
+      const { error: addrUpdateErr } = await supabase
         .from('addresses')
         .update({
           total_apartments: settings.buildingInfo.totalApartments,
@@ -581,106 +472,55 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
           company_email: settings.contactInfo.companyEmail,
         })
         .eq('id', dbAddressId);
+      if (addrUpdateErr) throw addrUpdateErr;
 
-      // Save meters
-      await saveMeters();
+      // 3. Save meters â€” BATCH (replaces N+1 loop)
+      await saveMeters(dbAddressId);
 
       // Reset dirty state
       setIsDirty(false);
-      setInitialMeters(JSON.parse(JSON.stringify(addressMeters)));
+      setInitialMeters(structuredClone(addressMeters));
 
       // Show toast
       setShowSavedToast(true);
       setTimeout(() => setShowSavedToast(false), 3000);
 
       onSave(settings);
-    } catch (error) {
-      console.error('Error saving settings:', error);
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('[AddressSettingsModal] Error saving settings:', err);
       setError('Klaida išsaugant nustatymus.');
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [dbAddressId, settings, addressMeters, onSave, saveMeters]);
 
-  const saveMeters = async () => {
-    if (!dbAddressId) return;
-
-    const { data: existingMeters } = await supabase
-      .from('address_meters')
-      .select('id')
-      .eq('address_id', dbAddressId);
-
-    const existingIds = existingMeters?.map(m => m.id) || [];
-    const currentIds = addressMeters.filter(m => !m.id.startsWith('temp_')).map(m => m.id);
-    const deletedIds = existingIds.filter(id => !currentIds.includes(id));
-
-    if (deletedIds.length > 0) {
-      await supabase.from('address_meters').delete().in('id', deletedIds);
-    }
-
-    for (const meter of addressMeters) {
-      const meterData = {
-        address_id: dbAddressId,
-        name: meter.name,
-        type: meter.type,
-        unit: meter.unit,
-        price_per_unit: meter.price_per_unit,
-        fixed_price: meter.fixed_price,
-        distribution_method: meter.distribution_method,
-        description: meter.description,
-        is_active: meter.is_active,
-        requires_photo: meter.requires_photo,
-        collection_mode: meter.collectionMode,
-        landlord_reading_enabled: meter.landlordReadingEnabled,
-        tenant_photo_enabled: meter.tenantPhotoEnabled,
-        supplier: meter.supplier || null,
-      };
-
-      if (meter.id.startsWith('temp_')) {
-        await supabase.from('address_meters').insert([meterData]);
-      } else {
-        await supabase.from('address_meters').update(meterData).eq('id', meter.id);
-      }
-    }
-  };
-
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (isDirty) {
+      // TODO: Replace window.confirm with custom modal in future iteration
       if (window.confirm('Turite neišsaugotų pakeitimų. Ar tikrai norite uždaryti?')) {
         onClose();
       }
     } else {
       onClose();
     }
-  };
+  }, [isDirty, onClose]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (onDelete && dbAddressId) {
+      // TODO: Replace window.confirm with custom modal in future iteration
       if (window.confirm(`Ar tikrai norite ištrinti adresą "${address}"?\n\nŠis veiksmas ištrins visus susijusius butus ir duomenis.`)) {
         onDelete(dbAddressId, address);
         onClose();
       }
     }
-  };
+  }, [onDelete, dbAddressId, address, onClose]);
 
   if (!isOpen) return null;
 
-  // ============================================================
-  // TABS CONFIG
-  // ============================================================
-  const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-    { id: 'general', label: 'Bendra info', icon: Building2 },
-    { id: 'contacts', label: 'Kontaktai', icon: Users },
-    { id: 'financial', label: 'Finansai', icon: Wallet },
-    { id: 'notifications', label: 'Pranešimai', icon: Bell },
-    { id: 'communal', label: 'Komunaliniai', icon: Gauge },
-  ];
-
+  // â”€â”€ Derived values â”€â”€
   const addressParts = address.split(',');
   const streetPart = addressParts[0]?.trim() || address;
   const cityPart = addressParts[1]?.trim() || '';
-
-
 
   // ============================================================
   // RENDER
@@ -694,23 +534,23 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
         {/* Dark overlay for readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/55 rounded-2xl z-0" />
 
-        {/* ═══ HERO — Teal gradient with mesh ═══ */}
+        {/* â•â•â• HERO â•â•â• */}
         <div className="relative z-10 h-28 bg-gradient-to-r from-[#1a5c5a] via-[#2F8481] to-[#3a9e9b] flex-shrink-0 overflow-hidden">
-          {/* Subtle mesh overlay */}
           <div className="absolute inset-0 opacity-[0.07]" style={{
             backgroundImage: `radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px), radial-gradient(circle at 60% 80%, white 1px, transparent 1px)`,
             backgroundSize: '40px 40px, 60px 60px, 50px 50px',
           }} />
-          {/* Right-side decorative glow */}
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/[0.06] rounded-full blur-2xl" />
-
-          {/* Content */}
           <div className="absolute bottom-0 left-0 right-0 px-6 pb-4">
             <div className="flex items-end justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="px-2 py-0.5 bg-white/15 backdrop-blur-sm text-white/90 text-[10px] font-semibold rounded-md border border-white/10">
-                    {addressData?.building_type || settings.buildingInfo.buildingType || 'Butų namas'}
+                    {(() => {
+                      const bt = addressData?.building_type || settings.buildingInfo.buildingType || '';
+                      const map: Record<string, string> = { apartment: 'Daugiabutis', house: 'Namas', 'Daugiabutis': 'Daugiabutis', 'Namas': 'Namas', 'Kotedžas': 'Kotedžas', 'Komercinis': 'Komercinis', 'Kita': 'Kita' };
+                      return map[bt] || bt || 'Butų namas';
+                    })()}
                   </span>
                   <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white text-[10px] font-semibold rounded-md">
                     {settings.buildingInfo.totalApartments} {settings.buildingInfo.totalApartments === 1 ? 'butas' : 'butai'}
@@ -726,20 +566,19 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Close button */}
           <button
             onClick={handleClose}
             className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+            aria-label="Uždaryti"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* ═══ TABS — Glass style on dark bg ═══ */}
+        {/* â•â•â• TABS â•â•â• */}
         <div className="relative z-10 flex-shrink-0 bg-white/[0.08] backdrop-blur-md border-b border-white/[0.08] px-6">
           <div className="flex gap-0.5 -mb-px overflow-x-auto">
-            {tabs.map(tab => {
+            {TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
@@ -759,7 +598,7 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
           </div>
         </div>
 
-        {/* ═══ CONTENT ═══ */}
+        {/* â•â•â• CONTENT â•â•â• */}
         <div className="relative z-10 flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
@@ -767,747 +606,60 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
             </div>
           ) : (
             <>
-              {/* ─── TAB: GENERAL ─── */}
               {activeTab === 'general' && (
-                <div className="space-y-4">
-                  {/* Building info card */}
-                  <Card title="Pastato informacija" icon={<Building2 className="w-4 h-4 text-[#2F8481]" />}>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField label="Adresas" className="col-span-2">
-                        <div className="w-full px-3.5 py-2 bg-gray-100/60 border border-gray-200/50 rounded-lg text-[13px] text-gray-400 cursor-not-allowed select-none">{streetPart || '—'}</div>
-                      </FormField>
-                      <FormField label="Miestas">
-                        <div className="w-full px-3.5 py-2 bg-gray-100/60 border border-gray-200/50 rounded-lg text-[13px] text-gray-400 cursor-not-allowed select-none">{cityPart || addressData?.city || '—'}</div>
-                      </FormField>
-                      <FormField label="Pašto kodas">
-                        <div className="w-full px-3.5 py-2 bg-gray-100/60 border border-gray-200/50 rounded-lg text-[13px] text-gray-400 cursor-not-allowed select-none">{addressData?.postal_code || '—'}</div>
-                      </FormField>
-                      <FormField label="Pastato tipas" helperText="Pasirinkite pastato paskirtį">
-                        <SelectField
-                          value={settings.buildingInfo.buildingType}
-                          onChange={(v) => updateSettings('buildingInfo', { buildingType: v })}
-                          options={[
-                            { value: 'Butų namas', label: 'Butų namas' },
-                            { value: 'Namas', label: 'Namas' },
-                            { value: 'Komercinis', label: 'Komercinis' },
-                          ]}
-                        />
-                      </FormField>
-                      <FormField label="Butų skaičius" helperText="Kiek butų yra šiame adrese">
-                        <InputField
-                          type="number"
-                          value={settings.buildingInfo.totalApartments}
-                          onChange={(v) => updateSettings('buildingInfo', { totalApartments: parseInt(v) || 0 })}
-                        />
-                      </FormField>
-                      <FormField label="Aukštų skaičius" helperText="Bendras pastato aukštų skaičius">
-                        <InputField
-                          type="number"
-                          value={settings.buildingInfo.totalFloors}
-                          onChange={(v) => updateSettings('buildingInfo', { totalFloors: parseInt(v) || 0 })}
-                        />
-                      </FormField>
-                      <FormField label="Statybos metai" helperText="Pastato statybos arba rekonstrukcijos metai">
-                        <InputField
-                          type="number"
-                          value={settings.buildingInfo.yearBuilt ?? ''}
-                          onChange={(v) => updateSettings('buildingInfo', { yearBuilt: v ? parseInt(v) : null })}
-                          placeholder="pvz. 1985"
-                        />
-                      </FormField>
-                      <FormField label="Šildymo tipas" helperText="Pastato šildymo sistema">
-                        <SelectField
-                          value={settings.buildingInfo.heatingType}
-                          onChange={(v) => updateSettings('buildingInfo', { heatingType: v })}
-                          options={[
-                            { value: 'Centrinis', label: 'Centrinis' },
-                            { value: 'Individualus', label: 'Individualus' },
-                            { value: 'Rajoninis', label: 'Rajoninis' },
-                          ]}
-                        />
-                      </FormField>
-                      <FormField label="Stovėjimo vietos" helperText="Automobilių stovėjimo vietų skaičius">
-                        <InputField
-                          type="number"
-                          value={settings.buildingInfo.parkingSpaces ?? ''}
-                          onChange={(v) => updateSettings('buildingInfo', { parkingSpaces: v ? parseInt(v) : null })}
-                        />
-                      </FormField>
-                      <FormField label="Bendras plotas" helperText="Visas pastato naudingasis plotas">
-                        <InputField
-                          type="number"
-                          value={settings.buildingInfo.totalArea ?? ''}
-                          onChange={(v) => updateSettings('buildingInfo', { totalArea: v ? parseFloat(v) : null })}
-                          suffix="m²"
-                        />
-                      </FormField>
-                    </div>
-                  </Card>
-
-                  {/* Danger zone */}
-                  {onDelete && (
-                    <div className="bg-red-50 rounded-2xl border border-red-100 p-5">
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <AlertTriangle className="w-4 h-4 text-red-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-bold text-red-900">Pavojinga zona</h4>
-                          <p className="text-xs text-red-600/80 mt-1">
-                            Ištrynus adresą, visi susiję butai, nuomininkai ir duomenys bus pašalinti negrįžtamai.
-                          </p>
-                          <button
-                            onClick={handleDelete}
-                            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-200 hover:border-red-600 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Ištrinti adresą
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <GeneralTab
+                  settings={settings}
+                  updateSettings={updateSettings}
+                  addressData={addressData}
+                  streetPart={streetPart}
+                  cityPart={cityPart}
+                  onDelete={onDelete ? handleDelete : undefined}
+                />
               )}
-
-              {/* ─── TAB: CONTACTS ─── */}
               {activeTab === 'contacts' && (
-                <div className="space-y-4">
-                  {/* Copy from another address */}
-                  {allAddresses.length > 0 && (
-                    <div className="relative">
-                      <button
-                        onClick={() => setCopyDropdownTab(copyDropdownTab === 'contacts' ? null : 'contacts')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:text-teal-600 bg-gray-50 hover:bg-teal-50/60 border border-gray-200/60 rounded-lg transition-colors"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        Kopijuoti iš kito adreso
-                        <ChevronDown className={`w-3 h-3 transition-transform ${copyDropdownTab === 'contacts' ? 'rotate-180' : ''}`} />
-                      </button>
-                      {copyDropdownTab === 'contacts' && (
-                        <div className="absolute z-20 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg py-1">
-                          {allAddresses.map(a => (
-                            <button
-                              key={a.id}
-                              onClick={() => copySettingsFrom(a.id, 'contacts')}
-                              className="w-full text-left px-3 py-2 text-[12px] text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
-                            >
-                              {a.full_address}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Nuomotojo kontaktai — imami iš paskyros */}
-                  <Card title="Nuomotojo kontaktai" icon={<User className="w-4 h-4 text-[#2F8481]" />}>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField label="Vardas ir pavardė">
-                          <div className="w-full px-3.5 py-2 bg-gray-100/60 border border-gray-200/50 rounded-lg text-[13px] text-gray-700 select-none">
-                            {user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || '—' : '—'}
-                          </div>
-                        </FormField>
-                        <FormField label="El. paštas">
-                          <div className="w-full px-3.5 py-2 bg-gray-100/60 border border-gray-200/50 rounded-lg text-[13px] text-gray-700 select-none">
-                            {user?.email || '—'}
-                          </div>
-                        </FormField>
-                        <FormField label="Telefonas" className="col-span-2">
-                          {ownerPhone ? (
-                            <div className="w-full px-3.5 py-2 bg-gray-100/60 border border-gray-200/50 rounded-lg text-[13px] text-gray-700 select-none flex items-center gap-2">
-                              <Phone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                              {ownerPhone}
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <div className="relative flex-1">
-                                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                                  <input
-                                    type="tel"
-                                    value={phoneInput}
-                                    onChange={(e) => setPhoneInput(e.target.value)}
-                                    placeholder="+370..."
-                                    className="w-full pl-9 pr-3.5 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 transition-all"
-                                  />
-                                </div>
-                                <button
-                                  onClick={handleSavePhone}
-                                  disabled={!phoneInput.trim() || isSavingPhone}
-                                  className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-                                >
-                                  {isSavingPhone ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  ) : phoneSaved ? (
-                                    <Check className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <Save className="w-3.5 h-3.5" />
-                                  )}
-                                  {isSavingPhone ? 'Saugoma...' : phoneSaved ? 'Išsaugota!' : 'Išsaugoti'}
-                                </button>
-                              </div>
-                              <p className="text-[10px] text-gray-400 leading-tight">Įveskite telefono numerį — jis bus automatiškai pridėtas prie jūsų profilio</p>
-                            </div>
-                          )}
-                        </FormField>
-                      </div>
-                      <p className="text-[9px] text-gray-400 leading-tight">Kontaktinė informacija imama iš jūsų paskyros. El. paštas ir telefonas bus matomi nuomininkams.</p>
-                    </div>
-                  </Card>
-
-                  {/* Bendrijos kontaktai — visada matomi, neprivalomi */}
-                  <Card title="Bendrijos kontaktai" icon={<Users className="w-4 h-4 text-[#2F8481]" />}>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField label="Pirmininko vardas" helperText="Bendrijos pirmininko arba atstovo vardas ir pavardė">
-                          <InputField
-                            value={settings.contactInfo.chairmanName}
-                            onChange={(v) => updateSettings('contactInfo', { chairmanName: v })}
-                            placeholder="Vardas Pavardė"
-                          />
-                        </FormField>
-                        <FormField label="Registracijos nr." helperText="Juridinių asmenų registre įregistruotas bendrijos numeris">
-                          <InputField
-                            value={settings.buildingInfo.associationNumber}
-                            onChange={(v) => updateSettings('buildingInfo', { associationNumber: v })}
-                            placeholder="pvz. 302345678"
-                          />
-                        </FormField>
-                        <FormField label="Telefonas" helperText="Telefono numeris bendravimui su bendrija">
-                          <InputField
-                            type="tel"
-                            value={settings.contactInfo.chairmanPhone}
-                            onChange={(v) => updateSettings('contactInfo', { chairmanPhone: v })}
-                            placeholder="+370..."
-                          />
-                        </FormField>
-                        <FormField label="El. paštas" helperText="El. paštas oficialiai korespondencijai su bendrija">
-                          <InputField
-                            type="email"
-                            value={settings.contactInfo.chairmanEmail}
-                            onChange={(v) => updateSettings('contactInfo', { chairmanEmail: v })}
-                            placeholder="el.pastas@pvz.lt"
-                          />
-                        </FormField>
-                      </div>
-                      {validationErrors.bendrija ? (
-                        <p className="text-[10px] text-red-500 font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{validationErrors.bendrija}</p>
-                      ) : (
-                        <p className="text-[9px] text-gray-400 leading-tight">Užpildykite bent telefoną arba el. paštą, kad bendrijos kontaktai būtų rodomi nuomininkams.</p>
-                      )}
-                    </div>
-                  </Card>
-
-                  {/* Valdymo įmonės kontaktai — visada matomi, neprivalomi */}
-                  <Card title="Valdymo įmonės kontaktai" icon={<Building2 className="w-4 h-4 text-[#2F8481]" />}>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField label="Įmonės pavadinimas" helperText="Oficialus valdymo įmonės pavadinimas">
-                          <InputField
-                            value={settings.contactInfo.companyName}
-                            onChange={(v) => updateSettings('contactInfo', { companyName: v })}
-                            placeholder="UAB ..."
-                          />
-                        </FormField>
-                        <FormField label="Įmonės kodas" helperText="Valdymo įmonės juridinio asmens kodas">
-                          <InputField
-                            value={settings.buildingInfo.companyCode}
-                            onChange={(v) => updateSettings('buildingInfo', { companyCode: v })}
-                            placeholder="pvz. 123456789"
-                          />
-                        </FormField>
-                        <FormField label="Kontaktinis asmuo" helperText="Atsakingas asmuo su kuriuo bendraujama">
-                          <InputField
-                            value={settings.contactInfo.contactPerson}
-                            onChange={(v) => updateSettings('contactInfo', { contactPerson: v })}
-                            placeholder="Vardas Pavardė"
-                          />
-                        </FormField>
-                        <FormField label="Telefonas" helperText="Įmonės kontaktinis telefono numeris">
-                          <InputField
-                            type="tel"
-                            value={settings.contactInfo.companyPhone}
-                            onChange={(v) => updateSettings('contactInfo', { companyPhone: v })}
-                            placeholder="+370..."
-                          />
-                        </FormField>
-                        <FormField label="El. paštas" className="col-span-2" helperText="Įmonės el. paštas korespondencijai">
-                          <InputField
-                            type="email"
-                            value={settings.contactInfo.companyEmail}
-                            onChange={(v) => updateSettings('contactInfo', { companyEmail: v })}
-                            placeholder="info@imone.lt"
-                          />
-                        </FormField>
-                      </div>
-                      {validationErrors.valdymoImone ? (
-                        <p className="text-[10px] text-red-500 font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{validationErrors.valdymoImone}</p>
-                      ) : (
-                        <p className="text-[9px] text-gray-400 leading-tight">Užpildykite bent telefoną arba el. paštą, kad valdymo įmonės kontaktai būtų rodomi nuomininkams.</p>
-                      )}
-                    </div>
-                  </Card>
-
-                  {/* Avariniai / papildomi kontaktai */}
-                  <Card title="Papildomi kontaktai" icon={<AlertTriangle className="w-4 h-4 text-amber-500" />}>
-                    <div className="space-y-3">
-                      {/* Contact rows */}
-                      {(settings.contactInfo.customContacts || []).length > 0 ? (
-                        <div className="space-y-2">
-                          {/* Header */}
-                          <div className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2 px-1">
-                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em]">Pavadinimas</span>
-                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em]">Kontaktas</span>
-                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em]">Komentaras</span>
-                            <span />
-                          </div>
-                          {/* Rows */}
-                          {(settings.contactInfo.customContacts || []).map((contact: { id: string; title: string; content: string; comment: string }, index: number) => (
-                            <div key={contact.id} className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2 items-start">
-                              <InputField
-                                value={contact.title}
-                                onChange={(v) => {
-                                  const updated = [...(settings.contactInfo.customContacts || [])];
-                                  updated[index] = { ...updated[index], title: v };
-                                  updateSettings('contactInfo', { customContacts: updated });
-                                }}
-                                placeholder="pvz. Santechnikas"
-                              />
-                              <InputField
-                                value={contact.content}
-                                onChange={(v) => {
-                                  const updated = [...(settings.contactInfo.customContacts || [])];
-                                  updated[index] = { ...updated[index], content: v };
-                                  updateSettings('contactInfo', { customContacts: updated });
-                                }}
-                                placeholder="+370... / el. paštas"
-                              />
-                              <InputField
-                                value={contact.comment}
-                                onChange={(v) => {
-                                  const updated = [...(settings.contactInfo.customContacts || [])];
-                                  updated[index] = { ...updated[index], comment: v };
-                                  updateSettings('contactInfo', { customContacts: updated });
-                                }}
-                                placeholder="Pastaba..."
-                              />
-                              <button
-                                onClick={() => {
-                                  const updated = (settings.contactInfo.customContacts || []).filter((_: any, i: number) => i !== index);
-                                  updateSettings('contactInfo', { customContacts: updated });
-                                }}
-                                className="mt-1.5 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-gray-400 text-center py-3">Nėra pridėtų kontaktų</p>
-                      )}
-
-                      {/* Add button */}
-                      <button
-                        onClick={() => {
-                          const newContact = { id: crypto.randomUUID(), title: '', content: '', comment: '' };
-                          updateSettings('contactInfo', {
-                            customContacts: [...(settings.contactInfo.customContacts || []), newContact]
-                          });
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-semibold text-teal-600 bg-teal-50/60 hover:bg-teal-50 border border-teal-200/50 rounded-lg transition-colors active:scale-[0.98]"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Pridėti kontaktą
-                      </button>
-
-                      <p className="text-[9px] text-gray-400 leading-tight">Pridėkite avarinius, specialistų ar kitus svarbius kontaktus, kuriuos matys nuomininkai</p>
-                    </div>
-                  </Card>
-                </div>
+                <ContactsTab
+                  settings={settings}
+                  updateSettings={updateSettings}
+                  validationErrors={validationErrors}
+                  user={user}
+                  ownerPhone={ownerPhone}
+                  phoneInput={phoneInput}
+                  setPhoneInput={setPhoneInput}
+                  onSavePhone={handleSavePhone}
+                  isSavingPhone={isSavingPhone}
+                  phoneSaved={phoneSaved}
+                  allAddresses={allAddresses}
+                  onCopySettings={copySettingsFrom}
+                />
               )}
-
-              {/* ─── TAB: FINANCIAL ─── */}
               {activeTab === 'financial' && (
-                <div className="space-y-4">
-                  {/* Copy from another address */}
-                  {allAddresses.length > 0 && (
-                    <div className="relative">
-                      <button
-                        onClick={() => setCopyDropdownTab(copyDropdownTab === 'financial' ? null : 'financial')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:text-teal-600 bg-gray-50 hover:bg-teal-50/60 border border-gray-200/60 rounded-lg transition-colors"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        Kopijuoti iš kito adreso
-                        <ChevronDown className={`w-3 h-3 transition-transform ${copyDropdownTab === 'financial' ? 'rotate-180' : ''}`} />
-                      </button>
-                      {copyDropdownTab === 'financial' && (
-                        <div className="absolute z-20 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg py-1">
-                          {allAddresses.map(a => (
-                            <button
-                              key={a.id}
-                              onClick={() => copySettingsFrom(a.id, 'financial')}
-                              className="w-full text-left px-3 py-2 text-[12px] text-gray-700 hover:bg-teal-50 hover:text-teal-700 transition-colors"
-                            >
-                              {a.full_address}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <Card title="Mokėjimo nustatymai" icon={<CreditCard className="w-4 h-4 text-[#2F8481]" />}>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField label="Mokėjimo diena" helperText="Kiekvieną mėnesį iki šios dienos nuomininkas turi sumokėti nuomą">
-                        <InputField
-                          type="number"
-                          value={settings.financialSettings.paymentDay}
-                          onChange={(v) => updateSettings('financialSettings', { paymentDay: parseInt(v) || 15 })}
-                        />
-                      </FormField>
-                      <FormField label="Baudos pradžia" helperText="Po kiek dienų nuo mokėjimo termino pradedama skaičiuoti bauda">
-                        <InputField
-                          type="number"
-                          value={settings.financialSettings.gracePeriodDays}
-                          onChange={(v) => updateSettings('financialSettings', { gracePeriodDays: parseInt(v) || 0 })}
-                          suffix="d."
-                        />
-                      </FormField>
-                      <FormField label="Vėlavimo bauda" helperText="Suma eurais, kuri pridedama už kiekvieną pavėluotą dieną">
-                        <InputField
-                          type="number"
-                          value={settings.financialSettings.latePaymentFee}
-                          onChange={(v) => updateSettings('financialSettings', { latePaymentFee: parseFloat(v) || 0 })}
-                          suffix="€"
-                        />
-                      </FormField>
-                      <FormField label="Depozito politika" helperText="Kiek mėnesių nuomos sumos sudaro depozitas">
-                        <SelectField
-                          value={settings.financialSettings.depositPolicy || '1month'}
-                          onChange={(v) => updateSettings('financialSettings', { depositPolicy: v })}
-                          options={[
-                            { value: '1month', label: '1 mėn. nuoma' },
-                            { value: '2months', label: '2 mėn. nuoma' },
-                            { value: 'custom', label: 'Individuali suma' },
-                          ]}
-                        />
-                      </FormField>
-                      <FormField label="Numatytasis depozitas" helperText="Standartinė depozito suma naujiems nuomininkams">
-                        <InputField
-                          type="number"
-                          value={settings.financialSettings.defaultDeposit}
-                          onChange={(v) => updateSettings('financialSettings', { defaultDeposit: parseFloat(v) || 0 })}
-                          suffix="€"
-                        />
-                      </FormField>
-                      <FormField label="Sutarties trukmė" helperText="Standartinė nuomos sutarties trukmė mėnesiais">
-                        <InputField
-                          type="number"
-                          value={settings.financialSettings.defaultContractDuration}
-                          onChange={(v) => updateSettings('financialSettings', { defaultContractDuration: parseInt(v) || 12 })}
-                          suffix="mėn."
-                        />
-                      </FormField>
-                    </div>
-                  </Card>
-
-                  <Card title="Mokėjimo būdai" icon={<Wallet className="w-4 h-4 text-[#2F8481]" />}>
-                    <p className="text-[11px] text-gray-400 mb-4 leading-relaxed">Nurodykite mokėjimo būdus, kuriuos nuomininkai matys sąskaitoje. Galite įjungti kelis variantus.</p>
-                    <div className="space-y-3">
-                      {/* Bank Transfer */}
-                      <ToggleRow
-                        label="Banko pavedimas"
-                        description="Swedbank, SEB, Luminor, Šiaulių bankas ir kt."
-                        checked={settings.financialSettings.paymentMethods?.bankTransfer?.enabled ?? false}
-                        onChange={(v) => {
-                          const pm = { ...settings.financialSettings.paymentMethods };
-                          pm.bankTransfer = { ...(pm.bankTransfer || {}), enabled: v };
-                          // Auto-migrate existing bankAccount/recipientName if enabling for first time
-                          if (v && !pm.bankTransfer.iban && settings.financialSettings.bankAccount) {
-                            pm.bankTransfer.iban = settings.financialSettings.bankAccount;
-                            pm.bankTransfer.recipientName = settings.financialSettings.recipientName || '';
-                          }
-                          updateSettings('financialSettings', { paymentMethods: pm });
-                        }}
-                      >
-                        <div className="grid grid-cols-2 gap-3">
-                          <FormField label="IBAN" className="col-span-2">
-                            <InputField
-                              value={settings.financialSettings.paymentMethods?.bankTransfer?.iban || ''}
-                              onChange={(v) => {
-                                const pm = { ...settings.financialSettings.paymentMethods };
-                                pm.bankTransfer = { ...(pm.bankTransfer || {}), iban: v };
-                                updateSettings('financialSettings', { paymentMethods: pm, bankAccount: v });
-                              }}
-                              placeholder="LT00 0000 0000 0000 0000"
-                            />
-                          </FormField>
-                          <FormField label="Banko pavadinimas">
-                            <InputField
-                              value={settings.financialSettings.paymentMethods?.bankTransfer?.bankName || ''}
-                              onChange={(v) => {
-                                const pm = { ...settings.financialSettings.paymentMethods };
-                                pm.bankTransfer = { ...(pm.bankTransfer || {}), bankName: v };
-                                updateSettings('financialSettings', { paymentMethods: pm });
-                              }}
-                              placeholder="Swedbank"
-                            />
-                          </FormField>
-                          <FormField label="Gavėjo vardas">
-                            <InputField
-                              value={settings.financialSettings.paymentMethods?.bankTransfer?.recipientName || ''}
-                              onChange={(v) => {
-                                const pm = { ...settings.financialSettings.paymentMethods };
-                                pm.bankTransfer = { ...(pm.bankTransfer || {}), recipientName: v };
-                                updateSettings('financialSettings', { paymentMethods: pm, recipientName: v });
-                              }}
-                              placeholder="Vardas Pavardė"
-                            />
-                          </FormField>
-                          <FormField label="Mokėjimo paskirtis" className="col-span-2">
-                            <InputField
-                              value={settings.financialSettings.paymentPurposeTemplate || ''}
-                              onChange={(v) => updateSettings('financialSettings', { paymentPurposeTemplate: v })}
-                              placeholder="Nuomos mokestis už {period}"
-                            />
-                          </FormField>
-                        </div>
-                      </ToggleRow>
-
-                      {/* Paysera */}
-                      <ToggleRow
-                        label="Paysera"
-                        description="Mokėjimas per Paysera platformą"
-                        checked={settings.financialSettings.paymentMethods?.paysera?.enabled ?? false}
-                        onChange={(v) => {
-                          const pm = { ...settings.financialSettings.paymentMethods };
-                          pm.paysera = { ...(pm.paysera || {}), enabled: v };
-                          updateSettings('financialSettings', { paymentMethods: pm });
-                        }}
-                      >
-                        <FormField label="Paysera el. paštas arba tel. numeris" helperText="Paysera paskyros identifikatorius, kurį nuomininkas matys">
-                          <InputField
-                            value={settings.financialSettings.paymentMethods?.paysera?.account || ''}
-                            onChange={(v) => {
-                              const pm = { ...settings.financialSettings.paymentMethods };
-                              pm.paysera = { ...(pm.paysera || {}), account: v };
-                              updateSettings('financialSettings', { paymentMethods: pm });
-                            }}
-                            placeholder="el.pastas@gmail.com arba +37060000000"
-                          />
-                        </FormField>
-                      </ToggleRow>
-
-                      {/* Revolut */}
-                      <ToggleRow
-                        label="Revolut"
-                        description="Mokėjimas per Revolut programėlę"
-                        checked={settings.financialSettings.paymentMethods?.revolut?.enabled ?? false}
-                        onChange={(v) => {
-                          const pm = { ...settings.financialSettings.paymentMethods };
-                          pm.revolut = { ...(pm.revolut || {}), enabled: v };
-                          updateSettings('financialSettings', { paymentMethods: pm });
-                        }}
-                      >
-                        <FormField label="Revolut vartotojo vardas" helperText="Jūsų @revolut vardas (be @). Nuomininkas galės pervesti per revolut.me nuorodą">
-                          <InputField
-                            value={settings.financialSettings.paymentMethods?.revolut?.tag || ''}
-                            onChange={(v) => {
-                              const pm = { ...settings.financialSettings.paymentMethods };
-                              pm.revolut = { ...(pm.revolut || {}), tag: v.replace('@', '') };
-                              updateSettings('financialSettings', { paymentMethods: pm });
-                            }}
-                            placeholder="vardasp"
-                          />
-                        </FormField>
-                      </ToggleRow>
-
-                      {/* Stripe (cards) */}
-                      <ToggleRow
-                        label="Kortelės (Stripe)"
-                        description="Visa, Mastercard — nuomininkas moka kortele tiesiogiai"
-                        checked={settings.financialSettings.paymentMethods?.stripe?.enabled ?? false}
-                        onChange={(v) => {
-                          const pm = { ...settings.financialSettings.paymentMethods };
-                          pm.stripe = { ...(pm.stripe || {}), enabled: v };
-                          updateSettings('financialSettings', { paymentMethods: pm });
-                        }}
-                      >
-                        <p className="text-[11px] text-gray-400">Stripe mokėjimai veikia automatiškai per jūsų prijungtą Stripe paskyrą. Konfigūruokite Stripe nustatymuose.</p>
-                      </ToggleRow>
-                    </div>
-                  </Card>
-
-                  {/* Auto-renewal toggle */}
-                  <ToggleRow
-                    label="Automatinis sutarties atnaujinimas"
-                    description="Pasibaigus sutarties terminui, automatiškai pratęsti tokiomis pačiomis sąlygomis"
-                    checked={settings.financialSettings.autoRenewalEnabled}
-                    onChange={(v) => updateSettings('financialSettings', { autoRenewalEnabled: v })}
-                  />
-                </div>
+                <FinancialTab
+                  settings={settings}
+                  updateSettings={updateSettings}
+                  allAddresses={allAddresses}
+                  onCopySettings={copySettingsFrom}
+                />
               )}
-
-              {/* ─── TAB: NOTIFICATIONS ─── */}
               {activeTab === 'notifications' && (
-                <div className="space-y-3">
-                  <ToggleRow
-                    label="Mokėjimo priminimai"
-                    description="Automatiškai priminti nuomininkams apie artėjantį mokėjimą"
-                    checked={settings.notificationSettings.rentReminderEnabled}
-                    onChange={(v) => updateSettings('notificationSettings', { rentReminderEnabled: v })}
-                  >
-                    <FormField label="Priminti prieš">
-                      <div className="flex items-center gap-2">
-                        <InputField
-                          type="number"
-                          value={settings.notificationSettings.rentReminderDays}
-                          onChange={(v) => updateSettings('notificationSettings', { rentReminderDays: parseInt(v) || 0 })}
-                        />
-                        <span className="text-sm text-gray-500 whitespace-nowrap">dienų iki mokėjimo</span>
-                      </div>
-                    </FormField>
-                  </ToggleRow>
-
-                  <ToggleRow
-                    label="Vėlavimo pranešimai"
-                    description="Pranešti kai mokėjimas vėluoja"
-                    checked={settings.notificationSettings.latePaymentEnabled}
-                    onChange={(v) => updateSettings('notificationSettings', { latePaymentEnabled: v })}
-                  />
-
-                  <ToggleRow
-                    label="Skaitliukų priminimas"
-                    description="Priminti nuomininkams pateikti skaitliukų rodmenis"
-                    checked={settings.notificationSettings.meterReminderEnabled}
-                    onChange={(v) => updateSettings('notificationSettings', { meterReminderEnabled: v })}
-                  >
-                    <FormField label="Rodmenų pateikimo laikotarpis">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-gray-500 whitespace-nowrap">Nuo</span>
-                        <InputField
-                          type="number"
-                          value={settings.notificationSettings.meterReadingStartDay ?? 20}
-                          onChange={(v) => {
-                            const day = Math.min(28, Math.max(1, parseInt(v) || 20));
-                            updateSettings('notificationSettings', { meterReadingStartDay: day });
-                          }}
-                        />
-                        <span className="text-[11px] text-gray-500 whitespace-nowrap">iki</span>
-                        <InputField
-                          type="number"
-                          value={settings.notificationSettings.meterReadingEndDay ?? 29}
-                          onChange={(v) => {
-                            const day = Math.min(31, Math.max(1, parseInt(v) || 29));
-                            updateSettings('notificationSettings', { meterReadingEndDay: day });
-                          }}
-                        />
-                        <span className="text-[11px] text-gray-500 whitespace-nowrap">mėn. d.</span>
-                      </div>
-                    </FormField>
-                    <FormField label="Priminti prieš">
-                      <div className="flex items-center gap-2">
-                        <InputField
-                          type="number"
-                          value={settings.notificationSettings.meterReminderDays}
-                          onChange={(v) => updateSettings('notificationSettings', { meterReminderDays: parseInt(v) || 0 })}
-                        />
-                        <span className="text-sm text-gray-500 whitespace-nowrap">dienų iki termino</span>
-                      </div>
-                    </FormField>
-                  </ToggleRow>
-
-                  <ToggleRow
-                    label="Sutarties pabaigos pranešimas"
-                    description="Pranešti prieš nustatytą laiką iki sutarties pabaigos"
-                    checked={settings.notificationSettings.contractExpiryEnabled}
-                    onChange={(v) => updateSettings('notificationSettings', { contractExpiryEnabled: v })}
-                  >
-                    <FormField label="Pranešti prieš">
-                      <div className="flex items-center gap-2">
-                        <InputField
-                          type="number"
-                          value={settings.notificationSettings.contractExpiryReminderDays}
-                          onChange={(v) => updateSettings('notificationSettings', { contractExpiryReminderDays: parseInt(v) || 0 })}
-                        />
-                        <span className="text-sm text-gray-500 whitespace-nowrap">dienų</span>
-                      </div>
-                    </FormField>
-                  </ToggleRow>
-
-                  <ToggleRow
-                    label="Techninės priežiūros pranešimai"
-                    description="Gauti pranešimus apie priežiūros užklausas"
-                    checked={settings.notificationSettings.maintenanceNotifications}
-                    onChange={(v) => updateSettings('notificationSettings', { maintenanceNotifications: v })}
-                  />
-
-                  <ToggleRow
-                    label="Nauji dokumentai"
-                    description="Pranešti kai įkeliami nauji dokumentai"
-                    checked={settings.notificationSettings.newDocumentNotifications}
-                    onChange={(v) => updateSettings('notificationSettings', { newDocumentNotifications: v })}
-                  />
-                </div>
+                <NotificationsTab
+                  settings={settings}
+                  updateSettings={updateSettings}
+                />
               )}
-
-              {/* ─── TAB: COMMUNAL ─── */}
               {activeTab === 'communal' && (
-                <div className="space-y-4">
-                  <Card title="Skaitliukų valdymas" icon={<Gauge className="w-4 h-4 text-[#2F8481]" />}>
-                    <MetersTable
-                      meters={addressMeters}
-                      onMetersChange={handleMetersChange}
-                      onMeterUpdate={async (id, updates) => {
-                        try {
-                          const dbUpdates: Record<string, any> = {};
-                          if ('supplier' in updates) dbUpdates.supplier = updates.supplier || null;
-                          if ('price_per_unit' in updates) dbUpdates.price_per_unit = updates.price_per_unit;
-                          if ('fixed_price' in updates) dbUpdates.fixed_price = updates.fixed_price;
-                          if ('distribution_method' in updates) dbUpdates.distribution_method = updates.distribution_method;
-                          if ('name' in updates) dbUpdates.name = updates.name;
-                          if ('type' in updates) dbUpdates.type = updates.type;
-                          if ('unit' in updates) dbUpdates.unit = updates.unit;
-                          if (Object.keys(dbUpdates).length > 0) {
-                            await supabase.from('address_meters').update(dbUpdates).eq('id', id);
-                          }
-                        } catch (e) {
-                          console.error('[AddressSettingsModal] onMeterUpdate error:', e);
-                        }
-                      }}
-                    />
-                  </Card>
-
-                  {/* Tenant history retention */}
-                  <Card title="Nuomininkų istorija" icon={<Users className="w-4 h-4 text-[#2F8481]" />}>
-                    <div className="space-y-3">
-                      <FormField label="Istorijos saugojimo laikotarpis" helperText="Po kiek mėnesių automatiškai pašalinti senus nuomininkų įrašus">
-                        <div className="flex items-center gap-2">
-                          <SelectField
-                            value={String(settings.communalConfig.historyRetentionMonths || 18)}
-                            onChange={(v) => updateSettings('communalConfig', { historyRetentionMonths: parseInt(v) || 18 })}
-                            options={[
-                              { value: '3', label: '3 mėn.' },
-                              { value: '6', label: '6 mėn.' },
-                              { value: '12', label: '1 metai' },
-                              { value: '18', label: '18 mėn.' },
-                            ]}
-                          />
-                        </div>
-                      </FormField>
-                      <p className="text-[9px] text-gray-400 leading-tight">Nuomininkų istorija saugoma kiekvienam butui. Senesnė istorija bus automatiškai ištrinta pagal pasirinktą laikotarpį.</p>
-                    </div>
-                  </Card>
-                </div>
+                <CommunalTab
+                  settings={settings}
+                  updateSettings={updateSettings}
+                  meters={addressMeters}
+                  onMetersChange={handleMetersChange}
+                  onMeterUpdate={handleMeterUpdate}
+                />
               )}
             </>
           )}
         </div>
 
-        {/* ═══ STICKY FOOTER ═══ */}
+        {/* â•â•â• STICKY FOOTER â•â•â• */}
         <div className="relative z-10 flex-shrink-0 flex items-center justify-between px-6 py-3 bg-white/[0.08] backdrop-blur-md border-t border-white/[0.08]">
           <div className="flex items-center gap-3">
             {isDirty && (
@@ -1556,8 +708,9 @@ const AddressSettingsModal: React.FC<AddressSettingsModalProps> = ({
           </div>
         </div>
       </div>
-    </div >
+    </div>
   );
-};
+});
+AddressSettingsModal.displayName = 'AddressSettingsModal';
 
 export default AddressSettingsModal;

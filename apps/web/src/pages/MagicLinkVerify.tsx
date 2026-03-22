@@ -21,7 +21,7 @@ const MagicLinkVerify: React.FC = () => {
       }
 
       try {
-        console.log('🔗 Verifying magic link token:', token);
+        if (import.meta.env.DEV) console.log('🔗 Verifying magic link token:', token);
         const result = await verifyMagicLink(token);
 
         if (result.success) {
@@ -33,7 +33,7 @@ const MagicLinkVerify: React.FC = () => {
           setMessage(result.error || 'Nepavyko patvirtinti nuorodos.');
         }
       } catch (error) {
-        console.error('❌ Error verifying magic link:', error);
+        if (import.meta.env.DEV) console.error('❌ Error verifying magic link:', error);
         setStatus('error');
         setMessage('Klaida patvirtinant nuorodą. Bandykite dar kartą.');
       }

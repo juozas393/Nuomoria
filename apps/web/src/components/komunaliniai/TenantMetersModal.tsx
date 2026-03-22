@@ -109,7 +109,7 @@ export const TenantMetersModal: React.FC<TenantMetersModalProps> = ({
         return newMap;
       });
     } catch (error) {
-      console.error('Error saving row:', error);
+      if (import.meta.env.DEV) console.error('Error saving row:', error);
     }
   }, [onSaveRow]);
 
@@ -121,7 +121,7 @@ export const TenantMetersModal: React.FC<TenantMetersModalProps> = ({
       await onSaveAllChanged(changes);
       setChangedRows(new Map());
     } catch (error) {
-      console.error('Error saving all changes:', error);
+      if (import.meta.env.DEV) console.error('Error saving all changes:', error);
     }
   }, [onSaveAllChanged, changedRows]);
 

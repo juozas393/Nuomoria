@@ -47,7 +47,7 @@ export const performanceTest = {
 
   // Test bundle size (development only)
   measureBundleSize: () => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       const scripts = document.querySelectorAll('script[src]');
       let totalSize = 0;
       

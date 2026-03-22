@@ -32,12 +32,12 @@ const OnboardingWrapper: React.FC = () => {
 
       // Handle 406 errors gracefully (table schema mismatch)
       if (profileError && profileError.code !== 'PGRST116') {
-        console.warn('Profile check error (non-fatal):', profileError);
+        if (import.meta.env.DEV) console.warn('Profile check error (non-fatal):', profileError);
       }
 
-      if (profile) {
-        // Already onboarded -> redirect to dashboard
-        if (profile.role === 'landlord') {
+      if (profile && profile.role && profile.role !== 'pending') {
+        // Already onboarded with a real role -> redirect to dashboard
+        if (profile.role === 'landlord' || profile.role === 'property_manager') {
           navigate('/');
         } else {
           navigate('/tenant');

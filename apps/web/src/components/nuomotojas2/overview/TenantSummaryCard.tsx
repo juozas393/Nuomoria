@@ -18,6 +18,7 @@ interface TenantSummaryCardProps {
     isPrimary?: boolean;
     onAddTenant?: () => void;
     onViewTenant?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
 // =============================================================================
@@ -30,6 +31,7 @@ export const TenantSummaryCard = memo<TenantSummaryCardProps>(({
     isPrimary = false,
     onAddTenant,
     onViewTenant,
+    bgStyle,
 }) => {
     const formatDate = (dateStr?: string): string => {
         if (!dateStr) return '';
@@ -44,7 +46,7 @@ export const TenantSummaryCard = memo<TenantSummaryCardProps>(({
     const secondaryCtaClasses = "flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-primary transition-colors";
 
     return (
-        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full">
+        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full" style={bgStyle}>
             <CardPatternOverlay />
 
             {/* COMPACT: p-2.5 instead of p-4 */}

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logAuditEvent } from './auditLogApi';
 
 // ============================================================
 // TYPES
@@ -116,7 +117,7 @@ export async function generateInvoiceNumber(): Promise<string> {
         .limit(1);
 
     if (error) {
-        console.error('Error generating invoice number:', error);
+        if (import.meta.env.DEV) console.error('Error generating invoice number:', error);
         return `${prefix}001`;
     }
 
@@ -164,7 +165,7 @@ export async function getInvoices(filters?: InvoiceFilters): Promise<{ data: Inv
     const { data, error } = await query;
 
     if (error) {
-        console.error('Error fetching invoices:', error);
+        if (import.meta.env.DEV) console.error('Error fetching invoices:', error);
         return { data: null, error };
     }
 
@@ -258,6 +259,9 @@ export async function createInvoice(invoiceData: CreateInvoiceData): Promise<{ d
         .select()
         .single();
 
+    if (data && !error) {
+        logAuditEvent(invoiceData.property_id, 'invoices', 'INSERT', `Sukurta sąskaita: ${invoiceData.invoice_number || ''} — ${totalAmount.toFixed(2)} €`, { invoice_number: invoiceData.invoice_number, amount: totalAmount, rent_amount: invoiceData.rent_amount }).catch(() => {});
+    }
     return { data: data as Invoice | null, error };
 }
 
@@ -285,6 +289,12 @@ export async function updateInvoiceStatus(
         .update(updateData)
         .eq('id', id);
 
+    if (!error) {
+        // Fetch property_id for audit
+        supabase.from('invoices').select('property_id').eq('id', id).single().then(({ data: inv }) => {
+            if (inv?.property_id) logAuditEvent(inv.property_id, 'invoices', 'UPDATE', `Sąskaitos statusas pakeistas: ${status}`, { status, paid_date: updateData.paid_date }, null, ['status']).catch(() => {});
+        });
+    }
     return { error };
 }
 
@@ -319,6 +329,11 @@ export async function updateInvoice(
         .update(updateData)
         .eq('id', id);
 
+    if (!error) {
+        supabase.from('invoices').select('property_id').eq('id', id).single().then(({ data: inv }) => {
+            if (inv?.property_id) logAuditEvent(inv.property_id, 'invoices', 'UPDATE', 'Atnaujinta sąskaita', updateData, null, Object.keys(updates)).catch(() => {});
+        });
+    }
     return { error };
 }
 
@@ -326,6 +341,9 @@ export async function updateInvoice(
  * Delete an invoice
  */
 export async function deleteInvoice(id: string): Promise<{ error: any }> {
+    // Fetch property_id before deleting
+    const { data: inv } = await supabase.from('invoices').select('property_id, invoice_number').eq('id', id).single();
+
     // First delete associated payments
     await supabase.from('invoice_payments').delete().eq('invoice_id', id);
 
@@ -334,6 +352,9 @@ export async function deleteInvoice(id: string): Promise<{ error: any }> {
         .delete()
         .eq('id', id);
 
+    if (!error && inv?.property_id) {
+        logAuditEvent(inv.property_id, 'invoices', 'DELETE', `Ištrinta sąskaita: ${inv.invoice_number || id}`).catch(() => {});
+    }
     return { error };
 }
 

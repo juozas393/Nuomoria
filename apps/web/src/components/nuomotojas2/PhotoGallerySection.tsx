@@ -125,6 +125,7 @@ interface PhotoGallerySectionProps {
     onSetCover?: (index: number) => void;
     isVacant?: boolean;
     isLoading?: boolean;
+    bgStyle?: React.CSSProperties;
 }
 
 // ============================================================================
@@ -313,6 +314,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
     onSetCover,
     isVacant = true,
     isLoading = false,
+    bgStyle,
 }) => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -510,7 +512,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
     // Loading state
     if (isLoading) {
         return (
-            <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm" style={cardStyle}>
+            <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm" style={bgStyle || cardStyle}>
                 <div className="p-4 border-b border-gray-50">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-gray-100 rounded-lg animate-pulse" />
@@ -528,7 +530,7 @@ export const PhotoGallerySection: React.FC<PhotoGallerySectionProps> = ({
     }
 
     return (
-        <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm" style={cardStyle}>
+        <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm" style={bgStyle || cardStyle}>
             {/* Header */}
             <div className="p-4 border-b border-gray-50">
                 <div className="flex items-center justify-between">

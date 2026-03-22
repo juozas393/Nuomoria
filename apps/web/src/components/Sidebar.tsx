@@ -20,6 +20,7 @@ import {
 import type { UserWithPermissions } from '../types/user';
 import logoImage from '../assets/logocanvBLACKWithoutBG.png';
 import { ROUTE_PRELOAD_MAP } from '../routePreload';
+import { useAgentPermissions } from '../hooks/useAgentPermissions';
 
 // Track which routes have already been preloaded to avoid duplicate imports
 const preloadedRoutes = new Set<string>();
@@ -58,6 +59,7 @@ interface NavGroup {
 // eslint-disable-next-line react/prop-types
 const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPage, onPageChange, user }) => {
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const { permissions: agentPerms } = useAgentPermissions();
 
   // Check if user is admin
   const isAdmin = user?.role === 'admin';
@@ -146,6 +148,7 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
     }
 
     // Landlord / admin navigation
+    const isAgent = user?.role === 'property_manager';
     return [
       {
         title: 'PAGRINDINIS',
@@ -156,28 +159,31 @@ const Sidebar: React.FC<SidebarProps> = React.memo(({ isOpen, onClose, currentPa
       {
         title: 'TURTAS',
         items: [
-          { name: 'Nekilnojamas turtas', page: 'turtas', icon: BuildingOfficeIcon },
+          // Agents can't manage addresses — only landlords
+          ...(!isAgent ? [{ name: 'Nekilnojamas turtas', page: 'turtas', icon: BuildingOfficeIcon }] : []),
           { name: 'Butai', page: 'butai', icon: HomeModernIcon },
-          { name: 'Nuomininkai', page: 'nuomininkai', icon: UsersIcon }
+          { name: 'Nuomininkai', page: 'nuomininkai', icon: UsersIcon },
+          // Agents can't manage other agents — only landlords
+          ...(!isAgent ? [{ name: 'Agentai', page: 'agentai', icon: UserIcon }] : [])
         ]
       },
       {
         title: 'OPERACIJOS',
         items: [
-          { name: 'Sąskaitos', page: 'saskaitos', icon: DocumentTextIcon },
-          { name: 'Remontas', page: 'remontas', icon: WrenchScrewdriverIcon }
+          ...(!isAgent || agentPerms.can_view_invoices ? [{ name: 'Sąskaitos', page: 'saskaitos', icon: DocumentTextIcon }] : []),
+          ...(!isAgent || agentPerms.can_view_maintenance ? [{ name: 'Remontas', page: 'remontas', icon: WrenchScrewdriverIcon }] : [])
         ]
       },
-      {
+      ...(!isAgent ? [{
         title: 'ANALITIKA',
         items: [
           { name: 'Ataskaitos', page: 'analitika', icon: ChartBarIcon }
         ]
-      },
+      }] : []),
       {
         title: 'SISTEMA',
         items: [
-          { name: 'Nustatymai', page: 'nustatymai', icon: CogIcon },
+          ...(!isAgent ? [{ name: 'Nustatymai', page: 'nustatymai', icon: CogIcon }] : []),
           { name: 'Profilis', page: 'profilis', icon: UserCircleIcon },
           { name: 'Pagalba', page: 'pagalba', icon: QuestionMarkCircleIcon }
         ]

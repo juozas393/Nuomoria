@@ -28,6 +28,7 @@ interface KomunaliniaiTabProps {
     onSettings?: () => void;
     onSaveReadings?: (readings: { meterId: string; value: number; previousReading?: number }[]) => Promise<void>;
     onSavePreviousReadings?: (updates: { meterId: string; previousReading: number }[]) => Promise<void>;
+    bgStyle?: React.CSSProperties;
 }
 
 const MONTHS = ['Sausis', 'Vasaris', 'Kovas', 'Balandis', 'Gegužė', 'Birželis', 'Liepa', 'Rugpjūtis', 'Rugsėjis', 'Spalis', 'Lapkritis', 'Gruodis'];
@@ -207,7 +208,7 @@ const EmptyState: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => (
 // MAIN COMPONENT
 // =============================================================================
 
-export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, addressId, meters, dueDate, rent, tenantName, apartmentNumber, paymentDueDay, onAddMeter, onCollectReadings, onExport, onSettings, onSaveReadings, onSavePreviousReadings }) => {
+export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, addressId, meters, dueDate, rent, tenantName, apartmentNumber, paymentDueDay, onAddMeter, onCollectReadings, onExport, onSettings, onSaveReadings, onSavePreviousReadings, bgStyle }) => {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
@@ -289,7 +290,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
     // - Overlay hook's period-aware previousReading/currentReading on top of legacy data
     // - Legacy meters serve as fallback structure, hook provides period-specific readings
     const baseMeters = useMemo(() => {
-        console.log(`[KomunaliniaiTab] baseMeters decision:`, {
+        if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] baseMeters decision:`, {
             hookMetersCount: hook.meters.length,
             legacyMetersCount: meters.length,
             addressId,
@@ -319,7 +320,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         if (prevPeriodRef.current !== periodKey) {
             prevPeriodRef.current = periodKey;
             setMeterOverrides({});
-            console.log(`[KomunaliniaiTab] Period changed to ${year}-${month + 1}, cleared overrides`);
+            if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] Period changed to ${year}-${month + 1}, cleared overrides`);
         }
     }, [periodKey, year, month]);
 
@@ -376,7 +377,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
             ...prev,
             [meterId]: { status: 'ok', currentReading: reading }
         }));
-        console.log(`[KomunaliniaiTab] Approved meter ${meterId} with reading ${reading}`);
+        if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] Approved meter ${meterId} with reading ${reading}`);
     }, []);
 
     // Reject reading - delete from DB, change local status back to 'missing'
@@ -385,7 +386,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         try {
             await hook.deleteReading(meterId);
         } catch (e) {
-            console.error('[KomunaliniaiTab] Failed to delete reading on reject:', e);
+            if (import.meta.env.DEV) console.error('[KomunaliniaiTab] Failed to delete reading on reject:', e);
         }
         // Update local state
         setMeterOverrides(prev => ({
@@ -394,7 +395,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         }));
         // Refetch to sync
         hook.refetch();
-        console.log(`[KomunaliniaiTab] Rejected meter ${meterId} — deleted from DB`);
+        if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] Rejected meter ${meterId} — deleted from DB`);
     }, [hook]);
 
     // Update previous reading
@@ -406,7 +407,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 previousReading: value
             }
         }));
-        console.log(`[KomunaliniaiTab] Updated previous reading for meter ${meterId} to ${value}`);
+        if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] Updated previous reading for meter ${meterId} to ${value}`);
     }, []);
 
     // History panel handler + delete reading + confirm abnormal
@@ -438,9 +439,9 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                     delete next[meterId];
                     return next;
                 });
-                console.log(`[KomunaliniaiTab] ✅ Deleted reading for meter ${meterId}`);
+                if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] ✅ Deleted reading for meter ${meterId}`);
             } else {
-                console.error(`[KomunaliniaiTab] ❌ Failed to delete reading for meter ${meterId}`);
+                if (import.meta.env.DEV) console.error(`[KomunaliniaiTab] ❌ Failed to delete reading for meter ${meterId}`);
             }
         }
     }, [activeMeters, hook, clearDraft]);
@@ -453,9 +454,9 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
     // Actual send logic — called from send confirmation modal
     const executeSendReadings = useCallback(async () => {
         setShowSendConfirm(false);
-        console.log('[KomunaliniaiTab] executeSendReadings, addressId:', addressId, 'propertyId:', propertyId);
+        if (import.meta.env.DEV) console.log('[KomunaliniaiTab] executeSendReadings, addressId:', addressId, 'propertyId:', propertyId);
         if (!addressId) {
-            console.warn('[KomunaliniaiTab] No addressId — cannot send notifications');
+            if (import.meta.env.DEV) console.warn('[KomunaliniaiTab] No addressId — cannot send notifications');
             return;
         }
         try {
@@ -523,7 +524,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
 
             const { error } = await supabase.from('notifications').insert(notifications);
             if (error) {
-                console.error('[KomunaliniaiTab] Failed to send notifications:', error);
+                if (import.meta.env.DEV) console.error('[KomunaliniaiTab] Failed to send notifications:', error);
                 return;
             }
 
@@ -543,7 +544,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 });
             } catch { /* non-blocking */ }
         } catch (e) {
-            console.error('[KomunaliniaiTab] Error requesting readings:', e);
+            if (import.meta.env.DEV) console.error('[KomunaliniaiTab] Error requesting readings:', e);
         }
     }, [addressId, propertyId, year, month, activeMeters]);
 
@@ -563,7 +564,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         const metersWithReadings = activeMeters.filter(m => m.status !== 'missing' && m.currentReading != null).map(m => m.id);
         const clearedMeterIds = getClearedMeterIds(metersWithReadings);
 
-        console.log(`[KomunaliniaiTab] handleSave called:`, {
+        if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] handleSave called:`, {
             dirtyCount: dirtyValues.length,
             prevCount: prevReadingUpdates.length,
             clearedCount: clearedMeterIds.length,
@@ -573,7 +574,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
         });
 
         if (dirtyValues.length === 0 && prevReadingUpdates.length === 0 && clearedMeterIds.length === 0) {
-            console.log('[KomunaliniaiTab] Nothing to save or delete, aborting');
+            if (import.meta.env.DEV) console.log('[KomunaliniaiTab] Nothing to save or delete, aborting');
             return;
         }
 
@@ -583,7 +584,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 // ====================================================
                 // DB-BACKED MODE: Save ALL changes via hook.saveReading
                 // ====================================================
-                console.log('[KomunaliniaiTab] DB-backed save mode');
+                if (import.meta.env.DEV) console.log('[KomunaliniaiTab] DB-backed save mode');
 
                 // Build a unified set of meters to save
                 const metersToSave = new Map<string, { currentReading: number | null; previousReading: number | null }>();
@@ -620,23 +621,23 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 // Save each meter via hook
                 let savedCount = 0;
                 for (const [meterId, values] of metersToSave) {
-                    console.log(`[KomunaliniaiTab] Saving meter ${meterId}: current=${values.currentReading}, prev=${values.previousReading}`);
+                    if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] Saving meter ${meterId}: current=${values.currentReading}, prev=${values.previousReading}`);
                     const success = await hook.saveReading(meterId, values.currentReading, values.previousReading);
                     if (success) savedCount++;
-                    console.log(`[KomunaliniaiTab] ${success ? '✅' : '❌'} meter ${meterId}`);
+                    if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] ${success ? '✅' : '❌'} meter ${meterId}`);
                 }
 
                 // Delete cleared meters from DB (previous_reading is carry-forward from prior month)
                 for (const meterId of clearedMeterIds) {
                     if (!metersToSave.has(meterId)) {
-                        console.log(`[KomunaliniaiTab] Deleting cleared meter ${meterId}`);
+                        if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] Deleting cleared meter ${meterId}`);
                         await hook.deleteReading(meterId);
                     }
                 }
 
                 // Refetch to get updated data from DB
                 await hook.refetch();
-                console.log(`[KomunaliniaiTab] Refetch complete. Saved ${savedCount}/${metersToSave.size}, deleted ${clearedMeterIds.length}`);
+                if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] Refetch complete. Saved ${savedCount}/${metersToSave.size}, deleted ${clearedMeterIds.length}`);
 
                 // Clear all local state — hook.meters now has fresh DB data
                 clearAllDrafts();
@@ -645,7 +646,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 // ====================================================
                 // LEGACY MODE: Use parent callbacks
                 // ====================================================
-                console.log('[KomunaliniaiTab] Legacy save mode');
+                if (import.meta.env.DEV) console.log('[KomunaliniaiTab] Legacy save mode');
 
                 if (onSaveReadings && dirtyValues.length > 0) {
                     await onSaveReadings(dirtyValues);
@@ -679,9 +680,9 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                 clearAllDrafts();
             }
 
-            console.log(`[KomunaliniaiTab] ✅ Save complete for period ${year}-${month + 1}`);
+            if (import.meta.env.DEV) console.log(`[KomunaliniaiTab] ✅ Save complete for period ${year}-${month + 1}`);
         } catch (e) {
-            console.error('[KomunaliniaiTab] ❌ Error saving readings:', e);
+            if (import.meta.env.DEV) console.error('[KomunaliniaiTab] ❌ Error saving readings:', e);
         } finally {
             setIsSaving(false);
         }
@@ -811,6 +812,7 @@ export const KomunaliniaiTab: React.FC<KomunaliniaiTabProps> = ({ propertyId, ad
                     missingCount={counts.missing} onEnterAll={handleEnterAll} dueDate={computedDueDate}
                     footerLeft={`${filteredMeters.length} skaitikliai`}
                     footerRight={`Rodoma: ${filteredMeters.length} iš ${activeMeters.length}`}
+                    bgStyle={bgStyle}
                 >
                     {filteredMeters.length > 0 ? (
                         <table className="w-full">

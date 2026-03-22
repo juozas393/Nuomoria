@@ -206,7 +206,7 @@ const Dashboard: React.FC = () => {
         setProperties([]);
         setTenants([]);
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        if (import.meta.env.DEV) console.error('Error loading dashboard data:', error);
       } finally {
         setLoading(false);
       }

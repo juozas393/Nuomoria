@@ -48,7 +48,7 @@ export const MeterHistoryPanel: React.FC<MeterHistoryPanelProps> = ({
                 const data = await fetchHistory(meterId, 12);
                 setHistory(data);
             } catch (e) {
-                console.error('[MeterHistoryPanel] Error:', e);
+                if (import.meta.env.DEV) console.error('[MeterHistoryPanel] Error:', e);
             } finally {
                 setIsLoading(false);
             }

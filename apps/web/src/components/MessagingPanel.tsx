@@ -44,7 +44,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
             const data = await messagesApi.getMyConversations();
             setConversations(data);
         } catch (err) {
-            console.error('Error loading conversations:', err);
+            if (import.meta.env.DEV) console.error('Error loading conversations:', err);
         }
     }, []);
 
@@ -54,7 +54,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
             const count = await messagesApi.getUnreadCount();
             setUnreadCount(count);
         } catch (err) {
-            console.error('Error loading unread count:', err);
+            if (import.meta.env.DEV) console.error('Error loading unread count:', err);
         }
     }, []);
 
@@ -74,7 +74,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
             await messagesApi.markAsRead(conversationId);
             loadUnreadCount();
         } catch (err) {
-            console.error('Error loading messages:', err);
+            if (import.meta.env.DEV) console.error('Error loading messages:', err);
         } finally {
             setLoading(false);
         }
@@ -112,7 +112,7 @@ const MessagingPanel: React.FC<MessagingPanelProps> = ({
             await messagesApi.sendMessage(selectedConversation.id, content);
             // Message will appear via realtime subscription
         } catch (err) {
-            console.error('Error sending message:', err);
+            if (import.meta.env.DEV) console.error('Error sending message:', err);
             setNewMessage(content); // Restore on error
         }
     };

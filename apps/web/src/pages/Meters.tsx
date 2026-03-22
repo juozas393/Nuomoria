@@ -122,22 +122,22 @@ const sampleMeters: Meter[] = [
 
 export default function MetersPage() {
   const handleReadingSubmit = (meterId: string, reading: number) => {
-    console.log(`Submitting reading for meter ${meterId}: ${reading}`);
+    if (import.meta.env.DEV) console.log(`Submitting reading for meter ${meterId}: ${reading}`);
     // Here you would typically save to database
   };
 
   const handlePhotoUpload = (meterId: string) => {
-    console.log(`Uploading photo for meter ${meterId}`);
+    if (import.meta.env.DEV) console.log(`Uploading photo for meter ${meterId}`);
     // Here you would typically open photo upload modal
   };
 
   const handleHistoryView = (meterId: string) => {
-    console.log(`Viewing history for meter ${meterId}`);
+    if (import.meta.env.DEV) console.log(`Viewing history for meter ${meterId}`);
     // Here you would typically open history modal
   };
 
   const handleCollectAll = () => {
-    console.log("Collecting all readings");
+    if (import.meta.env.DEV) console.log("Collecting all readings");
     // Here you would typically trigger bulk collection
   };
 

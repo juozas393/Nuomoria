@@ -146,7 +146,7 @@ export function useTenantDashboard(tenantUserId: string) {
             });
 
         } catch (error: any) {
-            console.error('Error fetching tenant dashboard:', error);
+            if (import.meta.env.DEV) console.error('Error fetching tenant dashboard:', error);
             setData(prev => ({
                 ...prev,
                 loading: false,

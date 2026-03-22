@@ -240,7 +240,7 @@ const getCustomTemplatesKey = () => {
   const userId = getCurrentUserId();
   if (!userId) {
     // If still no user ID, warn — this shouldn't happen in normal usage
-    console.warn('[meterTemplates] No user ID available for template scoping');
+    if (import.meta.env.DEV) console.warn('[meterTemplates] No user ID available for template scoping');
   }
   return userId ? `nuomoria_custom_meter_templates_${userId}` : 'nuomoria_custom_meter_templates';
 };

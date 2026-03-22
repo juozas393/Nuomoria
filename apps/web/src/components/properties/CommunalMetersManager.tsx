@@ -136,7 +136,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
           setMeters(defaultMeters);
         }
       } catch (error) {
-        console.error('Error loading communal meters:', error);
+        if (import.meta.env.DEV) console.error('Error loading communal meters:', error);
         // Fallback to defaults
         const defaultMeters: CommunalMeter[] = DEFAULT_METERS.map((meter, index) => ({
           ...meter,
@@ -181,7 +181,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
       };
       setMeters(prev => [...prev, newMeter]);
     } catch (error) {
-      console.error('Error adding meter:', error);
+      if (import.meta.env.DEV) console.error('Error adding meter:', error);
       throw error;
     }
   }, [addressId]);
@@ -208,7 +208,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
           : meter
       ));
     } catch (error) {
-      console.error('Error updating meter:', error);
+      if (import.meta.env.DEV) console.error('Error updating meter:', error);
       throw error;
     }
   }, []);
@@ -219,7 +219,7 @@ export const CommunalMetersManager: React.FC<CommunalMetersManagerProps> = ({
       setMeters(prev => prev.filter(meter => meter.id !== id));
       setExpenses(prev => prev.filter(expense => expense.meter_id !== id));
     } catch (error) {
-      console.error('Error deleting meter:', error);
+      if (import.meta.env.DEV) console.error('Error deleting meter:', error);
       throw error;
     }
   }, []);

@@ -18,6 +18,7 @@ export interface User {
   last_name: string;
   phone?: string;
   avatar_url?: string;  // Profile photo URL
+  welcome_completed?: boolean;
   role: UserRole;
   is_active: boolean;
   last_login?: string;

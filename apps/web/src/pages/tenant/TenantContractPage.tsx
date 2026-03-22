@@ -502,7 +502,7 @@ const TenantContractPage: React.FC = () => {
                     .maybeSingle();
 
                 if (fetchErr) {
-                    console.error('Error fetching contract:', fetchErr);
+                    if (import.meta.env.DEV) console.error('Error fetching contract:', fetchErr);
                 }
                 setContract(data as ContractInfo | null);
 
@@ -515,7 +515,7 @@ const TenantContractPage: React.FC = () => {
                         .maybeSingle();
 
                     if (propErr) {
-                        console.error('Error fetching property details:', propErr);
+                        if (import.meta.env.DEV) console.error('Error fetching property details:', propErr);
                     } else if (propData) {
                         // Fetch address info
                         let addressInfo = null;
@@ -531,7 +531,7 @@ const TenantContractPage: React.FC = () => {
                     }
                 }
             } catch (err) {
-                console.error('Error:', err);
+                if (import.meta.env.DEV) console.error('Error:', err);
             } finally {
                 setIsLoading(false);
             }
@@ -629,7 +629,7 @@ const TenantContractPage: React.FC = () => {
             setShowTerminateForm(false);
         } catch (err) {
             setError('Klaida — bandykite dar kartą');
-            console.error(err);
+            if (import.meta.env.DEV) console.error(err);
         } finally {
             setIsSubmitting(false);
         }
@@ -691,7 +691,7 @@ const TenantContractPage: React.FC = () => {
             setSuccess('Nutraukimo prašymas atšauktas.');
         } catch (err) {
             setError('Klaida — bandykite dar kartą');
-            console.error(err);
+            if (import.meta.env.DEV) console.error(err);
         } finally {
             setIsCancelling(false);
         }

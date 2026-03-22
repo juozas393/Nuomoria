@@ -129,7 +129,7 @@ export const AddressPanelContent: React.FC<AddressPanelContentProps> = ({
                     })));
                 }
             } catch (error) {
-                console.error('Error loading address data:', error);
+                if (import.meta.env.DEV) console.error('Error loading address data:', error);
             } finally {
                 setIsLoading(false);
             }

@@ -15,6 +15,7 @@ export interface ActivityItem {
 interface RecentActivityCardProps {
     activities: ActivityItem[];
     onViewAll?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
 // =============================================================================
@@ -52,13 +53,14 @@ const formatRelativeTime = (date: Date): string => {
 export const RecentActivityCard = memo<RecentActivityCardProps>(({
     activities,
     onViewAll,
+    bgStyle,
 }) => {
     // Show max 3 activities
     const displayActivities = activities.slice(0, 3);
     const isEmpty = activities.length === 0;
 
     return (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden" style={bgStyle}>
             {/* Header */}
             <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">

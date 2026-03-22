@@ -11,6 +11,7 @@ interface KPIStatTileProps {
     label: string;
     value?: string | number | null;
     emptyLabel?: string;
+    bgStyle?: React.CSSProperties;
 }
 
 // =============================================================================
@@ -22,13 +23,14 @@ export const KPIStatTile = memo<KPIStatTileProps>(({
     label,
     value,
     emptyLabel = 'Nenustatyta',
+    bgStyle,
 }) => {
     const hasValue = value !== null && value !== undefined && value !== '';
     const displayValue = hasValue ? value : emptyLabel;
 
     return (
         <div className={`relative bg-white border rounded-xl shadow-sm overflow-hidden p-3 ${hasValue ? 'border-gray-200' : 'border-amber-200/50'
-            }`}>
+            }`} style={bgStyle}>
             <CardPatternOverlay />
 
             <div className="relative">
@@ -62,57 +64,65 @@ KPIStatTile.displayName = 'KPIStatTile';
 
 interface RentTileProps {
     rent?: number;
+    bgStyle?: React.CSSProperties;
 }
 
-export const RentTile = memo<RentTileProps>(({ rent }) => (
+export const RentTile = memo<RentTileProps>(({ rent, bgStyle }) => (
     <KPIStatTile
         icon={Euro}
         label="Nuoma/mėn"
         value={rent ? `€${rent}` : null}
         emptyLabel="Nenustatyta"
+        bgStyle={bgStyle}
     />
 ));
 RentTile.displayName = 'RentTile';
 
 interface DepositTileProps {
     deposit?: number;
+    bgStyle?: React.CSSProperties;
 }
 
-export const DepositTile = memo<DepositTileProps>(({ deposit }) => (
+export const DepositTile = memo<DepositTileProps>(({ deposit, bgStyle }) => (
     <KPIStatTile
         icon={Euro}
         label="Užstatas"
         value={deposit ? `€${deposit}` : null}
         emptyLabel="Nenustatyta"
+        bgStyle={bgStyle}
     />
 ));
 DepositTile.displayName = 'DepositTile';
 
 interface MetersTileProps {
     count: number;
+    bgStyle?: React.CSSProperties;
 }
 
-export const MetersTile = memo<MetersTileProps>(({ count }) => (
+export const MetersTile = memo<MetersTileProps>(({ count, bgStyle }) => (
     <KPIStatTile
         icon={Droplets}
         label="Skaitikliai"
         value={count > 0 ? count : null}
         emptyLabel="Nėra"
+        bgStyle={bgStyle}
     />
 ));
 MetersTile.displayName = 'MetersTile';
 
 interface DocumentsTileProps {
     count: number;
+    bgStyle?: React.CSSProperties;
 }
 
-export const DocumentsTile = memo<DocumentsTileProps>(({ count }) => (
+export const DocumentsTile = memo<DocumentsTileProps>(({ count, bgStyle }) => (
     <KPIStatTile
         icon={FileText}
         label="Dokumentai"
         value={count > 0 ? count : null}
         // RULE 5: Correct grammar
         emptyLabel="Nėra dokumentų"
+        bgStyle={bgStyle}
     />
 ));
 DocumentsTile.displayName = 'DocumentsTile';

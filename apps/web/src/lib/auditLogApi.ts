@@ -36,6 +36,7 @@ const FIELD_LABELS: Record<string, string> = {
     phone: 'Telefonas',
     email: 'El. paštas',
     extended_details: 'Nuomos nustatymai',
+    // Extended details sub-fields
     'extended_details.payment_due_day': 'Mokėjimo diena',
     'extended_details.min_term_months': 'Min. terminas',
     'extended_details.late_fee_grace_days': 'Baudos pradžia',
@@ -50,6 +51,12 @@ const FIELD_LABELS: Record<string, string> = {
     'extended_details.smoking_allowed': 'Rūkymas',
     'extended_details.notes_internal': 'Vidinės pastabos',
     'extended_details.storage': 'Sandėliukas',
+    // Maintenance sub-fields
+    'extended_details.maintenance_start': 'Remonto pradžia',
+    'extended_details.maintenance_end': 'Remonto pabaiga',
+    'extended_details.maintenance_description': 'Remonto aprašymas',
+    'extended_details.maintenance_notify_days': 'Pranešimo dienos',
+    'extended_details.maintenance_notified_at': 'Pranešta',
     deposit_paid: 'Depozitas sumokėtas',
     deposit_paid_amount: 'Depozito suma',
     // Termination
@@ -62,6 +69,31 @@ const FIELD_LABELS: Record<string, string> = {
     deposit_return_amount: 'Grąžinamas depozitas',
     deposit_deduction_amount: 'Depozito išskaita',
     deposit_deduction_reason: 'Išskaitos priežastis',
+    // Invoice fields
+    amount: 'Suma',
+    rent_amount: 'Nuomos suma',
+    utilities_amount: 'Komunalinių suma',
+    invoice_number: 'Sąskaitos nr.',
+    invoice_date: 'Sąskaitos data',
+    due_date: 'Mokėjimo terminas',
+    paid_date: 'Apmokėjimo data',
+    period_start: 'Laikotarpio pradžia',
+    period_end: 'Laikotarpio pabaiga',
+    // Meter fields
+    name: 'Pavadinimas',
+    value: 'Rodmuo',
+    reading_date: 'Skaitymo data',
+    price_per_unit: 'Kaina už vienetą',
+    is_active: 'Aktyvus',
+    // Invitation fields
+    code: 'Kvietimo kodas',
+    full_name: 'Vardas',
+    expires_at: 'Galiojimo pabaiga',
+    responded_at: 'Atsakymo data',
+    // Photo fields
+    photo_url: 'Nuotrauka',
+    is_cover: 'Viršelis',
+    display_order: 'Rodymo tvarka',
 };
 
 // Value translations (English → Lithuanian)
@@ -105,11 +137,18 @@ const TABLE_LABELS: Record<string, string> = {
     properties: 'Būstas',
     tenant_invitations: 'Pakvietimas',
     property_documents: 'Dokumentas',
+    property_photos: 'Nuotrauka',
     invoices: 'Sąskaita',
     meters: 'Skaitiklis',
+    apartment_meters: 'Skaitiklis',
+    address_meters: 'Adreso Skaitiklis',
     meter_readings: 'Rodmuo',
     users: 'Vartotojas',
     tenant_history: 'Istorija',
+    stripe_accounts: 'Stripe paskyra',
+    notifications: 'Pranešimas',
+    addresses: 'Adresas',
+    address_settings: 'Adreso nustatymai',
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -196,28 +235,48 @@ export function generateDisplayDescription(
     oldData: Record<string, any> | null,
     newData: Record<string, any> | null,
 ): string {
-    const allFields = (changedFields || []);
+    // If no changed_fields but we have old/new data, compute diff
+    let allFields = changedFields || [];
+    if (allFields.length === 0 && oldData && newData) {
+        allFields = computeChangedFields(oldData, newData);
+    }
     if (allFields.length === 0) return 'Atnaujinti duomenys';
+
+    // Expand 'extended_details' into sub-field diffs
+    const expandedFields: string[] = [];
+    for (const field of allFields) {
+        if (field === 'extended_details' && oldData && newData) {
+            const oldExt = oldData.extended_details || {};
+            const newExt = newData.extended_details || {};
+            const subKeys = new Set([...Object.keys(oldExt), ...Object.keys(newExt)]);
+            for (const sk of subKeys) {
+                if (JSON.stringify(oldExt[sk]) !== JSON.stringify(newExt[sk])) {
+                    expandedFields.push(`extended_details.${sk}`);
+                }
+            }
+        } else {
+            expandedFields.push(field);
+        }
+    }
 
     const parts: string[] = [];
 
-    for (const field of allFields) {
+    for (const field of expandedFields) {
         // Skip technical/internal fields
         if (SKIP_FIELDS.has(field)) continue;
 
-        // Skip unknown fields (label same as raw name + contains underscore or dot)
         const label = getFieldLabel(field);
+        // Skip unknown fields (label same as raw name + contains underscore or dot)
         if (label === field && (field.includes('_') || field.includes('.'))) continue;
 
         const oldVal = getFieldValue(oldData, field);
         const newVal = getFieldValue(newData, field);
 
-        // Skip objects (extended_details as whole object)
+        // Skip objects (but extended_details sub-fields are already expanded above)
         if (typeof oldVal === 'object' && oldVal !== null && !Array.isArray(oldVal)) continue;
         if (typeof newVal === 'object' && newVal !== null && !Array.isArray(newVal)) continue;
 
         // Skip if newData doesn't contain this field AND values are same
-        // (field only appears because it exists in old_data full row)
         if (!fieldExistsInData(newData, field) && newVal === undefined) continue;
 
         // Skip if values are actually identical
@@ -238,12 +297,11 @@ export function generateDisplayDescription(
         } else if (hasNew) {
             parts.push(`${label}: ${formatValue(field, newVal)}`);
         } else if (hasOld) {
-            // Value was removed — only show if it's a meaningful field
             parts.push(`${label}: pašalinta`);
         }
 
-        // Max 4 items in description
-        if (parts.length >= 4) break;
+        // Max 5 items in description
+        if (parts.length >= 5) break;
     }
 
     return parts.length > 0 ? parts.join(' · ') : 'Atnaujinti duomenys';
@@ -299,7 +357,7 @@ export async function logPropertyChange(
             description: autoDesc,
         });
     } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
             console.error('Audit log error:', err);
         }
     }
@@ -314,7 +372,7 @@ export async function getPropertyAuditLog(propertyId: string, limit = 50): Promi
         .limit(limit);
 
     if (error) {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
             console.error('Error fetching audit log:', error);
         }
         return [];

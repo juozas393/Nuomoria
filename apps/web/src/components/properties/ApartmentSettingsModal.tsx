@@ -279,7 +279,7 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                         }));
                     }
                 } catch (err) {
-                    console.error('Error loading property details:', err);
+                    if (import.meta.env.DEV) console.error('Error loading property details:', err);
                 }
             };
             loadDates();
@@ -373,7 +373,7 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
             await onSave(updates);
             onClose();
         } catch (error) {
-            console.error('Error saving apartment settings:', error);
+            if (import.meta.env.DEV) console.error('Error saving apartment settings:', error);
         } finally {
             setIsSaving(false);
         }
@@ -412,7 +412,7 @@ const ApartmentSettingsModal: React.FC<ApartmentSettingsModalProps> = ({
                             </div>
                             <div>
                                 <h2 className="text-lg font-semibold text-white">
-                                    Butas {property.apartment_number || '—'}
+                                    {property.apartment_number || '—'}
                                 </h2>
                                 <p className="text-xs text-white/50">{property.address || 'Adresas nenurodytas'}</p>
                             </div>

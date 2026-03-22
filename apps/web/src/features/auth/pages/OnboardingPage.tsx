@@ -51,7 +51,7 @@ const IconTarget = ({ className = 'w-4 h-4' }: { className?: string }) => (
 const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) => {
   const [step, setStep] = useState<Step>('welcome');
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState<'landlord' | 'tenant' | ''>('');
+  const [role, setRole] = useState<'landlord' | 'tenant' | 'property_manager' | ''>('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [error, setError] = useState('');
@@ -61,6 +61,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
 
   const STEPS: readonly Step[] = useMemo(() => {
     if (role === 'landlord') return [...ALL_STEPS];
+    // Tenants and agents skip Stripe step
     return ALL_STEPS.filter(s => s !== 'stripe');
   }, [role]);
 
@@ -103,10 +104,11 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
   const handleProfileSubmit = async () => {
     setError(''); setLoading(true);
     try {
-      const { error: pe } = await supabase.from('profiles').insert({
+      const { error: pe } = await supabase.from('profiles').upsert({
         id: userId, email: userEmail, username: username.toLowerCase(), role,
-      });
+      }, { onConflict: 'id' });
       if (pe) {
+        if (import.meta.env.DEV) console.error('Profile upsert error:', pe);
         if (pe.message.includes('duplicate key') || pe.message.includes('unique')) {
           setError('Šis vartotojo vardas jau užimtas'); go('username');
         } else { setError('Nepavyko sukurti profilio. Bandykite dar kartą.'); }
@@ -119,6 +121,10 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
       if (role === 'landlord') {
         // Landlord goes to Stripe step
         go('stripe');
+      } else if (role === 'property_manager') {
+        // Agent goes straight to complete → landlord dashboard
+        go('complete');
+        setTimeout(() => { window.location.href = '/dashboard'; }, 3000);
       } else {
         // Tenant goes straight to complete
         go('complete');
@@ -291,7 +297,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
                     <div className="space-y-2.5 mb-8">
                       {[
                         { step: 1, icon: <IconPencil className="w-5 h-5 text-teal-400" />, title: 'Pasirinksite unikalų vardą', desc: 'Jūsų tapatybė platformoje' },
-                        { step: 2, icon: <IconTarget className="w-5 h-5 text-teal-400" />, title: 'Nurodysite paskyros tipą', desc: 'Nuomotojas arba nuomininkas' },
+                        { step: 2, icon: <IconTarget className="w-5 h-5 text-teal-400" />, title: 'Nurodysite paskyros tipą', desc: 'Nuomotojas, nuomininkas arba agentas' },
                       ].map(item => (
                         <div key={item.step} className="flex items-center gap-4 rounded-2xl px-4 py-3.5 border transition-colors duration-200"
                           style={{
@@ -323,6 +329,17 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                       </svg>
+                    </button>
+
+                    {/* Sign out link */}
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signOut();
+                        window.location.href = '/login';
+                      }}
+                      className="mt-3 w-full text-center text-white/25 text-[11px] hover:text-white/50 transition-colors"
+                    >
+                      Atsijungti ir grįžti
                     </button>
 
                     <p className="text-white/15 text-[11px] mt-5 flex items-center justify-center gap-1.5">
@@ -535,6 +552,42 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
                           </div>
                         </div>
                       </button>
+
+                      {/* Agent card */}
+                      <button type="button" onClick={() => setRole('property_manager')}
+                        className={`w-full text-left rounded-2xl border-2 transition-all duration-250 p-[18px] ${role === 'property_manager'
+                          ? 'border-teal-500/70 bg-teal-500/[0.07] shadow-[0_0_40px_rgba(20,184,166,.1)]'
+                          : 'border-white/[0.05] bg-white/[0.015] hover:border-white/[0.1] hover:bg-white/[0.03]'
+                          }`}>
+                        <div className="flex items-start gap-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${role === 'property_manager' ? 'bg-teal-500/15' : 'bg-white/[0.04]'
+                            }`}>
+                            <svg className={`w-6 h-6 transition-colors duration-200 ${role === 'property_manager' ? 'text-teal-400' : 'text-white/25'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.4}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.59-5.59m0 0L12 4.5m-6.17 5.08L12 15.5m0 0l6.17-5.08M12 15.5V21m0 0h4.5m-4.5 0H7.5m4.5-6l6.17-5.08M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0 pt-0.5">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className={`text-[15px] font-semibold transition-colors ${role === 'property_manager' ? 'text-white' : 'text-white/65'}`}>
+                                Agentas
+                              </h3>
+                              <div className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all duration-200 ${role === 'property_manager' ? 'border-teal-500 bg-teal-500' : 'border-white/15'
+                                }`}>
+                                {role === 'property_manager' && <CheckIcon className="w-2.5 h-2.5 text-white" />}
+                              </div>
+                            </div>
+                            <p className={`text-[12px] leading-relaxed transition-colors ${role === 'property_manager' ? 'text-white/45' : 'text-white/25'}`}>
+                              Prižiūrėkite butus kelių nuomotojų vardu — skaitikliai, nuomininkai ir priežiūra vienoje vietoje.
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mt-2.5">
+                              {['Kelių nuomotojų butai', 'Skaitikliai', 'Priežiūra', 'Nuomininkai'].map(t => (
+                                <span key={t} className={`text-[10px] px-2 py-[3px] rounded-lg transition-colors ${role === 'property_manager' ? 'bg-teal-500/10 text-teal-400/80' : 'bg-white/[0.03] text-white/20'
+                                  }`}>{t}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
                     </div>
 
                     {error && (
@@ -678,7 +731,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
 
                     <h2 className="text-[24px] font-bold text-white mb-1.5 tracking-tight">Viskas paruošta!</h2>
                     <p className="text-white/40 text-[14px] mb-7">
-                      Paskyra sukonfigūruota. Nukreipiame į {role === 'landlord' ? 'valdymo pultą' : 'nuomininko sritį'}...
+                      Paskyra sukonfigūruota. Nukreipiame į {role === 'tenant' ? 'nuomininko sritį' : 'valdymo pultą'}...
                     </p>
                     {/* Auto-redirect */}
 
@@ -702,7 +755,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userEmail, userId }) =>
                       <div className="flex items-center gap-2.5 pt-3.5 border-t border-white/[0.05]">
                         <div className="flex items-center gap-1.5">
                           <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                          <span className="text-white/50 text-[12px] font-medium">{role === 'landlord' ? 'Nuomotojas' : 'Nuomininkas'}</span>
+                          <span className="text-white/50 text-[12px] font-medium">{role === 'landlord' ? 'Nuomotojas' : role === 'property_manager' ? 'Agentas' : 'Nuomininkas'}</span>
                         </div>
                         <span className="text-white/15 text-[12px]">•</span>
                         <span className="text-white/30 text-[12px]">Paskyra aktyvi</span>

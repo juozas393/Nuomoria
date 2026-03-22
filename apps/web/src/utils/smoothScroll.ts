@@ -18,7 +18,7 @@ export const smoothScrollTo = (
     : target;
 
   if (!targetElement) {
-    console.warn('Target element not found for smooth scroll');
+    if (import.meta.env.DEV) console.warn('Target element not found for smooth scroll');
     return;
   }
 

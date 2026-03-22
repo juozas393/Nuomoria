@@ -11,7 +11,7 @@ export async function setupDemoUserAddresses(userId: string, userEmail: string):
     const existingAddresses = await userApi.getUserAddresses(userId);
     
     if (existingAddresses.length > 0) {
-      console.log('User already has addresses assigned:', existingAddresses.length);
+      if (import.meta.env.DEV) console.log('User already has addresses assigned:', existingAddresses.length);
       return;
     }
 
@@ -19,7 +19,7 @@ export async function setupDemoUserAddresses(userId: string, userEmail: string):
     const allAddresses = await addressApi.getAll();
     
     if (allAddresses.length === 0) {
-      console.log('No addresses found in database');
+      if (import.meta.env.DEV) console.log('No addresses found in database');
       return;
     }
 
@@ -62,14 +62,14 @@ export async function setupDemoUserAddresses(userId: string, userEmail: string):
     for (const assignment of addressesToAssign) {
       try {
         await userApi.addUserToAddress(userId, assignment.addressId, assignment.role);
-        console.log(`Assigned ${userEmail} to address ${assignment.addressId} as ${assignment.role}`);
+        if (import.meta.env.DEV) console.log(`Assigned ${userEmail} to address ${assignment.addressId} as ${assignment.role}`);
       } catch (error) {
-        console.warn(`Failed to assign address ${assignment.addressId}:`, error);
+        if (import.meta.env.DEV) console.warn(`Failed to assign address ${assignment.addressId}:`, error);
       }
     }
 
-    console.log(`Successfully assigned ${addressesToAssign.length} addresses to ${userEmail}`);
+    if (import.meta.env.DEV) console.log(`Successfully assigned ${addressesToAssign.length} addresses to ${userEmail}`);
   } catch (error) {
-    console.error('Error setting up demo user addresses:', error);
+    if (import.meta.env.DEV) console.error('Error setting up demo user addresses:', error);
   }
 }

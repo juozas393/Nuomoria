@@ -93,7 +93,7 @@ export const MeterRow: React.FC<MeterRowProps> = React.memo(({
       setInputValue('');
       onValueChange(meter.id, undefined);
     } catch (error) {
-      console.error('Error saving reading:', error);
+      if (import.meta.env.DEV) console.error('Error saving reading:', error);
     } finally {
       setIsSaving(false);
     }

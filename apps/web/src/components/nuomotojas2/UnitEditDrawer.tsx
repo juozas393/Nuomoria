@@ -419,7 +419,7 @@ export const UnitEditDrawer: React.FC<UnitEditDrawerProps> = ({
             });
             onClose();
         } catch (error) {
-            console.error('Error saving property:', error);
+            if (import.meta.env.DEV) console.error('Error saving property:', error);
         } finally {
             setIsSaving(false);
         }

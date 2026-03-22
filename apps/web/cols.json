@@ -1,0 +1,25 @@
+{
+  "cols": [
+    "id",
+    "email",
+    "first_name",
+    "last_name",
+    "phone",
+    "role",
+    "is_active",
+    "email_verified",
+    "last_login",
+    "created_at",
+    "updated_at",
+    "password_reset_token",
+    "password_reset_expires",
+    "google_linked",
+    "google_email",
+    "nickname",
+    "avatar_url",
+    "status",
+    "deleted_at",
+    "purge_after",
+    "last_seen"
+  ]
+}

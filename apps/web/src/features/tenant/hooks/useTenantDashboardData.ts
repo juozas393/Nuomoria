@@ -264,7 +264,7 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                     .eq('status', 'accepted');
 
                 if (invError) {
-                    console.error('Error fetching invitations:', invError);
+                    if (import.meta.env.DEV) console.error('Error fetching invitations:', invError);
                 }
 
                 const myInvitations = invitations?.filter(inv =>
@@ -294,7 +294,7 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
                     ]);
 
                     const properties = propertiesResult.data;
-                    if (propertiesResult.error) console.error('Error fetching properties:', propertiesResult.error);
+                    if (propertiesResult.error) if (import.meta.env.DEV) console.error('Error fetching properties:', propertiesResult.error);
 
                     // Build landlord lookup map
                     let landlordMap: Record<string, { name: string; email: string; phone: string }> = {};
@@ -525,7 +525,7 @@ export function useTenantDashboardData(userId: string): TenantDashboardData {
             }
 
         } catch (err: any) {
-            console.error('Error fetching tenant dashboard data:', err);
+            if (import.meta.env.DEV) console.error('Error fetching tenant dashboard data:', err);
             setError(err.message || 'Nepavyko gauti duomenų');
         } finally {
             setLoading(false);

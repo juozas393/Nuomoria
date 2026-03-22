@@ -19,12 +19,12 @@ import { createTenantHistoryRecord } from '../../lib/tenantHistoryApi';
 import { calculateDepositReturn, type DepositCalculation } from '../../utils/depositCalculator';
 import LtDateInput from '../ui/LtDateInput';
 
-/* ─── Design tokens (dark glass theme — ptSurface) ─── */
-const ptSurface = 'bg-white/[0.08] backdrop-blur-md border border-white/[0.12] rounded-xl overflow-hidden';
-const ptHeading = 'text-[13px] font-bold text-white';
-const ptSub = 'text-[11px] text-gray-400';
-const ptTiny = 'text-[9px] text-gray-500';
-const ptInput = 'w-full px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-[13px] text-white placeholder-gray-500 focus:ring-1 focus:ring-teal-500/40 transition-all hover:bg-white/[0.08]';
+/* ─── Design tokens (light theme — matching app cards) ─── */
+const ptSurface = 'bg-white border border-neutral-200 rounded-2xl overflow-hidden';
+const ptHeading = 'text-[13px] font-bold text-neutral-800';
+const ptSub = 'text-[11px] text-neutral-500';
+const ptTiny = 'text-[9px] text-neutral-400';
+const ptInput = 'w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-[13px] text-neutral-800 placeholder-neutral-400 focus:ring-1 focus:ring-teal-500/40 focus:border-teal-500 transition-all hover:bg-neutral-100';
 
 /* ─── Types ─── */
 interface Deduction {
@@ -50,6 +50,7 @@ interface TerminationData {
 interface ContractTerminationSectionProps {
     propertyId: string;
     onTerminationChange?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
 /* ─── Helpers ─── */
@@ -66,72 +67,74 @@ const formatCurrency = (amount: number | null) => {
 /* ─── Status badge ─── */
 const StatusBadge = memo<{ status: string }>(({ status }) => {
     const configs: Record<string, { label: string; bgClass: string }> = {
-        tenant_requested: { label: 'Nuomininkas prašo nutraukti', bgClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-        landlord_requested: { label: 'Jūs inicijuojate nutraukimą', bgClass: 'bg-red-500/20 text-red-300 border-red-500/30' },
-        confirmed: { label: 'Patvirtinta', bgClass: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-        terminated: { label: 'Nutraukta', bgClass: 'bg-gray-500/20 text-gray-300 border-gray-500/30' },
+        tenant_requested: { label: 'Nuomininkas prašo nutraukti', bgClass: 'bg-amber-50 text-amber-700 border-amber-200' },
+        landlord_requested: { label: 'Jūs inicijuojate nutraukimą', bgClass: 'bg-red-50 text-red-700 border-red-200' },
+        confirmed: { label: 'Patvirtinta', bgClass: 'bg-blue-50 text-blue-700 border-blue-200' },
+        terminated: { label: 'Nutraukta', bgClass: 'bg-neutral-100 text-neutral-600 border-neutral-200' },
     };
-    const cfg = configs[status] || { label: status, bgClass: 'bg-gray-500/20 text-gray-300 border-gray-500/30' };
+    const cfg = configs[status] || { label: status, bgClass: 'bg-neutral-100 text-neutral-500 border-neutral-200' };
     return <span className={`inline-flex items-center px-2 py-0.5 text-[9px] font-semibold rounded-full border ${cfg.bgClass}`}>{cfg.label}</span>;
 });
 StatusBadge.displayName = 'StatusBadge';
 
-/* ─── Deposit Mini Preview (dark glass themed) ─── */
+/* ─── Deposit Mini Preview (light theme) ─── */
 const DepositMiniPreview = memo<{ calc: DepositCalculation; deposit: number; contractEnd?: string | null }>(({ calc, deposit, contractEnd }) => {
     const bgClass = calc.isFullReturn
-        ? 'bg-emerald-500/10 border-emerald-500/20'
+        ? 'bg-emerald-50 border-emerald-200'
         : calc.isFullForfeit
-            ? 'bg-red-500/10 border-red-500/20'
-            : 'bg-amber-500/10 border-amber-500/20';
+            ? 'bg-red-50 border-red-200'
+            : 'bg-amber-50 border-amber-200';
 
-    const accentColor = calc.isFullReturn ? 'text-emerald-400' : calc.isFullForfeit ? 'text-red-400' : 'text-amber-400';
+    const accentColor = calc.isFullReturn ? 'text-emerald-600' : calc.isFullForfeit ? 'text-red-600' : 'text-amber-600';
 
     return (
         <div className={`p-4 rounded-xl border ${bgClass} space-y-3`}>
             <div className="flex items-center gap-2">
                 <Euro className={`w-4 h-4 ${accentColor}`} />
-                <span className="text-[12px] font-bold text-white">Depozito skaičiavimas</span>
+                <span className="text-[12px] font-bold text-neutral-800">Depozito skaičiavimas</span>
             </div>
             <div className="space-y-2 ml-6">
                 {contractEnd && (
                     <div className="flex justify-between">
-                        <span className="text-[11px] text-gray-400">Sutarties pabaiga:</span>
-                        <span className="text-[11px] font-medium text-white">{formatDate(contractEnd)}</span>
+                        <span className="text-[11px] text-neutral-500">Sutarties pabaiga:</span>
+                        <span className="text-[11px] font-medium text-neutral-800">{formatDate(contractEnd)}</span>
                     </div>
                 )}
                 <div className="flex justify-between">
-                    <span className="text-[11px] text-gray-400">Scenarijus:</span>
-                    <span className="text-[11px] font-medium text-white">{calc.scenarioLabel}</span>
+                    <span className="text-[11px] text-neutral-500">Scenarijus:</span>
+                    <span className="text-[11px] font-medium text-neutral-800">{calc.scenarioLabel}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-[11px] text-gray-400">Pranešimo dienų:</span>
-                    <span className={`text-[11px] font-bold ${calc.noticeDays >= 30 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <span className="text-[11px] text-neutral-500">Pranešimo dienų:</span>
+                    <span className={`text-[11px] font-bold ${calc.noticeDays >= 30 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {calc.noticeDays} d.
                     </span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-[11px] text-gray-400">Depozitas:</span>
-                    <span className="text-[11px] font-medium text-white">{formatCurrency(deposit)}</span>
+                    <span className="text-[11px] text-neutral-500">Depozitas:</span>
+                    <span className="text-[11px] font-medium text-neutral-800">{formatCurrency(deposit)}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-[11px] text-gray-400">Grąžinama:</span>
+                    <span className="text-[11px] text-neutral-500">Grąžinama:</span>
                     <span className={`text-[11px] font-bold ${accentColor}`}>{formatCurrency(calc.returnAmount)}</span>
                 </div>
                 {calc.deductionAmount > 0 && (
                     <div className="flex justify-between">
-                        <span className="text-[11px] text-gray-400">Išskaičiuojama:</span>
-                        <span className="text-[11px] font-bold text-red-400">{formatCurrency(calc.deductionAmount)}</span>
+                        <span className="text-[11px] text-neutral-500">Išskaičiuojama:</span>
+                        <span className="text-[11px] font-bold text-red-600">{formatCurrency(calc.deductionAmount)}</span>
                     </div>
                 )}
             </div>
-            <p className="text-[10px] text-gray-500 ml-6">{calc.deductionReason}</p>
+            {calc.deductionReason && (
+                <p className="text-[10px] text-neutral-400 ml-6">{calc.deductionReason}</p>
+            )}
         </div>
     );
 });
 DepositMiniPreview.displayName = 'DepositMiniPreview';
 
 /* ─── Main Component ─── */
-const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ propertyId, onTerminationChange }) => {
+const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ propertyId, onTerminationChange, bgStyle }) => {
     const [data, setData] = useState<TerminationData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showLandlordTerminate, setShowLandlordTerminate] = useState(false);
@@ -158,7 +161,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     .maybeSingle();
 
                 if (error) {
-                    console.error('Error fetching termination data:', error);
+                    if (import.meta.env.DEV) console.error('Error fetching termination data:', error);
                     setData(null);
                 } else if (inv) {
                     // Fetch actual rent/deposit from properties table (invitation values may be null)
@@ -202,7 +205,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     setData(null);
                 }
             } catch (err) {
-                console.error('Error:', err);
+                if (import.meta.env.DEV) console.error('Error:', err);
             } finally {
                 setIsLoading(false);
             }
@@ -625,7 +628,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
     if (isLoading) {
         return (
             <div className={`${ptSurface} p-4 flex items-center gap-2`}>
-                <Loader2 className="w-4 h-4 text-teal-400 animate-spin" />
+                <Loader2 className="w-4 h-4 text-teal-600 animate-spin" />
                 <span className={ptSub}>Kraunama sutarties informacija...</span>
             </div>
         );
@@ -637,11 +640,11 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
     const minDateStr = minDate.toISOString().split('T')[0];
 
     return (
-        <div className={`${ptSurface} p-4`}>
+        <div className={`${ptSurface} p-4 bg-cover bg-center`} style={bgStyle}>
             {/* Header */}
             <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
                 </div>
                 <div className="flex-1">
                     <p className={ptHeading}>Sutarties nutraukimas</p>
@@ -651,38 +654,38 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
 
             {/* Action message */}
             {actionMsg && (
-                <div className={`mb-3 flex items-center gap-2 p-2 rounded-lg ${actionMsg.startsWith('Klaida') ? 'bg-red-500/15 border border-red-500/20' : 'bg-emerald-500/15 border border-emerald-500/20'}`}>
-                    {actionMsg.startsWith('Klaida') ? <XCircle className="w-3.5 h-3.5 text-red-400" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                    <span className={`text-[10px] font-medium ${actionMsg.startsWith('Klaida') ? 'text-red-300' : 'text-emerald-300'}`}>{actionMsg}</span>
+                <div className={`mb-3 flex items-center gap-2 p-2 rounded-lg ${actionMsg.startsWith('Klaida') ? 'bg-red-50 border border-red-200' : 'bg-emerald-50 border border-emerald-200'}`}>
+                    {actionMsg.startsWith('Klaida') ? <XCircle className="w-3.5 h-3.5 text-red-600" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                    <span className={`text-[10px] font-medium ${actionMsg.startsWith('Klaida') ? 'text-red-600' : 'text-emerald-600'}`}>{actionMsg}</span>
                 </div>
             )}
 
             {/* TENANT REQUESTED — show confirm/reject with deposit info */}
             {data.termination_status === 'tenant_requested' && (
                 <div className="space-y-3">
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
                         <div className="flex items-center gap-2 mb-2">
-                            <Clock className="w-4 h-4 text-amber-400" />
-                            <span className="text-[11px] font-semibold text-amber-300">Nuomininkas prašo nutraukti sutartį</span>
+                            <Clock className="w-4 h-4 text-amber-600" />
+                            <span className="text-[11px] font-semibold text-amber-700">Nuomininkas prašo nutraukti sutartį</span>
                         </div>
                         <div className="space-y-2 ml-6">
                             <div className="flex justify-between">
-                                <span className="text-[11px] text-gray-400">El. paštas:</span>
-                                <span className="text-[11px] font-medium text-white">{data.tenant_email}</span>
+                                <span className="text-[11px] text-neutral-500">El. paštas:</span>
+                                <span className="text-[11px] font-medium text-neutral-800">{data.tenant_email}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-[11px] text-gray-400">Pageidaujama data:</span>
-                                <span className="text-[11px] font-medium text-white">{formatDate(data.termination_date)}</span>
+                                <span className="text-[11px] text-neutral-500">Pageidaujama data:</span>
+                                <span className="text-[11px] font-medium text-neutral-800">{formatDate(data.termination_date)}</span>
                             </div>
                             {data.termination_reason && (
                                 <div className="flex justify-between">
-                                    <span className="text-[11px] text-gray-400">Priežastis:</span>
-                                    <span className="text-[11px] font-medium text-white">{data.termination_reason}</span>
+                                    <span className="text-[11px] text-neutral-500">Priežastis:</span>
+                                    <span className="text-[11px] font-medium text-neutral-800">{data.termination_reason}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
-                                <span className="text-[11px] text-gray-400">Pateikta:</span>
-                                <span className="text-[11px] font-medium text-white">{formatDate(data.termination_requested_at)}</span>
+                                <span className="text-[11px] text-neutral-500">Pateikta:</span>
+                                <span className="text-[11px] font-medium text-neutral-800">{formatDate(data.termination_requested_at)}</span>
                             </div>
                         </div>
                     </div>
@@ -696,17 +699,17 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     {(data.deposit ?? 0) > 0 && (
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-medium text-gray-400">Papildomi išskaitymai</span>
+                                <span className="text-[11px] font-medium text-neutral-500">Papildomi išskaitymai</span>
                                 <button
                                     onClick={addDeduction}
-                                    className="flex items-center gap-1 px-2 py-1 bg-white/[0.06] border border-white/[0.10] text-[10px] font-medium text-gray-300 rounded-lg hover:bg-white/[0.10] hover:text-white transition-all active:scale-[0.98]"
+                                    className="flex items-center gap-1 px-2 py-1 bg-neutral-50 border border-neutral-200 text-[10px] font-medium text-neutral-500 rounded-lg hover:bg-neutral-100 hover:text-neutral-800 transition-all active:scale-[0.98]"
                                 >
                                     <Plus className="w-3 h-3" />
                                     Pridėti
                                 </button>
                             </div>
                             {deductions.length === 0 && (
-                                <p className="text-[10px] text-gray-500 italic">Nėra papildomų išskaitymų (pvz., valymas, remontai, čiužinio keitimas)</p>
+                                <p className="text-[10px] text-neutral-400 italic">Nėra papildomų išskaitymų (pvz., valymas, remontai, čiužinio keitimas)</p>
                             )}
                             {deductions.map((d, i) => (
                                 <div key={i} className="flex items-center gap-2">
@@ -727,11 +730,11 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                                             step="0.01"
                                             className={`${ptInput} !py-1.5 !text-[11px] !pr-6 text-right`}
                                         />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-500">€</span>
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-neutral-400">€</span>
                                     </div>
                                     <button
                                         onClick={() => removeDeduction(i)}
-                                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/15 rounded-lg transition-colors"
+                                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                     >
                                         <Trash2 className="w-3 h-3" />
                                     </button>
@@ -742,12 +745,12 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
 
                     {/* Final editable return amount for confirm flow */}
                     {requestDepositCalc && (data.deposit ?? 0) > 0 && (
-                        <div className="p-3 rounded-xl border bg-white/[0.04] border-white/[0.08] space-y-2">
+                        <div className="p-3 rounded-xl border bg-neutral-50 border-neutral-200 space-y-2">
                             <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-bold text-gray-300">Grąžinama depozito suma</span>
+                                <span className="text-[11px] font-bold text-neutral-500">Grąžinama depozito suma</span>
                                 <button
                                     onClick={() => setCustomReturnAmount(null)}
-                                    className="text-[9px] text-teal-400 hover:text-teal-300 transition-colors"
+                                    className="text-[9px] text-teal-600 hover:text-teal-600 transition-colors"
                                 >
                                     Atstatyti rekomenduojamą
                                 </button>
@@ -762,9 +765,9 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                                     step="0.01"
                                     className={`${ptInput} !pr-8 text-right !text-[13px] !font-bold`}
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400">€</span>
                             </div>
-                            <p className="text-[9px] text-gray-500">
+                            <p className="text-[9px] text-neutral-400">
                                 Rekomenduojama: {formatCurrency(requestDepositCalc.returnAmount)}{deductionsTotal > 0 ? ` − ${formatCurrency(deductionsTotal)} išskaitymai = ${formatCurrency(adjustedRequestReturn)}` : ''}
                             </p>
                         </div>
@@ -783,7 +786,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                         <button
                             onClick={handleRejectTermination}
                             disabled={isSubmitting || isRejecting}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] text-gray-300 text-[10px] font-medium rounded-lg hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30 transition-all active:scale-[0.98] disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-neutral-200 text-neutral-600 text-[10px] font-medium rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all active:scale-[0.98] disabled:opacity-50"
                         >
                             {isRejecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
                             Atmesti
@@ -795,25 +798,25 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
             {/* LANDLORD REQUESTED — show status + actions */}
             {(data.termination_status === 'landlord_requested' || data.termination_status === 'confirmed') && (
                 <div className="space-y-3">
-                    <div className={`p-3 ${data.termination_status === 'confirmed' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-red-500/10 border-red-500/20'} border rounded-xl`}>
-                        <p className={`text-[11px] font-semibold ${data.termination_status === 'confirmed' ? 'text-blue-400' : 'text-red-400'}`}>
+                    <div className={`p-3 ${data.termination_status === 'confirmed' ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'} border rounded-xl`}>
+                        <p className={`text-[11px] font-semibold ${data.termination_status === 'confirmed' ? 'text-blue-600' : 'text-red-600'}`}>
                             {data.termination_status === 'confirmed' ? 'Nutraukimas patvirtintas' : 'Jūs inicijuojate sutarties nutraukimą'}
                         </p>
                         <div className="mt-2 space-y-2">
                             <div className="flex justify-between">
-                                <span className="text-[11px] text-gray-400">Išsikėlimo data:</span>
-                                <span className={`text-[11px] font-bold ${data.termination_status === 'confirmed' ? 'text-blue-400' : 'text-red-400'}`}>{formatDate(data.termination_date)}</span>
+                                <span className="text-[11px] text-neutral-500">Išsikėlimo data:</span>
+                                <span className={`text-[11px] font-bold ${data.termination_status === 'confirmed' ? 'text-blue-600' : 'text-red-600'}`}>{formatDate(data.termination_date)}</span>
                             </div>
                             {data.termination_reason && (
                                 <div className="flex justify-between">
-                                    <span className="text-[11px] text-gray-400">Priežastis:</span>
-                                    <span className="text-[11px] text-white">{data.termination_reason}</span>
+                                    <span className="text-[11px] text-neutral-500">Priežastis:</span>
+                                    <span className="text-[11px] text-neutral-800">{data.termination_reason}</span>
                                 </div>
                             )}
                             {data.termination_confirmed_at && (
                                 <div className="flex justify-between">
-                                    <span className="text-[11px] text-gray-400">Patvirtinta:</span>
-                                    <span className="text-[11px] text-white">{formatDate(data.termination_confirmed_at)}</span>
+                                    <span className="text-[11px] text-neutral-500">Patvirtinta:</span>
+                                    <span className="text-[11px] text-neutral-800">{formatDate(data.termination_confirmed_at)}</span>
                                 </div>
                             )}
                         </div>
@@ -832,7 +835,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                         <button
                             onClick={handleCancelTermination}
                             disabled={isSubmitting || isRejecting}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] text-gray-300 text-[10px] font-medium rounded-lg hover:bg-white/[0.08] hover:text-white transition-all active:scale-[0.98] disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-neutral-200 text-neutral-600 text-[10px] font-medium rounded-lg hover:bg-neutral-100 hover:text-neutral-800 transition-all active:scale-[0.98] disabled:opacity-50"
                         >
                             {isRejecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowLeft className="w-3 h-3" />}
                             Atšaukti nutraukimą
@@ -843,17 +846,17 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
 
             {/* TERMINATED */}
             {data.termination_status === 'terminated' && (
-                <div className="p-3 bg-gray-500/10 border border-gray-500/20 rounded-xl">
-                    <p className="text-[11px] font-semibold text-gray-300">Sutartis nutraukta</p>
+                <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl">
+                    <p className="text-[11px] font-semibold text-neutral-500">Sutartis nutraukta</p>
                     <div className="mt-2 space-y-2">
                         <div className="flex justify-between">
-                            <span className="text-[11px] text-gray-400">Išsikėlimo data:</span>
-                            <span className="text-[11px] text-white">{formatDate(data.termination_date)}</span>
+                            <span className="text-[11px] text-neutral-500">Išsikėlimo data:</span>
+                            <span className="text-[11px] text-neutral-800">{formatDate(data.termination_date)}</span>
                         </div>
                         {data.termination_reason && (
                             <div className="flex justify-between">
-                                <span className="text-[11px] text-gray-400">Priežastis:</span>
-                                <span className="text-[11px] text-white">{data.termination_reason}</span>
+                                <span className="text-[11px] text-neutral-500">Priežastis:</span>
+                                <span className="text-[11px] text-neutral-800">{data.termination_reason}</span>
                             </div>
                         )}
                     </div>
@@ -879,7 +882,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                     ) : (
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-[10px] font-medium text-gray-400 mb-1">
+                                <label className="block text-[10px] font-medium text-neutral-500 mb-1">
                                     Išsikėlimo data *
                                 </label>
                                 <LtDateInput
@@ -888,7 +891,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                                     min={minDateStr}
                                     className={ptInput}
                                 />
-                                <p className="text-[10px] text-gray-400 mt-1">Pasirinkite nuo šiandienos. Jei pranešta mažiau nei 30 d. — depozitas gali būti negrąžintas.</p>
+                                <p className="text-[10px] text-neutral-500 mt-1">Pasirinkite nuo šiandienos. Jei pranešta mažiau nei 30 d. — depozitas gali būti negrąžintas.</p>
                             </div>
 
                             {/* Deposit preview for landlord-initiated */}
@@ -899,17 +902,17 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                             {/* Custom deductions */}
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-medium text-gray-400">Papildomi išskaitymai</span>
+                                    <span className="text-[11px] font-medium text-neutral-500">Papildomi išskaitymai</span>
                                     <button
                                         onClick={addDeduction}
-                                        className="flex items-center gap-1 px-2 py-1 bg-white/[0.06] border border-white/[0.10] text-[10px] font-medium text-gray-300 rounded-lg hover:bg-white/[0.10] hover:text-white transition-all active:scale-[0.98]"
+                                        className="flex items-center gap-1 px-2 py-1 bg-neutral-50 border border-neutral-200 text-[10px] font-medium text-neutral-500 rounded-lg hover:bg-neutral-100 hover:text-neutral-800 transition-all active:scale-[0.98]"
                                     >
                                         <Plus className="w-3 h-3" />
                                         Pridėti
                                     </button>
                                 </div>
                                 {deductions.length === 0 && (
-                                    <p className="text-[10px] text-gray-500 italic">Nėra papildomų išskaitymų (pvz., valymas, remontai, čiužinio keitimas)</p>
+                                    <p className="text-[10px] text-neutral-400 italic">Nėra papildomų išskaitymų (pvz., valymas, remontai, čiužinio keitimas)</p>
                                 )}
                                 {deductions.map((d, i) => (
                                     <div key={i} className="flex items-center gap-2">
@@ -930,11 +933,11 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                                                 step="0.01"
                                                 className={`${ptInput} !py-1.5 !text-[11px] !pr-6 text-right`}
                                             />
-                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-500">€</span>
+                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-neutral-400">€</span>
                                         </div>
                                         <button
                                             onClick={() => removeDeduction(i)}
-                                            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/15 rounded-lg transition-colors"
+                                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         >
                                             <Trash2 className="w-3 h-3" />
                                         </button>
@@ -944,12 +947,12 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
 
                             {/* Final editable return amount — AFTER deductions */}
                             {landlordDepositCalc && (
-                                <div className="p-3 rounded-xl border bg-white/[0.04] border-white/[0.08] space-y-2">
+                                <div className="p-3 rounded-xl border bg-neutral-50 border-neutral-200 space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-gray-300">Galutinė grąžinama suma</span>
+                                        <span className="text-[11px] font-bold text-neutral-500">Galutinė grąžinama suma</span>
                                         <button
                                             onClick={() => setCustomReturnAmount(null)}
-                                            className="text-[9px] text-teal-400 hover:text-teal-300 transition-colors"
+                                            className="text-[9px] text-teal-600 hover:text-teal-600 transition-colors"
                                         >
                                             Atstatyti rekomenduojamą
                                         </button>
@@ -964,16 +967,16 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                                             step="0.01"
                                             className={`${ptInput} !pr-8 text-right !text-[13px] !font-bold`}
                                         />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400">€</span>
                                     </div>
-                                    <p className="text-[9px] text-gray-500">
+                                    <p className="text-[9px] text-neutral-400">
                                         Rekomenduojama: {formatCurrency(landlordDepositCalc.returnAmount)}{deductionsTotal > 0 ? ` − ${formatCurrency(deductionsTotal)} išskaitymai = ${formatCurrency(adjustedReturn)}` : ''}
                                     </p>
                                 </div>
                             )}
 
                             <div>
-                                <label className="block text-[10px] font-medium text-gray-400 mb-1">
+                                <label className="block text-[10px] font-medium text-neutral-500 mb-1">
                                     Priežastis (neprivaloma)
                                 </label>
                                 <textarea
@@ -985,9 +988,9 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                                 />
                             </div>
 
-                            <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                                <Info className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-amber-300">
+                            <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                                <Info className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-amber-700">
                                     Nuomininkas gaus pranešimą apie sutarties nutraukimą.
                                 </p>
                             </div>
@@ -1003,7 +1006,7 @@ const ContractTerminationSection = memo<ContractTerminationSectionProps>(({ prop
                                 </button>
                                 <button
                                     onClick={() => { setShowLandlordTerminate(false); setLandlordDate(''); setLandlordReason(''); }}
-                                    className="px-3 py-1.5 text-[10px] font-medium text-gray-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors"
+                                    className="px-3 py-1.5 text-[10px] font-medium text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 rounded-lg transition-colors"
                                 >
                                     Atšaukti
                                 </button>

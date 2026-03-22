@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logAuditEvent } from './auditLogApi';
 import { type DistributionMethod } from '../constants/meterDistribution';
 import { type AddressMeterSettings } from '../types/communal';
 
@@ -75,13 +76,13 @@ export const getCommunalMeters = async (addressId: string): Promise<CommunalMete
       .order('name');
 
     if (error) {
-      console.error('Error fetching communal meters:', error);
+      if (import.meta.env.DEV) console.error('Error fetching communal meters:', error);
       throw error;
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getCommunalMeters:', error);
+    if (import.meta.env.DEV) console.error('Error in getCommunalMeters:', error);
     throw error;
   }
 };
@@ -95,13 +96,14 @@ export const createCommunalMeter = async (meter: Omit<CommunalMeter, 'id' | 'cre
       .single();
 
     if (error) {
-      console.error('Error creating communal meter:', error);
+      if (import.meta.env.DEV) console.error('Error creating communal meter:', error);
       throw error;
     }
 
+    logAuditEvent(meter.address_id, 'meters', 'INSERT', `Pridėtas komunalinis skaitiklis: ${meter.name}`, { name: meter.name, type: meter.type, unit: meter.unit }).catch(() => {});
     return data;
   } catch (error) {
-    console.error('Error in createCommunalMeter:', error);
+    if (import.meta.env.DEV) console.error('Error in createCommunalMeter:', error);
     throw error;
   }
 };
@@ -116,30 +118,36 @@ export const updateCommunalMeter = async (id: string, updates: Partial<CommunalM
       .single();
 
     if (error) {
-      console.error('Error updating communal meter:', error);
+      if (import.meta.env.DEV) console.error('Error updating communal meter:', error);
       throw error;
     }
 
+    logAuditEvent(data.address_id, 'meters', 'UPDATE', `Atnaujintas skaitiklis: ${data.name}`, updates, null, Object.keys(updates)).catch(() => {});
     return data;
   } catch (error) {
-    console.error('Error in updateCommunalMeter:', error);
+    if (import.meta.env.DEV) console.error('Error in updateCommunalMeter:', error);
     throw error;
   }
 };
 
 export const deleteCommunalMeter = async (id: string): Promise<void> => {
   try {
+    // Fetch info before deleting
+    const { data: meter } = await supabase.from('communal_meters').select('address_id, name').eq('id', id).single();
+
     const { error } = await supabase
       .from('communal_meters')
       .delete()
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting communal meter:', error);
+      if (import.meta.env.DEV) console.error('Error deleting communal meter:', error);
       throw error;
     }
+
+    if (meter?.address_id) logAuditEvent(meter.address_id, 'meters', 'DELETE', `Ištrintas skaitiklis: ${meter.name || id}`).catch(() => {});
   } catch (error) {
-    console.error('Error in deleteCommunalMeter:', error);
+    if (import.meta.env.DEV) console.error('Error in deleteCommunalMeter:', error);
     throw error;
   }
 };
@@ -159,13 +167,13 @@ export const getCommunalExpenses = async (meterId: string, month?: string): Prom
     const { data, error } = await query.order('month', { ascending: false });
 
     if (error) {
-      console.error('Error fetching communal expenses:', error);
+      if (import.meta.env.DEV) console.error('Error fetching communal expenses:', error);
       throw error;
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getCommunalExpenses:', error);
+    if (import.meta.env.DEV) console.error('Error in getCommunalExpenses:', error);
     throw error;
   }
 };
@@ -179,13 +187,13 @@ export const createCommunalExpense = async (expense: Omit<CommunalExpense, 'id' 
       .single();
 
     if (error) {
-      console.error('Error creating communal expense:', error);
+      if (import.meta.env.DEV) console.error('Error creating communal expense:', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in createCommunalExpense:', error);
+    if (import.meta.env.DEV) console.error('Error in createCommunalExpense:', error);
     throw error;
   }
 };
@@ -200,13 +208,13 @@ export const updateCommunalExpense = async (id: string, updates: Partial<Communa
       .single();
 
     if (error) {
-      console.error('Error updating communal expense:', error);
+      if (import.meta.env.DEV) console.error('Error updating communal expense:', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in updateCommunalExpense:', error);
+    if (import.meta.env.DEV) console.error('Error in updateCommunalExpense:', error);
     throw error;
   }
 };
@@ -219,11 +227,11 @@ export const deleteCommunalExpense = async (id: string): Promise<void> => {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting communal expense:', error);
+      if (import.meta.env.DEV) console.error('Error deleting communal expense:', error);
       throw error;
     }
   } catch (error) {
-    console.error('Error in deleteCommunalExpense:', error);
+    if (import.meta.env.DEV) console.error('Error in deleteCommunalExpense:', error);
     throw error;
   }
 };
@@ -238,16 +246,16 @@ export const getAddressSettings = async (addressId: string): Promise<AddressSett
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching address settings:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
+      if (import.meta.env.DEV) console.error('Error fetching address settings:', error);
+      if (import.meta.env.DEV) console.error('Error code:', error.code);
+      if (import.meta.env.DEV) console.error('Error message:', error.message);
       // Return null instead of throwing to prevent modal crash
       return null;
     }
 
     return data;
   } catch (error: any) {
-    console.error('Error in getAddressSettings:', error);
+    if (import.meta.env.DEV) console.error('Error in getAddressSettings:', error);
     return null; // Return null instead of throwing
   }
 };
@@ -261,13 +269,13 @@ export const createAddressSettings = async (settings: Omit<AddressSettings, 'id'
       .single();
 
     if (error) {
-      console.error('Error creating address settings:', error);
+      if (import.meta.env.DEV) console.error('Error creating address settings:', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in createAddressSettings:', error);
+    if (import.meta.env.DEV) console.error('Error in createAddressSettings:', error);
     throw error;
   }
 };
@@ -282,13 +290,13 @@ export const updateAddressSettings = async (id: string, updates: Partial<Address
       .single();
 
     if (error) {
-      console.error('Error updating address settings:', error);
+      if (import.meta.env.DEV) console.error('Error updating address settings:', error);
       throw error;
     }
 
     return data;
   } catch (error) {
-    console.error('Error in updateAddressSettings:', error);
+    if (import.meta.env.DEV) console.error('Error in updateAddressSettings:', error);
     throw error;
   }
 };
@@ -308,7 +316,7 @@ export const upsertAddressSettings = async (settings: Omit<AddressSettings, 'id'
   } catch (error: any) {
     // If table doesn't exist, just log and return null
     if (error?.status === 406 || error?.code === '42P01' || error?.message?.includes('406')) {
-      console.warn('⚠️ address_settings table not available, settings not saved to DB');
+      if (import.meta.env.DEV) console.warn('⚠️ address_settings table not available, settings not saved to DB');
       // Return a mock settings object so the UI still works
       return {
         ...settings,
@@ -317,7 +325,7 @@ export const upsertAddressSettings = async (settings: Omit<AddressSettings, 'id'
         updated_at: new Date().toISOString()
       } as AddressSettings;
     }
-    console.error('Error in upsertAddressSettings:', error);
+    if (import.meta.env.DEV) console.error('Error in upsertAddressSettings:', error);
     throw error;
   }
 };
@@ -330,11 +338,11 @@ export const deleteAddressSettings = async (addressId: string): Promise<void> =>
       .eq('address_id', addressId);
 
     if (error) {
-      console.error('Error deleting address settings:', error);
+      if (import.meta.env.DEV) console.error('Error deleting address settings:', error);
       throw error;
     }
   } catch (error) {
-    console.error('Error in deleteAddressSettings:', error);
+    if (import.meta.env.DEV) console.error('Error in deleteAddressSettings:', error);
     throw error;
   }
 };
@@ -352,13 +360,13 @@ export const getAddressIdByAddress = async (address: string): Promise<string | n
       if (error.code === 'PGRST116') {
         return null;
       }
-      console.error('Error fetching address ID:', error);
+      if (import.meta.env.DEV) console.error('Error fetching address ID:', error);
       throw error;
     }
 
     return data?.id || null;
   } catch (error) {
-    console.error('Error in getAddressIdByAddress:', error);
+    if (import.meta.env.DEV) console.error('Error in getAddressIdByAddress:', error);
     throw error;
   }
 };

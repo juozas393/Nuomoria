@@ -50,7 +50,7 @@ function getEnvironmentConfig(): EnvironmentConfig {
 
   // Validate required environment variables
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn(
+    if (import.meta.env.DEV) console.warn(
       'Missing required Supabase environment variables. Please check your .env file.\n' +
       'Required: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY'
     );

@@ -23,6 +23,7 @@ interface PropertyHeroCardProps {
     primaryAction?: PrimaryAction | null;
     onViewProperty?: () => void;
     onSettings?: () => void;
+    bgStyle?: React.CSSProperties;
 }
 
 // =============================================================================
@@ -72,6 +73,7 @@ export const PropertyHeroCard = memo<PropertyHeroCardProps>(({
     primaryAction,
     onViewProperty,
     onSettings,
+    bgStyle,
 }) => {
     const statusConfig = getStatusConfig(status);
     const isReady = missingTasks.length === 0;
@@ -88,7 +90,7 @@ export const PropertyHeroCard = memo<PropertyHeroCardProps>(({
     };
 
     return (
-        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full">
+        <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-full" style={bgStyle}>
             <CardPatternOverlay />
 
             {/* COMPACT: p-2.5 instead of p-4 */}

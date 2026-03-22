@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
  */
 
 interface RoleGuardProps {
-    allowedRoles: ('landlord' | 'tenant' | 'admin')[];
+    allowedRoles: ('landlord' | 'tenant' | 'admin' | 'property_manager')[];
     redirectTo?: string;
     children: React.ReactNode;
 }
@@ -40,7 +40,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     }
 
     const userRole = user.role as string | null | undefined;
-    const validRoles = ['landlord', 'tenant', 'admin'];
+    const validRoles = ['landlord', 'tenant', 'admin', 'property_manager', 'maintenance'];
 
     // If user has no role or unrecognized role, send to onboarding
     // This prevents the /dashboard ↔ /tenant redirect loop
@@ -53,7 +53,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     }
 
     // Check if user's role is in allowed roles
-    if (!allowedRoles.includes(userRole as 'landlord' | 'tenant' | 'admin')) {
+    if (!allowedRoles.includes(userRole as 'landlord' | 'tenant' | 'admin' | 'property_manager')) {
         // Determine redirect based on role
         let targetRedirect = redirectTo;
 
@@ -62,6 +62,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
             if (userRole === 'tenant') {
                 targetRedirect = '/tenant';
             } else {
+                // landlord, property_manager, admin -> dashboard
                 targetRedirect = '/dashboard';
             }
         }
@@ -82,7 +83,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
  * LandlordOnly - Shorthand guard for landlord/admin routes
  */
 export const LandlordOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <RoleGuard allowedRoles={['landlord', 'admin']} redirectTo="/tenant">
+    <RoleGuard allowedRoles={['landlord', 'admin', 'property_manager']} redirectTo="/tenant">
         {children}
     </RoleGuard>
 );

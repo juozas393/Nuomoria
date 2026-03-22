@@ -198,7 +198,7 @@ const MetersSection = React.memo(({ calculations, getMeterStatus }: {
 }) => (
   <section className="rounded-lg border bg-white h-[180px]">
     <div className="px-4 py-3 border-b text-base font-medium">
-      Mokesčiai iš skaitliukų: {formatCurrency(calculations.utilitiesThisMonth)}
+      Mokesčiai iš skaitiklių: {formatCurrency(calculations.utilitiesThisMonth)}
     </div>
     <div className="p-4 space-y-3 text-sm">
       <div className="space-y-3">
@@ -434,7 +434,7 @@ const DepositSection = React.memo(({ calculations, onAddExpense }: {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-orange-600">⛔</span>
-              <span>Nepatvirtinti skaitliukai</span>
+              <span>Nepatvirtinti skaitikliai</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-orange-600">⛔</span>
@@ -788,7 +788,7 @@ const PropertyDetailsModal: React.FC<PropertyDetailsModalProps> = React.memo(({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
-              Skaitliukai
+              Skaitikliai
             </button>
           </nav>
         </div>

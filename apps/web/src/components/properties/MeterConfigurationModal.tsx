@@ -131,7 +131,7 @@ export function MeterConfigurationModal({
       await onSave(configs);
       onClose();
     } catch (error) {
-      console.error('Klaida išsaugant skaitliukų konfigūraciją:', error);
+      if (import.meta.env.DEV) console.error('Klaida išsaugant skaitliukų konfigūraciją:', error);
     } finally {
       setIsSaving(false);
     }

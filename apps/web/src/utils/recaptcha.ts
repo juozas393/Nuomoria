@@ -31,7 +31,7 @@ export function loadRecaptchaScript(): Promise<void> {
         }
 
         if (!RECAPTCHA_SITE_KEY) {
-            console.warn('reCAPTCHA site key not configured');
+            if (import.meta.env.DEV) console.warn('reCAPTCHA site key not configured');
             resolve(); // Don't block if not configured
             return;
         }
@@ -65,7 +65,7 @@ export function loadRecaptchaScript(): Promise<void> {
  */
 export async function executeRecaptcha(action: string): Promise<string | null> {
     if (!RECAPTCHA_SITE_KEY) {
-        console.warn('reCAPTCHA not configured, skipping verification');
+        if (import.meta.env.DEV) console.warn('reCAPTCHA not configured, skipping verification');
         return null;
     }
 
@@ -75,7 +75,7 @@ export async function executeRecaptcha(action: string): Promise<string | null> {
         // Wait for grecaptcha to be ready
         return new Promise((resolve) => {
             if (typeof window.grecaptcha === 'undefined') {
-                console.warn('grecaptcha not available');
+                if (import.meta.env.DEV) console.warn('grecaptcha not available');
                 resolve(null);
                 return;
             }
@@ -87,13 +87,13 @@ export async function executeRecaptcha(action: string): Promise<string | null> {
                         resolve(token);
                     })
                     .catch((error: Error) => {
-                        console.error('reCAPTCHA execution failed:', error);
+                        if (import.meta.env.DEV) console.error('reCAPTCHA execution failed:', error);
                         resolve(null);
                     });
             });
         });
     } catch (error) {
-        console.error('reCAPTCHA error:', error);
+        if (import.meta.env.DEV) console.error('reCAPTCHA error:', error);
         return null;
     }
 }

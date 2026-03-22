@@ -90,7 +90,7 @@ export const LayoutEditorProvider: React.FC<LayoutEditorProviderProps> = ({
             setHasUnsavedChanges(false);
             setIsEditing(false);
         } catch (error) {
-            console.error('Failed to save layout:', error);
+            if (import.meta.env.DEV) console.error('Failed to save layout:', error);
             throw error;
         }
     }, [layouts, onSave]);

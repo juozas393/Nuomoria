@@ -29,7 +29,7 @@ const TestModal: React.FC = () => {
                     isOpen={isOpen}
                     onClose={() => setIsOpen(false)}
                     onSave={(data) => {
-                        console.log('Saved data:', data);
+                        if (import.meta.env.DEV) console.log('Saved data:', data);
                         alert('Data saved (check console)');
                     }}
                 />

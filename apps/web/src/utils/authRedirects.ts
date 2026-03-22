@@ -69,25 +69,25 @@ export function getSettingsPath(role: string): string {
  */
 export function getProfileRoute(role: string | null | undefined): string {
     // DEBUG: Log every call to trace the issue
-    console.log('[getProfileRoute] Called with role:', role, 'type:', typeof role);
+    if (import.meta.env.DEV) console.log('[getProfileRoute] Called with role:', role, 'type:', typeof role);
 
     if (!role || role === 'null' || role === 'undefined') {
-        console.warn('[getProfileRoute] Role is falsy! Returning /onboarding');
+        if (import.meta.env.DEV) console.warn('[getProfileRoute] Role is falsy! Returning /onboarding');
         return '/onboarding';
     }
 
     if (role === 'tenant') {
-        console.log('[getProfileRoute] Role is tenant -> /tenant/settings');
+        if (import.meta.env.DEV) console.log('[getProfileRoute] Role is tenant -> /tenant/settings');
         return '/tenant/settings';
     }
 
     if (role === 'landlord' || role === 'admin') {
-        console.log('[getProfileRoute] Role is landlord/admin -> /profilis');
+        if (import.meta.env.DEV) console.log('[getProfileRoute] Role is landlord/admin -> /profilis');
         return '/profilis';
     }
 
     // EXPLICIT: Any unknown role goes to onboarding, NOT tenant
-    console.warn('[getProfileRoute] Unknown role:', role, '-> /onboarding');
+    if (import.meta.env.DEV) console.warn('[getProfileRoute] Unknown role:', role, '-> /onboarding');
     return '/onboarding';
 }
 

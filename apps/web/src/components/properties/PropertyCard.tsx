@@ -84,7 +84,7 @@ const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">
-                Butas #{property.apartmentNumber}
+                #{property.apartmentNumber}
               </h3>
               <p className="text-sm text-gray-600">
                 {property.area}m² • {property.rooms}k

@@ -109,7 +109,7 @@ const DraggableMap: React.FC<{
 DraggableMap.displayName = 'DraggableMap';
 
 // Background image paths
-const modalBg = '/images/ModalBackground.png';
+const modalBg = '/images/themebackground.webp';
 const cardsBg = '/images/CardsBackground.webp';
 
 // Form schema
@@ -202,7 +202,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  const steps = ['Adresas', 'Detalės', 'Kontaktai', 'Skaitliukai'];
+  const steps = ['Adresas', 'Detalės', 'Kontaktai', 'Skaitikliai'];
 
   const {
     control,
@@ -709,9 +709,9 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
           }
 
           // Ensure distribution_method is valid
-          if (!['per_apartment', 'per_area', 'per_consumption', 'per_person', 'fixed_split'].includes(meter.distribution_method)) {
+          if (!['per_apartment', 'per_area', 'per_consumption', 'fixed_split'].includes(meter.distribution_method)) {
             console.error(`Invalid distribution method: ${meter.distribution_method} for meter: ${meter.name}`);
-            throw new Error(`Invalid distribution method: ${meter.distribution_method}. Must be 'per_apartment', 'per_area', 'per_consumption', 'per_person', or 'fixed_split'`);
+            throw new Error(`Invalid distribution method: ${meter.distribution_method}. Must be 'per_apartment', 'per_area', 'per_consumption', or 'fixed_split'`);
           }
 
           return meter;
@@ -870,7 +870,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 type: 'meter_reading_request' as any,
                 status: 'pending' as const,
                 scheduledDate: new Date(),
-                message: `Sveiki! Prašome pateikti skaitliukų rodmenis adresui ${formData.address.fullAddress}, butas ${apartment.apartment_number}. Reikia pateikti rodmenis šiems skaitliukams: ${metersWithoutPhoto.map(m => m.name).join(', ')}.`,
+                message: `Sveiki! Prašome pateikti skaitiklių rodmenis adresui ${formData.address.fullAddress}, butas ${apartment.apartment_number}. Reikia pateikti rodmenis šiems skaitikliams: ${metersWithoutPhoto.map(m => m.name).join(', ')}.`,
                 recipient: 'tenant' as const,
                 channel: 'email' as const,
                 priority: 'medium' as const,
@@ -899,7 +899,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
       // Show success message with notification info
       const notificationCount = apartments?.filter(a => a.tenant_name && a.tenant_name !== 'Laisvas').length || 0;
       const message = notificationCount > 0 && metersWithoutPhoto.length > 0
-        ? `Adresas sukurtas sėkmingai! Išsiųsta ${notificationCount} pranešimų nuomininkams apie skaitliukų rodmenų pateikimą.`
+        ? `Adresas sukurtas sėkmingai! Išsiųsta ${notificationCount} pranešimų nuomininkams apie skaitiklių rodmenų pateikimą.`
         : 'Adresas sukurtas sėkmingai!';
 
       setSuccessMessage(message);
@@ -1086,7 +1086,42 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                       <div className={`w-6 h-[2px] ${i <= currentStep ? 'bg-[#2F8481]' : 'bg-white/30'}`} />
                     )}
                     <button
-                      onClick={() => setCurrentStep(i)}
+                      onClick={() => {
+                        // Only validate when moving forward
+                        if (i > currentStep) {
+                          // Step 0 → validate address
+                          if (currentStep === 0 && !watchedValues.address?.fullAddress) {
+                            alert('Pirmiausia įveskite adresą.');
+                            return;
+                          }
+                          // Step 2 (Kontaktai) → validate contacts before going to step 3
+                          if (currentStep <= 2 && i > 2) {
+                            const mgmtType = watchedValues.contacts?.managementType;
+                            if (mgmtType === 'Bendrija') {
+                              const hasPhone = !!watchedValues.contacts?.chairmanPhone?.trim();
+                              const hasEmail = !!watchedValues.contacts?.chairmanEmail?.trim();
+                              if (!hasPhone && !hasEmail) {
+                                alert('Bendrijos kontaktams reikia nurodyti bent telefono numerį arba el. paštą.');
+                                return;
+                              }
+                            }
+                            if (mgmtType === 'Administravimo įmonė') {
+                              const hasCompanyName = !!watchedValues.contacts?.companyName?.trim();
+                              if (!hasCompanyName) {
+                                alert('Reikia nurodyti administravimo įmonės pavadinimą.');
+                                return;
+                              }
+                              const hasPhone = !!watchedValues.contacts?.companyPhone?.trim();
+                              const hasEmail = !!watchedValues.contacts?.companyEmail?.trim();
+                              if (!hasPhone && !hasEmail) {
+                                alert('Administravimo įmonės kontaktams reikia nurodyti bent telefono numerį arba el. paštą.');
+                                return;
+                              }
+                            }
+                          }
+                        }
+                        setCurrentStep(i);
+                      }}
                       className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${i === currentStep ? 'bg-[#2F8481]/20' : 'hover:bg-white/10'
                         }`}
                       title={step}
@@ -1633,9 +1668,9 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 <div className="space-y-4 h-full flex flex-col">
                   {/* Step Header */}
                   <div className="mb-2 shrink-0">
-                    <h3 className="text-[16px] font-bold text-white">4. Skaitliukai</h3>
+                    <h3 className="text-[16px] font-bold text-white">4. Skaitikliai</h3>
                     <p className="text-[13px] font-medium text-white/80 mt-0.5">
-                      Sukonfigūruokite pastato skaitliukus. Galite redaguoti kiekvieną atskirai arba naudoti šablonus.
+                      Sukonfigūruokite pastato skaitiklius. Galite redaguoti kiekvieną atskirai arba naudoti šablonus.
                     </p>
                   </div>
 
@@ -1748,7 +1783,7 @@ const AddAddressModal: React.FC<AddAddressModalProps> = React.memo(({
                 >
                   {currentStep === 0 && 'Tęsti → Pastatas'}
                   {currentStep === 1 && 'Tęsti → Kontaktai'}
-                  {currentStep === 2 && 'Tęsti → Skaitliukai'}
+                  {currentStep === 2 && 'Tęsti → Skaitikliai'}
                 </button>
               ) : (
                 <button

@@ -28,7 +28,7 @@ const EmailLogin: React.FC = () => {
         setMessage({ type: 'success', text: result.message });
         // In production, user would check their email
         // For demo, we'll show the magic link in console
-        console.log('📧 Magic link sent! Check console for demo link.');
+        if (import.meta.env.DEV) console.log('📧 Magic link sent! Check console for demo link.');
       } else {
         setMessage({ type: 'error', text: result.message });
       }
@@ -55,7 +55,7 @@ const EmailLogin: React.FC = () => {
         setStep('otp-verify');
         // In production, user would check their email/SMS
         // For demo, we'll show the OTP in console
-        console.log('📱 OTP sent! Check console for demo code.');
+        if (import.meta.env.DEV) console.log('📱 OTP sent! Check console for demo code.');
       } else {
         setMessage({ type: 'error', text: result.message });
       }
@@ -79,7 +79,7 @@ const EmailLogin: React.FC = () => {
       const result = await verifyOTP(email, otpCode);
       if (result.success) {
         setMessage({ type: 'success', text: 'Sėkmingai prisijungta!' });
-        setTimeout(() => navigate('/'), 1000);
+        // verifyOTP in AuthContext handles redirection automatically.
       } else {
         setMessage({ type: 'error', text: result.error || 'Neteisingas kodas' });
       }

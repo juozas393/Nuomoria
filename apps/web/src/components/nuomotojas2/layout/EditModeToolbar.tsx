@@ -36,7 +36,7 @@ export const EditModeToolbar = memo(() => {
         try {
             await saveLayout();
         } catch (error) {
-            console.error('Save failed:', error);
+            if (import.meta.env.DEV) console.error('Save failed:', error);
         }
     };
 
