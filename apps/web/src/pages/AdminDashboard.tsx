@@ -48,11 +48,12 @@ import {
 } from 'lucide-react';
 import { logAuditEvent } from '../lib/auditLogApi';
 
-// ─── Design Tokens — mixed theme: dark background, white content cards ─── //
-const glassCard = 'bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] rounded-2xl';
-const glassCardHover = `${glassCard} hover:bg-white/[0.10] hover:border-white/[0.12] transition-all duration-300`;
-const panelCard = 'bg-white rounded-2xl border border-gray-200/60 shadow-sm';
-const whiteCard = 'bg-white rounded-xl border border-gray-200/60 shadow-sm';
+// ─── Design Tokens — dark premium (matching Nuomoria app) ─── //
+const surface1 = 'bg-[rgba(6,10,12,0.92)] backdrop-blur-xl border border-white/[0.06] rounded-2xl';
+const surface2 = 'bg-white/[0.04] border border-white/[0.06] rounded-xl';
+const glassCard = `${surface1}`;
+const glassCardHover = `${surface2} hover:bg-white/[0.08] hover:border-white/[0.10] transition-all duration-200`;
+const panelCard = surface1;
 
 // ─── Types ─── //
 interface AuditLogEntry {
@@ -664,7 +665,7 @@ const UserCard = memo<{ user: UserInfo; activityCount: number; isSelected: boole
                     : { bg: 'bg-gradient-to-br from-gray-400 to-gray-500', badge: 'bg-white/[0.08] text-gray-400 border-white/[0.10]' };
 
         return (
-            <div className={`bg-gray-50 border rounded-xl transition-all duration-300 hover:bg-gray-100 ${isBlocked ? 'border-red-300 bg-red-50' : isSelected ? 'ring-2 ring-teal-400/60 bg-teal-50 border-teal-300' : 'border-gray-200'}`}>
+            <div className={`bg-white/[0.04] border rounded-xl transition-all duration-200 hover:bg-white/[0.08] ${isBlocked ? 'border-red-500/30 bg-red-500/5' : isSelected ? 'ring-2 ring-teal-400/50 bg-white/[0.08] border-teal-500/30' : 'border-white/[0.08]'}`}>
                 <button onClick={onClick} className="w-full p-3 flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-xl ${isBlocked ? 'bg-gradient-to-br from-red-500 to-rose-600' : roleConfig.bg} flex items-center justify-center flex-shrink-0 shadow-lg ${isSelected ? 'scale-110' : ''} transition-transform duration-300`}>
                         {isBlocked ? <Ban className="w-4 h-4 text-white" /> : (
@@ -674,7 +675,7 @@ const UserCard = memo<{ user: UserInfo; activityCount: number; isSelected: boole
                         )}
                     </div>
                     <div className="flex-1 min-w-0 text-left">
-                        <p className={`text-[12px] font-semibold truncate ${isBlocked ? 'text-red-400 line-through' : 'text-gray-800'}`}>
+                        <p className={`text-[12px] font-semibold truncate ${isBlocked ? 'text-red-300 line-through' : 'text-white'}`}>
                             {user.nickname || (user.first_name ? `${user.first_name}${user.last_name ? ` ${user.last_name}` : ''}` : user.email.split('@')[0])}
                         </p>
                         <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
@@ -691,18 +692,18 @@ const UserCard = memo<{ user: UserInfo; activityCount: number; isSelected: boole
                     </div>
                 </button>
                 {isExpanded && (
-                    <div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-2">
+                    <div className="px-3 pb-3 space-y-2 border-t border-white/[0.06] pt-2">
                         <div className="grid grid-cols-2 gap-2 text-[9px]">
-                            <div><span className="text-gray-400">El. paštas:</span> <span className="text-gray-700">{user.email}</span></div>
-                            <div><span className="text-gray-400">Rolė:</span> <span className="text-gray-700">{ROLE_LABELS[user.role || ''] || '—'}</span></div>
-                            <div><span className="text-gray-400">Pask. prisijungimas:</span> <span className="text-gray-700">{user.last_login ? new Date(user.last_login).toLocaleString('lt-LT') : 'Niekada'}</span></div>
-                            <div><span className="text-gray-400">Registracija:</span> <span className="text-gray-700">{user.created_at ? new Date(user.created_at).toLocaleDateString('lt-LT') : '—'}</span></div>
+                            <div><span className="text-gray-500">El. paštas:</span> <span className="text-gray-300">{user.email}</span></div>
+                            <div><span className="text-gray-500">Rolė:</span> <span className="text-gray-300">{ROLE_LABELS[user.role || ''] || '—'}</span></div>
+                            <div><span className="text-gray-500">Pask. prisijungimas:</span> <span className="text-gray-300">{user.last_login ? new Date(user.last_login).toLocaleString('lt-LT') : 'Niekada'}</span></div>
+                            <div><span className="text-gray-500">Registracija:</span> <span className="text-gray-300">{user.created_at ? new Date(user.created_at).toLocaleDateString('lt-LT') : '—'}</span></div>
                         </div>
                         <div className="flex items-center gap-2 pt-1">
                             {user.role !== 'admin' && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onToggleBlock(user.id, !isBlocked); }}
-                                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${isBlocked ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}
+                                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all ${isBlocked ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-red-500/15 text-red-400 hover:bg-red-500/25'}`}
                                 >
                                     {isBlocked ? <><ShieldCheck className="w-3 h-3" /> Atblokuoti</> : <><Ban className="w-3 h-3" /> Blokuoti</>}
                                 </button>
@@ -711,7 +712,7 @@ const UserCard = memo<{ user: UserInfo; activityCount: number; isSelected: boole
                                 value={user.role || ''}
                                 onChange={(e) => { e.stopPropagation(); onChangeRole(user.id, e.target.value); }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-gray-100 border border-gray-200 text-gray-700 text-[9px] font-semibold rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-teal-500/40"
+                                className="bg-white/[0.06] border border-white/[0.10] text-gray-300 text-[9px] font-semibold rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-teal-500/40"
                             >
                                 <option value="landlord" className="bg-gray-900">Nuomotojas</option>
                                 <option value="tenant" className="bg-gray-900">Nuomininkas</option>
@@ -1167,7 +1168,7 @@ const AdminDashboard: React.FC = () => {
                                 <Shield className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h1 className="text-[18px] font-extrabold text-gray-900 tracking-tight">Administravimo panelė</h1>
+                                <h1 className="text-[18px] font-extrabold text-white tracking-tight">Administravimo panelė</h1>
                                 <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1.5">
                                     <Zap className="w-3 h-3 text-teal-500" />
                                     {selectedUser
@@ -1178,7 +1179,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <a
                             href="/admin/performance"
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 text-[11px] font-bold rounded-xl transition-all duration-300 border border-gray-200"
+                            className="flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.10] text-gray-300 hover:text-white text-[11px] font-bold rounded-xl transition-all duration-200 border border-white/[0.08]"
                         >
                             <BarChart3 className="w-3.5 h-3.5" />
                             Našumas
@@ -1199,26 +1200,26 @@ const AdminDashboard: React.FC = () => {
                         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
                             <CircleDollarSign className="w-4 h-4 text-white" />
                         </div>
-                        <h2 className="text-[13px] font-bold text-gray-800">Finansinė apžvalga</h2>
+                        <h2 className="text-[13px] font-bold text-white">Finansinė apžvalga</h2>
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="bg-emerald-50 border border-emerald-200/60 rounded-xl px-4 py-3">
-                            <p className="text-[10px] text-emerald-600 font-medium">Surinkta pajamų</p>
-                            <p className="text-[22px] font-extrabold text-emerald-700 mt-1 tabular-nums">€{kpi.totalRevenue.toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+                            <p className="text-[10px] text-emerald-400 font-medium">Surinkta pajamų</p>
+                            <p className="text-[22px] font-extrabold text-white mt-1 tabular-nums">€{kpi.totalRevenue.toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
                         </div>
-                        <div className={`${kpi.outstandingAmount > 0 ? 'bg-red-50 border-red-200/60' : 'bg-emerald-50 border-emerald-200/60'} border rounded-xl px-4 py-3`}>
-                            <p className={`text-[10px] ${kpi.outstandingAmount > 0 ? 'text-red-600' : 'text-emerald-600'} font-medium`}>Nesumokėta</p>
-                            <p className={`text-[22px] font-extrabold mt-1 tabular-nums ${kpi.outstandingAmount > 0 ? 'text-red-700' : 'text-emerald-700'}`}>€{kpi.outstandingAmount.toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
+                        <div className={`${kpi.outstandingAmount > 0 ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'} border rounded-xl px-4 py-3`}>
+                            <p className={`text-[10px] ${kpi.outstandingAmount > 0 ? 'text-red-400' : 'text-emerald-400'} font-medium`}>Nesumokėta</p>
+                            <p className="text-[22px] font-extrabold text-white mt-1 tabular-nums">€{kpi.outstandingAmount.toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
                         </div>
-                        <div className="bg-blue-50 border border-blue-200/60 rounded-xl px-4 py-3">
-                            <p className="text-[10px] text-blue-600 font-medium">Užimtumas</p>
-                            <p className="text-[22px] font-extrabold text-blue-700 mt-1 tabular-nums">{kpi.occupancyRate}%</p>
-                            <p className="text-[9px] text-blue-400 mt-0.5">{kpi.occupiedProperties} iš {kpi.totalProperties} butų</p>
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
+                            <p className="text-[10px] text-blue-400 font-medium">Užimtumas</p>
+                            <p className="text-[22px] font-extrabold text-white mt-1 tabular-nums">{kpi.occupancyRate}%</p>
+                            <p className="text-[9px] text-gray-500 mt-0.5">{kpi.occupiedProperties} iš {kpi.totalProperties} butų</p>
                         </div>
-                        <div className="bg-teal-50 border border-teal-200/60 rounded-xl px-4 py-3">
-                            <p className="text-[10px] text-teal-600 font-medium">Mėn. nuoma (aktyvios)</p>
-                            <p className="text-[22px] font-extrabold text-teal-700 mt-1 tabular-nums">€{activeContracts.reduce((s, c: any) => s + (Number(c.rent) || 0), 0).toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
-                            <p className="text-[9px] text-teal-400 mt-0.5">{activeContracts.length} sutartys</p>
+                        <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl px-4 py-3">
+                            <p className="text-[10px] text-teal-400 font-medium">Mėn. nuoma (aktyvios)</p>
+                            <p className="text-[22px] font-extrabold text-white mt-1 tabular-nums">€{activeContracts.reduce((s, c: any) => s + (Number(c.rent) || 0), 0).toLocaleString('lt-LT', { minimumFractionDigits: 0 })}</p>
+                            <p className="text-[9px] text-gray-500 mt-0.5">{activeContracts.length} sutartys</p>
                         </div>
                     </div>
                 </div>
@@ -1280,7 +1281,7 @@ const AdminDashboard: React.FC = () => {
                         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md shadow-teal-500/20">
                             <ScrollText className="w-3.5 h-3.5 text-white" />
                         </div>
-                        <h2 className="text-[13px] font-bold text-gray-800">Sutartys ir nutraukimai</h2>
+                        <h2 className="text-[13px] font-bold text-white">Sutartys ir nutraukimai</h2>
                     </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <KPICard
@@ -1334,12 +1335,12 @@ const AdminDashboard: React.FC = () => {
                                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
                                     <ScrollText className="w-4 h-4 text-white" />
                                 </div>
-                                <h2 className="text-[13px] font-bold text-gray-800">Sutartys</h2>
-                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-semibold">{contractTabItems.length}</span>
+                                <h2 className="text-[13px] font-bold text-white">Sutartys</h2>
+                                <span className="text-[10px] text-gray-400 bg-white/[0.06] px-2 py-0.5 rounded-full font-semibold">{contractTabItems.length}</span>
                             </div>
-                            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                            <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
                                 {([['active', 'Aktyvios'], ['pending', 'Laukiančios'], ['history', 'Istorija'], ['terminations', 'Nutraukimai']] as const).map(([key, label]) => (
-                                    <button key={key} onClick={() => setContractTab(key)} className={`px-3 py-1.5 text-[10px] font-semibold rounded-md transition-all ${contractTab === key ? 'bg-teal-500/20 text-teal-400' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200'}`}>
+                                    <button key={key} onClick={() => setContractTab(key)} className={`px-3 py-1.5 text-[10px] font-semibold rounded-md transition-all ${contractTab === key ? 'bg-teal-500/20 text-teal-400' : 'text-gray-400 hover:text-white hover:bg-white/[0.06]'}`}>
                                         {label}
                                     </button>
                                 ))}
@@ -1496,7 +1497,7 @@ const AdminDashboard: React.FC = () => {
                                     <Eye className="w-4 h-4 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[13px] font-bold text-gray-800">
+                                    <h2 className="text-[13px] font-bold text-white">
                                         {[...KPI_ROW1, ...KPI_ROW2, ...KPI_ROW3].find(k => k.key === activeKpi)?.label || 'Detalės'}
                                     </h2>
                                     <p className="text-[9px] text-gray-400">{kpiDetail.length} įrašų</p>
@@ -1554,44 +1555,44 @@ const AdminDashboard: React.FC = () => {
                                         const isExp = expandedDetailId === String(r.id || idx);
                                         const fmtEur = (v: number) => new Intl.NumberFormat('lt-LT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(v);
                                         return (
-                                            <div key={idx} className="bg-white rounded-xl border border-gray-200/80 hover:shadow-md transition-all overflow-hidden">
+                                            <div key={idx} className="bg-white/[0.04] rounded-xl border border-white/[0.06] hover:bg-white/[0.08] transition-all overflow-hidden">
                                                 <button onClick={() => setExpandedDetailId(isExp ? null : String(r.id || idx))} className="w-full px-4 py-3 flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0"><Receipt className="w-4 h-4 text-amber-600" /></div>
+                                                    <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center flex-shrink-0"><Receipt className="w-4 h-4 text-amber-500" /></div>
                                                     <div className="flex-1 min-w-0 text-left">
-                                                        <p className="text-[12px] font-semibold text-gray-800 truncate">
+                                                        <p className="text-[12px] font-semibold text-white truncate">
                                                             {r.invoice_number ? String(r.invoice_number) : `Sąskaita #${idx + 1}`}
                                                             {r.street ? <span className="text-gray-400 font-normal"> — {String(r.street)}{r.apartment_number ? `, ${String(r.apartment_number)}` : ''}</span> : ''}
                                                         </p>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${s.color}`}>{s.label}</span>
-                                                            {Boolean(r.invoice_date) && <span className="text-[9px] text-gray-400">Išrašyta: {new Date(String(r.invoice_date)).toLocaleDateString('lt-LT')}</span>}
-                                                            {Boolean(r.tenant_name) && <span className="text-[9px] text-gray-400">· {String(r.tenant_name)}</span>}
+                                                            {Boolean(r.invoice_date) && <span className="text-[9px] text-gray-500">Išrašyta: {new Date(String(r.invoice_date)).toLocaleDateString('lt-LT')}</span>}
+                                                            {Boolean(r.tenant_name) && <span className="text-[9px] text-gray-500">· {String(r.tenant_name)}</span>}
                                                         </div>
                                                     </div>
-                                                    <p className="text-[14px] font-bold text-gray-800 tabular-nums flex-shrink-0">{fmtEur(totalAmt)}</p>
-                                                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isExp ? 'rotate-180' : ''}`} />
+                                                    <p className="text-[14px] font-bold text-white tabular-nums flex-shrink-0">{fmtEur(totalAmt)}</p>
+                                                    <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isExp ? 'rotate-180' : ''}`} />
                                                 </button>
                                                 {isExp && (
-                                                    <div className="px-4 pb-3 pt-0 border-t border-gray-100 space-y-2">
+                                                    <div className="px-4 pb-3 pt-0 border-t border-white/[0.06] space-y-2">
                                                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[10px] pt-2">
-                                                            <div><span className="text-gray-400">Nuoma</span><p className="font-semibold text-gray-700 tabular-nums">{fmtEur(rentAmt)}</p></div>
-                                                            <div><span className="text-gray-400">Komunalinės</span><p className="font-semibold text-gray-700 tabular-nums">{fmtEur(utilAmt)}</p></div>
-                                                            <div><span className="text-gray-400">Kita</span><p className="font-semibold text-gray-700 tabular-nums">{fmtEur(Number(r.other_amount || 0))}</p></div>
-                                                            <div><span className="text-gray-400">Viso</span><p className="font-bold text-gray-900 tabular-nums">{fmtEur(totalAmt)}</p></div>
+                                                            <div><span className="text-gray-500">Nuoma</span><p className="font-semibold text-gray-200 tabular-nums">{fmtEur(rentAmt)}</p></div>
+                                                            <div><span className="text-gray-500">Komunalinės</span><p className="font-semibold text-gray-200 tabular-nums">{fmtEur(utilAmt)}</p></div>
+                                                            <div><span className="text-gray-500">Kita</span><p className="font-semibold text-gray-200 tabular-nums">{fmtEur(Number(r.other_amount || 0))}</p></div>
+                                                            <div><span className="text-gray-500">Viso</span><p className="font-bold text-white tabular-nums">{fmtEur(totalAmt)}</p></div>
                                                         </div>
                                                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[10px]">
-                                                            {dueDate && <div><span className="text-gray-400">Terminas</span><p className="font-semibold text-gray-700">{dueDate.toLocaleDateString('lt-LT')}</p></div>}
-                                                            {Boolean(r.paid_date) && <div><span className="text-gray-400">Apmokėta</span><p className="font-semibold text-emerald-600">{new Date(String(r.paid_date)).toLocaleDateString('lt-LT')}{r.payment_method ? ` (${String(r.payment_method)})` : ''}</p></div>}
-                                                            {Boolean(r.tenant_name) && <div><span className="text-gray-400">Nuomininkas</span><p className="font-semibold text-gray-700">{String(r.tenant_name)}</p></div>}
-                                                            {paymentDay > 0 && <div><span className="text-gray-400">Mokėjimo diena</span><p className="font-semibold text-gray-700">{paymentDay} d.</p></div>}
+                                                            {dueDate && <div><span className="text-gray-500">Terminas</span><p className="font-semibold text-gray-300">{dueDate.toLocaleDateString('lt-LT')}</p></div>}
+                                                            {Boolean(r.paid_date) && <div><span className="text-gray-500">Apmokėta</span><p className="font-semibold text-emerald-400">{new Date(String(r.paid_date)).toLocaleDateString('lt-LT')}{r.payment_method ? ` (${String(r.payment_method)})` : ''}</p></div>}
+                                                            {Boolean(r.tenant_name) && <div><span className="text-gray-500">Nuomininkas</span><p className="font-semibold text-gray-300">{String(r.tenant_name)}</p></div>}
+                                                            {paymentDay > 0 && <div><span className="text-gray-500">Mokėjimo diena</span><p className="font-semibold text-gray-300">{paymentDay} d.</p></div>}
                                                         </div>
                                                         {lateFeeTotal > 0 && (
-                                                            <div className="flex items-center gap-2 text-[10px] bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                                                                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
-                                                                <span className="font-semibold text-red-600">Bauda: {fmtEur(lateFeeTotal)} ({overdueDays} d. × {lateFeePerDay}€/d.)</span>
+                                                            <div className="flex items-center gap-2 text-[10px] bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                                                                <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                                                                <span className="font-semibold text-red-400">Bauda: {fmtEur(lateFeeTotal)} ({overdueDays} d. × {lateFeePerDay}€/d.)</span>
                                                             </div>
                                                         )}
-                                                        {Boolean(r.notes) && <p className="text-[9px] text-gray-400">Pastaba: {String(r.notes)}</p>}
+                                                        {Boolean(r.notes) && <p className="text-[9px] text-gray-500">Pastaba: {String(r.notes)}</p>}
                                                     </div>
                                                 )}
                                             </div>
@@ -1599,13 +1600,13 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     if (activeKpi === 'totalAddresses') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0"><Building2 className="w-4 h-4 text-blue-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.06] px-3 py-2.5 hover:bg-white/[0.08] transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0"><Building2 className="w-4 h-4 text-blue-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.street || '—')}, {String(r.city || '')}</p>
+                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.street || '—')}, {String(r.city || '')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.owner_email ? String(r.owner_email) : 'Nėra savininko'}</p>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">{String(r.property_count || 0)} butai</span>
+                                                <span className="text-[10px] font-bold text-gray-300 bg-white/[0.06] px-2 py-1 rounded-lg">{String(r.property_count || 0)} butai</span>
                                             </div>
                                         );
                                     }
@@ -1617,10 +1618,10 @@ const AdminDashboard: React.FC = () => {
                                         };
                                         const ps = propStatus[String(r.status)] || { label: String(r.status), color: 'text-gray-600 bg-gray-50' };
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0"><Home className="w-4 h-4 text-indigo-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.06] px-3 py-2.5 hover:bg-white/[0.08] transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center flex-shrink-0"><Home className="w-4 h-4 text-indigo-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{r.street ? `${r.street}${r.apartment_number ? ` - ${r.apartment_number}` : ''}` : `Butas ${r.apartment_number || ''}`}</p>
+                                                    <p className="text-[11px] font-semibold text-white truncate">{r.street ? `${r.street}${r.apartment_number ? ` - ${r.apartment_number}` : ''}` : `Butas ${r.apartment_number || ''}`}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.tenant_name ? `Nuomininkas: ${r.tenant_name}` : 'Nėra nuomininko'}{r.rent ? ` · €${Number(r.rent)}` : ''}</p>
                                                 </div>
                                                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${ps.color}`}>{ps.label}</span>
@@ -1629,26 +1630,26 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     if (activeKpi === 'activeMeters') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
-                                                <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center flex-shrink-0"><Gauge className="w-4 h-4 text-cyan-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.06] px-3 py-2.5 hover:bg-white/[0.08] transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center flex-shrink-0"><Gauge className="w-4 h-4 text-cyan-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.name || '—')}</p>
+                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.name || '—')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.street ? String(r.street) : '—'} · {String(r.type || '')} ({String(r.unit || '')})</p>
                                                 </div>
-                                                {r.price_per_unit ? <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">€{Number(r.price_per_unit)}/{String(r.unit || 'vnt')}</span> : null}
+                                                {r.price_per_unit ? <span className="text-[10px] font-bold text-gray-300 bg-white/[0.06] px-2 py-1 rounded-lg">€{Number(r.price_per_unit)}/{String(r.unit || 'vnt')}</span> : null}
                                             </div>
                                         );
                                     }
                                     if (activeKpi === 'totalReadings') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
-                                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0"><BarChart3 className="w-4 h-4 text-green-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.06] px-3 py-2.5 hover:bg-white/[0.08] transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center flex-shrink-0"><BarChart3 className="w-4 h-4 text-green-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.meter_name || '—')}</p>
+                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.meter_name || '—')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.street ? String(r.street) : '—'} · {String(r.period || '—')}</p>
                                                 </div>
                                                 <div className="text-right flex-shrink-0">
-                                                    <p className="text-[12px] font-bold text-gray-800 tabular-nums">{String(r.value || '—')} {String(r.meter_unit || '')}</p>
+                                                    <p className="text-[12px] font-bold text-white tabular-nums">{String(r.value || '—')} {String(r.meter_unit || '')}</p>
                                                     <p className="text-[9px] text-gray-400">{r.reading_date ? new Date(String(r.reading_date)).toLocaleDateString('lt-LT') : '—'}</p>
                                                 </div>
                                             </div>
@@ -1656,10 +1657,10 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     if (activeKpi === 'activeTenants' || activeKpi === 'pendingInvitations') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
-                                                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0"><UserPlus className="w-4 h-4 text-violet-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.06] px-3 py-2.5 hover:bg-white/[0.08] transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center flex-shrink-0"><UserPlus className="w-4 h-4 text-violet-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.full_name || r.email || '—')}</p>
+                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.full_name || r.email || '—')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.street ? `${r.street}${r.apartment_number ? ` - ${r.apartment_number}` : ''}` : '—'}</p>
                                                 </div>
                                                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${r.status === 'accepted' ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-500/15'}`}>
@@ -1670,10 +1671,10 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     if (activeKpi === 'unreadNotifications') {
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
-                                                <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0"><Bell className="w-4 h-4 text-rose-500" /></div>
+                                            <div key={idx} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.06] px-3 py-2.5 hover:bg-white/[0.08] transition-all cursor-pointer">
+                                                <div className="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center flex-shrink-0"><Bell className="w-4 h-4 text-rose-500" /></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-semibold text-gray-800 truncate">{String(r.body || 'Pranešimas')}</p>
+                                                    <p className="text-[11px] font-semibold text-white truncate">{String(r.body || 'Pranešimas')}</p>
                                                     <p className="text-[9px] text-gray-400 mt-0.5">{r.user_email ? String(r.user_email) : '—'} · {String(r.kind || '')}</p>
                                                 </div>
                                                 <span className="text-[9px] text-gray-400 font-mono flex-shrink-0">{r.created_at ? new Date(String(r.created_at)).toLocaleDateString('lt-LT') : '—'}</span>
@@ -1682,10 +1683,10 @@ const AdminDashboard: React.FC = () => {
                                     }
                                     // Fallback: users
                                     return (
-                                        <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-200/80 px-3 py-2.5 hover:shadow-md transition-all cursor-pointer">
-                                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0"><Users className="w-4 h-4 text-purple-500" /></div>
+                                        <div key={idx} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.06] px-3 py-2.5 hover:bg-white/[0.08] transition-all cursor-pointer">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0"><Users className="w-4 h-4 text-purple-500" /></div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[11px] font-semibold text-gray-800 truncate">{r.first_name || r.last_name ? `${r.first_name || ''} ${r.last_name || ''}`.trim() : String(r.email || '—')}</p>
+                                                <p className="text-[11px] font-semibold text-white truncate">{r.first_name || r.last_name ? `${r.first_name || ''} ${r.last_name || ''}`.trim() : String(r.email || '—')}</p>
                                                 <p className="text-[9px] text-gray-400 mt-0.5">{String(r.email || '')}</p>
                                             </div>
                                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${r.role === 'admin' ? 'text-purple-600 bg-purple-50' : r.role === 'landlord' ? 'text-teal-600 bg-teal-50' : r.role === 'tenant' ? 'text-sky-600 bg-sky-50' : 'text-gray-500 bg-gray-50'}`}>
@@ -1715,7 +1716,7 @@ const AdminDashboard: React.FC = () => {
                             <TrendingUp className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-[13px] font-bold text-gray-800">Sistemos būsena</h2>
+                            <h2 className="text-[13px] font-bold text-white">Sistemos būsena</h2>
                             <p className="text-[9px] text-gray-400">Realaus laiko apžvalga</p>
                         </div>
                     </div>
@@ -1724,39 +1725,39 @@ const AdminDashboard: React.FC = () => {
                             icon={CheckCircle}
                             value={kpi.occupiedProperties}
                             label="Išnuomoti butai"
-                            color="bg-emerald-50 text-emerald-600 border-emerald-200"
+                            color="bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
                             dotColor="bg-emerald-500"
                         />
                         <StatusPill
                             icon={Home}
                             value={kpi.totalProperties - kpi.occupiedProperties}
                             label="Laisvi butai"
-                            color="bg-gray-50 text-gray-500 border-gray-200"
+                            color="bg-white/[0.06] text-gray-400 border-white/[0.10]"
                         />
                         <StatusPill
                             icon={Clock}
                             value={kpi.pendingInvitations}
                             label="Laukiantys pakvietimai"
-                            color="bg-amber-50 text-amber-600 border-amber-200"
+                            color="bg-amber-500/15 text-amber-400 border-amber-500/20"
                             dotColor={kpi.pendingInvitations > 0 ? 'bg-amber-500' : undefined}
                         />
                         <StatusPill
                             icon={FileText}
                             value={kpi.totalDocuments}
                             label="Dokumentai"
-                            color="bg-blue-50 text-blue-600 border-blue-200"
+                            color="bg-blue-500/15 text-blue-400 border-blue-500/20"
                         />
                         <StatusPill
                             icon={Image}
                             value={kpi.totalPhotos}
                             label="Nuotraukos"
-                            color="bg-violet-50 text-violet-600 border-violet-200"
+                            color="bg-violet-500/15 text-violet-400 border-violet-500/20"
                         />
                         <StatusPill
                             icon={AlertCircle}
                             value={kpi.unreadNotifications}
                             label="Neperskaityta"
-                            color="bg-rose-50 text-rose-600 border-rose-200"
+                            color="bg-rose-500/15 text-rose-400 border-rose-500/20"
                             dotColor={kpi.unreadNotifications > 0 ? 'bg-rose-500' : undefined}
                         />
                     </div>
@@ -1772,16 +1773,16 @@ const AdminDashboard: React.FC = () => {
                                     <Users className="w-3.5 h-3.5 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[13px] font-bold text-gray-800">Vartotojai</h2>
+                                    <h2 className="text-[13px] font-bold text-white">Vartotojai</h2>
                                 </div>
-                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-semibold">
+                                <span className="text-[10px] text-gray-400 bg-white/[0.06] px-2 py-0.5 rounded-full font-semibold">
                                     {users.length}
                                 </span>
                             </div>
                             {selectedUserId && (
                                 <button
                                     onClick={() => setSelectedUserId(null)}
-                                    className="flex items-center gap-1 text-[10px] text-teal-400 hover:text-teal-300 font-semibold transition-colors bg-teal-100 px-2 py-1 rounded-lg hover:bg-teal-200"
+                                    className="flex items-center gap-1 text-[10px] text-teal-400 hover:text-teal-300 font-semibold transition-colors bg-teal-500/15 px-2 py-1 rounded-lg hover:bg-teal-500/25"
                                 >
                                     <X className="w-3 h-3" />
                                     Rodyti visus
@@ -1812,13 +1813,13 @@ const AdminDashboard: React.FC = () => {
                                     <Activity className="w-3.5 h-3.5 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[13px] font-bold text-gray-800">
+                                    <h2 className="text-[13px] font-bold text-white">
                                         {selectedUser
                                             ? `${selectedUser.first_name || selectedUser.email.split('@')[0]} — veiksmų žurnalas`
                                             : 'Veiksmų žurnalas'}
                                     </h2>
                                 </div>
-                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-semibold">
+                                <span className="text-[10px] text-gray-400 bg-white/[0.06] px-2 py-0.5 rounded-full font-semibold">
                                     {filteredLogs.length}{hasMore ? '+' : ''}
                                 </span>
                             </div>
